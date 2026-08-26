@@ -1,0 +1,15 @@
+# qwen-vla-v0.1 在大陆 GPU 容器中的顶层依赖。
+#
+# PyTorch 和 torchvision 由云厂商 CUDA 基础镜像提供，不能在这里重复安装，
+# 否则可能把已经验证的 CUDA 构建替换为不兼容版本。当前已验证基础环境为：
+#   Python 3.12.11
+#   torch 2.13.0+cu132
+#   torchvision 0.28.0+cu132
+
+accelerate==1.14.0
+mani-skill==3.0.1
+numpy==1.26.4
+opencv-python==4.11.0.86
+pytest==9.1.1
+ruff==0.16.4
+transformers==5.15.1

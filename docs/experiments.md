@@ -1,0 +1,523 @@
+# 实验记录
+
+本文用于记录机器学习训练、Benchmark、消融、仿真评估和闭环实验，使结果能够复现、比较并指导下一步工作。
+
+## 当前状态
+
+项目已经完成 30 条可信轨迹的首轮 Stage 1、扩充到 100/120/220 条后的独立重训和受控消融、
+Action 安全拒绝诊断、事件损失、temporal ensemble，以及固定低事件权重的 100-epoch 正式训练和
+最终闭环评估。
+单元测试和模型 smoke test 只证明接口与计算链路可运行，不记作任务效果实验；
+下列任务效果结论只来自完整 test/unseen seed Rollout。
+
+## 记录原则
+
+- 每个实验只回答一个明确的主要问题。
+- 保留简单且固定的 Baseline，并说明相对 Baseline 唯一或主要变化。
+- Config 必须足以复现，至少包含代码版本、数据、任务/环境、模型、训练或推理配置、硬件和随机种子。
+- Result 区分事实与解释；失败、无提升和中止的实验同样保留。
+- 优先报告任务成功率，同时记录能够解释变化的离线指标、失败类型和资源消耗。
+- 指标必须注明聚合方式、样本数或 Episode 数；多个随机种子应报告均值和离散程度。
+- 原始日志、Checkpoint 和大体积数据不写入本文，只记录其稳定路径或外部引用。
+- 如果实验改变了 Observation / Action、Dataset、Loss、Planner 或 Evaluation 等长期契约，应先在 [decisions.md](decisions.md) 记录或更新相关决策。
+
+## 实验索引
+
+| ID | 日期 | 简称 | 状态 | 主要结论 |
+| --- | --- | --- | --- | --- |
+| E001 | 2026-08-25 | 30 条数据 Stage 1 与首轮闭环 | completed | 离线 loss 下降，但 23 个闭环 Episode 均在 reach 阶段失败 |
+| E002 | 2026-08-25 | 扩充到 100 条后的独立重训 | completed | 未见场景的原子技能明显改善，但完整成功仍为 0%，并出现 4 次动作安全拒绝 |
+| E003 | 2026-08-25 | 安全拒绝根因与控制饱和复现 | completed | 4 次拒绝来自执行器跟踪滞后；显式饱和后 4/4 不再误报模型越界 |
+| E004 | 2026-08-25 | E002 独立原子技能基线 | completed | grasp/lift 稳定，独立瓶颈为 reach、transport 和 place |
+| E005 | 2026-08-25 | 20 条恢复数据的 30-epoch A/B | completed | 完整成功仍为 0，但恢复数据显著推进 unseen 闭环阶段，暂不换架构 |
+| E006 | 2026-08-26 | v0.4 事件数据、事件损失与 warmup 消融 | completed | 高事件权重造成技能竞争；固定 `lambda=0.25` 是唯一完整保住 grasp/lift 的低回归方案，进入独立 100-epoch 正式训练 |
+| E007 | 2026-08-26 | 固定 `lambda=0.25` 的正式训练与控制消融 | completed | 原子提升到 16/25，ensemble 明显改善阶段深度，但 20 unseen 完整成功仍为 0/20 |
+
+## E001 — 30 条数据 Stage 1 与首轮闭环
+
+**Date:** 2026-08-25
+
+**Status:** completed
+
+**Experiment:**
+
+使用首批 30 条成功轨迹从头训练 Frozen Qwen + Adapter/Action Expert，并在 3 个 test scene 和
+20 个不在 Dataset manifest 中的新 seed 上运行 20 Hz、每 4 步重规划的真实 ManiSkill 闭环。
+
+**Goal:**
+
+验证第一批小数据能否让策略在严格的必须释放放置环境中完成任务；离线 Flow loss 仅用于选择
+候选权重，完整任务和五个原子技能成功率才是效果标准。
+
+**Config:**
+
+- Code version: `source-tree-sha256:07e78a21caaff741f4900d7b8a13cd99ac2c0ec674142f1abccded3b35b1fa56`
+- Dataset: `trusted-v0.1-small`，30 trajectories / 5996 steps，SHA256 `10848c88905a6ccf9f759e6fb7d5e7833a2087fc23198b5225df2ce243bb141b`
+- Task / environment: `RobotVLAPickCubeToRegion-v1`
+- Model: Frozen `Qwen/Qwen3.5-2B` revision `15852e8c16360a2fea060d615a32b45270f8a8fc` + Adapter + 16-layer Action Expert
+- Train: 100 epochs，4096 samples/epoch，batch 64，AdamW `1e-4`，warmup 1000，cosine 30000
+- Evaluation: 10-step Flow Euler，执行 Chunk 前 4 步；3 test + 20 unseen，sampling seed 42424
+- Hardware: NVIDIA GeForce RTX 4090 24GB
+- Artifacts: `/home/ubuntu/robot-vla-runs/stage1-v0.1`、`/home/ubuntu/robot-vla-runs/stage1-v0.1-rollout`
+
+**Result:**
+
+- 训练完整完成 100 epochs / 6400 optimizer steps / 409600 examples；日志无 traceback/OOM。
+- 全部 epoch 最低 val loss 为 `0.0147566`（epoch 89），但旧周期保存逻辑没有留下该非周期权重。
+- 实际 periodic 候选中最低 val loss 为 `0.0149788`（epoch 100，`step-00006400.pt`）；正式闭环使用该权重。
+- 闭环完整任务成功率：`0/23 = 0%`，95% Wilson 区间 `[0, 0.1431]`。
+- test：`0/3`；unseen：`0/20`，unseen 95% Wilson 上界 `0.1611`。
+- reach/grasp/lift/transport/place 通过率均为 `0%`；23 条失败全部为 `reach_failed`。
+- 所有 Episode 均正常运行 300 步 / 75 次 Replan 后超时；推理、控制和动作安全错误均为 0。
+- 最终 TCP 到方块距离平均 `0.3039 m`，范围 `0.2229–0.4195 m`。
+
+**Conclusion:**
+
+五样本过拟合和低离线 loss 只证明训练链路可学习，不能推出闭环操作能力。30 条成功轨迹没有提供
+足够的场景覆盖让当前 Frozen-Qwen 策略学会最早的 reach；由于系统错误计数为 0，失败主要归因于
+策略/数据，而不是评估或控制链路崩溃。
+
+**Next step:**
+
+保持模型架构、采样权重和训练计算不变，将可信场景扩充到 100 条后独立重训，并在相同 20 个
+unseen seed 上复评，以隔离数据覆盖增加的影响。
+
+## E002 — 扩充到 100 条后的独立重训
+
+**Date:** 2026-08-25
+
+**Status:** completed
+
+**Experiment:**
+
+在保持 E001 模型与优化配置不变的条件下，把可信成功轨迹扩充为 80/10/10 共 100 条，并从头
+初始化 Adapter/Expert 完成一轮训练；Checkpoint 只改变存储频率与 best 正确性，不改变优化。
+
+**Goal:**
+
+判断场景覆盖由 30 条扩大到 100 条后，未见 seed 的 reach 和完整任务成功率是否出现真实改善。
+
+**Config:**
+
+- Code version: `source-tree-sha256:cc0714e4eee79239582ca1232ab8e91dedaf629addb0df3d1d260e80c91a6404`
+- Dataset: `trusted-v0.2-100`，100 trajectories / 20018 steps，SHA256 `b9ea0f47f8140ed91ddc3f0ded1eb34d326f9917ccf94ef293a93ea02ad305a1`
+- Manifest SHA256: `7802f13a3d14b2eedee088fee02e8a14547e6fca768e3ed361fed2ed17141e32`
+- Train / model / hardware: 与 E001 相同；periodic 每 10 epochs / 640 steps，任何 val 改善都更新 best
+- Evaluation: 10-step Flow Euler，执行 Chunk 前 4 步；10 test + 与 E001 相同的 20 unseen，sampling seed 42424
+- Artifacts: `/home/ubuntu/robot-vla-runs/stage1-v0.2-data100`、`/home/ubuntu/robot-vla-runs/stage1-v0.2-data100-rollout`
+
+**Result:**
+
+- 训练完整完成 100 epochs / 6400 optimizer steps / 409600 examples；日志无 traceback/OOM/RuntimeError。
+- 全部 epoch 最低 val loss 为 `0.0124065`（epoch 90）；`best.pt` 的 trainer state 与该最低点一致，
+  Checkpoint SHA256 为 `4f9b8a0d9b0966674e9232e0ddc08ad85aff7d0db2a72f3cb5d3ec03f2a810ae`。
+- 闭环完整任务成功率：`0/30 = 0%`，95% Wilson 区间 `[0, 0.1135]`；test `0/10`，
+  unseen `0/20`，unseen 95% Wilson 上界 `0.1611`。
+- test 原子技能通过数：reach `7/10`、grasp `3/10`、lift `2/10`、transport `0/10`、place `0/10`。
+- unseen 原子技能通过数：reach `9/20`、grasp `5/20`、lift `3/20`、transport `1/20`、place `0/20`。
+- overall 失败分类：reach 10、grasp 8、lift 3、transport 4、release 1、Action 安全拒绝 4；
+  除安全契约拒绝外没有推理、控制或环境运行时错误。
+- 与 E001 相同 20 个 unseen seed 的平均最终 TCP-to-object 距离从 `0.3109 m` 降至 `0.0808 m`；
+  reach 从 `0/20` 提升至 `9/20`，但完整成功仍同为 `0/20`。
+
+**Conclusion:**
+
+把可信轨迹从 30 条扩充到 100 条，在未见场景中真实改善了 reach，并让少数 Episode 进入 grasp、lift、
+transport 甚至 release 阶段，因此提升不是仅由离线 loss 得出的推测。但当前策略仍没有任何完整成功，place
+为 0，且 `4/20` unseen Episode 触发动作安全拒绝；所以本轮证明了数据覆盖方向有效，却仍不足以让系统可用。
+
+**Next step:**
+
+优先复现并定位 4 个安全拒绝 seed 的具体越界维度，同时针对 grasp、transport/release/place 失败增加
+分层覆盖和失败恢复数据；下一轮仍使用相同 unseen seed 作为不可训练的固定对照集。
+
+## E003 — 安全拒绝根因与控制饱和复现
+
+**Date:** 2026-08-25
+
+**Status:** completed
+
+**Experiment:**
+
+对 E002 unseen seed `10006、10008、10009、10016` 的 Action 安全拒绝增加结构化诊断，固定
+Checkpoint、采样 seed 和环境 seed 逐步复现；随后仅对执行器内部 tracking correction 应用 D020
+的显式饱和并重跑相同 4 seed。
+
+**Goal:**
+
+区分模型 Action 越界和控制器跟踪误差，消除错误失败归因，同时保持模型 Action 契约不变。
+
+**Config:**
+
+- Dataset / Checkpoint: E002 `trusted-v0.2-100` / epoch 90 `best.pt`
+- Evaluation seeds: `10006、10008、10009、10016`
+- Action limit: 每关节有效上限不超过 `0.05 rad/control-step`
+- Artifacts: `/home/ubuntu/robot-vla-runs/stage1-v0.2-data100-safety-diagnostics`、
+  `/home/ubuntu/robot-vla-runs/stage1-v0.2-data100-saturated-control`
+
+**Result:**
+
+- 4 次拒绝都发生在 Chunk 执行前缀索引 3、Franka 关节索引 3。
+- 请求 tracking correction 分别为 `+0.05188167、+0.05381572、-0.05060697、+0.05012619 rad`。
+- 模型原始 Action Chunk 和 gripper 均未越界，根因是前三步目标的仿真跟踪滞后。
+- 饱和修复后 4/4 不再触发安全拒绝；实际修正最大值始终不超过 `0.05 rad`。
+- 修复后仍无完整成功：2 个 reach_failed、2 个 grasp_failed；没有伪造能力提升。
+
+**Conclusion:**
+
+E002 的 4 次安全拒绝不代表模型直接产生危险动作。D020 修复了控制层错误归因，但没有提升任务
+能力，因此后续仍需针对策略和数据瓶颈训练。
+
+**Next step:**
+
+用专家准备的精确前置状态独立评估五个原子技能，隔离前序误差传递。
+
+## E004 — E002 独立原子技能基线
+
+**Date:** 2026-08-25
+
+**Status:** completed
+
+**Experiment:**
+
+专家只完成目标原子技能之前的 Predicate 阶段，策略在 seeds `10000–10004` 上分别执行
+reach、grasp、lift、transport、place，每个技能最多 100 个策略环境步。
+
+**Goal:**
+
+判断完整闭环失败来自原子能力本身，还是前序技能误差向后传播。
+
+**Config:**
+
+- Dataset / Checkpoint: E002 `trusted-v0.2-100` / epoch 90 `best.pt`
+- Preparation: `trusted-mplib-prerequisites/v1`，由 `PickPlaceTaskTracker` 精确验证前置阶段
+- Evaluation: 5 seeds × 5 skills = 25 Episodes，10-step Flow，sampling seed 42424
+- Artifacts: `/home/ubuntu/robot-vla-runs/stage1-v0.2-data100-atomic-seeds5-v3`
+
+**Result:**
+
+- reach `0/5`，平均最终 TCP→方块距离 `0.0790 m`。
+- grasp `5/5`，平均 4 个策略步。
+- lift `5/5`，平均 28 个策略步。
+- transport `0/5`，平均最终目标 XY 距离 `0.09697 m`，方块一直保持抓取。
+- place `1/5`；其余 4 个失败均跑满 100 步，4/5 最终仍保持抓取。
+- 合计 `11/25`；正式日志无 Traceback、OOM 或 RuntimeError。
+
+**Conclusion:**
+
+grasp/lift 在可信前置状态下已经稳定，完整 Rollout 中的部分 grasp/lift 失败来自前序误差传递；
+独立能力瓶颈是 reach、transport 和 release/place。下一批数据和训练预算不应继续平均对待五个阶段。
+
+**Next step:**
+
+保持 trajectory/v2 完整成功契约，在完整专家轨迹内增加五类可恢复扰动，并用同架构小规模 A/B
+隔离数据变化的贡献。
+
+## E005 — 20 条恢复数据的 30-epoch A/B
+
+**Date:** 2026-08-25
+
+**Status:** completed
+
+**Experiment:**
+
+在不修改模型架构、Flow loss、优化器和控制协议的条件下，把 20 条五类恢复轨迹加入 E002 数据，
+并从相同 seed 独立初始化 30-epoch Control/Treatment；随后运行相同原子与 unseen 闭环评估。
+
+**Goal:**
+
+判断完整成功轨迹内的失败恢复数据是否能在相同小规模训练预算下推进闭环技能阶段，并据此决定
+继续数据/训练目标方向还是更换模型架构。
+
+**Config:**
+
+- Code version: `source-tree-sha256:aee70a16323011beda77d6b2ac95fcc89fc0cab9c5d8d292bfef665a56d1d97f`
+- Control data: `trusted-v0.2-100`，100 trajectories / 20018 steps，SHA256
+  `b9ea0f47f8140ed91ddc3f0ded1eb34d326f9917ccf94ef293a93ea02ad305a1`
+- Treatment data: `trusted-v0.3-recovery-120`，120 trajectories / 24841 steps，96/12/12，SHA256
+  `a9928519b9581ba3dae911aa547f2ba36a7e746e4ffe5cba8cf8e920afd4f28a`
+- Recovery: reach/grasp/lift/transport/place 各 4 条；新增 split 16/2/2；全部完整成功；Action 饱和率 0
+- Train: 两组各 30 epochs、4096 samples/epoch、batch 64、seed 42；其余与 E002 相同
+- Evaluation: seeds `10000–10004` 的 25 原子 Episodes，以及 seeds `10000–10019` 的 20 unseen
+  完整闭环；10-step Flow，sampling seed 42424
+- Control artifacts: `/home/ubuntu/robot-vla-runs/ablation-v0.3-control-data100-e30*`
+- Treatment artifacts: `/home/ubuntu/robot-vla-runs/ablation-v0.3-recovery-data120-e30*`
+
+**Result:**
+
+- 父数据复审 SHA256 与 E002 完全一致；20 条恢复轨迹采集另拒绝 3 个不可信候选，未写入 Dataset。
+- 两组均完整训练 30 epochs / 1920 optimizer steps / 122880 examples，无 Traceback/OOM/NaN。
+- Control best: epoch 29，val loss `0.0243695`，Checkpoint SHA256
+  `90bf893c62ca93d632b3b005354d23d411b52127beb098be1ca0b5b9babc8e15`。
+- Treatment best: epoch 30，val loss `0.0257156`，Checkpoint SHA256
+  `b9c473d6f0be68d5ceaf661f261e07a61506c99881bbe99368a3afb161d66e79`。
+- 原子 Control：reach/grasp/lift/transport/place = `0/5、5/5、4/5、1/5、0/5`，合计 `10/25`。
+- 原子 Treatment：`0/5、5/5、5/5、0/5、0/5`，合计同为 `10/25`；reach 最终 TCP 距离均值
+  从 `0.2130 m` 降到 `0.1188 m`，transport 目标 XY 距离均值从 `0.1832 m` 降到 `0.1367 m`，
+  但都没有转化为 Predicate 成功；place 仍未改善。
+- unseen 完整成功两组均为 `0/20`。
+- unseen 阶段通过数 Control 为 reach/grasp/lift/transport/place = `2/0/0/0/0`；Treatment 为
+  `10/8/4/1/0`。20 个配对 seed 中 10 个阶段更深、10 个相同、0 个回退；平均完成技能数从
+  `0.10` 提高到 `1.15`，平均最终 TCP→方块距离从 `0.4044 m` 降到 `0.1233 m`。
+- Treatment 失败分布为 reach 10、grasp 2、lift 4、transport 3、release 1；tracking correction
+  饱和 Episode 从 Control `10/20` 降到 `3/20`，没有 Action 安全拒绝或运行时错误。
+
+**Conclusion:**
+
+恢复数据在相同小预算下显著推进了完整闭环的前半和中段技能，因此现有 Frozen Qwen + Expert
+架构具备利用这类数据的能力，当前没有更换核心架构的证据。但完整成功和 place 仍为 0，独立
+reach/transport/place 也没有形成成功提升，所以 20 条均匀恢复数据还不够。下一项受控变量应是
+D021 的瓶颈阶段采样，而不是同时修改模型或 Flow loss。
+
+**Next step:**
+
+保持 v0.3 数据、架构、优化器、seed 和计算预算不变，显式使用
+`--skill-weights 1.5 1 1 1.5 2` 与旧权重做受控训练对照；只有该方向仍不能改善独立
+reach/transport/place 时，才测试关键阶段 loss 或 Qwen 表示层。
+
+## E006 — v0.4 事件数据、事件损失与 warmup 消融
+
+**Date:** 2026-08-26
+
+**Status:** completed
+
+**Experiment:**
+
+把可信数据扩充到 220 条事件密集型完整成功/恢复轨迹，在保持 Frozen Qwen、Action Expert、
+joint-space Action、sampler、优化器、seed 和控制协议不变的条件下，对数据量、事件损失权重和事件
+权重 warmup 做 A–F 受控消融。每组先训练 30 epochs，再对通过离线完整性检查的 best Checkpoint
+运行相同的 25 个原子技能 Episode；对固定 `lambda=0.25` 候选另补 20 个 unseen 完整闭环。
+
+**Goal:**
+
+验证下面的目标能否在不破坏原始 16-step BC/Flow 学习的情况下，让实际执行前 4 步中的关键事件
+获得额外监督：
+
+```text
+L = L_base + lambda_event * L_event
+critical_mask = event_mask & action_mask & [1, 1, 1, 1, 0, ..., 0]
+```
+
+正式方案必须优先保住已稳定的 grasp/lift；reach 不应明显退化，并检查 release/place 是否相对
+base-only 或固定低权重出现改善。单独降低离线 loss 不能通过该门槛。
+
+**Config:**
+
+- Dataset A: `trusted-v0.3-recovery-120`，120 trajectories，SHA256
+  `a9928519b9581ba3dae911aa547f2ba36a7e746e4ffe5cba8cf8e920afd4f28a`
+- Dataset B–F: `trusted-v0.4-event-recovery-220`，220 trajectories / 48922 steps，176/22/22，
+  success rate 100%，SHA256
+  `bc024b6b9c566ca9500945fb6ac262bf657bee713d8a5816229bdc8478139407`
+- Events: grasp/release command、contact、linear/angular velocity jump、pickup、place
+- Train: 30 epochs，4096 samples/epoch，batch 64，seed 42，AdamW `1e-4`，LR warmup 1000，
+  cosine 30000，skill weights `1.5/1/1/1.5/2`
+- A/B: `lambda=0`；C: 固定 `lambda=2`；D: 固定 `lambda=0.25`；E: 目标 `lambda=1` +
+  1000-step linear warmup；F: 目标 `lambda=0.5` + 1000-step linear warmup
+- Train code revisions: A–C `174c7ce7...1b3376a`；D `64fd5c9b...54c6`；E–F
+  `ce39eb8c...d47b187`。后两个 revision 只新增向后兼容的事件权重 warmup 与指标字段；
+  validation 始终使用固定目标权重
+- Atomic evaluation: seeds `10000–10004`，5 skills × 5 seeds，100 policy steps，sampling seed
+  42424，10-step Flow，temporal ensemble `rho=0.5`，max anomaly replans 3
+- Full evaluation: test episodes 0，unseen seeds `10000–10019`，其余协议与原子评估相同
+- A–C artifacts: `/home/ubuntu/robot-vla-runs/ablation-v0.4-*` 与
+  `/home/ubuntu/robot-vla-runs/e006-*`
+- D–F RAM artifacts: `/dev/shm/robot-vla-runs/ablation-v0.4-*` 与
+  `/dev/shm/robot-vla-runs/e006-*`；均在每阶段结束后用 `rsync -aH` 持久化到
+  `<local-artifact-root>/server-runs/` 并校验 SHA256
+
+训练结果如下；不同 `lambda` 的 total validation loss 标尺不同，跨配置只能结合 base/event 分项与
+闭环行为解释：
+
+| 组 | 数据 / 事件目标 | best epoch | val total | val base | val event | best Checkpoint SHA256 |
+| --- | --- | ---: | ---: | ---: | ---: | --- |
+| A | v0.3 / `lambda=0` | 30 | 0.02728 | 0.02728 | — | `730c3fcc...232b3f` |
+| B | v0.4 / `lambda=0` | 29 | 0.02830 | 0.02830 | — | `9becf8fb...c03fb4` |
+| C | v0.4 / 固定 `lambda=2` | 26 | 0.30535 | 0.12464 | 0.09063 | `50b35d81...e17e99` |
+| D | v0.4 / 固定 `lambda=0.25` | 30 | 0.07290 | 0.05443 | 0.06833 | `6b368fe3...6ec2` |
+| E | v0.4 / `lambda=1`，warmup 1000 | 23 | 0.17540 | 0.09420 | 0.08237 | `5be54933...31e0a9` |
+| F | v0.4 / `lambda=0.5`，warmup 1000 | 25 | 0.11342 | 0.07126 | 0.08047 | `d1713f98...1dc8eb` |
+
+**Result:**
+
+采样器在 30 epochs 的 122880 个窗口中产生 7502 个含事件窗口、9923 个合并关键 step。事件按
+阶段极不均衡：reach 6、grasp 2746、lift 1402、transport 0、place 5769；其中 place 包含
+3268 次 release exposure 和 3608 次 angular jump。事件损失因此不能直接改善几乎没有事件的
+reach/transport，并会在权重过高时让共享网络偏向 place。
+
+固定 `lambda=2` 的 C 在前两轮平均梯度约 81/53，直到约 epoch 23 才降到 10 以下，长期被
+`max_grad_norm=10` 主导。E 的 warmup 把完整 `lambda=1` 的 14 个 epoch 平均/最大梯度降到
+`5.44/7.01`；F 的完整 `lambda=0.5` 进一步降到 `3.02/3.78`。warmup 解决了优化稳定性，
+但没有自动解决不同技能在共享参数上的行为竞争。
+
+统一原子结果：
+
+| 组 / Checkpoint | Reach | Grasp | Lift | Transport | Place | 总成功 | saturation / anomaly replan |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| A best | 2/5 | 5/5 | 5/5 | 0/5 | 0/5 | 12/25 | 0 / 0 |
+| B best | 1/5 | 5/5 | 5/5 | 0/5 | 0/5 | 11/25 | 4 / 4 |
+| C best | 0/5 | 5/5 | 0/5 | 0/5 | 2/5 | 7/25 | 0 / 0 |
+| D best | 0/5 | 5/5 | 5/5 | 0/5 | 0/5 | 10/25 | 0 / 0 |
+| E best (epoch 23) | 1/5 | 5/5 | 0/5 | 1/5 | 1/5 | 8/25 | 0 / 0 |
+| E latest (epoch 30) | 0/5 | 5/5 | 3/5 | 0/5 | 0/5 | 8/25 | 0 / 0 |
+| F best | 0/5 | 5/5 | 3/5 | 0/5 | 0/5 | 8/25 | 1 / 1 |
+
+E best 把 place 最终仍抓取率从 D 的 100% 降到 60%，证明模型确实学到部分 release；但 lift
+完全丢失。E latest 把 lift 恢复到 3/5，却把 place 仍抓取率拉回 100%，说明能力随训练时点漂移。
+F 的离线 base/event 同时优于 E，但闭环仍只有 lift 3/5 且没有 release/place，进一步证明离线
+平衡不能代替行为评估。
+
+A–D 的统一 20 unseen 完整闭环结果：
+
+| 组 | 完整成功 | Reach | Grasp | Lift | Transport | Place | 平均完成技能数 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| A | 0/20 | 8/20 | 4/20 | 2/20 | 0/20 | 0/20 | 0.70 |
+| B | 0/20 | 6/20 | 2/20 | 0/20 | 0/20 | 0/20 | 0.40 |
+| C | 0/20 | 0/20 | 0/20 | 0/20 | 0/20 | 0/20 | 0.00 |
+| D | 0/20 | 3/20 | 0/20 | 0/20 | 0/20 | 0/20 | 0.15 |
+
+D 的 20 unseen 失败为 reach 17、grasp 3；无 saturation 或 anomaly replan。30-epoch D 尚未
+改善完整闭环，但在所有带事件目标的配置中，只有它完整保住原子 grasp/lift `5/5、5/5`。
+
+**Conclusion:**
+
+固定高事件权重会把 place/release 信号换成 reach/lift 退化；warmup 能解决早期梯度冲突，但
+`lambda=0.5–1` 仍没有得到稳定技能组合。继续盲试相邻常数的证据收益已经很低，因此第一版选择
+固定 `lambda=0.25` 作为最低回归风险方案：接受 30-epoch 时 release 尚未改善，通过独立的
+100-epoch 正式训练让较弱事件监督在更长预算中累积。不能把 D 的 0/20 完整成功描述为通过或提升；
+正式结论只来自新 run 的最终闭环评估。
+
+**Next step:**
+
+使用 v0.4 数据、固定 `lambda=0.25`、相同 sampler/optimizer/seed 从随机初始化训练 100 epochs，
+保留每 10 epochs 的 periodic Checkpoint；随后运行 25 个原子、20 个 unseen 完整闭环，以及
+newest-only / ensemble-only / ensemble+replan 三组控制消融。
+
+## E007 — 固定 `lambda=0.25` 的正式训练与控制消融
+
+**Date:** 2026-08-26
+
+**Status:** completed
+
+**Experiment:**
+
+使用 E006 选出的固定 `lambda_event=0.25`，在 v0.4 的 220 条可信轨迹上从随机初始化独立训练
+100 epochs；选择验证总损失最低的 checkpoint，完成正式原子评估和三组 20 unseen 控制消融。
+
+**Goal:**
+
+验证较弱事件监督在更长预算中能否同时保留 grasp/lift 并积累 transport/release/place 能力；同时
+隔离 temporal ensemble 和异常重规划预算对完整闭环的实际贡献。完整任务效果只以统一 unseen
+闭环为准，原子成功率和离线 loss 不能代替完整成功率。
+
+**Config:**
+
+- Code revision: `source-tree-sha256:ce39eb8c7548fd433e84b75e50415e2e16313b17bb1a19563cc256994d47b187`
+- Dataset: `trusted-v0.4-event-recovery-220`，220 trajectories / 48922 steps，176/22/22，
+  dataset SHA256 `bc024b6b...39407`，manifest SHA256 `43f131cc...f477f`
+- Train: 100 epochs，4096 samples/epoch，batch 64，6400 optimizer steps，seed 42，AdamW `1e-4`，
+  LR warmup 1000 / cosine 30000，固定 `lambda_event=0.25`，无事件权重 warmup，技能采样权重
+  `1.5/1/1/1.5/2`；每 10 epochs 保存 periodic checkpoint
+- Atomic: seeds `10000–10004`，5 skills × 5 seeds，100 policy steps，10-step Flow，sampling seed
+  42424，temporal ensemble `rho=0.5`，max anomaly replans 3
+- Full/control: 同一 best、unseen seeds `10000–10019`、test episodes 0；newest-only、
+  ensemble-only、ensemble+replan 只改变 D023 规定的两个控制变量
+- Hardware: 单张 RTX 4090 24GB；训练输出写入 `/dev/shm`，每阶段结束后立即用 `rsync -aH`
+  持久化到 `<local-artifact-root>/server-runs/`
+- Formal run: `stage1-v0.4-data220-event025-e100`；评估产物：`e007-formal-*`
+
+**Result:**
+
+正式训练完整结束，metrics 恰好 100 行且 epoch 连续，无 NaN/Inf、Traceback、OOM 或
+RuntimeError；10 个 periodic checkpoint、best/latest 齐全。峰值 CUDA allocated/reserved 约
+10.42/11.29 GB。训练目录保留 latest 与 step-6400 的硬链接，并已完成远端/本地全文件 SHA256
+一致性校验。
+
+| Checkpoint | Epoch | Val total | Val base | Val event | SHA256 |
+| --- | ---: | ---: | ---: | ---: | --- |
+| best | 98 | 0.030852 | 0.023178 | 0.032872 | `636d4374...e168` |
+| latest | 100 | 0.037377 | 0.023225 | 0.055372 | `44932bfb...4875` |
+
+正式原子结果：
+
+| Reach | Grasp | Lift | Transport | Place | 总成功 | saturation / anomaly replan |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 0/5 | 5/5 | 5/5 | 2/5 | 4/5 | 16/25 | 0 / 0 |
+
+相对 E006 的 30-epoch D，grasp/lift 保持 `5/5、5/5`，transport 从 `0/5` 到 `2/5`，place 从
+`0/5` 到 `4/5`，总计从 `10/25` 到 `16/25`；reach 仍为 `0/5`。这说明长期低权重事件监督确实
+积累了后期技能，但没有直接修复几乎无事件曝光的 reach。
+
+三组 20 unseen 完整闭环：
+
+| 控制组 | 完整成功 | Reach/Grasp/Lift/Transport/Place | 平均完成技能数 | 失败分布 | max spread / 最低最新权重 | saturation / anomaly | wall time |
+| --- | ---: | --- | ---: | --- | --- | ---: | ---: |
+| newest-only | 0/20 | 1/0/0/0/0 | 0.05 | reach 18、grasp 1、anomaly exhausted 1 | 0 / — | 1 / 0 | 459.3 s |
+| ensemble-only | 0/20 | 5/4/3/1/0 | 0.65 | reach 15、grasp 1、lift 1、transport 2、release 1 | 1.8667 / 0.5333 | 0 / 0 | 453.6 s |
+| ensemble+replan | 0/20 | 5/4/3/1/0 | 0.65 | reach 15、grasp 1、lift 1、transport 2、release 1 | 1.8667 / 0.5333 | 0 / 0 | 488.1 s |
+
+ensemble 两组的平均最终 TCP→物体距离为 0.0990 m，newest-only 为 0.1561 m；平均目标 XY
+距离分别为 0.1547 m 和 0.1667 m。ensemble 只有 1 条进入 release/place，最终仍抓取且归类为
+`release_failed`，因此 place 尝试的仍抓取率是 1/1；完整 place 仍为 0/20。
+
+ensemble 两组均未触发异常。去掉 wall time 后，两组 20 条 Episode 记录及 summary 逐字段相等，
+所以这批 seed 只能证明“重规划预算没有改变无异常轨迹”，不能证明其恢复收益。newest-only 的
+seed 10017 出现一次 tracking-correction saturation；由于重规划预算为 0，按协议记录为
+`replan_anomaly_exhausted`，不是系统崩溃。四个正式评估共无 OOM、Vulkan、Traceback 或进程错误，
+产物和日志均已持久化并校验 SHA256。
+
+**Conclusion:**
+
+100-epoch 固定低事件权重保住 grasp/lift，并把独立 transport/place 提升到可见水平，验证了 E006
+选择低回归方案的合理性。temporal ensemble 对正式完整闭环有明确净收益：reach 从 1/20 提高到
+5/20，平均完成技能数从 0.05 提高到 0.65，并消除了 newest-only 中的跟踪饱和失败，因此继续作为
+默认控制方式。`ensemble+replan` 在无异常时与 ensemble-only 行为相同，仍保留为默认安全能力。
+
+第一版预定训练和消融已经完成，但行为成功门槛没有通过：完整成功仍为 0/20，主要瓶颈仍是 reach
+泛化；少量进入后期的轨迹还暴露 transport 和 release 失败。下一轮应优先增加 reach/transport 的
+有效数据和监督覆盖，再独立验证 release；不通过手写 stable-grasp、release-hold 或 settle 状态机
+掩盖学习问题，也不据此修改 Qwen、Action Expert 或 joint-space Action 契约。
+
+## 实验模板
+
+复制下面的模板创建新条目，并使用递增编号 `E001`、`E002`……。完成后同步更新上方索引。
+
+```markdown
+## EXXX — 实验简称
+
+**Date:** YYYY-MM-DD
+
+**Status:** planned | running | completed | failed | stopped
+
+**Experiment:**
+
+一句话描述实验变量，以及相对 Baseline 改变了什么。
+
+**Goal:**
+
+要验证的单一问题或假设，以及预先定义的判断标准。
+
+**Config:**
+
+- Code version:
+- Dataset / data version:
+- Task / environment:
+- Baseline:
+- Model:
+- Train / inference config:
+- Evaluation protocol:
+- Hardware:
+- Seeds:
+- Artifacts:
+
+**Result:**
+
+记录指标、样本数或 Episode 数、均值与离散程度、失败类型和资源消耗。没有结果时明确说明原因。
+
+**Conclusion:**
+
+说明假设是否得到支持、相对 Baseline 的变化是否可信，以及结论的适用范围和限制。
+
+**Next step:**
+
+只记录由本次证据直接支持的下一步验证或工程动作。
+```

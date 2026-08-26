@@ -1,0 +1,10 @@
+# qwen-vla-v0.1 在大陆 RTX 4090 完整虚拟机中的顶层 Python 依赖。
+# PyTorch/torchvision 由 bootstrap.sh 从官方 CUDA 12.8 wheel 源单独安装。
+
+accelerate==1.14.0
+mani-skill==3.0.1
+numpy==1.26.4
+opencv-python==4.11.0.86
+pytest==9.1.1
+ruff==0.16.4
+transformers==5.15.1

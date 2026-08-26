@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "robot-vla"
+version = "0.1.0"
+description = "双相机 Qwen VLA 到连续 Action Chunk 的机器人策略"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    # ManiSkill 3.0.1 固定的 mplib 0.1.1 在 NumPy 2.x 下构造 Planner 会段错误。
+    "numpy==1.26.4",
+    "PyYAML>=6.0",
+    "torch>=2.3",
+    "torchvision>=0.18",
+    "transformers>=4.45",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4", "ruff>=0.6"]
+qwen-vla = [
+    "accelerate==1.14.0",
+    "transformers==5.15.1",
+]
+sim = ["mani-skill==3.0.1", "opencv-python==4.11.0.86"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
