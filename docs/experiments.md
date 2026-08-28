@@ -6,7 +6,8 @@
 
 项目已经完成 30 条可信轨迹的首轮 Stage 1、扩充到 100/120/220 条后的独立重训和受控消融、
 Action 安全拒绝诊断、事件损失、temporal ensemble，以及固定低事件权重的 100-epoch 正式训练和
-最终闭环评估。
+最终闭环评估。随后完成 Qwen Layer 12/24 空间 probe、Oracle/Layer 12 Reach 诊断，以及 Layer 12
+五技能联合训练和统一闭环评估；Layer 12 改善了部分 Reach 表现，但没有提高完整任务成功率。
 单元测试和模型 smoke test 只证明接口与计算链路可运行，不记作任务效果实验；
 下列任务效果结论只来自完整 test/unseen seed Rollout。
 
@@ -32,6 +33,7 @@ Action 安全拒绝诊断、事件损失、temporal ensemble，以及固定低�
 | E005 | 2026-08-25 | 20 条恢复数据的 30-epoch A/B | completed | 完整成功仍为 0，但恢复数据显著推进 unseen 闭环阶段，暂不换架构 |
 | E006 | 2026-08-26 | v0.4 事件数据、事件损失与 warmup 消融 | completed | 高事件权重造成技能竞争；固定 `lambda=0.25` 是唯一完整保住 grasp/lift 的低回归方案，进入独立 100-epoch 正式训练 |
 | E007 | 2026-08-26 | 固定 `lambda=0.25` 的正式训练与控制消融 | completed | 原子提升到 16/25，ensemble 明显改善阶段深度，但 20 unseen 完整成功仍为 0/20 |
+| E008 | 2026-08-28 | Qwen Layer 12 空间表示、Reach 与五技能组合诊断 | completed | Layer 12 的位置可解码性和完整 Reach 通过数优于 Layer 24，但原子仍为 16/25、完整仍为 0/20；主要问题收敛到多技能目标冲突和 Reach→Grasp/Lift→Transport 交接 |
 
 ## E001 — 30 条数据 Stage 1 与首轮闭环
 
@@ -58,7 +60,7 @@ Action 安全拒绝诊断、事件损失、temporal ensemble，以及固定低�
 - Train: 100 epochs，4096 samples/epoch，batch 64，AdamW `1e-4`，warmup 1000，cosine 30000
 - Evaluation: 10-step Flow Euler，执行 Chunk 前 4 步；3 test + 20 unseen，sampling seed 42424
 - Hardware: NVIDIA GeForce RTX 4090 24GB
-- Artifacts: `/home/ubuntu/robot-vla-runs/stage1-v0.1`、`/home/ubuntu/robot-vla-runs/stage1-v0.1-rollout`
+- Artifacts: `runs/stage1-v0.1`、`runs/stage1-v0.1-rollout`
 
 **Result:**
 
@@ -104,7 +106,7 @@ unseen seed 上复评，以隔离数据覆盖增加的影响。
 - Manifest SHA256: `7802f13a3d14b2eedee088fee02e8a14547e6fca768e3ed361fed2ed17141e32`
 - Train / model / hardware: 与 E001 相同；periodic 每 10 epochs / 640 steps，任何 val 改善都更新 best
 - Evaluation: 10-step Flow Euler，执行 Chunk 前 4 步；10 test + 与 E001 相同的 20 unseen，sampling seed 42424
-- Artifacts: `/home/ubuntu/robot-vla-runs/stage1-v0.2-data100`、`/home/ubuntu/robot-vla-runs/stage1-v0.2-data100-rollout`
+- Artifacts: `runs/stage1-v0.2-data100`、`runs/stage1-v0.2-data100-rollout`
 
 **Result:**
 
@@ -152,8 +154,8 @@ Checkpoint、采样 seed 和环境 seed 逐步复现；随后仅对执行器内�
 - Dataset / Checkpoint: E002 `trusted-v0.2-100` / epoch 90 `best.pt`
 - Evaluation seeds: `10006、10008、10009、10016`
 - Action limit: 每关节有效上限不超过 `0.05 rad/control-step`
-- Artifacts: `/home/ubuntu/robot-vla-runs/stage1-v0.2-data100-safety-diagnostics`、
-  `/home/ubuntu/robot-vla-runs/stage1-v0.2-data100-saturated-control`
+- Artifacts: `runs/stage1-v0.2-data100-safety-diagnostics`、
+  `runs/stage1-v0.2-data100-saturated-control`
 
 **Result:**
 
@@ -192,7 +194,7 @@ reach、grasp、lift、transport、place，每个技能最多 100 个策略环�
 - Dataset / Checkpoint: E002 `trusted-v0.2-100` / epoch 90 `best.pt`
 - Preparation: `trusted-mplib-prerequisites/v1`，由 `PickPlaceTaskTracker` 精确验证前置阶段
 - Evaluation: 5 seeds × 5 skills = 25 Episodes，10-step Flow，sampling seed 42424
-- Artifacts: `/home/ubuntu/robot-vla-runs/stage1-v0.2-data100-atomic-seeds5-v3`
+- Artifacts: `runs/stage1-v0.2-data100-atomic-seeds5-v3`
 
 **Result:**
 
@@ -240,8 +242,8 @@ grasp/lift 在可信前置状态下已经稳定，完整 Rollout 中的部分 gr
 - Train: 两组各 30 epochs、4096 samples/epoch、batch 64、seed 42；其余与 E002 相同
 - Evaluation: seeds `10000–10004` 的 25 原子 Episodes，以及 seeds `10000–10019` 的 20 unseen
   完整闭环；10-step Flow，sampling seed 42424
-- Control artifacts: `/home/ubuntu/robot-vla-runs/ablation-v0.3-control-data100-e30*`
-- Treatment artifacts: `/home/ubuntu/robot-vla-runs/ablation-v0.3-recovery-data120-e30*`
+- Control artifacts: `runs/ablation-v0.3-control-data100-e30*`
+- Treatment artifacts: `runs/ablation-v0.3-recovery-data120-e30*`
 
 **Result:**
 
@@ -319,8 +321,8 @@ base-only 或固定低权重出现改善。单独降低离线 loss 不能通过�
 - Atomic evaluation: seeds `10000–10004`，5 skills × 5 seeds，100 policy steps，sampling seed
   42424，10-step Flow，temporal ensemble `rho=0.5`，max anomaly replans 3
 - Full evaluation: test episodes 0，unseen seeds `10000–10019`，其余协议与原子评估相同
-- A–C artifacts: `/home/ubuntu/robot-vla-runs/ablation-v0.4-*` 与
-  `/home/ubuntu/robot-vla-runs/e006-*`
+- A–C artifacts: `runs/ablation-v0.4-*` 与
+  `runs/e006-*`
 - D–F RAM artifacts: `/dev/shm/robot-vla-runs/ablation-v0.4-*` 与
   `/dev/shm/robot-vla-runs/e006-*`；均在每阶段结束后用 `rsync -aH` 持久化到
   `<local-artifact-root>/server-runs/` 并校验 SHA256
@@ -476,6 +478,140 @@ seed 10017 出现一次 tracking-correction saturation；由于重规划预算�
 泛化；少量进入后期的轨迹还暴露 transport 和 release 失败。下一轮应优先增加 reach/transport 的
 有效数据和监督覆盖，再独立验证 release；不通过手写 stable-grasp、release-hold 或 settle 状态机
 掩盖学习问题，也不据此修改 Qwen、Action Expert 或 joint-space Action 契约。
+
+## E008 — Qwen Layer 12 空间表示、Reach 与五技能组合诊断
+
+**Date:** 2026-08-28
+
+**Status:** completed
+
+**Experiment:**
+
+按“先做便宜且归因清楚的 probe，再进入闭环”的顺序，先用冻结 Qwen Layer 12/24 visual token
+训练相同线性位置 probe；再用严格相同 seed、训练预算和控制协议比较 Layer 24 Control、Layer 12
+和带 GT 相对几何 token 的 Oracle Reach；最后保持 E007 数据、损失、优化器和闭环协议不变，只把
+Qwen Context 从 Layer 24 改为 Layer 12，完成 100-epoch 五技能联合训练、25 个独立原子 Episode
+和 20 个 unseen 完整 Episode。
+
+**Goal:**
+
+判断 E007 的 Reach 瓶颈是否来自 Qwen 最终层丢失精细位置，以及 Layer 12 的几何优势能否在不使用
+GT token/GT 几何的情况下转化为原子技能组合和完整任务收益。离线 probe 和 validation loss 只用于
+归因；最终标准仍为统一闭环成功率和阶段深度。
+
+**Config:**
+
+- Code revision: `source-tree-sha256:3ee22910df7912f99143c4bea02ba14fd92316443fd79a8e17b89841e4768bbd`
+- Dataset: `trusted-v0.4-event-recovery-220`，220 trajectories / 48922 steps，dataset SHA256
+  `bc024b6b...39407`，manifest SHA256 `43f131cc...f477f`
+- Spatial probe: 同一次冻结 Qwen 前向读取 Layer 12/24；相同初始化的线性 probe；test 2048 samples /
+  136 unique windows；GT 只用于选择包含方块的 external-camera 粗 visual token 和评价坐标，不作为
+  VLA 输入
+- Reach diagnosis: 三组均为 30 epochs、4096 samples/epoch、batch 64、1920 optimizer steps；
+  Control 使用 Layer 24，Treatment 使用 Layer 12，Oracle 额外提供 TCP→物体相对几何；闭环 seeds
+  `10000–10004`，每条最多 100 policy steps
+- Combination train: 与 E007 相同的 100 epochs、4096 samples/epoch、batch 64、6400 optimizer
+  steps、seed 42、AdamW `1e-4`、warmup 1000 / cosine 30000、固定 `lambda_event=0.25`、技能采样
+  权重 `1.5/1/1/1.5/2`；唯一模型变量为 `qwen_context_layer=12`，无 GT token 或 GT 几何
+- Combination evaluation: seeds `10000–10004` 的 25 个原子 Episode；unseen seeds
+  `10000–10019` 的 20 个完整 Episode；10-step Flow、每 4 步重规划、temporal ensemble
+  `rho=0.5`、max anomaly replans 3
+- Hardware: 单张 RTX 4090 24GB
+- Artifacts: `artifacts/qwen-spatial-probe-20260828/`、`artifacts/oracle-reach-20260828/`、
+  `artifacts/layer12-combination-20260828/`；组合 best SHA256
+  `a542076f...41ad6`
+
+**Result:**
+
+空间 probe 的 test 结果：
+
+| Context | median visual-token error | median world XY | p90 world XY | within 1 token |
+| --- | ---: | ---: | ---: | ---: |
+| Layer 12 | **0.1587** | **0.0253 m** | **0.0388 m** | **100.0%** |
+| Layer 24 | 0.8369 | 0.1245 m | 0.2439 m | 60.7% |
+| 最近粗 token 中心 | 0.2015 | 0.0302 m | 0.0658 m | 100.0% |
+
+Layer 12 的 median world-XY error 只有 Layer 24 的 `20.4%`，明确证明中层位置更容易线性解码；
+但 `0.0253 m` 仍高于预设 `0.02 m` Reach 门槛，而且相对最近粗 token 中心的 ratio 为 `0.839`，
+没有通过预设 `<=0.8` 的 sub-token 增益门槛。因此该 probe 支持“Layer 12 明显优于 Layer 24”，
+但不单独宣称“已具备精确 Reach”。
+
+Reach-only 正式闭环：
+
+| 模式 | best epoch / val loss | Reach 成功 | 平均最终 TCP→物体距离 | 最小距离 |
+| --- | --- | ---: | ---: | ---: |
+| Layer 24 Control | 30 / 0.018651 | 1/5 | 0.098048 m | 0.037208 m |
+| Layer 12 | 30 / **0.017167** | **2/5** | **0.062761 m** | 0.037239 m |
+| Oracle Geometry | 28 / 0.019052 | **4/5** | **0.039665 m** | 0.033607 m |
+
+Layer 12 相对 Layer 24 把平均最终距离降低约 36%，并多成功 1 条；Oracle 达到 4/5，说明显式几何
+仍提供明显上界。Layer 12 有真实闭环收益，但没有达到 Oracle，剩余问题包括目标 token 寻址、双相机
+对齐、视觉到关节动作映射和闭环误差修正，而不只是“有没有位置”。
+
+五技能联合训练完整结束，100 行 epoch 指标连续，无 NaN/Inf、OOM 或训练错误：
+
+| Checkpoint | Context | Epoch | Val total | Val base | Val event |
+| --- | --- | ---: | ---: | ---: | ---: |
+| E007 best | Layer 24 | 98 | 0.030852 | **0.023178** | 0.032872 |
+| E008 best | Layer 12 | 98 | **0.027532** | 0.023730 | **0.016258** |
+| E008 latest | Layer 12 | 100 | 0.027561 | 0.021881 | 0.023105 |
+
+Layer 12 best total loss 比 E007 低约 10.8%，event loss 低约 50.5%，但 base loss 略高约 2.4%。
+这说明优化收益主要集中在 contact、grasp/pickup、release/place 等关键事件，不代表 Reach/Transport
+连续空间运动同步改善。
+
+独立原子结果：
+
+| Context | Reach | Grasp | Lift | Transport | Place | 总成功 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Layer 24 E007 | 0/5 | 5/5 | 5/5 | **2/5** | 4/5 | 16/25 |
+| Layer 12 E008 | 0/5 | 5/5 | 5/5 | 1/5 | **5/5** | 16/25 |
+
+总数完全不变；Layer 12 只是把 1 个成功从 Transport 移到 Place。Layer 12 原子 Reach 5 条均跑满
+100 步，平均最终 TCP→物体距离 `0.1015 m`。这与 Reach-only 的 2/5 形成受控反差，说明联合训练、
+聚合 checkpoint 选择或技能梯度竞争会抵消中层几何收益。
+
+20 unseen 完整闭环：
+
+| Context | 完整成功 | Reach/Grasp/Lift/Transport/Place | 平均完成技能数 | 平均最终 TCP 距离 | saturation / anomaly |
+| --- | ---: | --- | ---: | ---: | ---: |
+| Layer 24 E007 | 0/20 | 5/4/3/1/0 | 0.65 | 0.0990 m | 0 / 0 |
+| Layer 12 E008 | 0/20 | **9/3/2/0/0** | **0.70** | 0.0989 m | 0 / 0 |
+
+Layer 12 失败分布为 reach 11、grasp 6、lift 1、transport 2。9 条通过 Reach 后只有 3 条完成
+Grasp，条件成功率为 `3/9=33%`；Layer 24 对应为 `4/5=80%`。Layer 12 的 Reach `9/20` 对
+Layer 24 的 `5/20` 只有方向性改善，双侧两比例近似检验 `p≈0.185`，在当前样本数下不能宣称稳健
+显著。20 条完整成功仍为 0，Wilson 95% 上界为 `0.1611`。
+
+独立 Grasp/Lift/Place 分别为 `5/5、5/5、5/5`，但完整链中只有 `3/20、2/20、0/20`，说明
+“专家准备的干净前置状态”与“策略自己完成前序技能后的状态”存在明显 handoff distribution
+mismatch：Reach Predicate 可以刚过阈值，但 TCP 姿态、速度、夹爪开度或视觉相对位置未必形成
+高质量 Grasp 输入。两条完成 Lift 的轨迹又全部在 Transport 失败；Place 虽独立 5/5，却从未被
+完整链触达。
+
+所有 25+20 Episode 都正常完成，tracking saturation、anomaly replan 和系统错误均为 0；因此
+差异归因于策略表示、训练目标和跨技能状态分布，而不是控制器或仿真故障。原子与完整 summary 均为
+`complete=true`，使用同一 checkpoint SHA256 和 dataset SHA256。
+
+**Conclusion:**
+
+“Layer 24 丢失精细位置”得到部分支持：Layer 12 的线性位置误差显著更低，Reach-only 和完整任务
+前段也呈一致的正向变化。但“直接把完整 Context 换成 Layer 12 就能解决组合”被否定：原子总数
+仍为 16/25、完整仍为 0/20，完整链只是把一部分瓶颈从 Reach 移到 Grasp，Transport 进一步退化。
+
+现有结果不支持把纯 Layer 12 升级为默认架构，也不支持继续盲目增加相同训练 epoch。第一版原子
+技能组合目标尚未达到；当前最清楚的问题是聚合 loss/checkpoint 对事件技能的偏置，以及
+Reach→Grasp、Lift→Transport 的交接状态质量。
+
+**Next step:**
+
+1. 不重训，先对已有 epoch 10/20/.../100 periodic checkpoint 只跑 Reach/Transport sweep，判断
+   最优能力是否出现在不同 epoch，从而区分 checkpoint 选择问题与持续梯度干扰。
+2. 新增 Reach→Grasp handoff probe：在首次满足 Reach Predicate 时记录 TCP 相对位姿/速度、夹爪
+   开度、物体运动和双相机位置，并与专家准备的 Grasp 初态比较。
+3. 只有前两项确认“Layer 12 几何有益但语义寻址或技能切换退化”后，再正式比较 Layer 24 semantic
+   Key + 同 token Layer 12 geometry Value；不把 Oracle GT 几何带入生产模型，也不增加手写任务
+   语义状态机掩盖学习问题。
 
 ## 实验模板
 
