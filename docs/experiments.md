@@ -34,6 +34,7 @@ Action 安全拒绝诊断、事件损失、temporal ensemble，以及固定低�
 | E006 | 2026-08-26 | v0.4 事件数据、事件损失与 warmup 消融 | completed | 高事件权重造成技能竞争；固定 `lambda=0.25` 是唯一完整保住 grasp/lift 的低回归方案，进入独立 100-epoch 正式训练 |
 | E007 | 2026-08-26 | 固定 `lambda=0.25` 的正式训练与控制消融 | completed | 原子提升到 16/25，ensemble 明显改善阶段深度，但 20 unseen 完整成功仍为 0/20 |
 | E008 | 2026-08-28 | Qwen Layer 12 空间表示、Reach 与五技能组合诊断 | completed | Layer 12 的位置可解码性和完整 Reach 通过数优于 Layer 24，但原子仍为 16/25、完整仍为 0/20；主要问题收敛到多技能目标冲突和 Reach→Grasp/Lift→Transport 交接 |
+| E009 | 2026-08-29 | Layer 12 periodic checkpoint 的 Reach/Transport sweep | planned | 用独立 screening/confirmation seed 判断 E008 失败来自聚合 checkpoint 选择、不同技能最佳 epoch 分离，还是联合训练全程都没有保住空间技能 |
 
 ## E001 — 30 条数据 Stage 1 与首轮闭环
 
@@ -612,6 +613,143 @@ Reach→Grasp、Lift→Transport 的交接状态质量。
 3. 只有前两项确认“Layer 12 几何有益但语义寻址或技能切换退化”后，再正式比较 Layer 24 semantic
    Key + 同 token Layer 12 geometry Value；不把 Oracle GT 几何带入生产模型，也不增加手写任务
    语义状态机掩盖学习问题。
+
+## E009 — Layer 12 periodic checkpoint 的 Reach/Transport sweep
+
+**Date:** 2026-08-29
+
+**Status:** planned
+
+**Experiment:**
+
+不重新训练，固定 E008 的 Layer 12 架构、数据、评估器、控制协议和 sampling seed，只改变五技能联合
+训练 checkpoint。对 epoch 10/20/.../100 的 10 个 periodic 权重和 epoch 98 best 共 11 个候选，
+先用少量全新 seed 筛选，再在相互独立的全新 seed 上确认 Reach/Transport 候选，判断聚合 validation
+loss 是否选错行为 checkpoint，或两项空间技能是否在训练过程中出现不同最佳 epoch。
+
+**Goal:**
+
+区分三个互斥的主要解释：
+
+1. **Checkpoint selection 问题：**至少一个较早 checkpoint 同时不劣于 epoch 98，并明确改善 Reach
+   或 Transport；聚合 total loss 没有选到闭环最优权重。
+2. **技能目标冲突：**Reach 与 Transport 的最佳 checkpoint 分属不同 epoch，且不存在单个候选同时
+   保住两者；共享动作头在训练过程中沿 Pareto frontier 移动。
+3. **持续训练/表示问题：**全部 periodic checkpoint 都与 epoch 98 同样失败；问题不是选择时点，
+   应继续做 handoff probe、数据分布或 Layer 24 Key / Layer 12 Value 架构诊断。
+
+本实验只做 checkpoint 归因，不用完整任务成功率反向挑权重，也不把 screening seed 的结果当作正式
+提升证据。
+
+**Frozen config:**
+
+- Dataset: `trusted-v0.4-event-recovery-220`，dataset SHA256 `bc024b6b...39407`
+- Model: E008 Layer 12 五技能联合训练，`qwen_context_layer=12`，无 GT token/GT 几何
+- Evaluation: `RobotVLAPickCubeToRegion-v1` 独立原子评估，技能仅 `reach transport`
+- Policy budget: 每技能每 seed 最多 100 policy steps；10-step Flow；每 4 步重规划
+- Control: temporal ensemble on，`recency_decay=0.5`，max anomaly replans 3
+- Sampling: base seed `42424`；原子 sampling seed 只由 base seed、环境 seed 和 skill 派生，因此同一
+  skill/seed 在所有 checkpoint 间形成严格配对比较
+- Hardware: 单张 RTX 4090 24GB；所有 checkpoint 顺序运行，不并行共享 GPU/SAPIEN
+
+**Candidates:**
+
+| Candidate | Weight | Epoch val total | Val base | Val event |
+| --- | --- | ---: | ---: | ---: |
+| e010 | `step-00000640.pt` | 0.135433 | 0.108168 | 0.106300 |
+| e020 | `step-00001280.pt` | 0.089931 | 0.071453 | 0.078659 |
+| e030 | `step-00001920.pt` | 0.078140 | 0.059799 | 0.068425 |
+| e040 | `step-00002560.pt` | 0.072662 | 0.057543 | 0.061529 |
+| e050 | `step-00003200.pt` | 0.050218 | 0.041362 | 0.034399 |
+| e060 | `step-00003840.pt` | 0.041849 | 0.032991 | 0.033336 |
+| e070 | `step-00004480.pt` | 0.039321 | 0.031331 | 0.033295 |
+| e080 | `step-00005120.pt` | 0.037129 | 0.030900 | 0.026218 |
+| e090 | `step-00005760.pt` | 0.035522 | 0.028538 | 0.029539 |
+| e098-best | `best.pt` | **0.027532** | 0.023730 | **0.016258** |
+| e100 | `step-00006400.pt` | 0.027561 | **0.021881** | 0.023105 |
+
+`latest.pt` 与 step 6400 表示同一 epoch 100 状态，不作为第 12 个重复候选。validation 指标只用于
+解释训练轨迹，不能参与闭环候选排名。
+
+**Stage A — screening:**
+
+- Seeds: `10020–10022`，均不在 Dataset manifest，也没有用于 E008 原子或完整评估
+- Candidates: 全部 11 个
+- Skills: Reach + Transport
+- Episodes: `11 × 2 × 3 = 66`
+- 每个 checkpoint 只加载一次，顺序执行 6 个 Episode
+
+对每个技能分别按以下稳定顺序排名：
+
+1. 成功数降序；
+2. Predicate 超额残差均值升序；
+3. 平均 policy steps 升序；
+4. epoch 升序，仅作为完全相同时的确定性 tie-break。
+
+Predicate 超额残差与正式 Outcome 阈值严格一致：
+
+```text
+Reach residual     = max(final_tcp_to_object_distance_m - 0.04, 0)
+Transport residual = max(final_object_to_goal_xy_distance_m - 0.04, 0)
+```
+
+任何出现 inference/controller/action-safety error、tracking saturation 或 anomaly replan 的候选不直接
+删除，但单独标记为非行为可比，不能依靠距离 tie-break 晋级。
+
+**Stage B — independent confirmation:**
+
+- Seeds: `10023–10032`，10 个全新、非 Dataset seed，与 Stage A 和 E008 都不重叠
+- Candidates: Stage A Reach Top-2、Transport Top-2 与 epoch 98 best 的并集，最多 5 个
+- 所有入围候选都同时跑 Reach 和 Transport，不能只跑它在 screening 中表现好的技能
+- Episodes upper bound: `5 × 2 × 10 = 100`
+- 正式报告每技能成功数/Wilson 95% 区间、Predicate residual、平均 steps、逐 seed 配对胜负，以及
+  saturation/anomaly/system failure
+
+只有同时满足下列条件的单一 checkpoint 才能标记为“值得进入下一级完整评估的候选”，不能直接替换
+默认 best：
+
+1. confirmation 中 Reach 和 Transport 成功数都不低于 epoch 98；
+2. 至少一个技能比 epoch 98 多成功 `>=2/10`；
+3. 被改善技能的平均 Predicate residual 至少降低 20%；
+4. 两个技能均无系统错误、tracking saturation 或 anomaly replan。
+
+如果 Reach/Transport 分别由不同 epoch 获胜，而没有单个候选满足上述条件，则结论为技能/checkpoint
+冲突，不把两个 checkpoint 组合成运行时手写路由。若没有候选超过 epoch 98，则排除“只选错 best”
+作为主要解释，直接进入 handoff probe。
+
+**Promotion guardrail:**
+
+若 Stage B 产生单一候选，再额外用相同协议对候选与 epoch 98 在 seeds `10023–10027` 上配对评估
+Grasp/Lift/Place，共 `2 × 3 × 5 = 30` Episode。候选最多允许每个 guardrail 技能相对 epoch 98
+回退 1/5；通过后才能另立实验运行 20 unseen 完整闭环。本 E009 不用完整任务结果继续调候选，避免
+把正式 test seed 变成超参数选择集。
+
+**Execution and artifacts:**
+
+- Remote root: `runs/e009-layer12-checkpoint-sweep/`
+- Layout: `screen/<candidate>/`、`confirm/<candidate>/`、可选 `guardrail/<candidate-or-best>/`
+- 每个输出目录沿用 `evaluate_atomic_maniskill` 的 `experiment.json`、增量 `episodes.jsonl`、
+  `summary.json` 和 `--resume` 身份校验
+- 运行前生成只读 sweep manifest，记录 candidate label、epoch、绝对 checkpoint 路径、SHA256、
+  validation 指标、seed 集合和统一控制配置；聚合器只读取各目录的 experiment/episodes/summary，
+  不重新推理
+- Pipeline 使用 `set -euo pipefail`，单 checkpoint 失败时停止；恢复时只对未完成目录使用 `--resume`
+- 结果完成后同步 manifest、JSONL、summary 和日志到本机 artifacts；不重复同步 11 个已有 checkpoint
+
+**Budget:**
+
+- 必跑：Stage A 66 Episode
+- 最大 confirmation：100 Episode
+- 条件 guardrail：30 Episode
+- 基于 E008 Reach/Transport 每条约 7.5 秒，Stage A + 最大 Stage B 预计约 20–30 分钟；guardrail
+  通常更快。相比新的 100-epoch 训练，成本和归因复杂度都显著更低。
+
+**Planned implementation:**
+
+现有原子评估 CLI 已支持所需 checkpoint、skills、seed、Layer 12 契约、增量 summary 和 resume，不
+修改模型、训练器或 ManiSkill evaluator。只新增一个薄的 sweep orchestrator/aggregator，用于生成
+manifest、顺序启动现有 CLI、计算上述 residual/ranking 和选择 Stage B 候选；排名逻辑需要纯函数
+单元测试，禁止把 validation loss 混入行为排序。
 
 ## 实验模板
 
