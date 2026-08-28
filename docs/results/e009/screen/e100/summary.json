@@ -1,0 +1,38 @@
+{
+  "checkpoint_sha256": "d6eff9f4086765118a032fe812f29466e1b3e7a99c0f8fe8d56f93bc4d57e339",
+  "complete": true,
+  "completed_episodes": 6,
+  "dataset_sha256": "bc024b6b9c566ca9500945fb6ac262bf657bee713d8a5816229bdc8478139407",
+  "episodes": 6,
+  "expected_episodes": 6,
+  "format": "robot-vla-maniskill-atomic-rollout/v1",
+  "groups": {
+    "reach": {
+      "anomaly_replan_count": 0,
+      "episodes": 3,
+      "failure_counts": {
+        "reach_failed": 1
+      },
+      "mean_policy_environment_steps": 80.0,
+      "success_rate": 0.6666666666666666,
+      "successes": 2,
+      "temporal_ensemble_max_buffer_size": 4,
+      "temporal_ensemble_max_proposal_spread": 1.8404552936553955,
+      "tracking_correction_saturation_count": 0
+    },
+    "transport": {
+      "anomaly_replan_count": 0,
+      "episodes": 3,
+      "failure_counts": {
+        "transport_failed": 1
+      },
+      "mean_policy_environment_steps": 93.33333333333333,
+      "success_rate": 0.6666666666666666,
+      "successes": 2,
+      "temporal_ensemble_max_buffer_size": 4,
+      "temporal_ensemble_max_proposal_spread": 0.3922424018383026,
+      "tracking_correction_saturation_count": 0
+    }
+  },
+  "successes": 4
+}

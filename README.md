@@ -69,10 +69,14 @@ External/front RGB + Wrist RGB + Language + Proprioception [15]
 从 Layer 24 的 `0.1245 m` 降到 `0.0253 m`，Reach-only 从 `1/5` 提高到 `2/5`；但五技能联合训练
 的原子总成功仍为 `16/25`，20 unseen 完整成功仍为 `0/20`。完整阶段由 Layer 24 的
 `5/4/3/1/0` 变为 Layer 12 的 `9/3/2/0/0`，说明几何改善没有稳定传递到 Grasp/Transport
-交接。当前不直接把 Layer 12 升级为默认 Context；下一步先做 periodic checkpoint 的
-Reach/Transport sweep 和 Reach→Grasp handoff probe，再决定是否正式评估 Layer 24 semantic Key +
-Layer 12 geometry Value。完整配置、结果和限制见 [E008](docs/experiments.md#e008--qwen-layer-12-空间表示reach-与五技能组合诊断)
-与 [D024](docs/decisions.md#d024--不直接以-layer-12-替换最终层先诊断技能交接再评估语义-key--几何-value)。
+交接。E009 随后对 11 个 periodic/best checkpoint 做了 66-Episode screening 和 60-Episode 独立
+confirmation：epoch 100 把 Reach 从 epoch 98 的 `0/10` 提到 `3/10`，但 Transport 从 `7/10`
+降到 `2/10`，没有单一 checkpoint 通过 promotion 门槛。这说明聚合 checkpoint 在不同技能间存在
+行为冲突，不能靠替换 `best.pt` 解决。当前仍不把 Layer 12 升级为默认 Context；下一步先做
+Reach→Grasp handoff probe，再决定是否正式评估 Layer 24 semantic Key + Layer 12 geometry Value。
+完整配置、结果和限制见 [E008](docs/experiments.md#e008--qwen-layer-12-空间表示reach-与五技能组合诊断)、
+[E009](docs/results/e009/README.md) 与
+[D024](docs/decisions.md#d024--不直接以-layer-12-替换最终层先诊断技能交接再评估语义-key--几何-value)。
 
 ## 快速开始
 

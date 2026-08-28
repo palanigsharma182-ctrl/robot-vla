@@ -34,7 +34,7 @@ Action 安全拒绝诊断、事件损失、temporal ensemble，以及固定低�
 | E006 | 2026-08-26 | v0.4 事件数据、事件损失与 warmup 消融 | completed | 高事件权重造成技能竞争；固定 `lambda=0.25` 是唯一完整保住 grasp/lift 的低回归方案，进入独立 100-epoch 正式训练 |
 | E007 | 2026-08-26 | 固定 `lambda=0.25` 的正式训练与控制消融 | completed | 原子提升到 16/25，ensemble 明显改善阶段深度，但 20 unseen 完整成功仍为 0/20 |
 | E008 | 2026-08-28 | Qwen Layer 12 空间表示、Reach 与五技能组合诊断 | completed | Layer 12 的位置可解码性和完整 Reach 通过数优于 Layer 24，但原子仍为 16/25、完整仍为 0/20；主要问题收敛到多技能目标冲突和 Reach→Grasp/Lift→Transport 交接 |
-| E009 | 2026-08-29 | Layer 12 periodic checkpoint 的 Reach/Transport sweep | planned | 用独立 screening/confirmation seed 判断 E008 失败来自聚合 checkpoint 选择、不同技能最佳 epoch 分离，还是联合训练全程都没有保住空间技能 |
+| E009 | 2026-08-29 | Layer 12 periodic checkpoint 的 Reach/Transport sweep | completed | epoch 100 将 Reach 从 0/10 提到 3/10，却使 Transport 从 7/10 降到 2/10；无单一 promotion 候选，确认技能/checkpoint 冲突而非只选错 best.pt |
 
 ## E001 — 30 条数据 Stage 1 与首轮闭环
 
@@ -618,7 +618,7 @@ Reach→Grasp、Lift→Transport 的交接状态质量。
 
 **Date:** 2026-08-29
 
-**Status:** planned
+**Status:** completed
 
 **Experiment:**
 
@@ -730,10 +730,10 @@ Grasp/Lift/Place，共 `2 × 3 × 5 = 30` Episode。候选最多允许每个 gua
 - Layout: `screen/<candidate>/`、`confirm/<candidate>/`、可选 `guardrail/<candidate-or-best>/`
 - 每个输出目录沿用 `evaluate_atomic_maniskill` 的 `experiment.json`、增量 `episodes.jsonl`、
   `summary.json` 和 `--resume` 身份校验
-- 运行前生成只读 sweep manifest，记录 candidate label、epoch、绝对 checkpoint 路径、SHA256、
-  validation 指标、seed 集合和统一控制配置；聚合器只读取各目录的 experiment/episodes/summary，
-  不重新推理
-- Pipeline 使用 `set -euo pipefail`，单 checkpoint 失败时停止；恢复时只对未完成目录使用 `--resume`
+- 运行前生成只读 sweep manifest，记录 candidate label、epoch、绝对 checkpoint 路径、validation
+  指标、seed 集合、源码树 revision 和统一控制配置；每个候选的 `experiment.json` 另存 checkpoint
+  SHA256、dataset SHA256 和模型契约；聚合器只读取各目录的 experiment/episodes/summary，不重新推理
+- Python orchestrator 让单 checkpoint 子进程失败时停止；恢复时只对未完成目录使用 `--resume`
 - 结果完成后同步 manifest、JSONL、summary 和日志到本机 artifacts；不重复同步 11 个已有 checkpoint
 
 **Budget:**
@@ -744,12 +744,51 @@ Grasp/Lift/Place，共 `2 × 3 × 5 = 30` Episode。候选最多允许每个 gua
 - 基于 E008 Reach/Transport 每条约 7.5 秒，Stage A + 最大 Stage B 预计约 20–30 分钟；guardrail
   通常更快。相比新的 100-epoch 训练，成本和归因复杂度都显著更低。
 
-**Planned implementation:**
+**Results:**
+
+Stage A 完成 66/66 Episodes。Reach Top-2 为 `e100, e098-best`，Transport Top-2 为
+`e090, e100`；加上强制 anchor 后，Stage B 候选并集为 `e090, e098-best, e100`。Stage A 的
+3-seed 结果只用于筛选；例如 e100 Transport 在 screening 为 `2/3`，在独立 confirmation 中只有
+`2/10`，验证了不能把 screening 当正式结论。
+
+Stage B 完成 60/60 Episodes：
+
+| Candidate | Reach | Reach residual | Transport | Transport residual | System/saturation/anomaly |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| e090 | 0/10 | 0.06536 m | 7/10 | 0.02603 m | 0 / 0 / 0 |
+| e098-best | 0/10 | 0.06932 m | **7/10** | **0.00857 m** | 0 / 0 / 0 |
+| e100 | **3/10** | **0.03062 m** | 2/10 | 0.05288 m | 0 / 0 / 0 |
+
+相对 epoch 98，e100 Reach 多成功 3 条，逐 seed 为 3 win/0 loss，residual 降低 55.8%；但
+Transport 少成功 5 条，逐 seed 为 1 win/6 loss，residual 增至 6.17 倍。e090 与 anchor 的成功数
+完全相同，Reach/Transport residual 比率分别为 0.943 和 3.038，没有达到 20% 改善门槛。
+
+因此 `promotion_candidate_labels=[]`，没有候选满足“Reach/Transport 均不回退”的首要条件，条件
+Grasp/Lift/Place guardrail 不运行。原始 126 行 JSONL 经独立重算，skill/seed 身份、成功数、residual
+和配对 win/loss 与聚合文件一致；Stage B 无系统错误、tracking saturation 或 anomaly replan。
+
+**Analysis:**
+
+E009 支持预注册解释 2：不同技能的最佳 checkpoint 分离。epoch 100 恢复部分 Reach，却破坏
+Transport；epoch 98/90 保住 Transport，却没有 Reach 成功。结果排除“存在一个明显更好的单一
+periodic checkpoint，只是 total validation loss 选错了”的简单解释，也不支持部署按技能手写切换
+checkpoint。validation total loss 在 epoch 98/100 之间只差约 `0.000029`，但行为折中明显变化，
+后续 checkpoint 诊断必须保留 per-skill 闭环指标。
+
+本实验没有直接测量梯度或 handoff 状态，10-seed Wilson 区间也较宽，因此不能单独把机制唯一归因于
+共享动作头梯度干扰。下一步按 D024 做 Reach→Grasp handoff probe；只有继续确认 Layer 12 几何有效
+但语义寻址/交接退化后，才比较 Layer 24 semantic Key + Layer 12 geometry Value。
+
+完整技术报告、冻结 manifest、聚合 JSON 和逐 Episode 结果见
+[`docs/results/e009/`](results/e009/README.md)。
+
+**Implementation and verification:**
 
 现有原子评估 CLI 已支持所需 checkpoint、skills、seed、Layer 12 契约、增量 summary 和 resume，不
 修改模型、训练器或 ManiSkill evaluator。只新增一个薄的 sweep orchestrator/aggregator，用于生成
 manifest、顺序启动现有 CLI、计算上述 residual/ranking 和选择 Stage B 候选；排名逻辑需要纯函数
-单元测试，禁止把 validation loss 混入行为排序。
+单元测试，禁止把 validation loss 混入行为排序。目标测试共 10 项通过，新增文件通过 Ruff；实验
+源码树 revision 为 `source-tree-sha256:aeb1c1647de4eadf838838c0abf4e5c1c517d0d871e2f33c75d2b8b288a351f1`。
 
 ## 实验模板
 
