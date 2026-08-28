@@ -1044,9 +1044,10 @@ seed 上没有被激活，不能虚构为已改善成功率。
 **Decision:**
 
 保持 Layer 24 作为当前 `qwen-vla-v0.1` 默认 Context，不把纯 Layer 12 直接升级为默认架构。
-Layer 12 保留为受控诊断和候选几何来源；进入新的长训练前，必须先完成两项低成本归因：
+Layer 12 保留为受控诊断和候选几何来源。E009 已完成第一项低成本归因；进入新的长训练前继续完成
+第二项：
 
-1. 对已有 periodic checkpoint 做 Reach/Transport 闭环 sweep，判断不同技能的最佳 epoch 是否分离；
+1. 已对 periodic checkpoint 做 Reach/Transport 闭环 sweep，并确认不同技能的最佳 epoch 分离；
 2. 对 Reach 首次通过到 Grasp 的交接状态做显式 probe，比较策略自产状态与专家准备状态的相对位姿、
    速度、夹爪开度和双相机观测分布。
 
@@ -1073,18 +1074,26 @@ E008 的线性 probe 中，Layer 12 test median world-XY error 为 `0.0253 m`，
 独立 Grasp 为 5/5 而策略自产 Reach 状态后的 Grasp 只有 3/9，已经提供明确的分布失配证据；在
 解释该差异前直接增加模型复杂度会重新混合变量，违背当前的归因原则。
 
+E009 又提供了 checkpoint 维度的独立证据。在相同 10 个 confirmation seed 上，epoch 98 为 Reach
+`0/10`、Transport `7/10`，epoch 100 为 Reach `3/10`、Transport `2/10`。epoch 100 的 Reach
+residual 降低 55.8%，但 Transport 少成功 5 条且 residual 增至 6.17 倍；epoch 90 与 epoch 98
+都是 `0/10 + 7/10`，也没有 residual promotion。没有单一 periodic checkpoint 同时保住两项技能，
+所以问题不是简单选错 `best.pt`，而是聚合训练轨迹上的技能行为折中。该结果仍不能单独证明具体梯度
+机制，handoff probe 继续保持为下一项必要归因。
+
 **Alternatives considered:**
 
 - 直接把 Layer 12 设为默认 Context：E008 完整成功仍为 0/20，且 Transport/后续阶段退化，拒绝。
 - 继续相同配置增加训练 epoch：现有 100 epochs 已收敛，且聚合 loss 可能偏向事件技能，不能解决
   checkpoint 多目标冲突，暂不采用。
 - 把 Oracle 相对几何作为正式 Observation：可以提高 Reach，但改变传感契约并引入仿真 GT，拒绝。
-- 立即融合多层或加入复杂 Context Resampler：尚未排除 checkpoint 选择和 handoff 数据问题，推迟。
+- 立即融合多层或加入复杂 Context Resampler：checkpoint 选择已在 E009 排查，但 handoff 数据问题
+  尚未完成归因，继续推迟。
 - 用手写技能状态机修复 Grasp/Transport：会掩盖 VLA 组合能力，继续拒绝。
 
 **Implementation status:** Layer 12/24 同前向读取、独立 Layer 12 Context、空间 probe、Oracle Reach
-和语义 Key / 几何 Value 诊断组件已在 E008 实验工作树中验证；periodic checkpoint sweep、handoff
-probe 和正式 Key/Value 组合闭环尚未运行。
+和语义 Key / 几何 Value 诊断组件已在 E008 实验工作树中验证；E009 periodic checkpoint sweep 已
+完成并发布完整原始结果。handoff probe 和正式 Key/Value 组合闭环尚未运行。
 
 **Status:** active
 
