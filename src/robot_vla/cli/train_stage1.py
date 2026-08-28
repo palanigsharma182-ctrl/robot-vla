@@ -32,6 +32,13 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data", type=Path, required=True)
     parser.add_argument("--model-cache", type=Path, required=True)
+    parser.add_argument(
+        "--qwen-context-layer",
+        type=int,
+        choices=(12, 24),
+        default=24,
+        help="Action Expert 使用的 Qwen hidden state 层；24 保持历史最终层行为",
+    )
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--epochs", type=int, default=1)
     parser.add_argument("--micro-batch-size", type=int, default=1)
@@ -281,6 +288,7 @@ def run(args: argparse.Namespace) -> None:
         cache_dir=str(args.model_cache),
         local_files_only=True,
         device="cuda",
+        context_layer=args.qwen_context_layer,
     )
     trainer = Stage1Trainer(policy, config, "cuda")
     project_root = Path(__file__).resolve().parents[3]

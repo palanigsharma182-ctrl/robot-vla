@@ -8,9 +8,14 @@ from torch import nn
 from robot_vla.contracts import QWEN_MODEL_ID, QWEN_REVISION
 from robot_vla.model.expert import ExpertConfig
 from robot_vla.model.factory import (
+    QWEN_TEXT_LAYER_COUNT,
     build_qwen_vla_policy,
     load_frozen_qwen_v01,
     validate_qwen_v01_architecture,
+)
+from robot_vla.model.qwen_context import (
+    FrozenQwenContextEncoder,
+    FrozenQwenLayerContextEncoder,
 )
 
 
@@ -55,6 +60,25 @@ def test_factory_validates_full_qwen_architecture_and_freezes_it() -> None:
     assert all(not parameter.requires_grad for parameter in qwen.parameters())
     assert qwen.training is False
     assert policy.expert.config == _tiny_expert_config()
+    assert isinstance(policy.context_encoder, FrozenQwenContextEncoder)
+    assert not isinstance(policy.context_encoder, FrozenQwenLayerContextEncoder)
+
+
+def test_factory_builds_explicit_intermediate_qwen_context_layer() -> None:
+    qwen = ExactFakeQwen()
+
+    policy = build_qwen_vla_policy(
+        qwen,
+        expert_config=_tiny_expert_config(),
+        context_layer=12,
+    )
+
+    assert isinstance(policy.context_encoder, FrozenQwenLayerContextEncoder)
+    assert policy.context_encoder.layer == 12
+    assert QWEN_TEXT_LAYER_COUNT == 24
+
+    with pytest.raises(ValueError, match=r"\[1,24\]"):
+        build_qwen_vla_policy(qwen, context_layer=0)
 
 
 def test_factory_rejects_qwen_architecture_drift() -> None:

@@ -11,7 +11,13 @@ from torch import nn
 from robot_vla.contracts import QWEN_MODEL_ID, QWEN_REVISION
 from robot_vla.model.expert import ExpertConfig, StandaloneActionExpert
 from robot_vla.model.policy import QwenVLAPolicy
-from robot_vla.model.qwen_context import FrozenQwenContextEncoder, QwenVLAAdapter
+from robot_vla.model.qwen_context import (
+    FrozenQwenContextEncoder,
+    FrozenQwenLayerContextEncoder,
+    QwenVLAAdapter,
+)
+
+QWEN_TEXT_LAYER_COUNT = 24
 
 
 def validate_qwen_v01_architecture(qwen: nn.Module) -> None:
@@ -90,10 +96,20 @@ def build_qwen_vla_policy(
     qwen: nn.Module,
     *,
     expert_config: ExpertConfig | None = None,
+    context_layer: int = QWEN_TEXT_LAYER_COUNT,
 ) -> QwenVLAPolicy:
     validate_qwen_v01_architecture(qwen)
+    if not 1 <= context_layer <= QWEN_TEXT_LAYER_COUNT:
+        raise ValueError(
+            f"Qwen context layer 应位于 [1,{QWEN_TEXT_LAYER_COUNT}]，实际为 {context_layer}"
+        )
+    context_encoder = (
+        FrozenQwenContextEncoder(qwen)
+        if context_layer == QWEN_TEXT_LAYER_COUNT
+        else FrozenQwenLayerContextEncoder(qwen, context_layer)
+    )
     return QwenVLAPolicy(
-        FrozenQwenContextEncoder(qwen),
+        context_encoder,
         StandaloneActionExpert(expert_config),
         QwenVLAAdapter(),
     )
@@ -105,6 +121,7 @@ def load_qwen_vla_policy(
     local_files_only: bool = False,
     device: str | torch.device | None = None,
     hf_endpoint: str = "https://hf-mirror.com",
+    context_layer: int = QWEN_TEXT_LAYER_COUNT,
 ) -> QwenVLAPolicy:
     qwen = load_frozen_qwen_v01(
         cache_dir=cache_dir,
@@ -112,7 +129,7 @@ def load_qwen_vla_policy(
         device=device,
         hf_endpoint=hf_endpoint,
     )
-    policy = build_qwen_vla_policy(qwen)
+    policy = build_qwen_vla_policy(qwen, context_layer=context_layer)
     if device is not None:
         policy.to(torch.device(device))
     return policy

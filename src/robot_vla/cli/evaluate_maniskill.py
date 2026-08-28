@@ -27,6 +27,9 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=Path, required=True)
     parser.add_argument("--model-cache", type=Path, required=True)
+    parser.add_argument(
+        "--qwen-context-layer", type=int, choices=(12, 24), default=24
+    )
     parser.add_argument("--checkpoint", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument(
@@ -208,6 +211,7 @@ def run(args: argparse.Namespace) -> None:
         cache_dir=str(args.model_cache),
         local_files_only=True,
         device="cuda",
+        context_layer=args.qwen_context_layer,
     )
     checkpoint_metadata = load_stage1_policy_checkpoint(
         args.checkpoint,
@@ -235,6 +239,7 @@ def run(args: argparse.Namespace) -> None:
             "temporal_ensemble_enabled": args.temporal_ensemble,
             "recency_decay": args.recency_decay,
             "max_anomaly_replans": args.max_anomaly_replans,
+            "qwen_context_layer": args.qwen_context_layer,
         },
         "episodes": [asdict(episode) for episode in specs],
     }

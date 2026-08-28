@@ -292,3 +292,62 @@ def test_inference_checkpoint_rejects_contract_mismatch_before_loading_weights(t
         )
 
     assert policy.adapter.weight.item() == pytest.approx(9.0)
+
+
+def test_checkpoint_records_and_rejects_qwen_context_layer_mismatch(tmp_path) -> None:
+    spec = RobotSpec()
+    processor_config = QwenProcessorConfig()
+    policy = CheckpointPolicy()
+    trainer = Stage1Trainer(policy, Stage1TrainingConfig(use_bf16=False), "cpu")
+    paths = save_stage1_checkpoint_set(
+        tmp_path,
+        policy,
+        trainer,
+        spec,
+        processor_config,
+        _stats(spec),
+        code_revision="source-digest-001",
+    )
+    payload = torch.load(paths.latest, map_location="cpu", weights_only=True)
+    assert payload["metadata"]["qwen_context_hidden_state"] == "final"
+
+    policy.context_encoder.layer = 12
+    with pytest.raises(ValueError, match="qwen_context_hidden_state"):
+        load_stage1_policy_checkpoint(
+            paths.latest,
+            policy,
+            spec,
+            processor_config,
+            _stats(spec),
+        )
+
+
+def test_legacy_final_layer_checkpoint_without_context_metadata_remains_loadable(
+    tmp_path,
+) -> None:
+    spec = RobotSpec()
+    processor_config = QwenProcessorConfig()
+    policy = CheckpointPolicy()
+    trainer = Stage1Trainer(policy, Stage1TrainingConfig(use_bf16=False), "cpu")
+    paths = save_stage1_checkpoint_set(
+        tmp_path,
+        policy,
+        trainer,
+        spec,
+        processor_config,
+        _stats(spec),
+        code_revision="source-digest-001",
+    )
+    payload = torch.load(paths.latest, map_location="cpu", weights_only=True)
+    payload["metadata"].pop("qwen_context_hidden_state")
+    legacy = tmp_path / "legacy-final.pt"
+    torch.save(payload, legacy)
+
+    metadata = load_stage1_policy_checkpoint(
+        legacy,
+        policy,
+        spec,
+        processor_config,
+        _stats(spec),
+    )
+    assert "qwen_context_hidden_state" not in metadata
