@@ -1,0 +1,926 @@
+{
+  "checkpoints": [
+    {
+      "label": "e090",
+      "path": "runs/stage1-layer12-data220-event025-e100/checkpoints/step-00005760.pt",
+      "sha256": "a7a35227f1c6e1b5e42e2d0fa228ba47d7ab4f589249fd33de98de43673645ee",
+      "size_bytes": 1290603631
+    },
+    {
+      "label": "e098-best",
+      "path": "runs/stage1-layer12-data220-event025-e100/checkpoints/best.pt",
+      "sha256": "a542076f291e29b68e3d28930b15c40396d511a44eb358c2eaeb4e113c041ad6",
+      "size_bytes": 1290603631
+    },
+    {
+      "label": "e100",
+      "path": "runs/stage1-layer12-data220-event025-e100/checkpoints/step-00006400.pt",
+      "sha256": "d6eff9f4086765118a032fe812f29466e1b3e7a99c0f8fe8d56f93bc4d57e339",
+      "size_bytes": 1290603631
+    }
+  ],
+  "confirmation": {
+    "batch_size": 4,
+    "flow_seed_base": 30010,
+    "plan_seed": 10212,
+    "primitive_vector_labels": [
+      "reach_base",
+      "reach_event",
+      "transport_base",
+      "transport_event"
+    ],
+    "repeats": 5,
+    "sample_plan": [
+      {
+        "batches": {
+          "reach": [
+            3674,
+            665,
+            3487,
+            2010
+          ],
+          "transport": [
+            3826,
+            762,
+            3570,
+            2114
+          ]
+        },
+        "episodes": [
+          "pick-place-recovery-transport-seed-000220",
+          "pick-place-seed-000054",
+          "pick-place-recovery-transport-seed-000208",
+          "pick-place-recovery-lift-seed-000114"
+        ],
+        "repeat": 0
+      },
+      {
+        "batches": {
+          "reach": [
+            1429,
+            3263,
+            1636,
+            4369
+          ],
+          "transport": [
+            1503,
+            3405,
+            1696,
+            4428
+          ]
+        },
+        "episodes": [
+          "pick-place-seed-000096",
+          "pick-place-recovery-transport-seed-000183",
+          "pick-place-seed-000098",
+          "pick-place-recovery-place-seed-000239"
+        ],
+        "repeat": 1
+      },
+      {
+        "batches": {
+          "reach": [
+            4130,
+            2405,
+            1255,
+            2841
+          ],
+          "transport": [
+            4203,
+            2551,
+            1347,
+            2968
+          ]
+        },
+        "episodes": [
+          "pick-place-recovery-transport-seed-000236",
+          "pick-place-recovery-reach-seed-000125",
+          "pick-place-seed-000089",
+          "pick-place-recovery-lift-seed-000154"
+        ],
+        "repeat": 2
+      },
+      {
+        "batches": {
+          "reach": [
+            831,
+            1042,
+            1831,
+            65
+          ],
+          "transport": [
+            942,
+            1123,
+            1890,
+            149
+          ]
+        },
+        "episodes": [
+          "pick-place-seed-000055",
+          "pick-place-seed-000056",
+          "pick-place-seed-000104",
+          "pick-place-seed-000007"
+        ],
+        "repeat": 3
+      },
+      {
+        "batches": {
+          "reach": [
+            2214,
+            456,
+            3059,
+            2649
+          ],
+          "transport": [
+            2298,
+            545,
+            3194,
+            2729
+          ]
+        },
+        "episodes": [
+          "pick-place-recovery-transport-seed-000122",
+          "pick-place-seed-000034",
+          "pick-place-recovery-transport-seed-000166",
+          "pick-place-recovery-transport-seed-000128"
+        ],
+        "repeat": 4
+      }
+    ],
+    "skills": [
+      "reach",
+      "transport"
+    ],
+    "split": "val",
+    "vector_labels": [
+      "reach_base",
+      "reach_event",
+      "reach_total",
+      "transport_base",
+      "transport_event",
+      "transport_total"
+    ]
+  },
+  "confirmation_checkpoint_labels": [
+    "e098-best",
+    "e100"
+  ],
+  "created_at": "2026-08-28T18:03:06.764494+00:00",
+  "data_path": "datasets/trusted-v0.4-event-recovery-220",
+  "dataset": {
+    "dataset_sha256": "bc024b6b9c566ca9500945fb6ac262bf657bee713d8a5816229bdc8478139407",
+    "manifest_sha256": "43f131cc1b79b93cf6e38f3f5e476d7a03fe29410daa720a672989c95afc477f",
+    "step_count": 48922,
+    "trajectory_count": 220
+  },
+  "discovery": {
+    "batch_size": 8,
+    "flow_seed_base": 20010,
+    "plan_seed": 10111,
+    "repeats": 8,
+    "sample_plan": [
+      {
+        "batches": {
+          "grasp": [
+            14404,
+            7641,
+            24110,
+            22664,
+            3883,
+            2882,
+            13600,
+            24308
+          ],
+          "lift": [
+            14423,
+            7655,
+            24128,
+            22675,
+            3903,
+            2883,
+            13607,
+            24324
+          ],
+          "place": [
+            14521,
+            7750,
+            24219,
+            22781,
+            4004,
+            2988,
+            13698,
+            24476
+          ],
+          "reach": [
+            14340,
+            7627,
+            24096,
+            22620,
+            3856,
+            2853,
+            13583,
+            24268
+          ],
+          "transport": [
+            14467,
+            7704,
+            24170,
+            22720,
+            3942,
+            2920,
+            13670,
+            24346
+          ]
+        },
+        "episodes": [
+          "pick-place-seed-000086",
+          "pick-place-seed-000046",
+          "pick-place-recovery-transport-seed-000146",
+          "pick-place-recovery-transport-seed-000137",
+          "pick-place-seed-000023",
+          "pick-place-seed-000018",
+          "pick-place-seed-000081",
+          "pick-place-recovery-place-seed-000147"
+        ],
+        "repeat": 0
+      },
+      {
+        "batches": {
+          "grasp": [
+            19942,
+            651,
+            38153,
+            3675,
+            2247,
+            21414,
+            828,
+            7435
+          ],
+          "lift": [
+            19962,
+            671,
+            38182,
+            3695,
+            2276,
+            21445,
+            856,
+            7469
+          ],
+          "place": [
+            20075,
+            758,
+            38357,
+            3804,
+            2344,
+            21545,
+            912,
+            7576
+          ],
+          "reach": [
+            19895,
+            634,
+            38096,
+            3664,
+            2221,
+            21407,
+            790,
+            7370
+          ],
+          "transport": [
+            20012,
+            713,
+            38193,
+            3723,
+            2322,
+            21472,
+            885,
+            7488
+          ]
+        },
+        "episodes": [
+          "pick-place-recovery-transport-seed-000097",
+          "pick-place-seed-000004",
+          "pick-place-recovery-place-seed-000219",
+          "pick-place-seed-000022",
+          "pick-place-seed-000015",
+          "pick-place-recovery-place-seed-000131",
+          "pick-place-seed-000005",
+          "pick-place-seed-000045"
+        ],
+        "repeat": 1
+      },
+      {
+        "batches": {
+          "grasp": [
+            12560,
+            11013,
+            12765,
+            1202,
+            33040,
+            38738,
+            26824,
+            33757
+          ],
+          "lift": [
+            12588,
+            11026,
+            12780,
+            1220,
+            33061,
+            38769,
+            26856,
+            33778
+          ],
+          "place": [
+            12662,
+            11133,
+            12877,
+            1304,
+            33174,
+            38862,
+            26956,
+            33931
+          ],
+          "reach": [
+            12538,
+            10979,
+            12755,
+            1177,
+            33029,
+            38716,
+            26793,
+            33727
+          ],
+          "transport": [
+            12629,
+            11069,
+            12822,
+            1268,
+            33120,
+            38779,
+            26906,
+            33791
+          ]
+        },
+        "episodes": [
+          "pick-place-seed-000076",
+          "pick-place-seed-000067",
+          "pick-place-seed-000077",
+          "pick-place-seed-000010",
+          "pick-place-recovery-place-seed-000190",
+          "pick-place-recovery-reach-seed-000222",
+          "pick-place-recovery-reach-seed-000160",
+          "pick-place-recovery-place-seed-000193"
+        ],
+        "repeat": 2
+      },
+      {
+        "batches": {
+          "grasp": [
+            16067,
+            32809,
+            33555,
+            29481,
+            3265,
+            19146,
+            4259,
+            28988
+          ],
+          "lift": [
+            16102,
+            32816,
+            33582,
+            29512,
+            3292,
+            19167,
+            4282,
+            29025
+          ],
+          "place": [
+            16189,
+            32974,
+            33684,
+            29615,
+            3375,
+            19313,
+            4352,
+            29115
+          ],
+          "reach": [
+            16034,
+            32766,
+            33498,
+            29448,
+            3199,
+            19098,
+            4252,
+            28984
+          ],
+          "transport": [
+            16106,
+            32856,
+            33637,
+            29542,
+            3301,
+            19177,
+            4312,
+            29029
+          ]
+        },
+        "episodes": [
+          "pick-place-recovery-reach-seed-000095",
+          "pick-place-recovery-transport-seed-000188",
+          "pick-place-recovery-transport-seed-000192",
+          "pick-place-recovery-transport-seed-000173",
+          "pick-place-seed-000020",
+          "pick-place-recovery-place-seed-000117",
+          "pick-place-seed-000025",
+          "pick-place-recovery-transport-seed-000171"
+        ],
+        "repeat": 3
+      },
+      {
+        "batches": {
+          "grasp": [
+            13398,
+            5457,
+            4457,
+            20655,
+            23405,
+            16538,
+            37963,
+            1615
+          ],
+          "lift": [
+            13428,
+            5469,
+            4480,
+            20664,
+            23454,
+            16558,
+            37985,
+            1620
+          ],
+          "place": [
+            13497,
+            5580,
+            4594,
+            20773,
+            23557,
+            16677,
+            38049,
+            1745
+          ],
+          "reach": [
+            13364,
+            5414,
+            4426,
+            20630,
+            23367,
+            16475,
+            37902,
+            1600
+          ],
+          "transport": [
+            13471,
+            5501,
+            4500,
+            20694,
+            23463,
+            16629,
+            38006,
+            1688
+          ]
+        },
+        "episodes": [
+          "pick-place-seed-000080",
+          "pick-place-seed-000033",
+          "pick-place-seed-000026",
+          "pick-place-recovery-place-seed-000124",
+          "pick-place-recovery-lift-seed-000141",
+          "pick-place-recovery-lift-seed-000101",
+          "pick-place-recovery-reach-seed-000217",
+          "pick-place-seed-000012"
+        ],
+        "repeat": 4
+      },
+      {
+        "batches": {
+          "grasp": [
+            15633,
+            3067,
+            11787,
+            26009,
+            27050,
+            35336,
+            22880,
+            10255
+          ],
+          "lift": [
+            15651,
+            3077,
+            11806,
+            26027,
+            27108,
+            35354,
+            22903,
+            10272
+          ],
+          "place": [
+            15769,
+            3166,
+            11884,
+            26193,
+            27200,
+            35465,
+            23008,
+            10364
+          ],
+          "reach": [
+            15589,
+            3052,
+            11742,
+            25981,
+            27001,
+            35318,
+            22853,
+            10176
+          ],
+          "transport": [
+            15719,
+            3098,
+            11847,
+            26054,
+            27171,
+            35406,
+            22936,
+            10320
+          ]
+        },
+        "episodes": [
+          "pick-place-seed-000093",
+          "pick-place-seed-000019",
+          "pick-place-seed-000071",
+          "pick-place-recovery-place-seed-000157",
+          "pick-place-recovery-grasp-seed-000161",
+          "pick-place-recovery-reach-seed-000202",
+          "pick-place-recovery-place-seed-000138",
+          "pick-place-seed-000063"
+        ],
+        "repeat": 5
+      },
+      {
+        "batches": {
+          "grasp": [
+            21922,
+            19443,
+            14831,
+            28777,
+            34788,
+            31350,
+            15844,
+            36563
+          ],
+          "lift": [
+            21937,
+            19524,
+            14859,
+            28798,
+            34819,
+            31367,
+            15864,
+            36589
+          ],
+          "place": [
+            22068,
+            19614,
+            14951,
+            28886,
+            34937,
+            31494,
+            15971,
+            36662
+          ],
+          "reach": [
+            21868,
+            19379,
+            14754,
+            28717,
+            34756,
+            31323,
+            15811,
+            36503
+          ],
+          "transport": [
+            21968,
+            19530,
+            14862,
+            28839,
+            34833,
+            31437,
+            15899,
+            36609
+          ]
+        },
+        "episodes": [
+          "pick-place-recovery-transport-seed-000133",
+          "pick-place-recovery-grasp-seed-000119",
+          "pick-place-seed-000088",
+          "pick-place-recovery-lift-seed-000170",
+          "pick-place-recovery-transport-seed-000200",
+          "pick-place-recovery-transport-seed-000181",
+          "pick-place-seed-000094",
+          "pick-place-recovery-reach-seed-000207"
+        ],
+        "repeat": 6
+      },
+      {
+        "batches": {
+          "grasp": [
+            14601,
+            35006,
+            20153,
+            15235,
+            11195,
+            14007,
+            24806,
+            33352
+          ],
+          "lift": [
+            14610,
+            35032,
+            20169,
+            15250,
+            11212,
+            14028,
+            24833,
+            33382
+          ],
+          "place": [
+            14708,
+            35148,
+            20351,
+            15345,
+            11321,
+            14137,
+            24943,
+            33450
+          ],
+          "reach": [
+            14548,
+            34989,
+            20122,
+            15200,
+            11153,
+            13949,
+            24791,
+            33284
+          ],
+          "transport": [
+            14695,
+            35054,
+            20217,
+            15305,
+            11260,
+            14084,
+            24890,
+            33403
+          ]
+        },
+        "episodes": [
+          "pick-place-seed-000087",
+          "pick-place-recovery-place-seed-000201",
+          "pick-place-recovery-place-seed-000121",
+          "pick-place-seed-000091",
+          "pick-place-seed-000068",
+          "pick-place-seed-000083",
+          "pick-place-recovery-transport-seed-000149",
+          "pick-place-recovery-reach-seed-000191"
+        ],
+        "repeat": 7
+      }
+    ],
+    "skills": [
+      "reach",
+      "grasp",
+      "lift",
+      "transport",
+      "place"
+    ],
+    "split": "train"
+  },
+  "expected_measurement_identities": [
+    {
+      "checkpoint_label": "e090",
+      "repeat": 0,
+      "stage": "discovery"
+    },
+    {
+      "checkpoint_label": "e090",
+      "repeat": 1,
+      "stage": "discovery"
+    },
+    {
+      "checkpoint_label": "e090",
+      "repeat": 2,
+      "stage": "discovery"
+    },
+    {
+      "checkpoint_label": "e090",
+      "repeat": 3,
+      "stage": "discovery"
+    },
+    {
+      "checkpoint_label": "e090",
+      "repeat": 4,
+      "stage": "discovery"
+    },
+    {
+      "checkpoint_label": "e090",
+      "repeat": 5,
+      "stage": "discovery"
+    },
+    {
+      "checkpoint_label": "e090",
+      "repeat": 6,
+      "stage": "discovery"
+    },
+    {
+      "checkpoint_label": "e090",
+      "repeat": 7,
+      "stage": "discovery"
+    },
+    {
+      "checkpoint_label": "e098-best",
+      "repeat": 0,
+      "stage": "discovery"
+    },
+    {
+      "checkpoint_label": "e098-best",
+      "repeat": 1,
+      "stage": "discovery"
+    },
+    {
+      "checkpoint_label": "e098-best",
+      "repeat": 2,
+      "stage": "discovery"
+    },
+    {
+      "checkpoint_label": "e098-best",
+      "repeat": 3,
+      "stage": "discovery"
+    },
+    {
+      "checkpoint_label": "e098-best",
+      "repeat": 4,
+      "stage": "discovery"
+    },
+    {
+      "checkpoint_label": "e098-best",
+      "repeat": 5,
+      "stage": "discovery"
+    },
+    {
+      "checkpoint_label": "e098-best",
+      "repeat": 6,
+      "stage": "discovery"
+    },
+    {
+      "checkpoint_label": "e098-best",
+      "repeat": 7,
+      "stage": "discovery"
+    },
+    {
+      "checkpoint_label": "e100",
+      "repeat": 0,
+      "stage": "discovery"
+    },
+    {
+      "checkpoint_label": "e100",
+      "repeat": 1,
+      "stage": "discovery"
+    },
+    {
+      "checkpoint_label": "e100",
+      "repeat": 2,
+      "stage": "discovery"
+    },
+    {
+      "checkpoint_label": "e100",
+      "repeat": 3,
+      "stage": "discovery"
+    },
+    {
+      "checkpoint_label": "e100",
+      "repeat": 4,
+      "stage": "discovery"
+    },
+    {
+      "checkpoint_label": "e100",
+      "repeat": 5,
+      "stage": "discovery"
+    },
+    {
+      "checkpoint_label": "e100",
+      "repeat": 6,
+      "stage": "discovery"
+    },
+    {
+      "checkpoint_label": "e100",
+      "repeat": 7,
+      "stage": "discovery"
+    },
+    {
+      "checkpoint_label": "e098-best",
+      "repeat": 0,
+      "stage": "confirmation"
+    },
+    {
+      "checkpoint_label": "e098-best",
+      "repeat": 1,
+      "stage": "confirmation"
+    },
+    {
+      "checkpoint_label": "e098-best",
+      "repeat": 2,
+      "stage": "confirmation"
+    },
+    {
+      "checkpoint_label": "e098-best",
+      "repeat": 3,
+      "stage": "confirmation"
+    },
+    {
+      "checkpoint_label": "e098-best",
+      "repeat": 4,
+      "stage": "confirmation"
+    },
+    {
+      "checkpoint_label": "e100",
+      "repeat": 0,
+      "stage": "confirmation"
+    },
+    {
+      "checkpoint_label": "e100",
+      "repeat": 1,
+      "stage": "confirmation"
+    },
+    {
+      "checkpoint_label": "e100",
+      "repeat": 2,
+      "stage": "confirmation"
+    },
+    {
+      "checkpoint_label": "e100",
+      "repeat": 3,
+      "stage": "confirmation"
+    },
+    {
+      "checkpoint_label": "e100",
+      "repeat": 4,
+      "stage": "confirmation"
+    }
+  ],
+  "format": "robot-vla-skill-gradient-probe/v1",
+  "gradient_groups": [
+    "adapter",
+    "state_encoder",
+    "action_encoder",
+    "block_00",
+    "block_01",
+    "block_02",
+    "block_03",
+    "block_04",
+    "block_05",
+    "block_06",
+    "block_07",
+    "block_08",
+    "block_09",
+    "block_10",
+    "block_11",
+    "block_12",
+    "block_13",
+    "block_14",
+    "block_15",
+    "final_norm",
+    "velocity_head"
+  ],
+  "model_cache_path": "model-cache/qwen",
+  "objective": {
+    "autocast_dtype": "bfloat16",
+    "event_loss_weight": 0.25,
+    "executed_action_steps": 4,
+    "gradient_clipping": false,
+    "gram_accumulation_dtype": "float32",
+    "optimizer_step": false,
+    "total": "base_loss + event_loss_weight * event_loss"
+  },
+  "probe_code_revision": "source-tree-sha256:71c9284e6873fe5b7cb888e041c781911b7dec9b5bf9ceee624713506241d992",
+  "qwen_context_layer": 12,
+  "qwen_trainable": false,
+  "thresholds": {
+    "confirmation_negative_repeats": "4/5",
+    "discovery_negative_repeats": "6/8",
+    "median_cosine_max": -0.1
+  }
+}

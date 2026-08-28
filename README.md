@@ -72,10 +72,14 @@ External/front RGB + Wrist RGB + Language + Proprioception [15]
 交接。E009 随后对 11 个 periodic/best checkpoint 做了 66-Episode screening 和 60-Episode 独立
 confirmation：epoch 100 把 Reach 从 epoch 98 的 `0/10` 提到 `3/10`，但 Transport 从 `7/10`
 降到 `2/10`，没有单一 checkpoint 通过 promotion 门槛。这说明聚合 checkpoint 在不同技能间存在
-行为冲突，不能靠替换 `best.pt` 解决。当前仍不把 Layer 12 升级为默认 Context；下一步先做
-Reach→Grasp handoff probe，再决定是否正式评估 Layer 24 semantic Key + Layer 12 geometry Value。
+行为冲突，不能靠替换 `best.pt` 解决。E010 随后用 34 个严格配对的 raw Gradient Gram 做机制归因：
+e098-best/e100 的 train Reach–Transport median cosine 为 `+0.164/+0.173`，独立 val 为
+`-0.094/+0.441`，均未通过预注册的两阶段负冲突门槛；五技能所有 train pair median 也全部为正。
+因此当前不直接增加多动作头或 PCGrad/CAGrad。下一步先投影 epoch 98→100 的真实 checkpoint 位移，
+并补充 event-conditioned 与 handoff boundary probe，再决定是否需要训练目标或架构分支。当前仍不把
+Layer 12 升级为默认 Context。
 完整配置、结果和限制见 [E008](docs/experiments.md#e008--qwen-layer-12-空间表示reach-与五技能组合诊断)、
-[E009](docs/results/e009/README.md) 与
+[E009](docs/results/e009/README.md)、[E010](docs/results/e010/README.md) 与
 [D024](docs/decisions.md#d024--不直接以-layer-12-替换最终层先诊断技能交接再评估语义-key--几何-value)。
 
 ## 快速开始
