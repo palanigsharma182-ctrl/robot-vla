@@ -31,6 +31,7 @@ from robot_vla.training.stage1 import (
 )
 
 CHECKPOINT_FORMAT = "robot-vla-stage1-checkpoint/v1"
+FINAL_QWEN_CONTEXT = "final"
 
 
 @dataclass(frozen=True)
@@ -38,6 +39,24 @@ class SavedCheckpointPaths:
     latest: Path
     periodic: Path | None
     best: Path | None
+
+
+def _qwen_context_hidden_state(policy: QwenVLAPolicy) -> int | str:
+    layer = getattr(policy.context_encoder, "layer", None)
+    return FINAL_QWEN_CONTEXT if layer is None else int(layer)
+
+
+def _metadata_value(
+    metadata: dict[str, Any], key: str, expected: Any
+) -> Any:
+    # v1 历史 Checkpoint 未显式记录层号，当且仅当目标仍是最终层时兼容读取。
+    if (
+        key == "qwen_context_hidden_state"
+        and key not in metadata
+        and expected == FINAL_QWEN_CONTEXT
+    ):
+        return FINAL_QWEN_CONTEXT
+    return metadata.get(key)
 
 
 def _capture_rng_state(flow_generator: torch.Generator) -> dict[str, Any]:
@@ -97,6 +116,7 @@ def _metadata(
         "dataset_schema": TRAJECTORY_SCHEMA_VERSION,
         "robot_spec": robot_spec.to_dict(),
         "qwen": {"model_id": QWEN_MODEL_ID, "revision": QWEN_REVISION},
+        "qwen_context_hidden_state": _qwen_context_hidden_state(policy),
         "prompt_version": PROMPT_VERSION,
         "processor_config": asdict(processor_config),
         "proprio_stats": asdict(proprio_stats),
@@ -270,13 +290,14 @@ def _validate_inference_metadata(
         "dataset_schema": TRAJECTORY_SCHEMA_VERSION,
         "robot_spec": robot_spec.to_dict(),
         "qwen": {"model_id": QWEN_MODEL_ID, "revision": QWEN_REVISION},
+        "qwen_context_hidden_state": _qwen_context_hidden_state(policy),
         "prompt_version": PROMPT_VERSION,
         "processor_config": asdict(processor_config),
         "proprio_stats": asdict(proprio_stats),
         "expert_config": asdict(policy.expert.config),
     }
     for key, expected_value in expected.items():
-        if metadata.get(key) != expected_value:
+        if _metadata_value(metadata, key, expected_value) != expected_value:
             raise ValueError(f"Checkpoint metadata 不兼容: {key}")
     code = metadata.get("code", {})
     if code.get("package_version") != __version__ or not str(code.get("revision", "")).strip():
@@ -339,7 +360,7 @@ def load_stage1_checkpoint(
         proprio_stats,
     )
     for key, expected in expected_metadata.items():
-        if actual_metadata.get(key) != expected:
+        if _metadata_value(actual_metadata, key, expected) != expected:
             raise ValueError(f"Checkpoint metadata 不兼容: {key}")
     code = actual_metadata.get("code", {})
     if code.get("package_version") != __version__:

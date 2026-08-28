@@ -74,6 +74,57 @@ class FrozenQwenContextEncoder(nn.Module):
         return QwenContext(tokens=tokens, mask=mask)
 
 
+class FrozenQwenLayerContextEncoder(FrozenQwenContextEncoder):
+    """冻结完整 Qwen 前向，并选择指定文本层之后的 hidden state。"""
+
+    def __init__(self, qwen_for_conditional_generation: nn.Module, layer: int) -> None:
+        super().__init__(qwen_for_conditional_generation)
+        text_config = self.qwen.config.text_config
+        layer_count = int(getattr(text_config, "num_hidden_layers", -1))
+        if layer_count <= 0:
+            raise ValueError("Qwen text config 必须提供有效 num_hidden_layers")
+        if not 1 <= layer <= layer_count:
+            raise ValueError(f"Qwen layer 应位于 [1,{layer_count}]，实际为 {layer}")
+        self.layer = int(layer)
+        self.layer_count = layer_count
+
+    @torch.no_grad()
+    def forward(self, model_inputs: dict[str, Any]) -> QwenContext:
+        if "labels" in model_inputs:
+            raise ValueError("Context Encoder 不接受 labels，也不能调用语言建模损失")
+        required = {"input_ids", "attention_mask", "pixel_values", "image_grid_thw"}
+        missing = required.difference(model_inputs)
+        if missing:
+            raise ValueError(f"Qwen model input 缺少字段: {sorted(missing)}")
+        self.qwen.eval()
+        outputs = self.qwen.model(
+            **model_inputs,
+            use_cache=False,
+            output_hidden_states=True,
+            return_dict=True,
+        )
+        hidden_states = getattr(outputs, "hidden_states", None)
+        expected_states = self.layer_count + 1
+        if hidden_states is None or len(hidden_states) != expected_states:
+            actual = None if hidden_states is None else len(hidden_states)
+            raise RuntimeError(
+                f"Qwen 应返回 embedding 加 {self.layer_count} 层，共 {expected_states} 个 "
+                f"hidden states，实际为 {actual}"
+            )
+        # Hugging Face hidden_states[0] 是 embedding；hidden_states[k] 是第 k 层之后。
+        tokens = hidden_states[self.layer]
+        input_ids = model_inputs["input_ids"]
+        if tokens.shape != (*input_ids.shape, self.context_dim):
+            raise RuntimeError(
+                f"Qwen Layer{self.layer} context 应为 [B,N,{self.context_dim}]，"
+                f"实际为 {tuple(tokens.shape)}"
+            )
+        mask = model_inputs["attention_mask"].bool()
+        if mask.shape != input_ids.shape:
+            raise RuntimeError("Qwen context mask shape 必须与 input_ids 相同")
+        return QwenContext(tokens=tokens, mask=mask)
+
+
 class QwenVLAAdapter(nn.Module):
     """D010 固定的逐 token 2048→720 residual MLP，不改变 token 顺序和数量。"""
 
