@@ -35,6 +35,7 @@ Action 安全拒绝诊断、事件损失、temporal ensemble，以及固定低�
 | E007 | 2026-08-26 | 固定 `lambda=0.25` 的正式训练与控制消融 | completed | 原子提升到 16/25，ensemble 明显改善阶段深度，但 20 unseen 完整成功仍为 0/20 |
 | E008 | 2026-08-28 | Qwen Layer 12 空间表示、Reach 与五技能组合诊断 | completed | Layer 12 的位置可解码性和完整 Reach 通过数优于 Layer 24，但原子仍为 16/25、完整仍为 0/20；主要问题收敛到多技能目标冲突和 Reach→Grasp/Lift→Transport 交接 |
 | E009 | 2026-08-29 | Layer 12 periodic checkpoint 的 Reach/Transport sweep | completed | epoch 100 将 Reach 从 0/10 提到 3/10，却使 Transport 从 7/10 降到 2/10；无单一 promotion 候选，确认技能/checkpoint 冲突而非只选错 best.pt |
+| E010 | 2026-08-29 | Layer 12 五技能梯度冲突与 base/event 归因 probe | planned | 用严格配对的 per-skill 梯度 Gram/cosine 定位 epoch 98→100 的 Reach/Transport 行为交换发生在输出头、Expert 层、Adapter，还是 base/event 目标内部 |
 
 ## E001 — 30 条数据 Stage 1 与首轮闭环
 
@@ -789,6 +790,132 @@ checkpoint。validation total loss 在 epoch 98/100 之间只差约 `0.000029`�
 manifest、顺序启动现有 CLI、计算上述 residual/ranking 和选择 Stage B 候选；排名逻辑需要纯函数
 单元测试，禁止把 validation loss 混入行为排序。目标测试共 10 项通过，新增文件通过 Ruff；实验
 源码树 revision 为 `source-tree-sha256:aeb1c1647de4eadf838838c0abf4e5c1c517d0d871e2f33c75d2b8b288a351f1`。
+
+## E010 — Layer 12 五技能梯度冲突与 base/event 归因 probe
+
+**Date:** 2026-08-29
+
+**Status:** planned
+
+**Experiment:**
+
+不更新参数、不运行闭环，只在 E009 的 epoch 90、98、100 checkpoint 上恢复相同 Layer 12
+Adapter/Action Expert 权重，对严格配对的 per-skill Action Chunk batch 计算训练目标梯度。保存逐模块
+精确 Gram matrix，再由 Gram 独立重算 cosine、范数和负冲突比例。Discovery 使用 train split 的五技能
+全矩阵；Confirmation 使用独立 val split，只对 Reach/Transport 分解 base gradient、加权 event
+gradient 和二者之和。
+
+本 probe 只回答“训练目标的局部一阶更新方向是否冲突，以及冲突位于哪里”，不把离线 loss 或梯度
+cosine 当作闭环成功率，也不在本实验中直接实现多动作头。
+
+**Goal:**
+
+区分以下架构分支：
+
+1. **仅输出头冲突：**共享 Expert 大部分层的 Reach/Transport 梯度相容，但 `velocity_head` 稳定负
+   冲突；下一候选才是共享 trunk + 轻量多输出头。
+2. **后层 Expert 冲突：**冲突集中在最后 4 个 Expert block；下一候选是共享前层 + skill adapter/
+   后层分支，而不是只拆最终 Linear。
+3. **广泛共享表示冲突：**至少一半 Expert block 稳定负冲突；先比较 PCGrad/CAGrad/GradNorm，再考虑
+   更重的 MoE，不能假设多个输出头足够。
+4. **Adapter/Context 投影冲突：**Adapter 本身稳定负冲突；优先继续 Layer 24 semantic Key + Layer 12
+   geometry Value，而不是只修改动作头。
+5. **base/event 目标内部冲突：**同一技能的 base gradient 与 `0.25 × event gradient` 稳定相反；
+   优先处理 loss 权重、事件采样或分阶段优化。
+6. **未确认梯度冲突：**独立 val split 不复现负方向；不据此增加多头，继续 Reach→Grasp handoff
+   状态分布 probe。
+
+**Frozen model and loss:**
+
+- Dataset: `trusted-v0.4-event-recovery-220`；只读取既有 train/val split
+- Qwen: `Qwen/Qwen3.5-2B` fixed revision，完全冻结，Context hidden state 固定 Layer 12
+- Checkpoints: `e090=step-00005760.pt`、`e098-best=best.pt`、`e100=step-00006400.pt`
+- Trainable boundary: 只测 QwenVLAAdapter + StandaloneActionExpert；Qwen 参数不得出现 gradient
+- Objective: `base_loss + 0.25 × event_loss`，event 只使用前 4 个实际执行步的 critical mask
+- Precision: 与正式训练一致的 BF16 autocast；梯度 Gram 在 FP32 中累计
+- Flow target: 每个 stage/repeat 使用固定 seed；相同 repeat 的各技能和各 checkpoint 共享相同 Flow
+  time/noise，减少采样噪声
+- Optimizer: 不构造 step，不裁剪梯度，不写回参数；probe 前后 checkpoint 参数 SHA256 必须不变
+
+**Module groups:**
+
+1. `adapter`
+2. `state_encoder`
+3. `action_encoder`
+4. `block_00` … `block_15`
+5. `final_norm`
+6. `velocity_head`
+7. `all_trainable`，由以上互斥分组的 Gram 求和
+
+分组必须完整覆盖所有且仅覆盖可训练参数；任一参数缺失、重复或产生 `None/NaN/Inf` gradient 时停止。
+
+**Stage A — train discovery:**
+
+- Checkpoints: e090、e098-best、e100
+- Split: train
+- Skills: reach、grasp、lift、transport、place
+- Repeats: 8
+- Batch: 每技能每 repeat 8 个不同 trajectory，共每技能 64 个不同 train trajectory
+- Sampling: 同一 repeat 五技能使用相同 8 个 trajectory，只在各自 skill 段内随机选一个 timestep；
+  checkpoint 间完全复用 sample identity
+- Work: `3 checkpoints × 8 repeats × 5 skill gradients = 120` 次 gradient pass
+- Output: 每 repeat 保存五技能逐模块 `5×5` Gram、loss/base/event、有效/critical steps、gradient norm、
+  trajectory/timestep 和 Flow seed
+
+**Stage B — independent confirmation and decomposition:**
+
+- Checkpoints: e098-best、e100
+- Split: val，与 Stage A trajectory 不重叠
+- Skills: Reach、Transport
+- Repeats: 5
+- Batch: 每技能每 repeat 4 个不同 trajectory，共覆盖 20 个不同 val trajectory
+- Sampling: 与 Stage A 相同的同场景/同 Flow seed 配对原则
+- 对每个 skill 从同一次 forward 分别求：`base gradient`、`0.25 × event gradient`，并用向量和得到
+  `total gradient`；零 event norm 记录为不可计算，不把 cosine 人工填成 0
+- Work: `2 checkpoints × 5 repeats × 2 skills = 20` 次 forward、40 次 component backward
+- Output: 每 repeat 保存 `reach_base/reach_event/reach_total/transport_base/transport_event/
+  transport_total` 的逐模块 `6×6` Gram
+
+**Pre-registered interpretation thresholds:**
+
+同一 checkpoint 的 Reach/Transport `all_trainable` total gradient 只有同时满足以下条件，才标记为
+“确认训练梯度冲突”：
+
+1. Stage A median cosine `<= -0.10` 且至少 `6/8` repeats 为负；
+2. Stage B median cosine `<= -0.10` 且至少 `4/5` repeats 为负。
+
+定位规则在确认冲突后应用：
+
+- **Output-head localized:** `velocity_head` 在 Stage B 满足 `<=-0.10`、至少 4/5 为负，同时 Adapter
+  不满足，且满足同一门槛的 Expert blocks 少于 4 个。
+- **Late-Expert localized:** blocks 12–15 至少 3 个满足门槛，blocks 0–11 满足者少于 4 个。
+- **Broad Expert:** 16 个 blocks 至少 8 个满足门槛。
+- **Adapter conflict:** Adapter 满足 Stage B 门槛。
+- **Within-skill objective conflict:** Reach 或 Transport 的 base/event cosine 在 Stage B median
+  `<=-0.10` 且至少 4/5 为负。
+
+若 discovery 达标但 confirmation 不达标，结论为“训练样本上的不稳定冲突信号”，不能据此修改架构。
+所有 median 同时报告 IQR；负比例报告 Wilson 95% 区间。模块定位是诊断标签，不是统计显著性声明。
+
+**Artifacts and recovery:**
+
+- Remote root: `/home/ubuntu/robot-vla-runs/e010-skill-gradient-conflict/`
+- `probe-manifest.json`: checkpoint SHA256、dataset identity、源码 revision、样本计划、Flow seed 和冻结配置
+- `measurements.jsonl`: 每完成一个 checkpoint/stage/repeat 原子追加一行；身份重复或缺失时拒绝汇总
+- `probe-summary.json`: 由 raw Gram 聚合的 per-pair/per-group median、IQR、负比例和 Wilson 区间
+- 重跑时 manifest 必须逐字段一致，只跳过已完成 measurement identity
+- GitHub 发布 manifest、raw JSONL、summary 和分析；不上传 Qwen、dataset 或 checkpoint 权重
+
+**Promotion boundary:**
+
+E010 不产生可部署 checkpoint。即使确认梯度冲突，也只能决定下一项对照实验是多头、skill adapter、
+PCGrad/CAGrad 或 Context Key/Value；任何架构晋升仍需重新训练，并通过独立原子和完整闭环门槛。
+
+**Planned implementation:**
+
+新增一个不写回参数的诊断模块和薄 CLI，复用现有 Dataset、Collator、Layer 12 policy factory 与严格
+checkpoint loader。纯函数测试覆盖参数分组、Gram/cosine、零范数、重复恢复身份、Wilson 区间、
+阈值判定和 sample plan；GPU runner 只负责固定样本 forward/backward 与原子落盘。
 
 ## 实验模板
 
