@@ -35,7 +35,7 @@ Action 安全拒绝诊断、事件损失、temporal ensemble，以及固定低�
 | E007 | 2026-08-26 | 固定 `lambda=0.25` 的正式训练与控制消融 | completed | 原子提升到 16/25，ensemble 明显改善阶段深度，但 20 unseen 完整成功仍为 0/20 |
 | E008 | 2026-08-28 | Qwen Layer 12 空间表示、Reach 与五技能组合诊断 | completed | Layer 12 的位置可解码性和完整 Reach 通过数优于 Layer 24，但原子仍为 16/25、完整仍为 0/20；主要问题收敛到多技能目标冲突和 Reach→Grasp/Lift→Transport 交接 |
 | E009 | 2026-08-29 | Layer 12 periodic checkpoint 的 Reach/Transport sweep | completed | epoch 100 将 Reach 从 0/10 提到 3/10，却使 Transport 从 7/10 降到 2/10；无单一 promotion 候选，确认技能/checkpoint 冲突而非只选错 best.pt |
-| E010 | 2026-08-29 | Layer 12 五技能梯度冲突与 base/event 归因 probe | planned | 用严格配对的 per-skill 梯度 Gram/cosine 定位 epoch 98→100 的 Reach/Transport 行为交换发生在输出头、Expert 层、Adapter，还是 base/event 目标内部 |
+| E010 | 2026-08-29 | Layer 12 五技能梯度冲突与 base/event 归因 probe | completed | e098-best/e100 均未通过两阶段负冲突门槛；五技能 train median 全为正，Reach/Transport event gradient 为零不可识别，不支持直接多头或 PCGrad |
 
 ## E001 — 30 条数据 Stage 1 与首轮闭环
 
@@ -795,7 +795,7 @@ manifest、顺序启动现有 CLI、计算上述 residual/ranking 和选择 Stag
 
 **Date:** 2026-08-29
 
-**Status:** planned
+**Status:** completed
 
 **Experiment:**
 
@@ -911,11 +911,46 @@ cosine 当作闭环成功率，也不在本实验中直接实现多动作头。
 E010 不产生可部署 checkpoint。即使确认梯度冲突，也只能决定下一项对照实验是多头、skill adapter、
 PCGrad/CAGrad 或 Context Key/Value；任何架构晋升仍需重新训练，并通过独立原子和完整闭环门槛。
 
-**Planned implementation:**
+**Implementation:**
 
 新增一个不写回参数的诊断模块和薄 CLI，复用现有 Dataset、Collator、Layer 12 policy factory 与严格
 checkpoint loader。纯函数测试覆盖参数分组、Gram/cosine、零范数、重复恢复身份、Wilson 区间、
 阈值判定和 sample plan；GPU runner 只负责固定样本 forward/backward 与原子落盘。
+
+**Result:**
+
+- 34/34 measurement unit 完成：3 checkpoints × 8 train discovery + 2 checkpoints × 5 val
+  confirmation；覆盖 64 个不同 train trajectory 和 20 个不同 val trajectory，跨 split 零重叠。
+- Reach/Transport `all_trainable` train median cosine 为 e090 `+0.421`、e098-best `+0.164`、
+  e100 `+0.173`；e098-best/e100 的独立 val 为 `-0.094（3/5 负）` 与 `+0.441（0/5 负）`。
+  两个 confirmation checkpoint 都没有同时通过 `<=-0.10` 与负 repeat 计数门槛。
+- 三个 checkpoint 的五技能 10 个 pair median 全部为正。e098-best 只有 Block 15 在 val 上单独达到
+  module 负冲突门槛；Velocity head 为 `-0.120、3/5`，未达到计数门槛；e100 Velocity head 为
+  `+0.480、0/5`。由于 overall 未确认，不激活 output-head/late/broad/adapter 标签。
+- Reach/Transport 在 Stage A/B 的前 4 个执行步均没有 critical event；其加权 event gradient 范数为
+  0，base/event cosine 按协议为 `null`。Grasp/Lift/Place 的 train critical steps 分别为 `29/10/5`，
+  因此本次没有识别 Grasp/Place event 对 Reach/Transport 的间接共享参数影响。
+- e098-best/e100 的 Grasp 中位梯度范数分别为 Transport 的 `2.67×/2.71×`，提示实际更新贡献或
+  采样/尺度失衡是后续候选，但本结果没有证明其导致闭环行为交换。
+- 三个 checkpoint 的 Adapter/Expert 参数 SHA256 前后完全一致。独立标准库脚本从 raw Gram 复算
+  1320 个 summary row，`all_trainable` 求和最大差为 `0.0`、统计最大差为 `1.11e-16`。
+
+完整技术报告、manifest、34 行 raw Gram、summary 和独立验证见
+[E010 results](results/e010/README.md)。
+
+**Conclusion:**
+
+预注册的“稳定训练梯度冲突”假设未得到支持。E009 的 Reach/Transport checkpoint 行为交换不能由
+当前 checkpoint 上稳定的 per-batch 负 cosine 直接解释；现有证据不支持立即实现多动作头、后层
+分支或 PCGrad/CAGrad。零 event norm 只表示 Reach/Transport 的 within-skill base/event 归因不可
+识别，不能推广为 event loss 全局无影响。
+
+**Next step:**
+
+下一项便宜 probe 直接计算 e098-best→e100 的真实参数位移 `Δθ`，并按模块评估
+`g_reach·Δθ/g_transport·Δθ`；同时构造 guaranteed-critical 的 Grasp/Place event batch 和技能边界
+batch。只有实际位移稳定呈现帮助一个技能、伤害另一个技能并定位到 Head/后层时，才进入多头或后层
+分支 A/B；否则继续 handoff 状态分布归因。
 
 ## 实验模板
 
