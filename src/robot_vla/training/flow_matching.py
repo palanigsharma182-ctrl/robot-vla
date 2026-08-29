@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -14,6 +15,12 @@ class FlowTrainingTarget:
     target_velocity: torch.Tensor
     flow_time: torch.Tensor
     noise: torch.Tensor
+
+
+@dataclass(frozen=True)
+class RTCFlowIntegrationOutput:
+    action: torch.Tensor
+    guidance_coefficients: tuple[float, ...]
 
 
 def _validate_action_and_mask(action: torch.Tensor, action_mask: torch.Tensor) -> None:
@@ -139,3 +146,101 @@ def euler_integrate_actions(
         state = state + dt * velocity
         state = torch.where(valid, state, torch.zeros_like(state))
     return state.clamp(-1.0, 1.0)
+
+
+def rtc_guidance_coefficient(
+    flow_time: torch.Tensor,
+    *,
+    max_guidance_weight: float,
+) -> torch.Tensor:
+    """把 RTC Eq.(2) 的 noise→action 时间换算到本项目 action←noise 时间。"""
+
+    if flow_time.ndim != 1 or not torch.isfinite(flow_time).all():
+        raise ValueError("flow_time 必须是一维有限 Tensor")
+    if torch.any((flow_time < 0.0) | (flow_time > 1.0)):
+        raise ValueError("flow_time 必须位于 [0,1]")
+    if not math.isfinite(max_guidance_weight) or max_guidance_weight <= 0:
+        raise ValueError("max_guidance_weight 必须为正数")
+    # 论文 tau 从 0(noise) 积分到 1(action)；本项目 t=1-tau，从 1 积分到 0。
+    paper_tau = 1.0 - flow_time.float()
+    project_time = flow_time.float()
+    denominator = paper_tau * project_time
+    ratio = torch.where(
+        denominator > torch.finfo(torch.float32).eps,
+        (paper_tau.square() + project_time.square()) / denominator,
+        torch.full_like(project_time, float(max_guidance_weight)),
+    )
+    return ratio.clamp(max=float(max_guidance_weight))
+
+
+@torch.no_grad()
+def euler_integrate_actions_with_rtc(
+    velocity_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+    initial_noise: torch.Tensor,
+    action_mask: torch.Tensor,
+    previous_action_target: torch.Tensor,
+    slot_weights: torch.Tensor,
+    *,
+    max_guidance_weight: float,
+    num_steps: int = 10,
+) -> RTCFlowIntegrationOutput:
+    """以 RTC ΠGDM VJP 修正 Flow velocity；不对中间 action state 做 clamp。"""
+
+    _validate_action_and_mask(initial_noise, action_mask)
+    if num_steps <= 0:
+        raise ValueError("num_steps 必须为正整数")
+    if previous_action_target.shape != initial_noise.shape:
+        raise ValueError("previous_action_target 必须与 Action state 同 shape")
+    if slot_weights.shape != action_mask.shape:
+        raise ValueError("slot_weights 必须与 [B,H] 对齐")
+    if not torch.isfinite(previous_action_target).all() or not torch.isfinite(slot_weights).all():
+        raise ValueError("RTC target/slot_weights 必须有限")
+    if torch.any((slot_weights < 0.0) | (slot_weights > 1.0)):
+        raise ValueError("RTC slot_weights 必须位于 [0,1]")
+
+    state = initial_noise.float()
+    valid = action_mask.unsqueeze(-1)
+    state = torch.where(valid, state, torch.zeros_like(state))
+    target = previous_action_target.detach().float()
+    weights = slot_weights.detach().float() * action_mask.to(dtype=torch.float32)
+    dt = -1.0 / num_steps
+    coefficients: list[float] = []
+    for step in range(num_steps):
+        flow_time = torch.full(
+            (state.shape[0],),
+            1.0 + step * dt,
+            device=state.device,
+            dtype=torch.float32,
+        )
+        with torch.enable_grad():
+            differentiable_state = state.detach().requires_grad_(True)
+            velocity = velocity_fn(differentiable_state, flow_time)
+            if velocity.shape != state.shape or not torch.isfinite(velocity).all():
+                raise RuntimeError("velocity_fn 必须返回与 Action state 同 shape 的有限 Tensor")
+            velocity = torch.where(valid, velocity.float(), torch.zeros_like(state))
+            # 本项目 x_t=t*noise+(1-t)*action、v=noise-action，因此 clean endpoint=a=x_t-t*v。
+            clean_endpoint = differentiable_state - flow_time.view(-1, 1, 1) * velocity
+            weighted_error = (target - clean_endpoint) * weights.unsqueeze(-1)
+            guidance = torch.autograd.grad(
+                clean_endpoint,
+                differentiable_state,
+                grad_outputs=weighted_error,
+                create_graph=False,
+                retain_graph=False,
+            )[0]
+        if not torch.isfinite(guidance).all():
+            raise RuntimeError("RTC guidance 包含 NaN 或 Inf")
+        coefficient = rtc_guidance_coefficient(
+            flow_time,
+            max_guidance_weight=max_guidance_weight,
+        )
+        coefficients.append(float(coefficient[0].item()))
+        # 论文速度沿 noise→action；本项目速度和积分方向均相反，所以 guidance 符号取反。
+        guided_velocity = velocity.detach() - coefficient.view(-1, 1, 1) * guidance.detach()
+        guided_velocity = torch.where(valid, guided_velocity, torch.zeros_like(state))
+        state = state + dt * guided_velocity
+        state = torch.where(valid, state, torch.zeros_like(state))
+    return RTCFlowIntegrationOutput(
+        action=state.clamp(-1.0, 1.0),
+        guidance_coefficients=tuple(coefficients),
+    )

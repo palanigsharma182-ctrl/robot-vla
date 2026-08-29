@@ -177,13 +177,16 @@ python -m robot_vla.cli.evaluate_maniskill \
   --model-cache /path/to/huggingface-cache \
   --checkpoint /path/to/selected-checkpoint.pt \
   --output /path/to/rollout-run \
+  --inference-strategy temporal-ensemble \
   --unseen-seed-start 10000 \
   --unseen-episodes 20
 ```
 
-`summary.json` 分别保存 test/unseen/overall 的完整任务成功率、95% Wilson 区间、五个原子技能
-通过率和失败计数；`episodes.jsonl` 保留每次 Replan 的 Flow sampling seed、最终物理 Predicate
-和失败阶段。只有这组闭环结果可以作为 manipulation 效果证据。
+`--inference-strategy` 可显式选择 `newest-only`、`temporal-ensemble` 或实验性的 `rtc`；RTC 额外支持
+`--rtc-execution-horizon 4 --rtc-max-guidance-weight 10.0`。`summary.json` 分别保存
+test/unseen/overall 的完整任务成功率、95% Wilson 区间、条件交接率、阶段耗时、五个原子技能通过率
+和失败计数；`episodes.jsonl` 保留每次 Replan 的 Flow sampling seed、策略/RTC 诊断、最终物理
+Predicate 和失败阶段。只有这组闭环结果可以作为 manipulation 效果证据。
 
 ## 许可证
 

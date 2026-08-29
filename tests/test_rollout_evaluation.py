@@ -17,6 +17,7 @@ def _result(
     failure_category: str | None = None,
 ) -> RolloutEpisodeResult:
     success = failure_category is None
+    completion_steps = (20, 30, 40, 60, 80)
     return RolloutEpisodeResult(
         seed_group=seed_group,
         seed=seed,
@@ -50,6 +51,10 @@ def _result(
         final_object_linear_speed_m_s=0.0,
         final_object_angular_speed_rad_s=0.0,
         wall_time_s=1.0,
+        skill_completion_environment_steps=tuple(
+            step if index < completed_skill_count else None
+            for index, step in enumerate(completion_steps)
+        ),
     )
 
 
@@ -136,6 +141,11 @@ def test_rollout_summary_separates_seed_groups_and_reports_skill_rates() -> None
     assert summary["overall"]["skill_success_rates"]["lift"] == pytest.approx(2 / 3)
     assert summary["overall"]["failure_counts"] == {"lift_failed": 1}
     assert summary["overall"]["tracking_correction_saturation_count"] == 0
+    assert summary["overall"]["grasp_given_reach"]["rate"] == pytest.approx(1.0)
+    assert summary["overall"]["transport_given_lift"]["rate"] == pytest.approx(1.0)
+    assert summary["overall"]["mean_steps_to_reach"] == pytest.approx(20.0)
+    assert summary["overall"]["mean_steps_reach_to_grasp"] == pytest.approx(10.0)
+    assert summary["overall"]["mean_steps_lift_to_transport"] == pytest.approx(20.0)
     lower, upper = summary["overall"]["success_rate_wilson_95"]
     assert 0.0 <= lower < 2 / 3 < upper <= 1.0
 

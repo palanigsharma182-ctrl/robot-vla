@@ -19,7 +19,12 @@ from robot_vla.evaluation.rollout import (
     RolloutEpisodeSpec,
     classify_rollout_failure,
 )
-from robot_vla.execution import ManiSkillFrankaController, RecedingHorizonChunkExecutor
+from robot_vla.execution import (
+    ChunkInferenceStrategy,
+    ManiSkillFrankaController,
+    RecedingHorizonChunkExecutor,
+    RTCConfig,
+)
 from robot_vla.model.policy import QwenVLAPolicy
 from robot_vla.model.qwen_processor import QwenVLAProcessorAdapter
 from robot_vla.runtime import OnlineObservation, QwenVLAReplanLoop, QwenVLARuntime, RuntimeConfig
@@ -137,6 +142,13 @@ class _TrackingManiSkillController(ManiSkillFrankaController):
         self.environment_success = False
         self.terminated = False
         self.truncated = False
+        initial_state = _read_predicate_state(env.unwrapped)
+        self._last_tcp_position = np.asarray(initial_state.tcp_position, dtype=np.float64)
+        self.last_tcp_linear_speed_m_s = 0.0
+        self.skill_completion_environment_steps: list[int | None] = [
+            0 if index < progress.completed_skill_count else None
+            for index in range(len(PICK_AND_PLACE_SKILLS))
+        ]
 
     @property
     def done(self) -> bool:
@@ -152,7 +164,17 @@ class _TrackingManiSkillController(ManiSkillFrankaController):
         observation, _, terminated, truncated, info = self.last_step_output
         self.observation = observation
         self.environment_steps += 1
-        self.progress = self.tracker.update(_read_predicate_state(self.env.unwrapped))
+        previous_completed = self.progress.completed_skill_count
+        predicate_state = _read_predicate_state(self.env.unwrapped)
+        tcp_position = np.asarray(predicate_state.tcp_position, dtype=np.float64)
+        self.last_tcp_linear_speed_m_s = float(
+            np.linalg.norm(tcp_position - self._last_tcp_position) * self.spec.control_hz
+        )
+        self._last_tcp_position = tcp_position
+        self.progress = self.tracker.update(predicate_state)
+        for skill_index in range(previous_completed, self.progress.completed_skill_count):
+            if self.skill_completion_environment_steps[skill_index] is None:
+                self.skill_completion_environment_steps[skill_index] = self.environment_steps
         self.environment_success = self.environment_success or _single_bool(info["success"])
         self.terminated = self.terminated or _single_bool(terminated)
         self.truncated = self.truncated or _single_bool(truncated)
@@ -165,8 +187,10 @@ def run_maniskill_episode(
     episode: RolloutEpisodeSpec,
     *,
     sampling_seed_base: int,
-    temporal_ensemble_enabled: bool = True,
+    inference_strategy: str | ChunkInferenceStrategy | None = None,
+    temporal_ensemble_enabled: bool | None = None,
     recency_decay: float = 0.5,
+    rtc_config: RTCConfig | None = None,
     max_anomaly_replans: int = 3,
 ) -> RolloutEpisodeResult:
     started = time.monotonic()
@@ -177,8 +201,10 @@ def run_maniskill_episode(
     loop = QwenVLAReplanLoop(
         runtime,
         RecedingHorizonChunkExecutor(spec),
+        inference_strategy=inference_strategy,
         temporal_ensemble_enabled=temporal_ensemble_enabled,
         recency_decay=recency_decay,
+        rtc_config=rtc_config,
         max_anomaly_replans=max_anomaly_replans,
     )
     observation_adapter = FrankaObservationAdapter(spec)
@@ -201,6 +227,7 @@ def run_maniskill_episode(
     temporal_ensemble_max_buffer_size = 0
     temporal_ensemble_max_proposal_spread = 0.0
     temporal_ensemble_min_newest_weight: float | None = None
+    replan_traces: list[dict[str, Any]] = []
 
     while not controller.done and replans < max_replans:
         replans += 1
@@ -220,10 +247,41 @@ def run_maniskill_episode(
                 error += f"; hold 失败: {type(hold_error).__name__}: {hold_error}"
             break
 
+        replan_control_step = loop.control_step
+        completed_before = controller.progress.completed_skill_count
+        tcp_distance_before = controller.progress.outcome.tcp_to_object_distance_m
+        tcp_speed_before = controller.last_tcp_linear_speed_m_s
+        joint_velocity_abs_max = float(
+            np.max(np.abs(online_observation.physical_proprio[spec.arm_dof : spec.arm_dof * 2]))
+        )
         result = loop.replan_and_execute(online_observation, controller)
         execution = result.execution
+        replan_trace: dict[str, Any] = {
+            "replan_index": replans - 1,
+            "control_step": replan_control_step,
+            "sampling_seed": None if result.sampling is None else result.sampling.seed,
+            "inference_strategy": result.inference_strategy.value,
+            "rtc_enabled": result.inference_strategy == ChunkInferenceStrategy.RTC,
+            "rtc_guidance_weight": None,
+            "rtc_execution_horizon": None,
+            "rtc_schedule": None,
+            "previous_chunk_available": False,
+            "overlap_length": 0,
+            "completed_skill_count_before": completed_before,
+            "completed_skill_count_after": controller.progress.completed_skill_count,
+            "tcp_to_object_distance_before_m": tcp_distance_before,
+            "tcp_to_object_distance_after_m": controller.progress.outcome.tcp_to_object_distance_m,
+            "tcp_linear_speed_before_m_s": tcp_speed_before,
+            "tcp_linear_speed_after_m_s": controller.last_tcp_linear_speed_m_s,
+            "joint_velocity_abs_max_rad_s": joint_velocity_abs_max,
+            "gripper_target_first": None,
+            "temporal_proposal_spread": None,
+        }
         anomaly_replan_count += int(execution.replan_required)
         if result.ensemble_trace is not None:
+            replan_trace["temporal_proposal_spread"] = (
+                result.ensemble_trace.max_proposal_spread
+            )
             temporal_ensemble_max_buffer_size = max(
                 temporal_ensemble_max_buffer_size,
                 result.ensemble_trace.buffer_size,
@@ -254,6 +312,9 @@ def run_maniskill_episode(
         if result.sampling is not None:
             sampling_seeds.append(result.sampling.seed)
         if result.action_chunk is not None:
+            replan_trace["gripper_target_first"] = float(
+                result.action_chunk.physical_action[0, -1]
+            )
             action_chunks += 1
             normalized_max = float(np.max(np.abs(result.action_chunk.normalized_action)))
             physical_arm_max = float(
@@ -279,6 +340,39 @@ def run_maniskill_episode(
                 if gripper_target_max is None
                 else max(gripper_target_max, chunk_gripper_max)
             )
+            if result.action_chunk.rtc_trace is not None:
+                rtc_trace = result.action_chunk.rtc_trace.to_dict()
+                rtc_trace.update(
+                    {
+                        "replan_index": replans - 1,
+                        "control_step": replan_control_step,
+                        "sampling_seed": result.action_chunk.sampling.seed,
+                        "completed_skill_count_before": completed_before,
+                        "completed_skill_count_after": controller.progress.completed_skill_count,
+                        "tcp_to_object_distance_before_m": tcp_distance_before,
+                        "tcp_to_object_distance_after_m": (
+                            controller.progress.outcome.tcp_to_object_distance_m
+                        ),
+                        "tcp_linear_speed_before_m_s": tcp_speed_before,
+                        "tcp_linear_speed_after_m_s": controller.last_tcp_linear_speed_m_s,
+                        "joint_velocity_abs_max_rad_s": joint_velocity_abs_max,
+                        "gripper_target_first": float(
+                            result.action_chunk.physical_action[0, -1]
+                        ),
+                        "temporal_proposal_spread": None,
+                    }
+                )
+                replan_trace.update(rtc_trace)
+        replan_trace.update(
+            {
+                "completed_skill_count_after": controller.progress.completed_skill_count,
+                "tcp_to_object_distance_after_m": (
+                    controller.progress.outcome.tcp_to_object_distance_m
+                ),
+                "tcp_linear_speed_after_m_s": controller.last_tcp_linear_speed_m_s,
+            }
+        )
+        replan_traces.append(replan_trace)
         if not result.execution.success:
             failure_stage = result.execution.failure_stage
             error = result.execution.error
@@ -348,6 +442,11 @@ def run_maniskill_episode(
         temporal_ensemble_max_buffer_size=temporal_ensemble_max_buffer_size,
         temporal_ensemble_max_proposal_spread=temporal_ensemble_max_proposal_spread,
         temporal_ensemble_min_newest_weight=temporal_ensemble_min_newest_weight,
+        inference_strategy=loop.inference_strategy.value,
+        skill_completion_environment_steps=tuple(
+            controller.skill_completion_environment_steps
+        ),
+        replan_traces=tuple(replan_traces),
     )
 
 
@@ -362,8 +461,10 @@ def run_maniskill_atomic_episode(
     sampling_seed_base: int,
     preparation: Any,
     max_policy_steps: int,
-    temporal_ensemble_enabled: bool = True,
+    inference_strategy: str | ChunkInferenceStrategy | None = None,
+    temporal_ensemble_enabled: bool | None = None,
     recency_decay: float = 0.5,
+    rtc_config: RTCConfig | None = None,
     max_anomaly_replans: int = 3,
 ) -> AtomicSkillEpisodeResult:
     """从专家验证过的前置状态开始，只评估一个目标原子技能。"""
@@ -385,8 +486,10 @@ def run_maniskill_atomic_episode(
     loop = QwenVLAReplanLoop(
         runtime,
         RecedingHorizonChunkExecutor(spec),
+        inference_strategy=inference_strategy,
         temporal_ensemble_enabled=temporal_ensemble_enabled,
         recency_decay=recency_decay,
+        rtc_config=rtc_config,
         max_anomaly_replans=max_anomaly_replans,
     )
     observation_adapter = FrankaObservationAdapter(spec)
@@ -402,6 +505,7 @@ def run_maniskill_atomic_episode(
     temporal_ensemble_max_buffer_size = 0
     temporal_ensemble_max_proposal_spread = 0.0
     temporal_ensemble_min_newest_weight: float | None = None
+    replan_traces: list[dict[str, Any]] = []
 
     def target_completed() -> bool:
         return controller.progress.completed_skill_count >= target_skill_id + 1
@@ -418,10 +522,27 @@ def run_maniskill_atomic_episode(
             observation_adapter,
             instruction,
         )
+        replan_control_step = loop.control_step
         result = loop.replan_and_execute(online_observation, controller)
         execution = result.execution
+        replan_trace: dict[str, Any] = {
+            "replan_index": replans - 1,
+            "control_step": replan_control_step,
+            "sampling_seed": None if result.sampling is None else result.sampling.seed,
+            "inference_strategy": result.inference_strategy.value,
+            "rtc_enabled": result.inference_strategy == ChunkInferenceStrategy.RTC,
+            "rtc_guidance_weight": None,
+            "rtc_execution_horizon": None,
+            "rtc_schedule": None,
+            "previous_chunk_available": False,
+            "overlap_length": 0,
+            "temporal_proposal_spread": None,
+        }
         anomaly_replan_count += int(execution.replan_required)
         if result.ensemble_trace is not None:
+            replan_trace["temporal_proposal_spread"] = (
+                result.ensemble_trace.max_proposal_spread
+            )
             temporal_ensemble_max_buffer_size = max(
                 temporal_ensemble_max_buffer_size,
                 result.ensemble_trace.buffer_size,
@@ -441,6 +562,17 @@ def run_maniskill_atomic_episode(
         if result.sampling is not None:
             sampling_seeds.append(result.sampling.seed)
         action_chunks += int(result.action_chunk is not None)
+        if result.action_chunk is not None and result.action_chunk.rtc_trace is not None:
+            rtc_trace = result.action_chunk.rtc_trace.to_dict()
+            rtc_trace.update(
+                {
+                    "replan_index": replans - 1,
+                    "control_step": loop.control_step - execution.executed_steps,
+                    "sampling_seed": result.action_chunk.sampling.seed,
+                }
+            )
+            replan_trace.update(rtc_trace)
+        replan_traces.append(replan_trace)
         saturation_count += execution.correction_saturation_steps
         if execution.requested_correction_abs_max_rad is not None:
             requested_abs_max = max(
@@ -504,7 +636,11 @@ def run_maniskill_atomic_episode(
         temporal_ensemble_max_buffer_size=temporal_ensemble_max_buffer_size,
         temporal_ensemble_max_proposal_spread=temporal_ensemble_max_proposal_spread,
         temporal_ensemble_min_newest_weight=temporal_ensemble_min_newest_weight,
+        inference_strategy=loop.inference_strategy.value,
+        replan_traces=tuple(replan_traces),
     )
+
+
 class ManiSkillPickPlaceEvaluator:
     def __init__(
         self,
@@ -516,8 +652,10 @@ class ManiSkillPickPlaceEvaluator:
         device: str | torch.device = "cuda",
         num_flow_steps: int = 10,
         sampling_seed: int = 42,
-        temporal_ensemble_enabled: bool = True,
+        inference_strategy: str | ChunkInferenceStrategy | None = None,
+        temporal_ensemble_enabled: bool | None = None,
         recency_decay: float = 0.5,
+        rtc_config: RTCConfig | None = None,
         max_anomaly_replans: int = 3,
     ) -> None:
         if sampling_seed < 0:
@@ -529,8 +667,10 @@ class ManiSkillPickPlaceEvaluator:
         self.device = torch.device(device)
         self.num_flow_steps = num_flow_steps
         self.sampling_seed = sampling_seed
+        self.inference_strategy = inference_strategy
         self.temporal_ensemble_enabled = temporal_ensemble_enabled
         self.recency_decay = recency_decay
+        self.rtc_config = rtc_config
         self.max_anomaly_replans = max_anomaly_replans
         register_robot_vla_maniskill_envs()
         self.env = gym.make(
@@ -569,8 +709,10 @@ class ManiSkillPickPlaceEvaluator:
             self.spec,
             episode,
             sampling_seed_base=episode_sampling_seed,
+            inference_strategy=self.inference_strategy,
             temporal_ensemble_enabled=self.temporal_ensemble_enabled,
             recency_decay=self.recency_decay,
+            rtc_config=self.rtc_config,
             max_anomaly_replans=self.max_anomaly_replans,
         )
 
@@ -586,8 +728,10 @@ class ManiSkillAtomicPickPlaceEvaluator:
         device: str | torch.device = "cuda",
         num_flow_steps: int = 10,
         sampling_seed: int = 42,
-        temporal_ensemble_enabled: bool = True,
+        inference_strategy: str | ChunkInferenceStrategy | None = None,
+        temporal_ensemble_enabled: bool | None = None,
         recency_decay: float = 0.5,
+        rtc_config: RTCConfig | None = None,
         max_anomaly_replans: int = 3,
     ) -> None:
         from robot_vla.sim.collector import TrustedPickPlaceCollector
@@ -599,8 +743,10 @@ class ManiSkillAtomicPickPlaceEvaluator:
         self.device = torch.device(device)
         self.num_flow_steps = num_flow_steps
         self.sampling_seed = sampling_seed
+        self.inference_strategy = inference_strategy
         self.temporal_ensemble_enabled = temporal_ensemble_enabled
         self.recency_decay = recency_decay
+        self.rtc_config = rtc_config
         self.max_anomaly_replans = max_anomaly_replans
         self.preparer = TrustedPickPlaceCollector(None, spec)
 
@@ -649,8 +795,10 @@ class ManiSkillAtomicPickPlaceEvaluator:
             sampling_seed_base=episode_sampling_seed,
             preparation=preparation,
             max_policy_steps=max_policy_steps,
+            inference_strategy=self.inference_strategy,
             temporal_ensemble_enabled=self.temporal_ensemble_enabled,
             recency_decay=self.recency_decay,
+            rtc_config=self.rtc_config,
             max_anomaly_replans=self.max_anomaly_replans,
         )
 

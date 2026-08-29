@@ -13,11 +13,18 @@ from robot_vla.execution.chunk_executor import (
     FrankaControlState,
     RecedingHorizonChunkExecutor,
 )
+from robot_vla.execution.rtc import RTCConfig
 from robot_vla.model.expert import ExpertConfig, StandaloneActionExpert
 from robot_vla.model.policy import QwenVLAPolicy
 from robot_vla.model.qwen_context import FrozenQwenContextEncoder
 from robot_vla.runtime.control_loop import QwenVLAReplanLoop
-from robot_vla.runtime.policy_runtime import OnlineObservation, QwenVLARuntime, RuntimeConfig
+from robot_vla.runtime.policy_runtime import (
+    OnlineObservation,
+    QwenVLARuntime,
+    RuntimeActionChunk,
+    RuntimeConfig,
+    SamplingTrace,
+)
 
 
 class FakeBaseModel(nn.Module):
@@ -70,6 +77,49 @@ class HoldOnlyController:
 
     def hold_current(self) -> None:
         self.hold_calls += 1
+
+
+class StableController:
+    def __init__(self) -> None:
+        self.q = np.asarray((0.0, -0.5, 0.0, -1.5, 0.0, 1.5, 0.0), dtype=np.float32)
+
+    def read_state(self) -> FrankaControlState:
+        return FrankaControlState(self.q.copy(), 0.5)
+
+    def send_action(self, _controller_action) -> None:
+        pass
+
+    def hold_current(self) -> None:
+        pass
+
+
+class RecordingRTCRuntime:
+    def __init__(self, spec: RobotSpec) -> None:
+        self.spec = spec
+        self.calls = []
+        self._last_sampling_trace = None
+
+    @property
+    def last_sampling_trace(self):
+        return self._last_sampling_trace
+
+    def infer_action_chunk(self, _observation, **kwargs):
+        self.calls.append(kwargs)
+        index = len(self.calls) - 1
+        trace = SamplingTrace(seed=100 + index, sample_index=index)
+        self._last_sampling_trace = trace
+        normalized = np.full(
+            (self.spec.action_horizon, self.spec.action_dim),
+            0.1 * (index + 1),
+            dtype=np.float32,
+        )
+        return RuntimeActionChunk(
+            normalized_action=normalized,
+            physical_action=np.zeros_like(normalized),
+            visual_tokens_per_image=(1, 1),
+            context_length=2,
+            sampling=trace,
+        )
 
 
 def _policy() -> tuple[QwenVLAPolicy, FakeQwen]:
@@ -151,6 +201,75 @@ def test_runtime_runs_qwen_once_and_returns_reproducible_physical_chunk() -> Non
     assert first_qwen.training is False
 
 
+def test_first_rtc_replan_is_identical_to_plain_flow_with_the_same_seed() -> None:
+    spec = RobotSpec()
+    rtc_runtime, _rtc_qwen = _runtime(seed=321)
+    plain_runtime, _plain_qwen = _runtime(seed=321)
+
+    rtc_chunk = rtc_runtime.infer_action_chunk(
+        _observation(spec),
+        rtc_config=RTCConfig(),
+    )
+    plain_chunk = plain_runtime.infer_action_chunk(_observation(spec))
+
+    np.testing.assert_allclose(rtc_chunk.normalized_action, plain_chunk.normalized_action)
+    assert rtc_chunk.rtc_trace is not None
+    assert rtc_chunk.rtc_trace.previous_chunk_available is False
+    assert rtc_chunk.rtc_trace.denoising_guidance_coefficients == ()
+
+
+def test_runtime_rtc_branch_runs_vjp_once_per_flow_and_returns_finite_trace() -> None:
+    spec = RobotSpec()
+    runtime, qwen = _runtime(seed=654)
+    previous = np.full((12, 8), 0.25, dtype=np.float32)
+
+    chunk = runtime.infer_action_chunk(
+        _observation(spec),
+        rtc_previous_overlap=previous,
+        rtc_config=RTCConfig(),
+    )
+
+    assert qwen.model.calls == 1
+    assert chunk.normalized_action.shape == (16, 8)
+    assert np.isfinite(chunk.normalized_action).all()
+    assert chunk.rtc_trace is not None
+    assert chunk.rtc_trace.previous_chunk_available is True
+    assert chunk.rtc_trace.overlap_length == 12
+    assert len(chunk.rtc_trace.denoising_guidance_coefficients) == 2
+    assert chunk.rtc_trace.raw_mean_abs_disagreement is not None
+    assert all(parameter.grad is None for parameter in runtime.policy.parameters())
+
+
+@pytest.mark.skipif(
+    not torch.cuda.is_available() or not torch.cuda.is_bf16_supported(),
+    reason="需要支持 BF16 的 CUDA GPU",
+)
+def test_runtime_rtc_vjp_supports_cuda_bf16_autocast() -> None:
+    spec = RobotSpec()
+    torch.manual_seed(77)
+    policy, qwen = _policy()
+    runtime = QwenVLARuntime(
+        policy,
+        FakeProcessorAdapter(),
+        _normalizer(spec),
+        spec,
+        "cuda",
+        RuntimeConfig(num_flow_steps=2, use_bf16=True, sampling_seed=987),
+    )
+
+    chunk = runtime.infer_action_chunk(
+        _observation(spec),
+        rtc_previous_overlap=np.full((12, 8), -0.25, dtype=np.float32),
+        rtc_config=RTCConfig(),
+    )
+
+    assert qwen.model.calls == 1
+    assert np.isfinite(chunk.normalized_action).all()
+    assert chunk.rtc_trace is not None
+    assert len(chunk.rtc_trace.denoising_guidance_coefficients) == 2
+    assert all(parameter.grad is None for parameter in runtime.policy.parameters())
+
+
 def test_replan_loop_holds_and_records_seed_when_online_observation_is_invalid() -> None:
     spec = RobotSpec()
     runtime, _qwen = _runtime(seed=500)
@@ -213,3 +332,50 @@ def test_disabled_anomaly_replanning_turns_tracking_replan_into_failure() -> Non
     assert handled.failure_stage == "replan_anomaly_exhausted"
     assert handled.replan_required is False
     assert handled.anomaly_kind == "tracking_correction_saturation"
+
+
+def test_rtc_replan_aligns_previous_guided_chunk_and_reset_clears_history() -> None:
+    spec = RobotSpec()
+    runtime = RecordingRTCRuntime(spec)
+    loop = QwenVLAReplanLoop(
+        runtime,
+        RecedingHorizonChunkExecutor(spec),
+        inference_strategy="rtc",
+    )
+    controller = StableController()
+
+    loop.replan_and_execute(_observation(spec), controller)
+    loop.replan_and_execute(_observation(spec), controller)
+
+    assert runtime.calls[0]["rtc_previous_overlap"] is None
+    previous = runtime.calls[1]["rtc_previous_overlap"]
+    assert previous.shape == (12, 8)
+    np.testing.assert_allclose(previous, 0.1)
+
+    loop.reset()
+    loop.replan_and_execute(_observation(spec), controller)
+    assert runtime.calls[2]["rtc_previous_overlap"] is None
+
+
+def test_rtc_anomaly_clears_previous_reference() -> None:
+    spec = RobotSpec()
+    runtime = RecordingRTCRuntime(spec)
+    loop = QwenVLAReplanLoop(
+        runtime,
+        RecedingHorizonChunkExecutor(spec),
+        inference_strategy="rtc",
+    )
+    controller = StableController()
+    loop.replan_and_execute(_observation(spec), controller)
+
+    loop._handle_anomaly(
+        ChunkExecutionResult(
+            success=True,
+            executed_steps=1,
+            replan_required=True,
+            anomaly_kind="tracking_correction_saturation",
+        )
+    )
+    loop.replan_and_execute(_observation(spec), controller)
+
+    assert runtime.calls[1]["rtc_previous_overlap"] is None

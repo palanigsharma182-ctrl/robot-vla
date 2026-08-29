@@ -10,6 +10,7 @@ import torch
 
 from robot_vla.adapters import ActionAdapter, ProprioNormalizer
 from robot_vla.contracts import RobotSpec
+from robot_vla.execution.rtc import RTCConfig, RTCTrace, build_rtc_trace
 from robot_vla.model.policy import QwenVLAPolicy
 from robot_vla.model.qwen_processor import QwenVLAProcessorAdapter
 
@@ -51,6 +52,7 @@ class RuntimeActionChunk:
     visual_tokens_per_image: tuple[int, int]
     context_length: int
     sampling: SamplingTrace
+    rtc_trace: RTCTrace | None = None
 
 
 def _move_model_inputs(value: Any, device: torch.device) -> Any:
@@ -125,8 +127,14 @@ class QwenVLARuntime:
         self._last_sampling_trace = trace
         return trace
 
-    @torch.inference_mode()
-    def infer_action_chunk(self, observation: OnlineObservation) -> RuntimeActionChunk:
+    @torch.no_grad()
+    def infer_action_chunk(
+        self,
+        observation: OnlineObservation,
+        *,
+        rtc_previous_overlap: np.ndarray | None = None,
+        rtc_config: RTCConfig | None = None,
+    ) -> RuntimeActionChunk:
         sampling = self._next_sampling_trace()
         physical_proprio = np.asarray(observation.physical_proprio)
         if physical_proprio.shape != (self.spec.proprio_dim,):
@@ -159,21 +167,68 @@ class QwenVLARuntime:
         generator.manual_seed(sampling.seed)
 
         self.policy.eval()
+        rtc_trace: RTCTrace | None = None
+        if rtc_previous_overlap is not None and rtc_config is None:
+            raise ValueError("提供 rtc_previous_overlap 时必须同时提供 rtc_config")
+        if (
+            rtc_config is not None
+            and rtc_config.execution_horizon != self.spec.execute_steps
+        ):
+            raise ValueError("首版 RTC execution_horizon 必须等于 RobotSpec.execute_steps")
         with torch.autocast(
             device_type=self.device.type,
             dtype=torch.bfloat16,
             enabled=self.config.use_bf16,
         ):
-            normalized_tensor = self.policy.sample_actions(
-                model_inputs,
-                proprio_tensor,
-                generator=generator,
-                num_steps=self.config.num_flow_steps,
-            )
+            if rtc_config is not None and rtc_previous_overlap is not None:
+                previous = np.asarray(rtc_previous_overlap, dtype=np.float32)
+                expected_overlap = self.spec.action_horizon - self.spec.execute_steps
+                if previous.shape != (expected_overlap, self.spec.action_dim):
+                    raise ValueError(
+                        "rtc_previous_overlap 应为 "
+                        f"[{expected_overlap},{self.spec.action_dim}]"
+                    )
+                target = np.zeros(
+                    (self.spec.action_horizon, self.spec.action_dim),
+                    dtype=np.float32,
+                )
+                target[:expected_overlap] = previous
+                weights = rtc_config.slot_weights(self.spec.action_horizon)
+                rtc_sample = self.policy.sample_actions_rtc(
+                    model_inputs,
+                    proprio_tensor,
+                    torch.from_numpy(target).unsqueeze(0).to(self.device),
+                    torch.from_numpy(weights).unsqueeze(0).to(self.device),
+                    generator=generator,
+                    num_steps=self.config.num_flow_steps,
+                    max_guidance_weight=rtc_config.max_guidance_weight,
+                )
+                normalized_tensor = rtc_sample.guided_action
+                raw_tensor = rtc_sample.raw_action
+                guidance_coefficients = rtc_sample.guidance_coefficients
+            else:
+                normalized_tensor = self.policy.sample_actions(
+                    model_inputs,
+                    proprio_tensor,
+                    generator=generator,
+                    num_steps=self.config.num_flow_steps,
+                )
+                raw_tensor = normalized_tensor
+                guidance_coefficients = ()
         normalized_action = normalized_tensor[0].float().cpu().numpy()
+        raw_action = raw_tensor[0].float().cpu().numpy()
         expected_action = (self.spec.action_horizon, self.spec.action_dim)
         if normalized_action.shape != expected_action or not np.isfinite(normalized_action).all():
             raise RuntimeError("Policy 返回的 normalized Action Chunk 无效")
+        if rtc_config is not None:
+            rtc_trace = build_rtc_trace(
+                rtc_config,
+                action_horizon=self.spec.action_horizon,
+                previous_overlap=rtc_previous_overlap,
+                raw_action=raw_action,
+                guided_action=normalized_action,
+                denoising_guidance_coefficients=guidance_coefficients,
+            )
         physical_action = self.action_adapter.denormalize(normalized_action)
         if len(processed.visual_tokens_per_image) != 1 or len(processed.context_lengths) != 1:
             raise RuntimeError("Processor 返回的在线 batch metadata 无效")
@@ -183,4 +238,5 @@ class QwenVLARuntime:
             visual_tokens_per_image=processed.visual_tokens_per_image[0],
             context_length=int(processed.context_lengths[0]),
             sampling=sampling,
+            rtc_trace=rtc_trace,
         )

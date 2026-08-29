@@ -36,6 +36,7 @@ Action 安全拒绝诊断、事件损失、temporal ensemble，以及固定低�
 | E008 | 2026-08-28 | Qwen Layer 12 空间表示、Reach 与五技能组合诊断 | completed | Layer 12 的位置可解码性和完整 Reach 通过数优于 Layer 24，但原子仍为 16/25、完整仍为 0/20；主要问题收敛到多技能目标冲突和 Reach→Grasp/Lift→Transport 交接 |
 | E009 | 2026-08-29 | Layer 12 periodic checkpoint 的 Reach/Transport sweep | completed | epoch 100 将 Reach 从 0/10 提到 3/10，却使 Transport 从 7/10 降到 2/10；无单一 promotion 候选，确认技能/checkpoint 冲突而非只选错 best.pt |
 | E010 | 2026-08-29 | Layer 12 五技能梯度冲突与 base/event 归因 probe | completed | e098-best/e100 均未通过两阶段负冲突门槛；五技能 train median 全为正，Reach/Transport event gradient 为零不可识别，不支持直接多头或 PCGrad |
+| E011 | 2026-08-29 | RTC Action Chunk Transition 受控评估 | completed | RTC 在共同 Reach seed 上推进到 Transport，但把完整闭环 Reach 从 temporal 的 6/10 降到 2/10，未通过 promotion；默认继续 temporal ensemble，不进入 Stage B |
 
 ## E001 — 30 条数据 Stage 1 与首轮闭环
 
@@ -951,6 +952,119 @@ checkpoint loader。纯函数测试覆盖参数分组、Gram/cosine、零范数�
 `g_reach·Δθ/g_transport·Δθ`；同时构造 guaranteed-critical 的 Grasp/Place event batch 和技能边界
 batch。只有实际位移稳定呈现帮助一个技能、伤害另一个技能并定位到 Head/后层时，才进入多头或后层
 分支 A/B；否则继续 handoff 状态分布归因。
+
+## E011 — RTC Action Chunk Transition 受控评估
+
+**Date:** 2026-08-29
+
+**Status:** completed
+
+**Experiment:**
+
+冻结同一模型、Checkpoint、数据、环境与 paired environment/sampling seeds，对比 `newest-only`、
+`temporal-ensemble` 与 `rtc`。RTC 只改变 inference-time Flow sampling，不修改 Qwen、Adapter、Action
+Expert、训练目标、Action/Observation、Controller、Predicate 或 anomaly-replan 契约。
+
+**Goal:**
+
+验证当前 temporal ensemble 的历史 proposal 是否在 Reach→Grasp、Lift→Transport 边界降低闭环
+reactivity，以及 RTC 是否能在保持 Chunk continuity 的同时提高条件交接率，而不是只让运动变慢或变平滑。
+
+**Config:**
+
+- Action shape: normalized model action `[B,16,8]`
+- `execute_steps=4`，20 Hz 控制，5 Hz Replan
+- Flow: 与冻结模型相同的 10-step Euler，最终才 clamp 到 `[-1,1]`
+- RTC target: 上一次实际生成并用于执行的 guided clean Chunk，执行 4 步后以 `prev[4:16]` 对齐
+  `new[0:12]`；reference 始终 detach
+- RTC clean endpoint: 本项目 `x_t=t*noise+(1-t)*action`、`v=noise-action`，因此
+  `A_clean_hat=x_t-t*v`
+- RTC velocity guidance: 使用论文 Eq.(2) 的 VJP；由于本项目积分方向与论文相反，在项目 velocity 上
+  使用相反 guidance 符号，仍由原 Euler `dt=-1/n` 生效
+- Eq.(5): 本实验不模拟异步推理延迟，因此 `d=0`；执行 horizon `s=4`；slots `0..11` 按公式
+  由强到弱衰减，slots `12..15` 权重为 0；同一 slot 权重 broadcast 到全部 8 个 action dims
+- `rtc_max_guidance_weight=10.0`；每步只 clip guidance coefficient，不额外 clamp 中间 action state
+- 首次 Replan、显式 reset、inference/safety/tracking anomaly 后没有 previous reference，退化为普通 Flow
+- RTC 诊断使用同一 Context、Proprio 和 initial Flow noise 生成 paired raw/RTC Chunk；只有 RTC Chunk 执行
+- CLI: `--inference-strategy newest-only|temporal-ensemble|rtc`，旧 temporal bool 只保留兼容
+- Stage A: 10 个全新 paired seeds，三组共 30 个完整 Episode
+- Stage B: Stage A 无明显回归后，至少 20 个新的 paired seeds 比较 temporal 与 RTC
+- E011 按受控协议显式使用 `--qwen-context-layer 12` 和对应的同一固定 Checkpoint；全局 CLI 默认仍保持
+  Layer 24，避免本实验在未显式选择时改变其他评测；`experiment.json` 固定实际 Context Layer、
+  Checkpoint/Dataset SHA256 和 source revision
+
+**Pre-registered run identity:**
+
+- Layer 12 Checkpoint: `a542076f291e29b68e3d28930b15c40396d511a44eb358c2eaeb4e113c041ad6`
+- Dataset: `bc024b6b9c566ca9500945fb6ac262bf657bee713d8a5816229bdc8478139407`
+- Flow sampling seed base: `42424`
+- 非正式 smoke environment seed: `19999`；不进入 Stage A 统计或调参证据
+- Stage A environment seeds: `20000..20009`；在运行结果前冻结，且与 dataset seeds `0..239`、既有
+  evaluation seeds `0..10032` 无重合
+- Stage A groups: `newest-only`、`temporal-ensemble`、`rtc`；除 inference strategy 外配置相同
+- Atomic guardrail seeds: `20010..20014`；每组对 Reach/Grasp/Lift/Transport/Place 各运行 5 个 Episode，
+  只用于检查 RTC 是否破坏既有原子能力，不替代 30 个完整 Stage A Episode 的 handoff 判断
+- RTC: `execution_horizon=4`、`max_guidance_weight=10.0`、`rtc-eq5-soft-mask`
+- Remote output root: `/home/ubuntu/robot-vla-runs/e011-rtc/`
+
+**Diagnostics:**
+
+每个 Replan 记录策略、sampling seed、RTC 配置、previous availability、12-step overlap、Eq.(5) slot
+weights、逐 denoising step coefficient、paired raw/previous disagreement、RTC/previous prefix disagreement、
+RTC correction、future correction、TCP 距离/速度、joint velocity、gripper target、阶段前后状态和 temporal
+proposal spread。Episode 同时记录五技能完成 control step，聚合 `P(Grasp|Reach)`、
+`P(Transport|Lift)`、平均完成技能数及 Reach/Grasp/Lift/Transport 的阶段耗时。
+
+**Result:**
+
+工程实现、静态检查和 GPU 测试完成：RTX 4090 / PyTorch 2.11.0+cu128 环境实际覆盖 Flow VJP、
+Runtime history/reset/anomaly、无历史等价普通 Flow、CUDA BF16 autocast 与 ManiSkill runtime；完整测试
+套件 `208 passed`（另有 12 条 ManiSkill 依赖弃用警告）。随后完成非正式 smoke、30 个 Stage A 完整
+Episode 和 75 个 atomic guardrail Episode；正式 JSONL 没有 NaN/Inf。
+
+- Stage A newest-only：Reach/Grasp/Lift/Transport/Place 为 `2/1/1/1/0`（各自分母 10），平均完成
+  技能数 `0.5`，完整成功 `0/10`。
+- Stage A temporal-ensemble：`6/4/0/0/0`，`P(Grasp|Reach)=4/6=66.7%`，平均完成技能数
+  `1.0`，完整成功 `0/10`。
+- Stage A RTC：`2/2/2/2/0`，`P(Grasp|Reach)=2/2`、`P(Transport|Lift)=2/2`，平均完成技能数
+  `0.8`，完整成功 `0/10`。
+- temporal 与 RTC 共同 Reach 的只有 seeds `20005、20009`；共同支持集上两者 Grasp 均为 `2/2`。
+  RTC 在这两条随后均完成 Lift/Transport，但另有 4 条 temporal-only Reach、0 条 RTC-only Reach；
+  Reach 的 paired exact McNemar 双侧 `p=0.125`。
+- Atomic newest/temporal/RTC 总成功分别为 `17/25、17/25、18/25`；三组 Grasp/Lift/Place 均为
+  `5/5`，Transport 为 `2/5、2/5、3/5`，Reach 均为 `0/5`。RTC 没有破坏预注册的强原子能力。
+- RTC Stage A 共 750 个 Replan，其中 740 个有 previous overlap；prefix/future mean correction 为
+  `0.00684/0.00430`，p95 为 `0.01190/0.00607`。没有全局数值锁死，但少量技能边界出现最大 2.0
+  的修正；当前 future 聚合未单独隔离零权重 slots `12..15`。
+- Stage A system error 和 Action safety rejection 三组均为 0；temporal/RTC 的 anomaly 与 tracking
+  saturation 均为 0。RTC 平均每完整 Episode `53.19 s`，temporal 为 `30.99 s`；当前 paired
+  raw/RTC 诊断实现约慢 `1.72x`。
+
+完整配对表、阶段耗时、前 80 步普通运动、边界 disagreement/correction、atomic 和正式文件 SHA256
+见 [E011 results](results/e011/README.md)。正式原始资产保留在
+`/home/ubuntu/robot-vla-runs/e011-rtc/`；evaluation source revision 为
+`source-tree-sha256:adfce370c438d460eb4178be9af38ee5741554741a3c99f6acd8485847244dec`。
+
+**Conclusion:**
+
+**事实：** RTC 在两个共同 Reach seed 上保住 Grasp 并比 temporal 多完成 Lift/Transport，atomic
+Grasp/Lift/Place 没有回归；但 RTC 把 temporal 的 Reach `6/10` 降到 `2/10`，平均完成技能数也从
+`1.0` 降到 `0.8`。因此 RTC 不满足“保持 reactivity 且改善 handoff”的 promotion 标准。
+
+**解释：** temporal 历史 proposal 并非只有旧计划污染，在初始 Reach 阶段还提供了有用的轨迹稳定性；
+RTC continuity 可能帮助少数已接近/抓住物体的后段转换，但当前配置的代价是 Reach 覆盖下降。最强
+边界冲突信号出现在 Grasp→Lift，而不是稳定出现在 Reach→Grasp 或 Lift→Transport。
+
+**尚不能得出的结论：** `2/2` 的 RTC 条件率存在 Reach 选择效应，不能写成 RTC 已改善
+Reach→Grasp；两条后段成功也不足以证明 RTC 修复 Lift→Transport。10 个 seed 不能唯一归因 guidance
+weight、Flow、Layer 或控制速度，也不能排除所有其它 RTC 配置。
+
+**Next step:**
+
+不 promotion RTC，不运行 Stage B；默认继续 temporal ensemble。不得使用 seeds `20000..20009` 调
+guidance 后复用为确认集。按预案把主要精力转向 Reach→Grasp、Grasp→Lift 失败附近的 handoff 状态分布
+与 Local DAgger recovery；RTC 保留为显式实验/诊断策略。如未来重开 RTC，先在新 smoke seed 上确定数值
+范围，再使用全新的 paired seeds，并单独记录 free-tail slots `12..15` 和同 slot raw/post disagreement。
 
 ## 实验模板
 

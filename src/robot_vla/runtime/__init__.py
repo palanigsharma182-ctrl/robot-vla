@@ -1,5 +1,6 @@
 """qwen-vla-v0.1 在线观测到物理 Action Chunk 的推理边界。"""
 
+from robot_vla.execution.rtc import ChunkInferenceStrategy, RTCConfig, RTCTrace
 from robot_vla.runtime.control_loop import QwenVLAReplanLoop, ReplanResult
 from robot_vla.runtime.policy_runtime import (
     OnlineObservation,
@@ -10,9 +11,12 @@ from robot_vla.runtime.policy_runtime import (
 )
 
 __all__ = [
+    "ChunkInferenceStrategy",
     "OnlineObservation",
     "QwenVLAReplanLoop",
     "QwenVLARuntime",
+    "RTCConfig",
+    "RTCTrace",
     "ReplanResult",
     "RuntimeActionChunk",
     "RuntimeConfig",

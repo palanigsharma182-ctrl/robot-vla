@@ -5,9 +5,11 @@ from __future__ import annotations
 import math
 from collections import Counter
 from dataclasses import asdict, dataclass
+from itertools import pairwise
 from typing import Any
 
 from robot_vla.contracts import PICK_AND_PLACE_SKILLS
+from robot_vla.execution.rtc import ChunkInferenceStrategy
 
 ROLLOUT_FORMAT = "robot-vla-maniskill-rollout/v1"
 ROLLOUT_SEED_GROUPS = ("test", "unseen")
@@ -68,6 +70,11 @@ class RolloutEpisodeResult:
     temporal_ensemble_max_buffer_size: int = 0
     temporal_ensemble_max_proposal_spread: float = 0.0
     temporal_ensemble_min_newest_weight: float | None = None
+    inference_strategy: str = ChunkInferenceStrategy.TEMPORAL_ENSEMBLE.value
+    skill_completion_environment_steps: tuple[int | None, ...] = (None,) * len(
+        PICK_AND_PLACE_SKILLS
+    )
+    replan_traces: tuple[dict[str, Any], ...] = ()
     format: str = ROLLOUT_FORMAT
 
     def __post_init__(self) -> None:
@@ -99,11 +106,26 @@ class RolloutEpisodeResult:
             raise ValueError("completed_skill_count 超出原子技能范围")
         if len(self.skill_completed) != len(PICK_AND_PLACE_SKILLS):
             raise ValueError("skill_completed 长度与原子技能不一致")
+        ChunkInferenceStrategy(self.inference_strategy)
+        if len(self.skill_completion_environment_steps) != len(PICK_AND_PLACE_SKILLS):
+            raise ValueError("skill completion step 长度与原子技能不一致")
         expected_skills = tuple(
             index < self.completed_skill_count for index in range(len(PICK_AND_PLACE_SKILLS))
         )
         if self.skill_completed != expected_skills:
             raise ValueError("skill_completed 必须是单调前缀")
+        if any(step is not None for step in self.skill_completion_environment_steps):
+            for index, step in enumerate(self.skill_completion_environment_steps):
+                if index < self.completed_skill_count:
+                    if step is None or step < 0 or step > self.environment_steps:
+                        raise ValueError("已完成技能必须记录有效 environment step")
+                elif step is not None:
+                    raise ValueError("未完成技能不能记录 completion step")
+            completed_steps = self.skill_completion_environment_steps[: self.completed_skill_count]
+            if any(left > right for left, right in pairwise(completed_steps)):
+                raise ValueError("skill completion step 必须单调")
+        if len(self.replan_traces) > self.replans:
+            raise ValueError("replan trace 数不能超过 replans")
         if self.success != (self.environment_success and self.predicate_success):
             raise ValueError("完整成功必须同时满足环境和项目 Predicate")
         if self.success != (self.failure_category is None):
@@ -167,6 +189,16 @@ class RolloutEpisodeResult:
         data = dict(value)
         data["sampling_seeds"] = tuple(int(seed) for seed in data["sampling_seeds"])
         data["skill_completed"] = tuple(bool(item) for item in data["skill_completed"])
+        data["skill_completion_environment_steps"] = tuple(
+            None if step is None else int(step)
+            for step in data.get(
+                "skill_completion_environment_steps",
+                (None,) * len(PICK_AND_PLACE_SKILLS),
+            )
+        )
+        data["replan_traces"] = tuple(
+            dict(trace) for trace in data.get("replan_traces", ())
+        )
         return cls(**data)
 
 
@@ -249,6 +281,44 @@ def _summarize_group(results: list[RolloutEpisodeResult]) -> dict[str, Any]:
         skill: sum(result.skill_completed[index] for result in results)
         for index, skill in enumerate(PICK_AND_PLACE_SKILLS)
     }
+    reach_count = skill_successes["reach"]
+    grasp_count = skill_successes["grasp"]
+    lift_count = skill_successes["lift"]
+    transport_count = skill_successes["transport"]
+
+    def mean_or_none(values: list[int]) -> float | None:
+        return None if not values else sum(values) / len(values)
+
+    reach_steps = [
+        result.skill_completion_environment_steps[0]
+        for result in results
+        if result.skill_completion_environment_steps[0] is not None
+    ]
+    reach_to_grasp_steps = [
+        result.skill_completion_environment_steps[1]
+        - result.skill_completion_environment_steps[0]
+        for result in results
+        if result.skill_completion_environment_steps[0] is not None
+        and result.skill_completion_environment_steps[1] is not None
+    ]
+    lift_to_transport_steps = [
+        result.skill_completion_environment_steps[3]
+        - result.skill_completion_environment_steps[2]
+        for result in results
+        if result.skill_completion_environment_steps[2] is not None
+        and result.skill_completion_environment_steps[3] is not None
+    ]
+    replan_traces = [trace for result in results for trace in result.replan_traces]
+    rtc_traces = [trace for trace in replan_traces if trace.get("rtc_enabled")]
+
+    def max_trace_value(name: str) -> float | None:
+        values = [
+            float(trace[name])
+            for trace in rtc_traces
+            if trace.get(name) is not None
+        ]
+        return None if not values else max(values)
+
     return {
         "episodes": total,
         "successes": successes,
@@ -258,6 +328,42 @@ def _summarize_group(results: list[RolloutEpisodeResult]) -> dict[str, Any]:
         "skill_success_rates": {
             skill: count / total for skill, count in skill_successes.items()
         },
+        "grasp_given_reach": {
+            "numerator": grasp_count,
+            "denominator": reach_count,
+            "rate": None if reach_count == 0 else grasp_count / reach_count,
+            "wilson_95": None
+            if reach_count == 0
+            else _wilson_interval(grasp_count, reach_count),
+        },
+        "transport_given_lift": {
+            "numerator": transport_count,
+            "denominator": lift_count,
+            "rate": None if lift_count == 0 else transport_count / lift_count,
+            "wilson_95": None
+            if lift_count == 0
+            else _wilson_interval(transport_count, lift_count),
+        },
+        "mean_completed_skill_count": sum(
+            result.completed_skill_count for result in results
+        )
+        / total,
+        "mean_steps_to_reach": mean_or_none(reach_steps),
+        "mean_steps_reach_to_grasp": mean_or_none(reach_to_grasp_steps),
+        "mean_steps_lift_to_transport": mean_or_none(lift_to_transport_steps),
+        "inference_strategy_counts": dict(
+            sorted(Counter(result.inference_strategy for result in results).items())
+        ),
+        "rtc_replans": len(rtc_traces),
+        "rtc_replans_with_previous_chunk": sum(
+            bool(trace.get("previous_chunk_available")) for trace in rtc_traces
+        ),
+        "rtc_raw_max_abs_disagreement": max_trace_value("raw_max_abs_disagreement"),
+        "rtc_prefix_max_abs_disagreement": max_trace_value(
+            "prefix_max_abs_disagreement"
+        ),
+        "rtc_prefix_max_abs_correction": max_trace_value("prefix_max_abs_correction"),
+        "rtc_future_max_abs_correction": max_trace_value("future_max_abs_correction"),
         "failure_counts": dict(
             sorted(Counter(result.failure_category for result in results if not result.success).items())
         ),
