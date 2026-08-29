@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -23,6 +24,8 @@ from robot_vla.contracts import RobotSpec
 from robot_vla.data.events import EVENT_STATE_CONTRACT_VERSION
 from robot_vla.data.recovery import RECOVERY_CONTRACT_VERSION, RECOVERY_PROFILES
 from robot_vla.data.trajectory import (
+    ACTION_SOURCE_EXPERT,
+    ACTION_SOURCE_POLICY,
     CameraCalibration,
     OutcomeEvidence,
     TrajectoryArrays,
@@ -80,6 +83,9 @@ class _EpisodeRecorder:
     object_angular_velocity_rad_s: list[np.ndarray] = field(default_factory=list)
     commanded_joint_target_rad: list[np.ndarray] = field(default_factory=list)
     applied_joint_correction_rad: list[np.ndarray] = field(default_factory=list)
+    record_action_provenance: bool = False
+    action_source: list[int] = field(default_factory=list)
+    expert_supervision_mask: list[bool] = field(default_factory=list)
     external_goal_visible_steps: int = 0
     wrist_goal_visible_steps: int = 0
     both_goal_visible_steps: int = 0
@@ -95,6 +101,7 @@ class _EpisodeRecorder:
         support_contact_force_n: float,
         commanded_joint_target_rad: np.ndarray,
         applied_joint_correction_rad: np.ndarray,
+        action_source: int = ACTION_SOURCE_EXPERT,
     ) -> None:
         if self._pending_transition:
             raise RuntimeError("上一条 Transition 尚未记录执行结果")
@@ -144,6 +151,11 @@ class _EpisodeRecorder:
         self.applied_joint_correction_rad.append(
             np.asarray(applied_joint_correction_rad, dtype=np.float32).copy()
         )
+        if self.record_action_provenance:
+            if action_source not in {ACTION_SOURCE_POLICY, ACTION_SOURCE_EXPERT}:
+                raise ValueError("action_source 必须是 Policy 或 Expert")
+            self.action_source.append(int(action_source))
+            self.expert_supervision_mask.append(action_source == ACTION_SOURCE_EXPERT)
         self._pending_transition = True
 
     def _goal_visible(self, sensor_data: dict[str, Any]) -> bool:
@@ -207,6 +219,16 @@ class _EpisodeRecorder:
             applied_joint_correction_rad=np.stack(
                 self.applied_joint_correction_rad
             ).astype(np.float32, copy=False),
+            action_source=(
+                np.asarray(self.action_source, dtype=np.int8)
+                if self.record_action_provenance
+                else None
+            ),
+            expert_supervision_mask=(
+                np.asarray(self.expert_supervision_mask, dtype=np.bool_)
+                if self.record_action_provenance
+                else None
+            ),
         )
 
 
@@ -218,6 +240,7 @@ class _CollectionSession:
     recorder: _EpisodeRecorder
     previous_command_q: np.ndarray
     done: bool = False
+    after_action_hook: Callable[[_CollectionSession, float], None] | None = None
 
 
 @dataclass(frozen=True)
@@ -475,7 +498,12 @@ class TrustedPickPlaceCollector:
             preparation_steps=len(session.recorder.action),
         )
 
-    def _start_session(self, seed: int) -> _CollectionSession:
+    def _start_session(
+        self,
+        seed: int,
+        *,
+        record_action_provenance: bool = False,
+    ) -> _CollectionSession:
         if seed < 0:
             raise ValueError("seed 不能为负数")
         observation, _ = self.env.reset(seed=seed)
@@ -505,6 +533,7 @@ class TrustedPickPlaceCollector:
                 observation_adapter=self.observation_adapter,
                 robot=robot,
                 goal_actor_id=goal_actor_id,
+                record_action_provenance=record_action_provenance,
             ),
             previous_command_q=current_q.copy(),
         )
@@ -661,6 +690,8 @@ class TrustedPickPlaceCollector:
         session.recorder.record_after_action(terminated, truncated, info)
         session.observation = observation
         session.progress = session.tracker.update(self._read_predicate_state())
+        if session.after_action_hook is not None:
+            session.after_action_hook(session, gripper_opening)
 
         was_terminated = _single_bool(terminated)
         was_truncated = _single_bool(truncated)

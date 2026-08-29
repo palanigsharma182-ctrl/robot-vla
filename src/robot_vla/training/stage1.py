@@ -345,22 +345,40 @@ class Stage1Trainer:
         )
 
     def _validate_batch(self, batch: dict[str, Any]) -> int:
-        required = {"qwen_inputs", "proprio", "action", "action_mask", "event_mask"}
+        required = {
+            "qwen_inputs",
+            "proprio",
+            "action",
+            "action_mask",
+            "supervision_mask",
+            "event_mask",
+        }
         missing = required.difference(batch)
         if missing:
             raise ValueError(f"训练 batch 缺少字段: {sorted(missing)}")
         action = batch["action"]
         action_mask = batch["action_mask"]
+        supervision_mask = batch["supervision_mask"]
         event_mask = batch["event_mask"]
         if not all(
             isinstance(value, torch.Tensor)
-            for value in (action, action_mask, event_mask)
+            for value in (action, action_mask, supervision_mask, event_mask)
         ):
-            raise TypeError("action/action_mask/event_mask 必须为 Tensor")
-        if action_mask.shape != action.shape[:2] or event_mask.shape != action.shape[:2]:
-            raise ValueError("action_mask/event_mask 必须与 Action [B,H] 对齐")
-        if action_mask.dtype != torch.bool or event_mask.dtype != torch.bool:
-            raise ValueError("action_mask/event_mask 必须为 bool Tensor")
+            raise TypeError("action 与监督相关 mask 必须为 Tensor")
+        if (
+            action_mask.shape != action.shape[:2]
+            or supervision_mask.shape != action.shape[:2]
+            or event_mask.shape != action.shape[:2]
+        ):
+            raise ValueError("Action 相关 mask 必须与 Action [B,H] 对齐")
+        if (
+            action_mask.dtype != torch.bool
+            or supervision_mask.dtype != torch.bool
+            or event_mask.dtype != torch.bool
+        ):
+            raise ValueError("Action 相关 mask 必须为 bool Tensor")
+        if torch.any(action_mask & ~supervision_mask):
+            raise ValueError("action_mask 不能监督 supervision_mask 外的 Action Token")
         if torch.any(event_mask & ~action_mask):
             raise ValueError("event_mask 不能标记无效 Action Token")
         if self.config.executed_action_steps > action.shape[1]:
@@ -430,17 +448,20 @@ class Stage1Trainer:
                     self.state.optimizer_steps,
                 )
                 with self._autocast():
+                    effective_action_mask = (
+                        batch["action_mask"] & batch["supervision_mask"]
+                    )
                     output = self.policy.flow_matching_loss(
                         batch["qwen_inputs"],
                         batch["proprio"],
                         batch["action"],
-                        batch["action_mask"],
+                        effective_action_mask,
                         event_mask=batch["event_mask"],
                         event_loss_weight=event_loss_weight_end,
                         executed_action_steps=self.config.executed_action_steps,
                         generator=self.flow_generator,
                     )
-                valid_elements = int(batch["action_mask"].sum().item()) * int(
+                valid_elements = int(effective_action_mask.sum().item()) * int(
                     batch["action"].shape[-1]
                 )
                 if valid_elements <= 0:
@@ -536,17 +557,20 @@ class Stage1Trainer:
                     batch_size = self._validate_batch(raw_batch)
                     batch = move_to_device(raw_batch, self.device)
                     with self._autocast():
+                        effective_action_mask = (
+                            batch["action_mask"] & batch["supervision_mask"]
+                        )
                         output = self.policy.flow_matching_loss(
                             batch["qwen_inputs"],
                             batch["proprio"],
                             batch["action"],
-                            batch["action_mask"],
+                            effective_action_mask,
                             event_mask=batch["event_mask"],
                             event_loss_weight=self.config.event_loss_weight,
                             executed_action_steps=self.config.executed_action_steps,
                             generator=generator,
                         )
-                    valid_elements = int(batch["action_mask"].sum().item()) * int(
+                    valid_elements = int(effective_action_mask.sum().item()) * int(
                         batch["action"].shape[-1]
                     )
                     total_loss_numerator += float(output.loss.float().item()) * valid_elements

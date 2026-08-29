@@ -3,7 +3,7 @@ import numpy as np
 from robot_vla.adapters import ProprioNormalizer, ProprioStats
 from robot_vla.contracts import RobotSpec
 from robot_vla.data.dataset import ActionChunkDataset
-from robot_vla.data.trajectory import load_manifest
+from robot_vla.data.trajectory import LocalDaggerProvenance, load_manifest
 
 
 def _normalizer(spec: RobotSpec, count: int) -> ProprioNormalizer:
@@ -72,3 +72,58 @@ def test_dataset_excludes_invalid_observation_start(
 
     assert len(dataset) == 4
     assert [dataset[index]["timestep"] for index in range(len(dataset))] == [0, 1, 3, 4]
+
+
+def test_local_dagger_dataset_only_indexes_complete_expert_window_chunks(
+    tmp_path,
+    meta_factory,
+    arrays_factory,
+    write_dataset,
+) -> None:
+    spec = RobotSpec()
+    steps = 80
+    takeover = 4
+    action_source = np.ones(steps, dtype=np.int8)
+    action_source[:takeover] = 0
+    supervision = action_source == 1
+    actions = np.zeros((steps, spec.action_dim), dtype=np.float32)
+    actions[:takeover, 0] = 0.05
+    actions[:, -1] = 0.5
+    arrays = arrays_factory(
+        steps=steps,
+        action=actions,
+        action_source=action_source,
+        expert_supervision_mask=supervision,
+    )
+    meta = meta_factory(
+        num_steps=steps,
+        local_dagger=LocalDaggerProvenance(
+            source="dagger_reach_grasp",
+            rollin_seed=7,
+            rollin_policy_checkpoint_sha256="a" * 64,
+            boundary_type="reach_grasp",
+            boundary_detection_step=takeover,
+            expert_takeover_step=takeover,
+            training_window_start=takeover,
+            training_window_end=takeover + 64,
+            expert_recovery_success=True,
+        ),
+    )
+    write_dataset(meta, arrays)
+
+    dataset = ActionChunkDataset(
+        str(tmp_path),
+        load_manifest(tmp_path, split="train"),
+        spec,
+        _normalizer(spec, arrays.num_steps),
+    )
+
+    assert len(dataset) == 49
+    assert dataset[0]["timestep"] == takeover
+    assert dataset[-1]["timestep"] == takeover + 48
+    assert dataset[0]["source"] == "dagger_reach_grasp"
+    assert dataset[0]["boundary_offset"] == 0
+    assert dataset[-1]["boundary_offset"] == 48
+    assert dataset[0]["action_mask"].all()
+    assert dataset[0]["supervision_mask"].all()
+    assert not np.any(dataset[0]["action"][:, 0] == 1.0)
