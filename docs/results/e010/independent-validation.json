@@ -1,0 +1,68 @@
+{
+  "artifact_sha256": {
+    "measurements.jsonl": "7b14dbdf15abb2df9f803015b9ee0775aa0bca9193e1e957846c2131bf5fab5d",
+    "probe-manifest.json": "2a286f2accb683f2b14908b57e412ca8c7e39f18b20e08aaf315068b52ab551c",
+    "probe-summary.json": "7f0087c47bd1a6ea1188ad499c954a85e46fc7cd385df4bbed55e9401e092705"
+  },
+  "assessment": {
+    "checkpoint_assessments": {
+      "e098-best": {
+        "adapter_conflict": false,
+        "confirmation_threshold_met": false,
+        "confirmed_gradient_conflict": false,
+        "diagnostic_labels": [
+          "no_confirmed_gradient_conflict"
+        ],
+        "discovery_threshold_met": false,
+        "early_block_conflict_count": 0,
+        "late_block_conflict_count": 0,
+        "total_block_conflict_count": 0,
+        "velocity_head_conflict": false,
+        "within_skill_base_event_conflict": {
+          "reach": false,
+          "transport": false
+        }
+      },
+      "e100": {
+        "adapter_conflict": false,
+        "confirmation_threshold_met": false,
+        "confirmed_gradient_conflict": false,
+        "diagnostic_labels": [
+          "no_confirmed_gradient_conflict"
+        ],
+        "discovery_threshold_met": false,
+        "early_block_conflict_count": 0,
+        "late_block_conflict_count": 0,
+        "total_block_conflict_count": 0,
+        "velocity_head_conflict": false,
+        "within_skill_base_event_conflict": {
+          "reach": false,
+          "transport": false
+        }
+      }
+    },
+    "confirmed_checkpoint_labels": []
+  },
+  "checks": [
+    "measurement identities complete and unique",
+    "all Gram matrices finite, symmetric, and non-negative on the diagonal",
+    "all_trainable equals the sum of every primitive parameter group",
+    "cosine, median, IQR, extrema, negative fraction, and Wilson 95% recomputed",
+    "sample identities and Flow seeds match the manifest across checkpoints",
+    "train and validation trajectories are disjoint",
+    "Adapter/Expert parameter hashes and versions are unchanged",
+    "pre-registered conflict labels independently reproduced"
+  ],
+  "format": "robot-vla-skill-gradient-probe-validation/v1",
+  "max_all_trainable_abs_diff": 0.0,
+  "max_summary_abs_diff": 1.1102230246251565e-16,
+  "parameter_integrity_verified": true,
+  "ready_to_share": true,
+  "records_verified": 34,
+  "summary_rows_verified": 1320,
+  "train_val_trajectory_overlap": 0,
+  "trajectory_coverage": {
+    "confirmation": 20,
+    "discovery": 64
+  }
+}

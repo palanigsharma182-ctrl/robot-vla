@@ -21,6 +21,11 @@ from robot_vla.evaluation.atomic import (
     AtomicSkillEpisodeResult,
     summarize_atomic_rollouts,
 )
+from robot_vla.execution.rtc import (
+    ChunkInferenceStrategy,
+    RTCConfig,
+    resolve_inference_strategy,
+)
 from robot_vla.tasks.pick_place import build_pick_place_task
 
 ATOMIC_EVALUATION_EXPERIMENT_FORMAT = "robot-vla-maniskill-atomic-evaluation/v1"
@@ -37,6 +42,9 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=Path, required=True)
     parser.add_argument("--model-cache", type=Path, required=True)
+    parser.add_argument(
+        "--qwen-context-layer", type=int, choices=(12, 24), default=24
+    )
     parser.add_argument("--checkpoint", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--seed-start", type=int, default=10_000)
@@ -51,12 +59,19 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--sampling-seed", type=int, default=42_424)
     parser.add_argument("--num-flow-steps", type=int, default=10)
     parser.add_argument(
+        "--inference-strategy",
+        choices=tuple(strategy.value for strategy in ChunkInferenceStrategy),
+        default=None,
+    )
+    parser.add_argument(
         "--temporal-ensemble",
         action=argparse.BooleanOptionalAction,
-        default=True,
-        help="启用重叠 Action Chunk 的 temporal ensemble；用 --no-temporal-ensemble 关闭",
+        default=None,
+        help="旧兼容开关；新实验请使用 --inference-strategy",
     )
     parser.add_argument("--recency-decay", type=float, default=0.5)
+    parser.add_argument("--rtc-execution-horizon", type=int, default=4)
+    parser.add_argument("--rtc-max-guidance-weight", type=float, default=10.0)
     parser.add_argument(
         "--max-anomaly-replans",
         type=int,
@@ -124,6 +139,14 @@ def run(args: argparse.Namespace) -> None:
     from robot_vla.model.qwen_processor import QwenVLAProcessorAdapter
     from robot_vla.training.checkpoint import load_stage1_policy_checkpoint
 
+    strategy = resolve_inference_strategy(
+        args.inference_strategy,
+        legacy_temporal_ensemble_enabled=args.temporal_ensemble,
+    )
+    rtc_config = RTCConfig(
+        execution_horizon=args.rtc_execution_horizon,
+        max_guidance_weight=args.rtc_max_guidance_weight,
+    )
     if (
         args.num_flow_steps <= 0
         or args.sampling_seed < 0
@@ -153,6 +176,7 @@ def run(args: argparse.Namespace) -> None:
         cache_dir=str(args.model_cache),
         local_files_only=True,
         device="cuda",
+        context_layer=args.qwen_context_layer,
     )
     checkpoint_metadata = load_stage1_policy_checkpoint(
         args.checkpoint,
@@ -179,9 +203,16 @@ def run(args: argparse.Namespace) -> None:
             "sampling_seed": args.sampling_seed,
             "max_policy_steps": args.max_policy_steps,
             "preparation": "trusted-mplib-prerequisites/v1",
-            "temporal_ensemble_enabled": args.temporal_ensemble,
+            "inference_strategy": strategy.value,
+            "temporal_ensemble_enabled": (
+                strategy == ChunkInferenceStrategy.TEMPORAL_ENSEMBLE
+            ),
             "recency_decay": args.recency_decay,
+            "rtc_execution_horizon": rtc_config.execution_horizon,
+            "rtc_max_guidance_weight": rtc_config.max_guidance_weight,
+            "rtc_schedule": rtc_config.schedule,
             "max_anomaly_replans": args.max_anomaly_replans,
+            "qwen_context_layer": args.qwen_context_layer,
         },
         "episodes": [asdict(item) for item in specs],
     }
@@ -213,8 +244,9 @@ def run(args: argparse.Namespace) -> None:
         spec,
         num_flow_steps=args.num_flow_steps,
         sampling_seed=args.sampling_seed,
-        temporal_ensemble_enabled=args.temporal_ensemble,
+        inference_strategy=strategy,
         recency_decay=args.recency_decay,
+        rtc_config=rtc_config,
         max_anomaly_replans=args.max_anomaly_replans,
     ) as evaluator:
         for item in specs:

@@ -65,6 +65,23 @@ External/front RGB + Wrist RGB + Language + Proprioception [15]
 主要瓶颈是 reach 泛化，其次是 transport/release 的连续组合。后续迭代应继续从数据覆盖和监督分布
 解决这些学习问题，而不是加入 stable-grasp、release-hold 或 settle 等任务语义状态机。
 
+后续 E008 对 Qwen Layer 12 做了受控空间与闭环诊断：线性 probe 的 test median world-XY error
+从 Layer 24 的 `0.1245 m` 降到 `0.0253 m`，Reach-only 从 `1/5` 提高到 `2/5`；但五技能联合训练
+的原子总成功仍为 `16/25`，20 unseen 完整成功仍为 `0/20`。完整阶段由 Layer 24 的
+`5/4/3/1/0` 变为 Layer 12 的 `9/3/2/0/0`，说明几何改善没有稳定传递到 Grasp/Transport
+交接。E009 随后对 11 个 periodic/best checkpoint 做了 66-Episode screening 和 60-Episode 独立
+confirmation：epoch 100 把 Reach 从 epoch 98 的 `0/10` 提到 `3/10`，但 Transport 从 `7/10`
+降到 `2/10`，没有单一 checkpoint 通过 promotion 门槛。这说明聚合 checkpoint 在不同技能间存在
+行为冲突，不能靠替换 `best.pt` 解决。E010 随后用 34 个严格配对的 raw Gradient Gram 做机制归因：
+e098-best/e100 的 train Reach–Transport median cosine 为 `+0.164/+0.173`，独立 val 为
+`-0.094/+0.441`，均未通过预注册的两阶段负冲突门槛；五技能所有 train pair median 也全部为正。
+因此当前不直接增加多动作头或 PCGrad/CAGrad。下一步先投影 epoch 98→100 的真实 checkpoint 位移，
+并补充 event-conditioned 与 handoff boundary probe，再决定是否需要训练目标或架构分支。当前仍不把
+Layer 12 升级为默认 Context。
+完整配置、结果和限制见 [E008](docs/experiments.md#e008--qwen-layer-12-空间表示reach-与五技能组合诊断)、
+[E009](docs/results/e009/README.md)、[E010](docs/results/e010/README.md) 与
+[D024](docs/decisions.md#d024--不直接以-layer-12-替换最终层先诊断技能交接再评估语义-key--几何-value)。
+
 ## 快速开始
 
 基础开发和单元测试使用 Python 3.10 及以上版本：
@@ -160,13 +177,16 @@ python -m robot_vla.cli.evaluate_maniskill \
   --model-cache /path/to/huggingface-cache \
   --checkpoint /path/to/selected-checkpoint.pt \
   --output /path/to/rollout-run \
+  --inference-strategy temporal-ensemble \
   --unseen-seed-start 10000 \
   --unseen-episodes 20
 ```
 
-`summary.json` 分别保存 test/unseen/overall 的完整任务成功率、95% Wilson 区间、五个原子技能
-通过率和失败计数；`episodes.jsonl` 保留每次 Replan 的 Flow sampling seed、最终物理 Predicate
-和失败阶段。只有这组闭环结果可以作为 manipulation 效果证据。
+`--inference-strategy` 可显式选择 `newest-only`、`temporal-ensemble` 或实验性的 `rtc`；RTC 额外支持
+`--rtc-execution-horizon 4 --rtc-max-guidance-weight 10.0`。`summary.json` 分别保存
+test/unseen/overall 的完整任务成功率、95% Wilson 区间、条件交接率、阶段耗时、五个原子技能通过率
+和失败计数；`episodes.jsonl` 保留每次 Replan 的 Flow sampling seed、策略/RTC 诊断、最终物理
+Predicate 和失败阶段。只有这组闭环结果可以作为 manipulation 效果证据。
 
 ## 许可证
 

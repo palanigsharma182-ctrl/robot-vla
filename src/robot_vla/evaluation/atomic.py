@@ -9,6 +9,7 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 from robot_vla.contracts import PICK_AND_PLACE_SKILLS
+from robot_vla.execution.rtc import ChunkInferenceStrategy
 
 ATOMIC_ROLLOUT_FORMAT = "robot-vla-maniskill-atomic-rollout/v1"
 
@@ -52,6 +53,8 @@ class AtomicSkillEpisodeResult:
     temporal_ensemble_max_buffer_size: int = 0
     temporal_ensemble_max_proposal_spread: float = 0.0
     temporal_ensemble_min_newest_weight: float | None = None
+    inference_strategy: str = ChunkInferenceStrategy.TEMPORAL_ENSEMBLE.value
+    replan_traces: tuple[dict[str, Any], ...] = ()
     format: str = ATOMIC_ROLLOUT_FORMAT
 
     def __post_init__(self) -> None:
@@ -59,6 +62,7 @@ class AtomicSkillEpisodeResult:
             raise ValueError(f"原子 Rollout format 必须为 {ATOMIC_ROLLOUT_FORMAT}")
         if self.seed < 0 or self.sampling_seed_base < 0 or not self.instruction.strip():
             raise ValueError("原子 Rollout seed 和 instruction 无效")
+        ChunkInferenceStrategy(self.inference_strategy)
         if self.skill_name not in PICK_AND_PLACE_SKILLS:
             raise ValueError(f"未知原子技能: {self.skill_name}")
         target = PICK_AND_PLACE_SKILLS.index(self.skill_name)
@@ -81,6 +85,8 @@ class AtomicSkillEpisodeResult:
             raise ValueError("原子评估步数或计数无效")
         if self.anomaly_replan_count < 0 or self.temporal_ensemble_max_buffer_size < 0:
             raise ValueError("原子评估 anomaly/temporal ensemble 计数无效")
+        if len(self.replan_traces) > self.replans:
+            raise ValueError("原子 replan trace 数不能超过 replans")
         if (
             not math.isfinite(self.temporal_ensemble_max_proposal_spread)
             or self.temporal_ensemble_max_proposal_spread < 0
@@ -119,6 +125,9 @@ class AtomicSkillEpisodeResult:
     def from_dict(cls, value: dict[str, Any]) -> AtomicSkillEpisodeResult:
         data = dict(value)
         data["sampling_seeds"] = tuple(int(seed) for seed in data["sampling_seeds"])
+        data["replan_traces"] = tuple(
+            dict(trace) for trace in data.get("replan_traces", ())
+        )
         return cls(**data)
 
 
@@ -134,6 +143,12 @@ def summarize_atomic_rollouts(results: list[AtomicSkillEpisodeResult]) -> dict[s
         if not selected:
             continue
         successes = sum(result.success for result in selected)
+        rtc_traces = [
+            trace
+            for result in selected
+            for trace in result.replan_traces
+            if trace.get("rtc_enabled")
+        ]
         groups[skill_name] = {
             "episodes": len(selected),
             "successes": successes,
@@ -160,6 +175,13 @@ def summarize_atomic_rollouts(results: list[AtomicSkillEpisodeResult]) -> dict[s
             ),
             "temporal_ensemble_max_proposal_spread": max(
                 result.temporal_ensemble_max_proposal_spread for result in selected
+            ),
+            "inference_strategy_counts": dict(
+                sorted(Counter(result.inference_strategy for result in selected).items())
+            ),
+            "rtc_replans": len(rtc_traces),
+            "rtc_replans_with_previous_chunk": sum(
+                bool(trace.get("previous_chunk_available")) for trace in rtc_traces
             ),
         }
     return {

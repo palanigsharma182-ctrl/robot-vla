@@ -6,7 +6,8 @@
 
 项目已经完成 30 条可信轨迹的首轮 Stage 1、扩充到 100/120/220 条后的独立重训和受控消融、
 Action 安全拒绝诊断、事件损失、temporal ensemble，以及固定低事件权重的 100-epoch 正式训练和
-最终闭环评估。
+最终闭环评估。随后完成 Qwen Layer 12/24 空间 probe、Oracle/Layer 12 Reach 诊断，以及 Layer 12
+五技能联合训练和统一闭环评估；Layer 12 改善了部分 Reach 表现，但没有提高完整任务成功率。
 单元测试和模型 smoke test 只证明接口与计算链路可运行，不记作任务效果实验；
 下列任务效果结论只来自完整 test/unseen seed Rollout。
 
@@ -32,6 +33,10 @@ Action 安全拒绝诊断、事件损失、temporal ensemble，以及固定低�
 | E005 | 2026-08-25 | 20 条恢复数据的 30-epoch A/B | completed | 完整成功仍为 0，但恢复数据显著推进 unseen 闭环阶段，暂不换架构 |
 | E006 | 2026-08-26 | v0.4 事件数据、事件损失与 warmup 消融 | completed | 高事件权重造成技能竞争；固定 `lambda=0.25` 是唯一完整保住 grasp/lift 的低回归方案，进入独立 100-epoch 正式训练 |
 | E007 | 2026-08-26 | 固定 `lambda=0.25` 的正式训练与控制消融 | completed | 原子提升到 16/25，ensemble 明显改善阶段深度，但 20 unseen 完整成功仍为 0/20 |
+| E008 | 2026-08-28 | Qwen Layer 12 空间表示、Reach 与五技能组合诊断 | completed | Layer 12 的位置可解码性和完整 Reach 通过数优于 Layer 24，但原子仍为 16/25、完整仍为 0/20；主要问题收敛到多技能目标冲突和 Reach→Grasp/Lift→Transport 交接 |
+| E009 | 2026-08-29 | Layer 12 periodic checkpoint 的 Reach/Transport sweep | completed | epoch 100 将 Reach 从 0/10 提到 3/10，却使 Transport 从 7/10 降到 2/10；无单一 promotion 候选，确认技能/checkpoint 冲突而非只选错 best.pt |
+| E010 | 2026-08-29 | Layer 12 五技能梯度冲突与 base/event 归因 probe | completed | e098-best/e100 均未通过两阶段负冲突门槛；五技能 train median 全为正，Reach/Transport event gradient 为零不可识别，不支持直接多头或 PCGrad |
+| E011 | 2026-08-29 | RTC Action Chunk Transition 受控评估 | completed | RTC 在共同 Reach seed 上推进到 Transport，但把完整闭环 Reach 从 temporal 的 6/10 降到 2/10，未通过 promotion；默认继续 temporal ensemble，不进入 Stage B |
 
 ## E001 — 30 条数据 Stage 1 与首轮闭环
 
@@ -476,6 +481,590 @@ seed 10017 出现一次 tracking-correction saturation；由于重规划预算�
 泛化；少量进入后期的轨迹还暴露 transport 和 release 失败。下一轮应优先增加 reach/transport 的
 有效数据和监督覆盖，再独立验证 release；不通过手写 stable-grasp、release-hold 或 settle 状态机
 掩盖学习问题，也不据此修改 Qwen、Action Expert 或 joint-space Action 契约。
+
+## E008 — Qwen Layer 12 空间表示、Reach 与五技能组合诊断
+
+**Date:** 2026-08-28
+
+**Status:** completed
+
+**Experiment:**
+
+按“先做便宜且归因清楚的 probe，再进入闭环”的顺序，先用冻结 Qwen Layer 12/24 visual token
+训练相同线性位置 probe；再用严格相同 seed、训练预算和控制协议比较 Layer 24 Control、Layer 12
+和带 GT 相对几何 token 的 Oracle Reach；最后保持 E007 数据、损失、优化器和闭环协议不变，只把
+Qwen Context 从 Layer 24 改为 Layer 12，完成 100-epoch 五技能联合训练、25 个独立原子 Episode
+和 20 个 unseen 完整 Episode。
+
+**Goal:**
+
+判断 E007 的 Reach 瓶颈是否来自 Qwen 最终层丢失精细位置，以及 Layer 12 的几何优势能否在不使用
+GT token/GT 几何的情况下转化为原子技能组合和完整任务收益。离线 probe 和 validation loss 只用于
+归因；最终标准仍为统一闭环成功率和阶段深度。
+
+**Config:**
+
+- Code revision: `source-tree-sha256:3ee22910df7912f99143c4bea02ba14fd92316443fd79a8e17b89841e4768bbd`
+- Dataset: `trusted-v0.4-event-recovery-220`，220 trajectories / 48922 steps，dataset SHA256
+  `bc024b6b...39407`，manifest SHA256 `43f131cc...f477f`
+- Spatial probe: 同一次冻结 Qwen 前向读取 Layer 12/24；相同初始化的线性 probe；test 2048 samples /
+  136 unique windows；GT 只用于选择包含方块的 external-camera 粗 visual token 和评价坐标，不作为
+  VLA 输入
+- Reach diagnosis: 三组均为 30 epochs、4096 samples/epoch、batch 64、1920 optimizer steps；
+  Control 使用 Layer 24，Treatment 使用 Layer 12，Oracle 额外提供 TCP→物体相对几何；闭环 seeds
+  `10000–10004`，每条最多 100 policy steps
+- Combination train: 与 E007 相同的 100 epochs、4096 samples/epoch、batch 64、6400 optimizer
+  steps、seed 42、AdamW `1e-4`、warmup 1000 / cosine 30000、固定 `lambda_event=0.25`、技能采样
+  权重 `1.5/1/1/1.5/2`；唯一模型变量为 `qwen_context_layer=12`，无 GT token 或 GT 几何
+- Combination evaluation: seeds `10000–10004` 的 25 个原子 Episode；unseen seeds
+  `10000–10019` 的 20 个完整 Episode；10-step Flow、每 4 步重规划、temporal ensemble
+  `rho=0.5`、max anomaly replans 3
+- Hardware: 单张 RTX 4090 24GB
+- Artifacts: `artifacts/qwen-spatial-probe-20260828/`、`artifacts/oracle-reach-20260828/`、
+  `artifacts/layer12-combination-20260828/`；组合 best SHA256
+  `a542076f...41ad6`
+
+**Result:**
+
+空间 probe 的 test 结果：
+
+| Context | median visual-token error | median world XY | p90 world XY | within 1 token |
+| --- | ---: | ---: | ---: | ---: |
+| Layer 12 | **0.1587** | **0.0253 m** | **0.0388 m** | **100.0%** |
+| Layer 24 | 0.8369 | 0.1245 m | 0.2439 m | 60.7% |
+| 最近粗 token 中心 | 0.2015 | 0.0302 m | 0.0658 m | 100.0% |
+
+Layer 12 的 median world-XY error 只有 Layer 24 的 `20.4%`，明确证明中层位置更容易线性解码；
+但 `0.0253 m` 仍高于预设 `0.02 m` Reach 门槛，而且相对最近粗 token 中心的 ratio 为 `0.839`，
+没有通过预设 `<=0.8` 的 sub-token 增益门槛。因此该 probe 支持“Layer 12 明显优于 Layer 24”，
+但不单独宣称“已具备精确 Reach”。
+
+Reach-only 正式闭环：
+
+| 模式 | best epoch / val loss | Reach 成功 | 平均最终 TCP→物体距离 | 最小距离 |
+| --- | --- | ---: | ---: | ---: |
+| Layer 24 Control | 30 / 0.018651 | 1/5 | 0.098048 m | 0.037208 m |
+| Layer 12 | 30 / **0.017167** | **2/5** | **0.062761 m** | 0.037239 m |
+| Oracle Geometry | 28 / 0.019052 | **4/5** | **0.039665 m** | 0.033607 m |
+
+Layer 12 相对 Layer 24 把平均最终距离降低约 36%，并多成功 1 条；Oracle 达到 4/5，说明显式几何
+仍提供明显上界。Layer 12 有真实闭环收益，但没有达到 Oracle，剩余问题包括目标 token 寻址、双相机
+对齐、视觉到关节动作映射和闭环误差修正，而不只是“有没有位置”。
+
+五技能联合训练完整结束，100 行 epoch 指标连续，无 NaN/Inf、OOM 或训练错误：
+
+| Checkpoint | Context | Epoch | Val total | Val base | Val event |
+| --- | --- | ---: | ---: | ---: | ---: |
+| E007 best | Layer 24 | 98 | 0.030852 | **0.023178** | 0.032872 |
+| E008 best | Layer 12 | 98 | **0.027532** | 0.023730 | **0.016258** |
+| E008 latest | Layer 12 | 100 | 0.027561 | 0.021881 | 0.023105 |
+
+Layer 12 best total loss 比 E007 低约 10.8%，event loss 低约 50.5%，但 base loss 略高约 2.4%。
+这说明优化收益主要集中在 contact、grasp/pickup、release/place 等关键事件，不代表 Reach/Transport
+连续空间运动同步改善。
+
+独立原子结果：
+
+| Context | Reach | Grasp | Lift | Transport | Place | 总成功 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Layer 24 E007 | 0/5 | 5/5 | 5/5 | **2/5** | 4/5 | 16/25 |
+| Layer 12 E008 | 0/5 | 5/5 | 5/5 | 1/5 | **5/5** | 16/25 |
+
+总数完全不变；Layer 12 只是把 1 个成功从 Transport 移到 Place。Layer 12 原子 Reach 5 条均跑满
+100 步，平均最终 TCP→物体距离 `0.1015 m`。这与 Reach-only 的 2/5 形成受控反差，说明联合训练、
+聚合 checkpoint 选择或技能梯度竞争会抵消中层几何收益。
+
+20 unseen 完整闭环：
+
+| Context | 完整成功 | Reach/Grasp/Lift/Transport/Place | 平均完成技能数 | 平均最终 TCP 距离 | saturation / anomaly |
+| --- | ---: | --- | ---: | ---: | ---: |
+| Layer 24 E007 | 0/20 | 5/4/3/1/0 | 0.65 | 0.0990 m | 0 / 0 |
+| Layer 12 E008 | 0/20 | **9/3/2/0/0** | **0.70** | 0.0989 m | 0 / 0 |
+
+Layer 12 失败分布为 reach 11、grasp 6、lift 1、transport 2。9 条通过 Reach 后只有 3 条完成
+Grasp，条件成功率为 `3/9=33%`；Layer 24 对应为 `4/5=80%`。Layer 12 的 Reach `9/20` 对
+Layer 24 的 `5/20` 只有方向性改善，双侧两比例近似检验 `p≈0.185`，在当前样本数下不能宣称稳健
+显著。20 条完整成功仍为 0，Wilson 95% 上界为 `0.1611`。
+
+独立 Grasp/Lift/Place 分别为 `5/5、5/5、5/5`，但完整链中只有 `3/20、2/20、0/20`，说明
+“专家准备的干净前置状态”与“策略自己完成前序技能后的状态”存在明显 handoff distribution
+mismatch：Reach Predicate 可以刚过阈值，但 TCP 姿态、速度、夹爪开度或视觉相对位置未必形成
+高质量 Grasp 输入。两条完成 Lift 的轨迹又全部在 Transport 失败；Place 虽独立 5/5，却从未被
+完整链触达。
+
+所有 25+20 Episode 都正常完成，tracking saturation、anomaly replan 和系统错误均为 0；因此
+差异归因于策略表示、训练目标和跨技能状态分布，而不是控制器或仿真故障。原子与完整 summary 均为
+`complete=true`，使用同一 checkpoint SHA256 和 dataset SHA256。
+
+**Conclusion:**
+
+“Layer 24 丢失精细位置”得到部分支持：Layer 12 的线性位置误差显著更低，Reach-only 和完整任务
+前段也呈一致的正向变化。但“直接把完整 Context 换成 Layer 12 就能解决组合”被否定：原子总数
+仍为 16/25、完整仍为 0/20，完整链只是把一部分瓶颈从 Reach 移到 Grasp，Transport 进一步退化。
+
+现有结果不支持把纯 Layer 12 升级为默认架构，也不支持继续盲目增加相同训练 epoch。第一版原子
+技能组合目标尚未达到；当前最清楚的问题是聚合 loss/checkpoint 对事件技能的偏置，以及
+Reach→Grasp、Lift→Transport 的交接状态质量。
+
+**Next step:**
+
+1. 不重训，先对已有 epoch 10/20/.../100 periodic checkpoint 只跑 Reach/Transport sweep，判断
+   最优能力是否出现在不同 epoch，从而区分 checkpoint 选择问题与持续梯度干扰。
+2. 新增 Reach→Grasp handoff probe：在首次满足 Reach Predicate 时记录 TCP 相对位姿/速度、夹爪
+   开度、物体运动和双相机位置，并与专家准备的 Grasp 初态比较。
+3. 只有前两项确认“Layer 12 几何有益但语义寻址或技能切换退化”后，再正式比较 Layer 24 semantic
+   Key + 同 token Layer 12 geometry Value；不把 Oracle GT 几何带入生产模型，也不增加手写任务
+   语义状态机掩盖学习问题。
+
+## E009 — Layer 12 periodic checkpoint 的 Reach/Transport sweep
+
+**Date:** 2026-08-29
+
+**Status:** completed
+
+**Experiment:**
+
+不重新训练，固定 E008 的 Layer 12 架构、数据、评估器、控制协议和 sampling seed，只改变五技能联合
+训练 checkpoint。对 epoch 10/20/.../100 的 10 个 periodic 权重和 epoch 98 best 共 11 个候选，
+先用少量全新 seed 筛选，再在相互独立的全新 seed 上确认 Reach/Transport 候选，判断聚合 validation
+loss 是否选错行为 checkpoint，或两项空间技能是否在训练过程中出现不同最佳 epoch。
+
+**Goal:**
+
+区分三个互斥的主要解释：
+
+1. **Checkpoint selection 问题：**至少一个较早 checkpoint 同时不劣于 epoch 98，并明确改善 Reach
+   或 Transport；聚合 total loss 没有选到闭环最优权重。
+2. **技能目标冲突：**Reach 与 Transport 的最佳 checkpoint 分属不同 epoch，且不存在单个候选同时
+   保住两者；共享动作头在训练过程中沿 Pareto frontier 移动。
+3. **持续训练/表示问题：**全部 periodic checkpoint 都与 epoch 98 同样失败；问题不是选择时点，
+   应继续做 handoff probe、数据分布或 Layer 24 Key / Layer 12 Value 架构诊断。
+
+本实验只做 checkpoint 归因，不用完整任务成功率反向挑权重，也不把 screening seed 的结果当作正式
+提升证据。
+
+**Frozen config:**
+
+- Dataset: `trusted-v0.4-event-recovery-220`，dataset SHA256 `bc024b6b...39407`
+- Model: E008 Layer 12 五技能联合训练，`qwen_context_layer=12`，无 GT token/GT 几何
+- Evaluation: `RobotVLAPickCubeToRegion-v1` 独立原子评估，技能仅 `reach transport`
+- Policy budget: 每技能每 seed 最多 100 policy steps；10-step Flow；每 4 步重规划
+- Control: temporal ensemble on，`recency_decay=0.5`，max anomaly replans 3
+- Sampling: base seed `42424`；原子 sampling seed 只由 base seed、环境 seed 和 skill 派生，因此同一
+  skill/seed 在所有 checkpoint 间形成严格配对比较
+- Hardware: 单张 RTX 4090 24GB；所有 checkpoint 顺序运行，不并行共享 GPU/SAPIEN
+
+**Candidates:**
+
+| Candidate | Weight | Epoch val total | Val base | Val event |
+| --- | --- | ---: | ---: | ---: |
+| e010 | `step-00000640.pt` | 0.135433 | 0.108168 | 0.106300 |
+| e020 | `step-00001280.pt` | 0.089931 | 0.071453 | 0.078659 |
+| e030 | `step-00001920.pt` | 0.078140 | 0.059799 | 0.068425 |
+| e040 | `step-00002560.pt` | 0.072662 | 0.057543 | 0.061529 |
+| e050 | `step-00003200.pt` | 0.050218 | 0.041362 | 0.034399 |
+| e060 | `step-00003840.pt` | 0.041849 | 0.032991 | 0.033336 |
+| e070 | `step-00004480.pt` | 0.039321 | 0.031331 | 0.033295 |
+| e080 | `step-00005120.pt` | 0.037129 | 0.030900 | 0.026218 |
+| e090 | `step-00005760.pt` | 0.035522 | 0.028538 | 0.029539 |
+| e098-best | `best.pt` | **0.027532** | 0.023730 | **0.016258** |
+| e100 | `step-00006400.pt` | 0.027561 | **0.021881** | 0.023105 |
+
+`latest.pt` 与 step 6400 表示同一 epoch 100 状态，不作为第 12 个重复候选。validation 指标只用于
+解释训练轨迹，不能参与闭环候选排名。
+
+**Stage A — screening:**
+
+- Seeds: `10020–10022`，均不在 Dataset manifest，也没有用于 E008 原子或完整评估
+- Candidates: 全部 11 个
+- Skills: Reach + Transport
+- Episodes: `11 × 2 × 3 = 66`
+- 每个 checkpoint 只加载一次，顺序执行 6 个 Episode
+
+对每个技能分别按以下稳定顺序排名：
+
+1. 成功数降序；
+2. Predicate 超额残差均值升序；
+3. 平均 policy steps 升序；
+4. epoch 升序，仅作为完全相同时的确定性 tie-break。
+
+Predicate 超额残差与正式 Outcome 阈值严格一致：
+
+```text
+Reach residual     = max(final_tcp_to_object_distance_m - 0.04, 0)
+Transport residual = max(final_object_to_goal_xy_distance_m - 0.04, 0)
+```
+
+任何出现 inference/controller/action-safety error、tracking saturation 或 anomaly replan 的候选不直接
+删除，但单独标记为非行为可比，不能依靠距离 tie-break 晋级。
+
+**Stage B — independent confirmation:**
+
+- Seeds: `10023–10032`，10 个全新、非 Dataset seed，与 Stage A 和 E008 都不重叠
+- Candidates: Stage A Reach Top-2、Transport Top-2 与 epoch 98 best 的并集，最多 5 个
+- 所有入围候选都同时跑 Reach 和 Transport，不能只跑它在 screening 中表现好的技能
+- Episodes upper bound: `5 × 2 × 10 = 100`
+- 正式报告每技能成功数/Wilson 95% 区间、Predicate residual、平均 steps、逐 seed 配对胜负，以及
+  saturation/anomaly/system failure
+
+只有同时满足下列条件的单一 checkpoint 才能标记为“值得进入下一级完整评估的候选”，不能直接替换
+默认 best：
+
+1. confirmation 中 Reach 和 Transport 成功数都不低于 epoch 98；
+2. 至少一个技能比 epoch 98 多成功 `>=2/10`；
+3. 被改善技能的平均 Predicate residual 至少降低 20%；
+4. 两个技能均无系统错误、tracking saturation 或 anomaly replan。
+
+如果 Reach/Transport 分别由不同 epoch 获胜，而没有单个候选满足上述条件，则结论为技能/checkpoint
+冲突，不把两个 checkpoint 组合成运行时手写路由。若没有候选超过 epoch 98，则排除“只选错 best”
+作为主要解释，直接进入 handoff probe。
+
+**Promotion guardrail:**
+
+若 Stage B 产生单一候选，再额外用相同协议对候选与 epoch 98 在 seeds `10023–10027` 上配对评估
+Grasp/Lift/Place，共 `2 × 3 × 5 = 30` Episode。候选最多允许每个 guardrail 技能相对 epoch 98
+回退 1/5；通过后才能另立实验运行 20 unseen 完整闭环。本 E009 不用完整任务结果继续调候选，避免
+把正式 test seed 变成超参数选择集。
+
+**Execution and artifacts:**
+
+- Remote root: `/home/ubuntu/robot-vla-runs/e009-layer12-checkpoint-sweep/`
+- Layout: `screen/<candidate>/`、`confirm/<candidate>/`、可选 `guardrail/<candidate-or-best>/`
+- 每个输出目录沿用 `evaluate_atomic_maniskill` 的 `experiment.json`、增量 `episodes.jsonl`、
+  `summary.json` 和 `--resume` 身份校验
+- 运行前生成只读 sweep manifest，记录 candidate label、epoch、绝对 checkpoint 路径、validation
+  指标、seed 集合、源码树 revision 和统一控制配置；每个候选的 `experiment.json` 另存 checkpoint
+  SHA256、dataset SHA256 和模型契约；聚合器只读取各目录的 experiment/episodes/summary，不重新推理
+- Python orchestrator 让单 checkpoint 子进程失败时停止；恢复时只对未完成目录使用 `--resume`
+- 结果完成后同步 manifest、JSONL、summary 和日志到本机 artifacts；不重复同步 11 个已有 checkpoint
+
+**Budget:**
+
+- 必跑：Stage A 66 Episode
+- 最大 confirmation：100 Episode
+- 条件 guardrail：30 Episode
+- 基于 E008 Reach/Transport 每条约 7.5 秒，Stage A + 最大 Stage B 预计约 20–30 分钟；guardrail
+  通常更快。相比新的 100-epoch 训练，成本和归因复杂度都显著更低。
+
+**Results:**
+
+Stage A 完成 66/66 Episodes。Reach Top-2 为 `e100, e098-best`，Transport Top-2 为
+`e090, e100`；加上强制 anchor 后，Stage B 候选并集为 `e090, e098-best, e100`。Stage A 的
+3-seed 结果只用于筛选；例如 e100 Transport 在 screening 为 `2/3`，在独立 confirmation 中只有
+`2/10`，验证了不能把 screening 当正式结论。
+
+Stage B 完成 60/60 Episodes：
+
+| Candidate | Reach | Reach residual | Transport | Transport residual | System/saturation/anomaly |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| e090 | 0/10 | 0.06536 m | 7/10 | 0.02603 m | 0 / 0 / 0 |
+| e098-best | 0/10 | 0.06932 m | **7/10** | **0.00857 m** | 0 / 0 / 0 |
+| e100 | **3/10** | **0.03062 m** | 2/10 | 0.05288 m | 0 / 0 / 0 |
+
+相对 epoch 98，e100 Reach 多成功 3 条，逐 seed 为 3 win/0 loss，residual 降低 55.8%；但
+Transport 少成功 5 条，逐 seed 为 1 win/6 loss，residual 增至 6.17 倍。e090 与 anchor 的成功数
+完全相同，Reach/Transport residual 比率分别为 0.943 和 3.038，没有达到 20% 改善门槛。
+
+因此 `promotion_candidate_labels=[]`，没有候选满足“Reach/Transport 均不回退”的首要条件，条件
+Grasp/Lift/Place guardrail 不运行。原始 126 行 JSONL 经独立重算，skill/seed 身份、成功数、residual
+和配对 win/loss 与聚合文件一致；Stage B 无系统错误、tracking saturation 或 anomaly replan。
+
+**Analysis:**
+
+E009 支持预注册解释 2：不同技能的最佳 checkpoint 分离。epoch 100 恢复部分 Reach，却破坏
+Transport；epoch 98/90 保住 Transport，却没有 Reach 成功。结果排除“存在一个明显更好的单一
+periodic checkpoint，只是 total validation loss 选错了”的简单解释，也不支持部署按技能手写切换
+checkpoint。validation total loss 在 epoch 98/100 之间只差约 `0.000029`，但行为折中明显变化，
+后续 checkpoint 诊断必须保留 per-skill 闭环指标。
+
+本实验没有直接测量梯度或 handoff 状态，10-seed Wilson 区间也较宽，因此不能单独把机制唯一归因于
+共享动作头梯度干扰。下一步按 D024 做 Reach→Grasp handoff probe；只有继续确认 Layer 12 几何有效
+但语义寻址/交接退化后，才比较 Layer 24 semantic Key + Layer 12 geometry Value。
+
+完整技术报告、冻结 manifest、聚合 JSON 和逐 Episode 结果见
+[`docs/results/e009/`](results/e009/README.md)。
+
+**Implementation and verification:**
+
+现有原子评估 CLI 已支持所需 checkpoint、skills、seed、Layer 12 契约、增量 summary 和 resume，不
+修改模型、训练器或 ManiSkill evaluator。只新增一个薄的 sweep orchestrator/aggregator，用于生成
+manifest、顺序启动现有 CLI、计算上述 residual/ranking 和选择 Stage B 候选；排名逻辑需要纯函数
+单元测试，禁止把 validation loss 混入行为排序。目标测试共 10 项通过，新增文件通过 Ruff；实验
+源码树 revision 为 `source-tree-sha256:aeb1c1647de4eadf838838c0abf4e5c1c517d0d871e2f33c75d2b8b288a351f1`。
+
+## E010 — Layer 12 五技能梯度冲突与 base/event 归因 probe
+
+**Date:** 2026-08-29
+
+**Status:** completed
+
+**Experiment:**
+
+不更新参数、不运行闭环，只在 E009 的 epoch 90、98、100 checkpoint 上恢复相同 Layer 12
+Adapter/Action Expert 权重，对严格配对的 per-skill Action Chunk batch 计算训练目标梯度。保存逐模块
+精确 Gram matrix，再由 Gram 独立重算 cosine、范数和负冲突比例。Discovery 使用 train split 的五技能
+全矩阵；Confirmation 使用独立 val split，只对 Reach/Transport 分解 base gradient、加权 event
+gradient 和二者之和。
+
+本 probe 只回答“训练目标的局部一阶更新方向是否冲突，以及冲突位于哪里”，不把离线 loss 或梯度
+cosine 当作闭环成功率，也不在本实验中直接实现多动作头。
+
+**Goal:**
+
+区分以下架构分支：
+
+1. **仅输出头冲突：**共享 Expert 大部分层的 Reach/Transport 梯度相容，但 `velocity_head` 稳定负
+   冲突；下一候选才是共享 trunk + 轻量多输出头。
+2. **后层 Expert 冲突：**冲突集中在最后 4 个 Expert block；下一候选是共享前层 + skill adapter/
+   后层分支，而不是只拆最终 Linear。
+3. **广泛共享表示冲突：**至少一半 Expert block 稳定负冲突；先比较 PCGrad/CAGrad/GradNorm，再考虑
+   更重的 MoE，不能假设多个输出头足够。
+4. **Adapter/Context 投影冲突：**Adapter 本身稳定负冲突；优先继续 Layer 24 semantic Key + Layer 12
+   geometry Value，而不是只修改动作头。
+5. **base/event 目标内部冲突：**同一技能的 base gradient 与 `0.25 × event gradient` 稳定相反；
+   优先处理 loss 权重、事件采样或分阶段优化。
+6. **未确认梯度冲突：**独立 val split 不复现负方向；不据此增加多头，继续 Reach→Grasp handoff
+   状态分布 probe。
+
+**Frozen model and loss:**
+
+- Dataset: `trusted-v0.4-event-recovery-220`；只读取既有 train/val split
+- Qwen: `Qwen/Qwen3.5-2B` fixed revision，完全冻结，Context hidden state 固定 Layer 12
+- Checkpoints: `e090=step-00005760.pt`、`e098-best=best.pt`、`e100=step-00006400.pt`
+- Trainable boundary: 只测 QwenVLAAdapter + StandaloneActionExpert；Qwen 参数不得出现 gradient
+- Objective: `base_loss + 0.25 × event_loss`，event 只使用前 4 个实际执行步的 critical mask
+- Precision: 与正式训练一致的 BF16 autocast；梯度 Gram 在 FP32 中累计
+- Flow target: 每个 stage/repeat 使用固定 seed；相同 repeat 的各技能和各 checkpoint 共享相同 Flow
+  time/noise，减少采样噪声
+- Optimizer: 不构造 step，不裁剪梯度，不写回参数；probe 前后 checkpoint 参数 SHA256 必须不变
+
+**Module groups:**
+
+1. `adapter`
+2. `state_encoder`
+3. `action_encoder`
+4. `block_00` … `block_15`
+5. `final_norm`
+6. `velocity_head`
+7. `all_trainable`，由以上互斥分组的 Gram 求和
+
+分组必须完整覆盖所有且仅覆盖可训练参数；任一参数缺失、重复或产生 `None/NaN/Inf` gradient 时停止。
+
+**Stage A — train discovery:**
+
+- Checkpoints: e090、e098-best、e100
+- Split: train
+- Skills: reach、grasp、lift、transport、place
+- Repeats: 8
+- Batch: 每技能每 repeat 8 个不同 trajectory，共每技能 64 个不同 train trajectory
+- Sampling: 同一 repeat 五技能使用相同 8 个 trajectory，只在各自 skill 段内随机选一个 timestep；
+  checkpoint 间完全复用 sample identity
+- Work: `3 checkpoints × 8 repeats × 5 skill gradients = 120` 次 gradient pass
+- Output: 每 repeat 保存五技能逐模块 `5×5` Gram、loss/base/event、有效/critical steps、gradient norm、
+  trajectory/timestep 和 Flow seed
+
+**Stage B — independent confirmation and decomposition:**
+
+- Checkpoints: e098-best、e100
+- Split: val，与 Stage A trajectory 不重叠
+- Skills: Reach、Transport
+- Repeats: 5
+- Batch: 每技能每 repeat 4 个不同 trajectory，共覆盖 20 个不同 val trajectory
+- Sampling: 与 Stage A 相同的同场景/同 Flow seed 配对原则
+- 对每个 skill 从同一次 forward 分别求：`base gradient`、`0.25 × event gradient`，并用向量和得到
+  `total gradient`；零 event norm 记录为不可计算，不把 cosine 人工填成 0
+- Work: `2 checkpoints × 5 repeats × 2 skills = 20` 次 forward、40 次 component backward
+- Output: 每 repeat 保存 `reach_base/reach_event/reach_total/transport_base/transport_event/
+  transport_total` 的逐模块 `6×6` Gram
+
+**Pre-registered interpretation thresholds:**
+
+同一 checkpoint 的 Reach/Transport `all_trainable` total gradient 只有同时满足以下条件，才标记为
+“确认训练梯度冲突”：
+
+1. Stage A median cosine `<= -0.10` 且至少 `6/8` repeats 为负；
+2. Stage B median cosine `<= -0.10` 且至少 `4/5` repeats 为负。
+
+定位规则在确认冲突后应用：
+
+- **Output-head localized:** `velocity_head` 在 Stage B 满足 `<=-0.10`、至少 4/5 为负，同时 Adapter
+  不满足，且满足同一门槛的 Expert blocks 少于 4 个。
+- **Late-Expert localized:** blocks 12–15 至少 3 个满足门槛，blocks 0–11 满足者少于 4 个。
+- **Broad Expert:** 16 个 blocks 至少 8 个满足门槛。
+- **Adapter conflict:** Adapter 满足 Stage B 门槛。
+- **Within-skill objective conflict:** Reach 或 Transport 的 base/event cosine 在 Stage B median
+  `<=-0.10` 且至少 4/5 为负。
+
+若 discovery 达标但 confirmation 不达标，结论为“训练样本上的不稳定冲突信号”，不能据此修改架构。
+所有 median 同时报告 IQR；负比例报告 Wilson 95% 区间。模块定位是诊断标签，不是统计显著性声明。
+
+**Artifacts and recovery:**
+
+- Remote root: `/home/ubuntu/robot-vla-runs/e010-skill-gradient-conflict/`
+- `probe-manifest.json`: checkpoint SHA256、dataset identity、源码 revision、样本计划、Flow seed 和冻结配置
+- `measurements.jsonl`: 每完成一个 checkpoint/stage/repeat 原子追加一行；身份重复或缺失时拒绝汇总
+- `probe-summary.json`: 由 raw Gram 聚合的 per-pair/per-group median、IQR、负比例和 Wilson 区间
+- 重跑时 manifest 必须逐字段一致，只跳过已完成 measurement identity
+- GitHub 发布 manifest、raw JSONL、summary 和分析；不上传 Qwen、dataset 或 checkpoint 权重
+
+**Promotion boundary:**
+
+E010 不产生可部署 checkpoint。即使确认梯度冲突，也只能决定下一项对照实验是多头、skill adapter、
+PCGrad/CAGrad 或 Context Key/Value；任何架构晋升仍需重新训练，并通过独立原子和完整闭环门槛。
+
+**Implementation:**
+
+新增一个不写回参数的诊断模块和薄 CLI，复用现有 Dataset、Collator、Layer 12 policy factory 与严格
+checkpoint loader。纯函数测试覆盖参数分组、Gram/cosine、零范数、重复恢复身份、Wilson 区间、
+阈值判定和 sample plan；GPU runner 只负责固定样本 forward/backward 与原子落盘。
+
+**Result:**
+
+- 34/34 measurement unit 完成：3 checkpoints × 8 train discovery + 2 checkpoints × 5 val
+  confirmation；覆盖 64 个不同 train trajectory 和 20 个不同 val trajectory，跨 split 零重叠。
+- Reach/Transport `all_trainable` train median cosine 为 e090 `+0.421`、e098-best `+0.164`、
+  e100 `+0.173`；e098-best/e100 的独立 val 为 `-0.094（3/5 负）` 与 `+0.441（0/5 负）`。
+  两个 confirmation checkpoint 都没有同时通过 `<=-0.10` 与负 repeat 计数门槛。
+- 三个 checkpoint 的五技能 10 个 pair median 全部为正。e098-best 只有 Block 15 在 val 上单独达到
+  module 负冲突门槛；Velocity head 为 `-0.120、3/5`，未达到计数门槛；e100 Velocity head 为
+  `+0.480、0/5`。由于 overall 未确认，不激活 output-head/late/broad/adapter 标签。
+- Reach/Transport 在 Stage A/B 的前 4 个执行步均没有 critical event；其加权 event gradient 范数为
+  0，base/event cosine 按协议为 `null`。Grasp/Lift/Place 的 train critical steps 分别为 `29/10/5`，
+  因此本次没有识别 Grasp/Place event 对 Reach/Transport 的间接共享参数影响。
+- e098-best/e100 的 Grasp 中位梯度范数分别为 Transport 的 `2.67×/2.71×`，提示实际更新贡献或
+  采样/尺度失衡是后续候选，但本结果没有证明其导致闭环行为交换。
+- 三个 checkpoint 的 Adapter/Expert 参数 SHA256 前后完全一致。独立标准库脚本从 raw Gram 复算
+  1320 个 summary row，`all_trainable` 求和最大差为 `0.0`、统计最大差为 `1.11e-16`。
+
+完整技术报告、manifest、34 行 raw Gram、summary 和独立验证见
+[E010 results](results/e010/README.md)。
+
+**Conclusion:**
+
+预注册的“稳定训练梯度冲突”假设未得到支持。E009 的 Reach/Transport checkpoint 行为交换不能由
+当前 checkpoint 上稳定的 per-batch 负 cosine 直接解释；现有证据不支持立即实现多动作头、后层
+分支或 PCGrad/CAGrad。零 event norm 只表示 Reach/Transport 的 within-skill base/event 归因不可
+识别，不能推广为 event loss 全局无影响。
+
+**Next step:**
+
+下一项便宜 probe 直接计算 e098-best→e100 的真实参数位移 `Δθ`，并按模块评估
+`g_reach·Δθ/g_transport·Δθ`；同时构造 guaranteed-critical 的 Grasp/Place event batch 和技能边界
+batch。只有实际位移稳定呈现帮助一个技能、伤害另一个技能并定位到 Head/后层时，才进入多头或后层
+分支 A/B；否则继续 handoff 状态分布归因。
+
+## E011 — RTC Action Chunk Transition 受控评估
+
+**Date:** 2026-08-29
+
+**Status:** completed
+
+**Experiment:**
+
+冻结同一模型、Checkpoint、数据、环境与 paired environment/sampling seeds，对比 `newest-only`、
+`temporal-ensemble` 与 `rtc`。RTC 只改变 inference-time Flow sampling，不修改 Qwen、Adapter、Action
+Expert、训练目标、Action/Observation、Controller、Predicate 或 anomaly-replan 契约。
+
+**Goal:**
+
+验证当前 temporal ensemble 的历史 proposal 是否在 Reach→Grasp、Lift→Transport 边界降低闭环
+reactivity，以及 RTC 是否能在保持 Chunk continuity 的同时提高条件交接率，而不是只让运动变慢或变平滑。
+
+**Config:**
+
+- Action shape: normalized model action `[B,16,8]`
+- `execute_steps=4`，20 Hz 控制，5 Hz Replan
+- Flow: 与冻结模型相同的 10-step Euler，最终才 clamp 到 `[-1,1]`
+- RTC target: 上一次实际生成并用于执行的 guided clean Chunk，执行 4 步后以 `prev[4:16]` 对齐
+  `new[0:12]`；reference 始终 detach
+- RTC clean endpoint: 本项目 `x_t=t*noise+(1-t)*action`、`v=noise-action`，因此
+  `A_clean_hat=x_t-t*v`
+- RTC velocity guidance: 使用论文 Eq.(2) 的 VJP；由于本项目积分方向与论文相反，在项目 velocity 上
+  使用相反 guidance 符号，仍由原 Euler `dt=-1/n` 生效
+- Eq.(5): 本实验不模拟异步推理延迟，因此 `d=0`；执行 horizon `s=4`；slots `0..11` 按公式
+  由强到弱衰减，slots `12..15` 权重为 0；同一 slot 权重 broadcast 到全部 8 个 action dims
+- `rtc_max_guidance_weight=10.0`；每步只 clip guidance coefficient，不额外 clamp 中间 action state
+- 首次 Replan、显式 reset、inference/safety/tracking anomaly 后没有 previous reference，退化为普通 Flow
+- RTC 诊断使用同一 Context、Proprio 和 initial Flow noise 生成 paired raw/RTC Chunk；只有 RTC Chunk 执行
+- CLI: `--inference-strategy newest-only|temporal-ensemble|rtc`，旧 temporal bool 只保留兼容
+- Stage A: 10 个全新 paired seeds，三组共 30 个完整 Episode
+- Stage B: Stage A 无明显回归后，至少 20 个新的 paired seeds 比较 temporal 与 RTC
+- E011 按受控协议显式使用 `--qwen-context-layer 12` 和对应的同一固定 Checkpoint；全局 CLI 默认仍保持
+  Layer 24，避免本实验在未显式选择时改变其他评测；`experiment.json` 固定实际 Context Layer、
+  Checkpoint/Dataset SHA256 和 source revision
+
+**Pre-registered run identity:**
+
+- Layer 12 Checkpoint: `a542076f291e29b68e3d28930b15c40396d511a44eb358c2eaeb4e113c041ad6`
+- Dataset: `bc024b6b9c566ca9500945fb6ac262bf657bee713d8a5816229bdc8478139407`
+- Flow sampling seed base: `42424`
+- 非正式 smoke environment seed: `19999`；不进入 Stage A 统计或调参证据
+- Stage A environment seeds: `20000..20009`；在运行结果前冻结，且与 dataset seeds `0..239`、既有
+  evaluation seeds `0..10032` 无重合
+- Stage A groups: `newest-only`、`temporal-ensemble`、`rtc`；除 inference strategy 外配置相同
+- Atomic guardrail seeds: `20010..20014`；每组对 Reach/Grasp/Lift/Transport/Place 各运行 5 个 Episode，
+  只用于检查 RTC 是否破坏既有原子能力，不替代 30 个完整 Stage A Episode 的 handoff 判断
+- RTC: `execution_horizon=4`、`max_guidance_weight=10.0`、`rtc-eq5-soft-mask`
+- Remote output root: `/home/ubuntu/robot-vla-runs/e011-rtc/`
+
+**Diagnostics:**
+
+每个 Replan 记录策略、sampling seed、RTC 配置、previous availability、12-step overlap、Eq.(5) slot
+weights、逐 denoising step coefficient、paired raw/previous disagreement、RTC/previous prefix disagreement、
+RTC correction、future correction、TCP 距离/速度、joint velocity、gripper target、阶段前后状态和 temporal
+proposal spread。Episode 同时记录五技能完成 control step，聚合 `P(Grasp|Reach)`、
+`P(Transport|Lift)`、平均完成技能数及 Reach/Grasp/Lift/Transport 的阶段耗时。
+
+**Result:**
+
+工程实现、静态检查和 GPU 测试完成：RTX 4090 / PyTorch 2.11.0+cu128 环境实际覆盖 Flow VJP、
+Runtime history/reset/anomaly、无历史等价普通 Flow、CUDA BF16 autocast 与 ManiSkill runtime；完整测试
+套件 `208 passed`（另有 12 条 ManiSkill 依赖弃用警告）。随后完成非正式 smoke、30 个 Stage A 完整
+Episode 和 75 个 atomic guardrail Episode；正式 JSONL 没有 NaN/Inf。
+
+- Stage A newest-only：Reach/Grasp/Lift/Transport/Place 为 `2/1/1/1/0`（各自分母 10），平均完成
+  技能数 `0.5`，完整成功 `0/10`。
+- Stage A temporal-ensemble：`6/4/0/0/0`，`P(Grasp|Reach)=4/6=66.7%`，平均完成技能数
+  `1.0`，完整成功 `0/10`。
+- Stage A RTC：`2/2/2/2/0`，`P(Grasp|Reach)=2/2`、`P(Transport|Lift)=2/2`，平均完成技能数
+  `0.8`，完整成功 `0/10`。
+- temporal 与 RTC 共同 Reach 的只有 seeds `20005、20009`；共同支持集上两者 Grasp 均为 `2/2`。
+  RTC 在这两条随后均完成 Lift/Transport，但另有 4 条 temporal-only Reach、0 条 RTC-only Reach；
+  Reach 的 paired exact McNemar 双侧 `p=0.125`。
+- Atomic newest/temporal/RTC 总成功分别为 `17/25、17/25、18/25`；三组 Grasp/Lift/Place 均为
+  `5/5`，Transport 为 `2/5、2/5、3/5`，Reach 均为 `0/5`。RTC 没有破坏预注册的强原子能力。
+- RTC Stage A 共 750 个 Replan，其中 740 个有 previous overlap；prefix/future mean correction 为
+  `0.00684/0.00430`，p95 为 `0.01190/0.00607`。没有全局数值锁死，但少量技能边界出现最大 2.0
+  的修正；当前 future 聚合未单独隔离零权重 slots `12..15`。
+- Stage A system error 和 Action safety rejection 三组均为 0；temporal/RTC 的 anomaly 与 tracking
+  saturation 均为 0。RTC 平均每完整 Episode `53.19 s`，temporal 为 `30.99 s`；当前 paired
+  raw/RTC 诊断实现约慢 `1.72x`。
+
+完整配对表、阶段耗时、前 80 步普通运动、边界 disagreement/correction、atomic 和正式文件 SHA256
+见 [E011 results](results/e011/README.md)。正式原始资产保留在
+`/home/ubuntu/robot-vla-runs/e011-rtc/`；evaluation source revision 为
+`source-tree-sha256:adfce370c438d460eb4178be9af38ee5741554741a3c99f6acd8485847244dec`。
+
+**Conclusion:**
+
+**事实：** RTC 在两个共同 Reach seed 上保住 Grasp 并比 temporal 多完成 Lift/Transport，atomic
+Grasp/Lift/Place 没有回归；但 RTC 把 temporal 的 Reach `6/10` 降到 `2/10`，平均完成技能数也从
+`1.0` 降到 `0.8`。因此 RTC 不满足“保持 reactivity 且改善 handoff”的 promotion 标准。
+
+**解释：** temporal 历史 proposal 并非只有旧计划污染，在初始 Reach 阶段还提供了有用的轨迹稳定性；
+RTC continuity 可能帮助少数已接近/抓住物体的后段转换，但当前配置的代价是 Reach 覆盖下降。最强
+边界冲突信号出现在 Grasp→Lift，而不是稳定出现在 Reach→Grasp 或 Lift→Transport。
+
+**尚不能得出的结论：** `2/2` 的 RTC 条件率存在 Reach 选择效应，不能写成 RTC 已改善
+Reach→Grasp；两条后段成功也不足以证明 RTC 修复 Lift→Transport。10 个 seed 不能唯一归因 guidance
+weight、Flow、Layer 或控制速度，也不能排除所有其它 RTC 配置。
+
+**Next step:**
+
+不 promotion RTC，不运行 Stage B；默认继续 temporal ensemble。不得使用 seeds `20000..20009` 调
+guidance 后复用为确认集。按预案把主要精力转向 Reach→Grasp、Grasp→Lift 失败附近的 handoff 状态分布
+与 Local DAgger recovery；RTC 保留为显式实验/诊断策略。如未来重开 RTC，先在新 smoke seed 上确定数值
+范围，再使用全新的 paired seeds，并单独记录 free-tail slots `12..15` 和同 slot raw/post disagreement。
 
 ## 实验模板
 

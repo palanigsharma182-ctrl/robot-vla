@@ -1,0 +1,159 @@
+{
+  "anchor_label": "e098-best",
+  "candidates": [
+    {
+      "checkpoint": "/home/ubuntu/robot-vla-runs/stage1-layer12-data220-event025-e100/checkpoints/step-00000640.pt",
+      "epoch": 10,
+      "is_validation_best": false,
+      "label": "e010",
+      "optimizer_steps": 640,
+      "validation_base_loss": 0.10816767345302426,
+      "validation_event_loss": 0.10630047688370242,
+      "validation_loss": 0.13543263608749107
+    },
+    {
+      "checkpoint": "/home/ubuntu/robot-vla-runs/stage1-layer12-data220-event025-e100/checkpoints/step-00001280.pt",
+      "epoch": 20,
+      "is_validation_best": false,
+      "label": "e020",
+      "optimizer_steps": 1280,
+      "validation_base_loss": 0.07145292472570769,
+      "validation_event_loss": 0.07865896430688307,
+      "validation_loss": 0.08993089289621778
+    },
+    {
+      "checkpoint": "/home/ubuntu/robot-vla-runs/stage1-layer12-data220-event025-e100/checkpoints/step-00001920.pt",
+      "epoch": 30,
+      "is_validation_best": false,
+      "label": "e030",
+      "optimizer_steps": 1920,
+      "validation_base_loss": 0.05979865069446548,
+      "validation_event_loss": 0.06842525714241407,
+      "validation_loss": 0.0781395911700336
+    },
+    {
+      "checkpoint": "/home/ubuntu/robot-vla-runs/stage1-layer12-data220-event025-e100/checkpoints/step-00002560.pt",
+      "epoch": 40,
+      "is_validation_best": false,
+      "label": "e040",
+      "optimizer_steps": 2560,
+      "validation_base_loss": 0.0575428229295168,
+      "validation_event_loss": 0.06152901593047906,
+      "validation_loss": 0.07266169774393381
+    },
+    {
+      "checkpoint": "/home/ubuntu/robot-vla-runs/stage1-layer12-data220-event025-e100/checkpoints/step-00003200.pt",
+      "epoch": 50,
+      "is_validation_best": false,
+      "label": "e050",
+      "optimizer_steps": 3200,
+      "validation_base_loss": 0.04136151423476291,
+      "validation_event_loss": 0.03439897344694199,
+      "validation_loss": 0.05021783858035377
+    },
+    {
+      "checkpoint": "/home/ubuntu/robot-vla-runs/stage1-layer12-data220-event025-e100/checkpoints/step-00003840.pt",
+      "epoch": 60,
+      "is_validation_best": false,
+      "label": "e060",
+      "optimizer_steps": 3840,
+      "validation_base_loss": 0.03299071051235805,
+      "validation_event_loss": 0.033336236668915,
+      "validation_loss": 0.04184920967036528
+    },
+    {
+      "checkpoint": "/home/ubuntu/robot-vla-runs/stage1-layer12-data220-event025-e100/checkpoints/step-00004480.pt",
+      "epoch": 70,
+      "is_validation_best": false,
+      "label": "e070",
+      "optimizer_steps": 4480,
+      "validation_base_loss": 0.03133102097808992,
+      "validation_event_loss": 0.03329492408631589,
+      "validation_loss": 0.03932093391136299
+    },
+    {
+      "checkpoint": "/home/ubuntu/robot-vla-runs/stage1-layer12-data220-event025-e100/checkpoints/step-00005120.pt",
+      "epoch": 80,
+      "is_validation_best": false,
+      "label": "e080",
+      "optimizer_steps": 5120,
+      "validation_base_loss": 0.030900491903731668,
+      "validation_event_loss": 0.026217730065314648,
+      "validation_loss": 0.03712900796662186
+    },
+    {
+      "checkpoint": "/home/ubuntu/robot-vla-runs/stage1-layer12-data220-event025-e100/checkpoints/step-00005760.pt",
+      "epoch": 90,
+      "is_validation_best": false,
+      "label": "e090",
+      "optimizer_steps": 5760,
+      "validation_base_loss": 0.028537839566404405,
+      "validation_event_loss": 0.02953908615060808,
+      "validation_loss": 0.03552238503106733
+    },
+    {
+      "checkpoint": "/home/ubuntu/robot-vla-runs/stage1-layer12-data220-event025-e100/checkpoints/best.pt",
+      "epoch": 98,
+      "is_validation_best": true,
+      "label": "e098-best",
+      "optimizer_steps": 6272,
+      "validation_base_loss": 0.02373049574903137,
+      "validation_event_loss": 0.016257934676318923,
+      "validation_loss": 0.027531999974882777
+    },
+    {
+      "checkpoint": "/home/ubuntu/robot-vla-runs/stage1-layer12-data220-event025-e100/checkpoints/step-00006400.pt",
+      "epoch": 100,
+      "is_validation_best": false,
+      "label": "e100",
+      "optimizer_steps": 6400,
+      "validation_base_loss": 0.02188142975567795,
+      "validation_event_loss": 0.02310520240365911,
+      "validation_loss": 0.027560657787299683
+    }
+  ],
+  "confirmation": {
+    "episodes_per_skill": 10,
+    "seed_start": 10023,
+    "seeds": [
+      10023,
+      10024,
+      10025,
+      10026,
+      10027,
+      10028,
+      10029,
+      10030,
+      10031,
+      10032
+    ],
+    "top_k_per_skill": 2
+  },
+  "data": "/home/ubuntu/robot-vla-data/trusted-v0.4-event-recovery-220",
+  "evaluation": {
+    "max_anomaly_replans": 3,
+    "max_policy_steps": 100,
+    "num_flow_steps": 10,
+    "qwen_context_layer": 12,
+    "recency_decay": 0.5,
+    "sampling_seed": 42424,
+    "temporal_ensemble_enabled": true
+  },
+  "format": "robot-vla-checkpoint-sweep/v1",
+  "model_cache": "/home/ubuntu/robot-vla-cache/qwen",
+  "run": "/home/ubuntu/robot-vla-runs/stage1-layer12-data220-event025-e100",
+  "screen": {
+    "episodes_per_skill": 3,
+    "seed_start": 10020,
+    "seeds": [
+      10020,
+      10021,
+      10022
+    ]
+  },
+  "skills": [
+    "reach",
+    "transport"
+  ],
+  "sweep_code_revision": "source-tree-sha256:aeb1c1647de4eadf838838c0abf4e5c1c517d0d871e2f33c75d2b8b288a351f1"
+}

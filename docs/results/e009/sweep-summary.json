@@ -1,0 +1,577 @@
+{
+  "anchor_label": "e098-best",
+  "comparisons_to_anchor": {
+    "e090": {
+      "reach": {
+        "mean_predicate_residual_delta_m": -0.0039661906779409895,
+        "mean_predicate_residual_ratio": 0.9427871442959015,
+        "paired_failure_ties": 10,
+        "paired_losses": 0,
+        "paired_success_ties": 0,
+        "paired_wins": 0,
+        "success_delta": 0
+      },
+      "transport": {
+        "mean_predicate_residual_delta_m": 0.017460563371365236,
+        "mean_predicate_residual_ratio": 3.037956715998328,
+        "paired_failure_ties": 2,
+        "paired_losses": 1,
+        "paired_success_ties": 6,
+        "paired_wins": 1,
+        "success_delta": 0
+      }
+    },
+    "e100": {
+      "reach": {
+        "mean_predicate_residual_delta_m": -0.038707197098808495,
+        "mean_predicate_residual_ratio": 0.44164326373892526,
+        "paired_failure_ties": 7,
+        "paired_losses": 0,
+        "paired_success_ties": 0,
+        "paired_wins": 3,
+        "success_delta": 3
+      },
+      "transport": {
+        "mean_predicate_residual_delta_m": 0.044312920927467615,
+        "mean_predicate_residual_ratio": 6.172102004322347,
+        "paired_failure_ties": 2,
+        "paired_losses": 6,
+        "paired_success_ties": 1,
+        "paired_wins": 1,
+        "success_delta": -5
+      }
+    }
+  },
+  "complete": true,
+  "confirmation_candidate_summaries": [
+    {
+      "candidate": {
+        "checkpoint": "/home/ubuntu/robot-vla-runs/stage1-layer12-data220-event025-e100/checkpoints/step-00005760.pt",
+        "epoch": 90,
+        "is_validation_best": false,
+        "label": "e090",
+        "optimizer_steps": 5760,
+        "validation_base_loss": 0.028537839566404405,
+        "validation_event_loss": 0.02953908615060808,
+        "validation_loss": 0.03552238503106733
+      },
+      "groups": {
+        "reach": {
+          "anomaly_replan_count": 0,
+          "behavior_comparable": true,
+          "episodes": 10,
+          "failure_counts": {
+            "reach_failed": 10
+          },
+          "mean_policy_environment_steps": 100.0,
+          "mean_predicate_residual_m": 0.06535722674512723,
+          "per_seed": {
+            "10023": {
+              "failure_category": "reach_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.03792128120621351,
+              "success": false
+            },
+            "10024": {
+              "failure_category": "reach_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.023760189433158267,
+              "success": false
+            },
+            "10025": {
+              "failure_category": "reach_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.1468496648278427,
+              "success": false
+            },
+            "10026": {
+              "failure_category": "reach_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.05500446884141814,
+              "success": false
+            },
+            "10027": {
+              "failure_category": "reach_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.04120588349794652,
+              "success": false
+            },
+            "10028": {
+              "failure_category": "reach_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.03785402224439147,
+              "success": false
+            },
+            "10029": {
+              "failure_category": "reach_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.12893401441904517,
+              "success": false
+            },
+            "10030": {
+              "failure_category": "reach_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.06272817035835995,
+              "success": false
+            },
+            "10031": {
+              "failure_category": "reach_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.062180977863992855,
+              "success": false
+            },
+            "10032": {
+              "failure_category": "reach_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.05713359475890364,
+              "success": false
+            }
+          },
+          "success_rate": 0.0,
+          "success_rate_wilson_95": [
+            0.0,
+            0.2775327998628892
+          ],
+          "successes": 0,
+          "system_issue_count": 0,
+          "tracking_correction_saturation_count": 0
+        },
+        "transport": {
+          "anomaly_replan_count": 0,
+          "behavior_comparable": true,
+          "episodes": 10,
+          "failure_counts": {
+            "transport_failed": 3
+          },
+          "mean_policy_environment_steps": 75.2,
+          "mean_predicate_residual_m": 0.026028244536670003,
+          "per_seed": {
+            "10023": {
+              "failure_category": null,
+              "policy_environment_steps": 72,
+              "predicate_residual_m": 0.0,
+              "success": true
+            },
+            "10024": {
+              "failure_category": null,
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.0,
+              "success": true
+            },
+            "10025": {
+              "failure_category": null,
+              "policy_environment_steps": 44,
+              "predicate_residual_m": 0.0,
+              "success": true
+            },
+            "10026": {
+              "failure_category": null,
+              "policy_environment_steps": 56,
+              "predicate_residual_m": 0.0,
+              "success": true
+            },
+            "10027": {
+              "failure_category": "transport_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.12653539314310183,
+              "success": false
+            },
+            "10028": {
+              "failure_category": "transport_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.0034702248308155006,
+              "success": false
+            },
+            "10029": {
+              "failure_category": "transport_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.1302768273927827,
+              "success": false
+            },
+            "10030": {
+              "failure_category": null,
+              "policy_environment_steps": 40,
+              "predicate_residual_m": 0.0,
+              "success": true
+            },
+            "10031": {
+              "failure_category": null,
+              "policy_environment_steps": 60,
+              "predicate_residual_m": 0.0,
+              "success": true
+            },
+            "10032": {
+              "failure_category": null,
+              "policy_environment_steps": 80,
+              "predicate_residual_m": 0.0,
+              "success": true
+            }
+          },
+          "success_rate": 0.7,
+          "success_rate_wilson_95": [
+            0.39677814746114537,
+            0.8922087325936989
+          ],
+          "successes": 7,
+          "system_issue_count": 0,
+          "tracking_correction_saturation_count": 0
+        }
+      }
+    },
+    {
+      "candidate": {
+        "checkpoint": "/home/ubuntu/robot-vla-runs/stage1-layer12-data220-event025-e100/checkpoints/best.pt",
+        "epoch": 98,
+        "is_validation_best": true,
+        "label": "e098-best",
+        "optimizer_steps": 6272,
+        "validation_base_loss": 0.02373049574903137,
+        "validation_event_loss": 0.016257934676318923,
+        "validation_loss": 0.027531999974882777
+      },
+      "groups": {
+        "reach": {
+          "anomaly_replan_count": 0,
+          "behavior_comparable": true,
+          "episodes": 10,
+          "failure_counts": {
+            "reach_failed": 10
+          },
+          "mean_policy_environment_steps": 100.0,
+          "mean_predicate_residual_m": 0.06932341742306822,
+          "per_seed": {
+            "10023": {
+              "failure_category": "reach_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.09923447609386885,
+              "success": false
+            },
+            "10024": {
+              "failure_category": "reach_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.012469728720444329,
+              "success": false
+            },
+            "10025": {
+              "failure_category": "reach_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.06773409540817171,
+              "success": false
+            },
+            "10026": {
+              "failure_category": "reach_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.08382936515479156,
+              "success": false
+            },
+            "10027": {
+              "failure_category": "reach_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.10974123455882673,
+              "success": false
+            },
+            "10028": {
+              "failure_category": "reach_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.10318838289624291,
+              "success": false
+            },
+            "10029": {
+              "failure_category": "reach_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.09585830839382803,
+              "success": false
+            },
+            "10030": {
+              "failure_category": "reach_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.0840120236380926,
+              "success": false
+            },
+            "10031": {
+              "failure_category": "reach_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.008312129939099251,
+              "success": false
+            },
+            "10032": {
+              "failure_category": "reach_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.02885442942731615,
+              "success": false
+            }
+          },
+          "success_rate": 0.0,
+          "success_rate_wilson_95": [
+            0.0,
+            0.2775327998628892
+          ],
+          "successes": 0,
+          "system_issue_count": 0,
+          "tracking_correction_saturation_count": 0
+        },
+        "transport": {
+          "anomaly_replan_count": 0,
+          "behavior_comparable": true,
+          "episodes": 10,
+          "failure_counts": {
+            "transport_failed": 3
+          },
+          "mean_policy_environment_steps": 80.0,
+          "mean_predicate_residual_m": 0.008567681165304769,
+          "per_seed": {
+            "10023": {
+              "failure_category": null,
+              "policy_environment_steps": 56,
+              "predicate_residual_m": 0.0,
+              "success": true
+            },
+            "10024": {
+              "failure_category": "transport_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.03981593227537344,
+              "success": false
+            },
+            "10025": {
+              "failure_category": null,
+              "policy_environment_steps": 64,
+              "predicate_residual_m": 0.0,
+              "success": true
+            },
+            "10026": {
+              "failure_category": null,
+              "policy_environment_steps": 84,
+              "predicate_residual_m": 0.0,
+              "success": true
+            },
+            "10027": {
+              "failure_category": "transport_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.03713430465322278,
+              "success": false
+            },
+            "10028": {
+              "failure_category": null,
+              "policy_environment_steps": 96,
+              "predicate_residual_m": 0.0,
+              "success": true
+            },
+            "10029": {
+              "failure_category": "transport_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.008726574724451479,
+              "success": false
+            },
+            "10030": {
+              "failure_category": null,
+              "policy_environment_steps": 92,
+              "predicate_residual_m": 0.0,
+              "success": true
+            },
+            "10031": {
+              "failure_category": null,
+              "policy_environment_steps": 56,
+              "predicate_residual_m": 0.0,
+              "success": true
+            },
+            "10032": {
+              "failure_category": null,
+              "policy_environment_steps": 52,
+              "predicate_residual_m": 0.0,
+              "success": true
+            }
+          },
+          "success_rate": 0.7,
+          "success_rate_wilson_95": [
+            0.39677814746114537,
+            0.8922087325936989
+          ],
+          "successes": 7,
+          "system_issue_count": 0,
+          "tracking_correction_saturation_count": 0
+        }
+      }
+    },
+    {
+      "candidate": {
+        "checkpoint": "/home/ubuntu/robot-vla-runs/stage1-layer12-data220-event025-e100/checkpoints/step-00006400.pt",
+        "epoch": 100,
+        "is_validation_best": false,
+        "label": "e100",
+        "optimizer_steps": 6400,
+        "validation_base_loss": 0.02188142975567795,
+        "validation_event_loss": 0.02310520240365911,
+        "validation_loss": 0.027560657787299683
+      },
+      "groups": {
+        "reach": {
+          "anomaly_replan_count": 0,
+          "behavior_comparable": true,
+          "episodes": 10,
+          "failure_counts": {
+            "reach_failed": 7
+          },
+          "mean_policy_environment_steps": 95.2,
+          "mean_predicate_residual_m": 0.030616220324259723,
+          "per_seed": {
+            "10023": {
+              "failure_category": "reach_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.06670816573261329,
+              "success": false
+            },
+            "10024": {
+              "failure_category": "reach_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.0002430216549050429,
+              "success": false
+            },
+            "10025": {
+              "failure_category": null,
+              "policy_environment_steps": 96,
+              "predicate_residual_m": 0.0,
+              "success": true
+            },
+            "10026": {
+              "failure_category": "reach_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.0454546056297026,
+              "success": false
+            },
+            "10027": {
+              "failure_category": "reach_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.06437186729018737,
+              "success": false
+            },
+            "10028": {
+              "failure_category": "reach_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.11503358423801668,
+              "success": false
+            },
+            "10029": {
+              "failure_category": null,
+              "policy_environment_steps": 96,
+              "predicate_residual_m": 0.0,
+              "success": true
+            },
+            "10030": {
+              "failure_category": "reach_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.01044000877174843,
+              "success": false
+            },
+            "10031": {
+              "failure_category": "reach_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.003910949925423832,
+              "success": false
+            },
+            "10032": {
+              "failure_category": null,
+              "policy_environment_steps": 60,
+              "predicate_residual_m": 0.0,
+              "success": true
+            }
+          },
+          "success_rate": 0.3,
+          "success_rate_wilson_95": [
+            0.10779126740630099,
+            0.6032218525388546
+          ],
+          "successes": 3,
+          "system_issue_count": 0,
+          "tracking_correction_saturation_count": 0
+        },
+        "transport": {
+          "anomaly_replan_count": 0,
+          "behavior_comparable": true,
+          "episodes": 10,
+          "failure_counts": {
+            "transport_failed": 8
+          },
+          "mean_policy_environment_steps": 94.8,
+          "mean_predicate_residual_m": 0.052880602092772386,
+          "per_seed": {
+            "10023": {
+              "failure_category": "transport_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.03887979157692786,
+              "success": false
+            },
+            "10024": {
+              "failure_category": null,
+              "policy_environment_steps": 80,
+              "predicate_residual_m": 0.0,
+              "success": true
+            },
+            "10025": {
+              "failure_category": "transport_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.009669044048826757,
+              "success": false
+            },
+            "10026": {
+              "failure_category": "transport_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.03557863991638515,
+              "success": false
+            },
+            "10027": {
+              "failure_category": "transport_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.05294944579418077,
+              "success": false
+            },
+            "10028": {
+              "failure_category": "transport_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.012178171859209025,
+              "success": false
+            },
+            "10029": {
+              "failure_category": "transport_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.06717328253609334,
+              "success": false
+            },
+            "10030": {
+              "failure_category": null,
+              "policy_environment_steps": 68,
+              "predicate_residual_m": 0.0,
+              "success": true
+            },
+            "10031": {
+              "failure_category": "transport_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.14949391020822048,
+              "success": false
+            },
+            "10032": {
+              "failure_category": "transport_failed",
+              "policy_environment_steps": 100,
+              "predicate_residual_m": 0.1628837349878806,
+              "success": false
+            }
+          },
+          "success_rate": 0.2,
+          "success_rate_wilson_95": [
+            0.05668215145437519,
+            0.5098375284633583
+          ],
+          "successes": 2,
+          "system_issue_count": 0,
+          "tracking_correction_saturation_count": 0
+        }
+      }
+    }
+  ],
+  "format": "robot-vla-checkpoint-sweep/v1",
+  "promotion_candidate_labels": [],
+  "screen_confirmation_labels": [
+    "e090",
+    "e098-best",
+    "e100"
+  ]
+}

@@ -1039,6 +1039,79 @@ seed 上没有被激活，不能虚构为已改善成功率。
 
 **Status:** active
 
+## D024 — 不直接以 Layer 12 替换最终层，先诊断技能交接，再评估语义 Key / 几何 Value
+
+**Decision:**
+
+保持 Layer 24 作为当前 `qwen-vla-v0.1` 默认 Context，不把纯 Layer 12 直接升级为默认架构。
+Layer 12 保留为受控诊断和候选几何来源。E009/E010 已完成两项低成本归因；进入新的长训练前继续
+完成实际更新和 handoff 归因：
+
+1. 已对 periodic checkpoint 做 Reach/Transport 闭环 sweep，并确认不同技能的最佳 epoch 分离；
+2. 已用严格配对的 train/val 梯度 Gram 检查五技能、模块和 base/event；结果没有确认稳定负梯度
+   冲突，不支持直接增加多头、后层分支或 PCGrad/CAGrad；
+3. 对 e098-best→e100 实际参数位移做逐模块一阶投影，并补充 guaranteed-critical event batch；
+4. 对 Reach 首次通过到 Grasp 的交接状态做显式 probe，比较策略自产状态与专家准备状态的相对位姿、
+   速度、夹爪开度和双相机观测分布。
+
+如果这些归因继续确认 Layer 12 的几何收益真实存在，但纯 Layer 12 的语义寻址或技能交接退化，则下一
+候选架构采用同 token 位置对齐的分离注意力：Layer 24 投影为 semantic Key，Layer 12 投影为
+geometry Value，Action/Proprio token 作为 Query。该候选必须重新经过独立原子和 20 unseen 完整
+闭环，不能只凭 probe 或 validation loss 晋升。
+
+Oracle TCP→物体相对几何只作为诊断上界，不进入生产 Observation；Runtime 仍不添加 stable-grasp、
+release-hold、settle 等任务语义状态机。
+
+**Reason:**
+
+E008 的线性 probe 中，Layer 12 test median world-XY error 为 `0.0253 m`，Layer 24 为
+`0.1245 m`；Reach-only 闭环也从 Layer 24 的 `1/5、0.0980 m` 改善到 Layer 12 的
+`2/5、0.0628 m`，而 Oracle 为 `4/5、0.0397 m`。这些证据说明 Layer 12 确实保留更多几何信息，
+但仍未达到 Oracle 上界。
+
+同一 Layer 12 进入五技能联合训练后，独立原子结果为 `0/5、5/5、5/5、1/5、5/5`，总计仍是
+`16/25`；20 unseen 完整阶段为 `9/3/2/0/0`，完整仍为 `0/20`。相对 Layer 24 的
+`5/4/3/1/0`，Reach 通过增加但 Reach 后 Grasp 条件成功率从 `4/5` 降为 `3/9`。这说明完整瓶颈
+不是单一“最终层没有位置”，而是几何、语义寻址、聚合 checkpoint 目标和技能 handoff 的共同问题。
+
+独立 Grasp 为 5/5 而策略自产 Reach 状态后的 Grasp 只有 3/9，已经提供明确的分布失配证据；在
+解释该差异前直接增加模型复杂度会重新混合变量，违背当前的归因原则。
+
+E009 又提供了 checkpoint 维度的独立证据。在相同 10 个 confirmation seed 上，epoch 98 为 Reach
+`0/10`、Transport `7/10`，epoch 100 为 Reach `3/10`、Transport `2/10`。epoch 100 的 Reach
+residual 降低 55.8%，但 Transport 少成功 5 条且 residual 增至 6.17 倍；epoch 90 与 epoch 98
+都是 `0/10 + 7/10`，也没有 residual promotion。没有单一 periodic checkpoint 同时保住两项技能，
+所以问题不是简单选错 `best.pt`，而是聚合训练轨迹上的技能行为折中。该结果仍不能单独证明具体梯度
+机制，handoff probe 继续保持为下一项必要归因。
+
+E010 进一步否定了一个更具体但过强的机制解释。e098-best/e100 的 train Reach–Transport
+`all_trainable` median cosine 为 `+0.164/+0.173`，独立 val 为 `-0.094/+0.441`，均未同时满足
+`<=-0.10` 和预注册负 repeat 计数；三个 checkpoint 的五技能 train pair median 全部为正。
+e098-best 的 Velocity head 虽为 `-0.120`，但只有 `3/5` 为负，e100 则为 `+0.480、0/5`，因此没有
+输出头定位，也没有 broad/late/Adapter 冲突标签。Reach/Transport 的 event gradient 在选定前 4 步
+均为零，within-skill base/event 机制不可识别；同时 Grasp 的中位梯度范数约为 Transport 的 2.7 倍，
+使“更新幅度/采样暴露”成为新的候选而非结论。E010 说明闭环行为交换不能由当前 checkpoint 上稳定的
+per-batch 负 cosine 直接解释，下一步必须检查真实 checkpoint 位移或状态条件边界。
+
+**Alternatives considered:**
+
+- 直接把 Layer 12 设为默认 Context：E008 完整成功仍为 0/20，且 Transport/后续阶段退化，拒绝。
+- 继续相同配置增加训练 epoch：现有 100 epochs 已收敛，且聚合 loss 可能偏向事件技能，不能解决
+  checkpoint 多目标冲突，暂不采用。
+- 把 Oracle 相对几何作为正式 Observation：可以提高 Reach，但改变传感契约并引入仿真 GT，拒绝。
+- 立即融合多层或加入复杂 Context Resampler：checkpoint 选择已在 E009 排查，但 handoff 数据问题
+  尚未完成归因，继续推迟。
+- 立即拆多动作头或加入 PCGrad/CAGrad：E010 没有确认输出头或广泛负梯度冲突；在已测大部分 batch
+  上负 dot 不存在，拒绝在缺少 actual-update 证据时增加训练复杂度。
+- 用手写技能状态机修复 Grasp/Transport：会掩盖 VLA 组合能力，继续拒绝。
+
+**Implementation status:** Layer 12/24 同前向读取、独立 Layer 12 Context、空间 probe、Oracle Reach
+和语义 Key / 几何 Value 诊断组件已在 E008 实验工作树中验证；E009 periodic checkpoint sweep 与
+E010 gradient conflict probe 均已完成并发布完整原始结果。checkpoint-delta、event-conditioned、
+handoff probe 和正式 Key/Value 组合闭环尚未运行。
+
+**Status:** active
+
 ## 新决策模板
 
 ```markdown
