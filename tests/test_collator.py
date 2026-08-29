@@ -20,11 +20,14 @@ def _sample(
         "proprio": np.zeros(spec.proprio_dim, dtype=np.float32),
         "action": np.zeros((spec.action_horizon, spec.action_dim), dtype=np.float32),
         "action_mask": np.ones(spec.action_horizon, dtype=np.bool_),
+        "supervision_mask": np.ones(spec.action_horizon, dtype=np.bool_),
         "event_mask": np.zeros(spec.action_horizon, dtype=np.bool_),
         "instruction": "Pick up the red cube.",
         "trajectory_id": f"episode-{timestep}",
         "timestep": timestep,
         "skill_id": 1,
+        "source": "base_d0",
+        "boundary_offset": None,
     }
 
 
@@ -48,6 +51,8 @@ def test_collator_preserves_qwen_inputs_and_training_tensor_contract(
     assert batch["action"].shape == (2, 16, 8)
     assert batch["action_mask"].shape == (2, 16)
     assert batch["action_mask"].dtype == torch.bool
+    assert batch["supervision_mask"].shape == (2, 16)
+    assert batch["supervision_mask"].dtype == torch.bool
     assert batch["event_mask"].shape == (2, 16)
     assert batch["event_mask"].dtype == torch.bool
     assert batch["visual_tokens_per_image"] == ((256, 64), (64, 64))

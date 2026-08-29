@@ -5,7 +5,40 @@ import numpy as np
 import pytest
 
 from robot_vla.contracts import RobotSpec
-from robot_vla.data.trajectory import TrajectoryStore, load_manifest, validate_trajectory
+from robot_vla.data.trajectory import (
+    ACTION_SOURCE_EXPERT,
+    ACTION_SOURCE_POLICY,
+    LocalDaggerProvenance,
+    TrajectoryStore,
+    load_manifest,
+    validate_trajectory,
+)
+
+
+def _local_dagger_episode(meta_factory, arrays_factory, *, steps: int = 80, takeover: int = 4):
+    source = np.full(steps, ACTION_SOURCE_EXPERT, dtype=np.int8)
+    source[:takeover] = ACTION_SOURCE_POLICY
+    supervision = source == ACTION_SOURCE_EXPERT
+    arrays = arrays_factory(
+        steps=steps,
+        action_source=source,
+        expert_supervision_mask=supervision,
+    )
+    meta = meta_factory(
+        num_steps=steps,
+        local_dagger=LocalDaggerProvenance(
+            source="dagger_reach_grasp",
+            rollin_seed=7,
+            rollin_policy_checkpoint_sha256="a" * 64,
+            boundary_type="reach_grasp",
+            boundary_detection_step=takeover,
+            expert_takeover_step=takeover,
+            training_window_start=takeover,
+            training_window_end=min(takeover + 64, steps),
+            expert_recovery_success=True,
+        ),
+    )
+    return meta, arrays
 
 
 def test_manifest_and_trajectory_v2_round_trip(
@@ -101,5 +134,48 @@ def test_complete_episode_must_end_once(meta_factory, arrays_factory) -> None:
         validate_trajectory(
             arrays_factory(terminated=terminated),
             meta_factory(),
+            RobotSpec(),
+        )
+
+
+def test_local_dagger_contract_round_trip_is_additive_to_trajectory_v2(
+    tmp_path,
+    meta_factory,
+    arrays_factory,
+    write_dataset,
+) -> None:
+    meta, arrays = _local_dagger_episode(meta_factory, arrays_factory)
+    write_dataset(meta, arrays)
+
+    loaded_meta = load_manifest(tmp_path, split="train")[0]
+    loaded = TrajectoryStore(tmp_path, RobotSpec()).get(loaded_meta)
+
+    assert loaded_meta == meta
+    assert loaded.action_source[:5].tolist() == [0, 0, 0, 0, 1]
+    assert loaded.expert_supervision_mask[:5].tolist() == [False] * 4 + [True]
+
+
+def test_local_dagger_contract_fails_closed_without_supervision_arrays(
+    meta_factory,
+    arrays_factory,
+) -> None:
+    meta, _ = _local_dagger_episode(meta_factory, arrays_factory)
+
+    with pytest.raises(ValueError, match="缺少逐 Action"):
+        validate_trajectory(arrays_factory(steps=80), meta, RobotSpec())
+
+
+def test_local_dagger_contract_rejects_policy_action_marked_as_expert(
+    meta_factory,
+    arrays_factory,
+) -> None:
+    meta, arrays = _local_dagger_episode(meta_factory, arrays_factory)
+    supervision = arrays.expert_supervision_mask.copy()
+    supervision[0] = True
+
+    with pytest.raises(ValueError, match="supervision_mask"):
+        validate_trajectory(
+            replace(arrays, expert_supervision_mask=supervision),
+            meta,
             RobotSpec(),
         )

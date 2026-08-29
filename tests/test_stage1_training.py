@@ -92,6 +92,7 @@ def _toy_batch(target: float) -> dict:
         "proprio": torch.ones(1, 1),
         "action": torch.tensor([[[target]]], dtype=torch.float32),
         "action_mask": torch.ones(1, 1, dtype=torch.bool),
+        "supervision_mask": torch.ones(1, 1, dtype=torch.bool),
         "event_mask": torch.zeros(1, 1, dtype=torch.bool),
         "trajectory_id": ["episode"],
     }

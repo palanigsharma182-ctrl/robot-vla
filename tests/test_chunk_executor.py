@@ -58,6 +58,27 @@ def test_executor_runs_only_prefix_and_tracks_cumulative_position_targets() -> N
     assert controller.hold_calls == 0
 
 
+def test_executor_honors_controller_boundary_stop_after_current_step() -> None:
+    spec = RobotSpec()
+    controller = FakeController(spec)
+    controller.chunk_stop_requested = False
+    original_send = controller.send_action
+
+    def stop_after_second_action(controller_action: np.ndarray) -> None:
+        original_send(controller_action)
+        if len(controller.actions) == 2:
+            controller.chunk_stop_requested = True
+
+    controller.send_action = stop_after_second_action
+
+    result = RecedingHorizonChunkExecutor(spec).execute(_chunk(spec), controller)
+
+    assert result.success is True
+    assert result.executed_steps == 2
+    assert len(controller.actions) == 2
+    assert controller.hold_calls == 0
+
+
 def test_executor_stops_chunk_and_holds_without_loosening_after_controller_failure() -> None:
     spec = RobotSpec()
     controller = FakeController(spec, fail_on_send=1)
