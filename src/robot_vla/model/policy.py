@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -17,8 +18,10 @@ from robot_vla.model.qwen_context import (
 )
 from robot_vla.training.flow_matching import (
     FlowTrainingTarget,
+    RTCFlowIntegrationOutput,
     build_critical_event_mask,
     euler_integrate_actions,
+    euler_integrate_actions_with_rtc,
     masked_flow_mse,
     sample_flow_training_target,
 )
@@ -32,6 +35,13 @@ class FlowLossOutput:
     critical_mask: torch.Tensor
     prediction: torch.Tensor
     target: FlowTrainingTarget
+
+
+@dataclass(frozen=True)
+class RTCSamplingOutput:
+    guided_action: torch.Tensor
+    raw_action: torch.Tensor
+    guidance_coefficients: tuple[float, ...]
 
 
 class QwenVLAPolicy(nn.Module):
@@ -128,16 +138,18 @@ class QwenVLAPolicy(nn.Module):
             target=target,
         )
 
-    @torch.inference_mode()
-    def sample_actions(
+    def _prepare_action_sampling(
         self,
         model_inputs: dict[str, Any],
         normalized_proprio: torch.Tensor,
         *,
         action_mask: torch.Tensor | None = None,
         generator: torch.Generator | None = None,
-        num_steps: int = 10,
-    ) -> torch.Tensor:
+    ) -> tuple[
+        torch.Tensor,
+        torch.Tensor,
+        Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+    ]:
         context = self.encode_context(model_inputs)
         batch_size = context.tokens.shape[0]
         if normalized_proprio.shape != (batch_size, self.expert.config.proprio_dim):
@@ -175,9 +187,73 @@ class QwenVLAPolicy(nn.Module):
                 context_kv=context_kv,
             )
 
+        return initial_noise, action_mask, velocity_fn
+
+    @torch.no_grad()
+    def sample_actions(
+        self,
+        model_inputs: dict[str, Any],
+        normalized_proprio: torch.Tensor,
+        *,
+        action_mask: torch.Tensor | None = None,
+        generator: torch.Generator | None = None,
+        num_steps: int = 10,
+    ) -> torch.Tensor:
+        initial_noise, resolved_mask, velocity_fn = self._prepare_action_sampling(
+            model_inputs,
+            normalized_proprio,
+            action_mask=action_mask,
+            generator=generator,
+        )
+
         return euler_integrate_actions(
+            velocity_fn,
+            initial_noise,
+            resolved_mask,
+            num_steps=num_steps,
+        )
+
+    @torch.no_grad()
+    def sample_actions_rtc(
+        self,
+        model_inputs: dict[str, Any],
+        normalized_proprio: torch.Tensor,
+        previous_action_target: torch.Tensor,
+        slot_weights: torch.Tensor,
+        *,
+        generator: torch.Generator | None = None,
+        num_steps: int = 10,
+        max_guidance_weight: float = 10.0,
+    ) -> RTCSamplingOutput:
+        """以同一 Context/Noise 生成 paired raw 与 RTC Chunk，只有 guided Chunk 用于执行。"""
+
+        initial_noise, action_mask, velocity_fn = self._prepare_action_sampling(
+            model_inputs,
+            normalized_proprio,
+            generator=generator,
+        )
+        expected = initial_noise.shape
+        if previous_action_target.shape != expected:
+            raise ValueError(f"RTC previous_action_target 应为 {tuple(expected)}")
+        if slot_weights.shape != action_mask.shape:
+            raise ValueError(f"RTC slot_weights 应为 {tuple(action_mask.shape)}")
+        raw_action = euler_integrate_actions(
             velocity_fn,
             initial_noise,
             action_mask,
             num_steps=num_steps,
+        )
+        rtc: RTCFlowIntegrationOutput = euler_integrate_actions_with_rtc(
+            velocity_fn,
+            initial_noise,
+            action_mask,
+            previous_action_target,
+            slot_weights,
+            max_guidance_weight=max_guidance_weight,
+            num_steps=num_steps,
+        )
+        return RTCSamplingOutput(
+            guided_action=rtc.action,
+            raw_action=raw_action,
+            guidance_coefficients=rtc.guidance_coefficients,
         )

@@ -116,6 +116,12 @@ Normalized Action Chunk [B,16,8] + Flow Time + Noise
   -> execute first 4 steps -> re-observe/replan
 ```
 
+执行侧通过统一策略接口选择 `newest-only`、默认 `temporal-ensemble` 或实验性 `rtc`。Temporal
+ensemble 在普通 Flow 采样完成后融合按全局控制时刻对齐的历史 proposal；RTC 不做 post-hoc action
+averaging，而是在 Flow Euler 采样内部，用上一 guided Chunk 的 clean overlap 对预测 clean endpoint
+施加 Eq.(2)/(5) velocity guidance。RTC 首次规划、reset 和 anomaly 后自动退化为普通 Flow，未通过
+E011 独立闭环 promotion 前不替代默认 temporal ensemble。
+
 Proprio 顺序为 `7 q + 7 dq + gripper opening ratio`。物理 Action 顺序为
 `7 delta_q(rad/control-step) + normalized gripper target`，关节增量上限默认每步 0.05 rad，
 并受更严格的机器人速度和位置限制约束。控制频率为 20 Hz，Action Horizon 为 16，默认

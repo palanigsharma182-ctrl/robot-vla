@@ -5,7 +5,9 @@ torch = pytest.importorskip("torch")
 from robot_vla.training.flow_matching import (
     build_critical_event_mask,
     euler_integrate_actions,
+    euler_integrate_actions_with_rtc,
     masked_flow_mse,
+    rtc_guidance_coefficient,
     sample_flow_training_target,
 )
 
@@ -111,3 +113,35 @@ def test_euler_clamps_only_final_state() -> None:
 
     assert all(state.item() == pytest.approx(2.0) for state in seen_states)
     assert result.item() == pytest.approx(1.0)
+
+
+def test_rtc_guidance_coefficient_converts_project_flow_time_and_clips() -> None:
+    times = torch.tensor([1.0, 0.5, 0.1], dtype=torch.float32)
+
+    coefficients = rtc_guidance_coefficient(times, max_guidance_weight=10.0)
+
+    torch.testing.assert_close(coefficients, torch.tensor([10.0, 2.0, 9.111111]))
+
+
+def test_rtc_guides_clean_endpoint_without_changing_unweighted_slot() -> None:
+    initial_noise = torch.zeros((1, 2, 1), dtype=torch.float32)
+    mask = torch.ones((1, 2), dtype=torch.bool)
+    target = torch.ones_like(initial_noise)
+    weights = torch.tensor([[1.0, 0.0]], dtype=torch.float32)
+
+    def zero_velocity(state, _flow_time):
+        return state * 0.0
+
+    output = euler_integrate_actions_with_rtc(
+        zero_velocity,
+        initial_noise,
+        mask,
+        target,
+        weights,
+        max_guidance_weight=1.0,
+        num_steps=2,
+    )
+
+    assert output.action[0, 0, 0].item() == pytest.approx(0.75)
+    assert output.action[0, 1, 0].item() == pytest.approx(0.0)
+    assert output.guidance_coefficients == pytest.approx((1.0, 1.0))
