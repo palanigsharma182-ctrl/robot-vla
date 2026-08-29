@@ -1,0 +1,55 @@
+{
+  "format": "robot-vla-e012-independent-validation/v1",
+  "generated_at": "2026-08-29T13:34:50Z",
+  "status": "passed",
+  "validation_target": "E012a formal collection summaries, candidate records, risk selection and Expert-only supervision arrays",
+  "checks": {
+    "reach_grasp": {
+      "candidate_rows": 100,
+      "accepted": 31,
+      "rejected": 69,
+      "eligible": 31,
+      "risk_percentiles_recomputed": true,
+      "risk_scores_recomputed": true,
+      "high_selection_recomputed": true,
+      "low_selection_recomputed": true,
+      "selected_seed_count": 20,
+      "selected_seed_unique": true,
+      "selected_anchor_total": 980,
+      "per_trajectory_anchor_counts": [49],
+      "takeover_step_range": [73, 129]
+    },
+    "grasp_lift": {
+      "candidate_rows": 100,
+      "accepted": 10,
+      "rejected": 90,
+      "eligible": 10,
+      "risk_selection_file_absent": true,
+      "selection_failure_verified": true,
+      "accepted_anchor_total": 490,
+      "per_trajectory_anchor_counts": [49],
+      "takeover_step_range": [82, 179]
+    },
+    "cross_pool": {
+      "environment_seed_overlap": [],
+      "source_revision_equal": true,
+      "checkpoint_sha256_equal": true,
+      "sampling_seeds_unique_within_pool": true
+    },
+    "accepted_candidate_contract": {
+      "paired_clean_task_completed": true,
+      "snapshot_round_trip_passed": true,
+      "trajectory_contract_passed": true,
+      "task_completed": true,
+      "five_skill_names_exact": true,
+      "boundary_detection_equals_takeover": true,
+      "training_window_starts_at_takeover": true,
+      "training_window_length": 64,
+      "policy_source_before_takeover": true,
+      "expert_source_from_takeover": true,
+      "supervision_mask_equals_expert_source": true,
+      "every_sampled_horizon_expert_only": true
+    }
+  },
+  "errors": []
+}

@@ -1,0 +1,87 @@
+{
+  "format": "robot-vla-e012-collection-summary/v1",
+  "experiment_id": "E012a",
+  "generated_at": "2026-08-29T13:34:50Z",
+  "status": "failed",
+  "selection_gate_passed": false,
+  "selection_failure": "grasp_lift eligible candidates 少于 20",
+  "boundaries": {
+    "reach_grasp": {
+      "seed_start": 30000,
+      "seed_end_exclusive": 30100,
+      "scanned": 100,
+      "accepted": 31,
+      "rejected": 69,
+      "errors": 0,
+      "eligible": 31,
+      "required": 20,
+      "acceptance_rate": 0.31,
+      "acceptance_rate_wilson_95": [0.22779697212376038, 0.40626055719489407],
+      "selection_gate_passed": true,
+      "selected_count": 20,
+      "high_risk_seeds": [
+        30017,
+        30009,
+        30053,
+        30042,
+        30013,
+        30027,
+        30036,
+        30057,
+        30077,
+        30016,
+        30031,
+        30084,
+        30002,
+        30007
+      ],
+      "low_risk_seeds": [30035, 30080, 30096, 30099, 30025, 30067],
+      "rejection_reasons": {
+        "policy_before_target_boundary": 51,
+        "episode_time_limit": 14,
+        "expert_takeover_no_stable_grasp": 3,
+        "snapshot_round_trip": 1
+      },
+      "selected_expert_only_anchors": 980
+    },
+    "grasp_lift": {
+      "seed_start": 30100,
+      "seed_end_exclusive": 30200,
+      "scanned": 100,
+      "accepted": 10,
+      "rejected": 90,
+      "errors": 0,
+      "eligible": 10,
+      "required": 20,
+      "acceptance_rate": 0.1,
+      "acceptance_rate_wilson_95": [0.0552291370606751, 0.17436566150491345],
+      "selection_gate_passed": false,
+      "selection_failure": "eligible candidates 少于 20",
+      "accepted_seeds": [30111, 30125, 30133, 30138, 30154, 30161, 30176, 30183, 30192, 30197],
+      "rejection_reasons": {
+        "policy_before_target_boundary": 71,
+        "episode_time_limit": 16,
+        "expert_incomplete_pick_and_place": 1,
+        "mplib_no_trusted_screw_path": 1,
+        "snapshot_round_trip": 1
+      },
+      "accepted_expert_only_anchors": 490
+    }
+  },
+  "global_checks": {
+    "formal_seed_overlap": [],
+    "source_revision_consistent": true,
+    "checkpoint_sha256_consistent": true,
+    "all_candidate_records_present": true,
+    "all_rejections_have_type_and_reason": true,
+    "all_accepted_paired_clean_success": true,
+    "all_accepted_snapshot_passed": true,
+    "all_accepted_trajectory_audit_passed": true,
+    "all_accepted_full_five_skill_success": true,
+    "all_accepted_takeover_synchronous": true,
+    "all_accepted_have_49_expert_only_anchors": true,
+    "d1_created": false,
+    "e012b_started": false
+  },
+  "decision": "停止 E012a；在新 protocol amendment 前不得扩 seed、创建 D1 或启动 E012b"
+}
