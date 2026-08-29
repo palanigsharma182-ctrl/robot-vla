@@ -1,0 +1,719 @@
+{
+  "surface": "report",
+  "manifest": {
+    "version": 1,
+    "surface": "report",
+    "title": "E012a Local DAgger 正式采集结果",
+    "description": "E012a Reach→Grasp 与 Grasp→Lift 正式候选池、进入训练 gate 和 paired boundary diagnostics 的技术报告。",
+    "generatedAt": "2026-08-29T13:34:50Z",
+    "cards": [
+      {
+        "id": "rg_eligible_card",
+        "description": "100 个预注册 Reach→Grasp seed 中满足 paired clean、snapshot、完整恢复与 audit 的候选。",
+        "dataset": "gate_summary",
+        "sourceId": "e012_collection_sql",
+        "filter": {
+          "boundary": "Reach→Grasp"
+        },
+        "metrics": [
+          {
+            "label": "RG eligible",
+            "field": "eligible",
+            "format": "number"
+          },
+          {
+            "label": "固定门槛",
+            "field": "required",
+            "format": "number"
+          },
+          {
+            "label": "接受率",
+            "field": "acceptance_rate",
+            "format": "percent"
+          }
+        ]
+      },
+      {
+        "id": "gl_eligible_card",
+        "description": "100 个预注册 Grasp→Lift seed 中满足 paired clean、snapshot、完整恢复与 audit 的候选。",
+        "dataset": "gate_summary",
+        "sourceId": "e012_collection_sql",
+        "filter": {
+          "boundary": "Grasp→Lift"
+        },
+        "metrics": [
+          {
+            "label": "GL eligible",
+            "field": "eligible",
+            "format": "number"
+          },
+          {
+            "label": "固定门槛",
+            "field": "required",
+            "format": "number"
+          },
+          {
+            "label": "接受率",
+            "field": "acceptance_rate",
+            "format": "percent"
+          }
+        ]
+      },
+      {
+        "id": "error_card",
+        "description": "两个正式 100-seed runner 中记录为 error、而非可解释 rejection 的候选数。",
+        "dataset": "system_summary",
+        "sourceId": "e012_collection_sql",
+        "metrics": [
+          {
+            "label": "Runner errors",
+            "field": "errors",
+            "format": "number"
+          },
+          {
+            "label": "扫描 seeds",
+            "field": "scanned",
+            "format": "number"
+          }
+        ]
+      }
+    ],
+    "charts": [
+      {
+        "id": "eligible_vs_required_chart",
+        "title": "Eligible candidates and fixed requirement",
+        "subtitle": "RG/GL formal 100-seed pools; trajectory counts, zero baseline.",
+        "type": "bar",
+        "dataset": "gate_comparison",
+        "sourceId": "e012_collection_sql",
+        "valueFormat": "number",
+        "encodings": {
+          "x": {
+            "field": "comparison",
+            "type": "nominal",
+            "label": "Boundary and measure"
+          },
+          "y": {
+            "field": "count",
+            "type": "quantitative",
+            "label": "Trajectories"
+          },
+          "tooltip": [
+            {
+              "field": "boundary",
+              "type": "nominal",
+              "label": "Boundary"
+            },
+            {
+              "field": "measure",
+              "type": "nominal",
+              "label": "Measure"
+            },
+            {
+              "field": "acceptance_rate",
+              "type": "quantitative",
+              "label": "Acceptance rate",
+              "format": "percent"
+            },
+            {
+              "field": "scanned",
+              "type": "quantitative",
+              "label": "Scanned"
+            }
+          ]
+        }
+      }
+    ],
+    "tables": [
+      {
+        "id": "gate_table",
+        "title": "正式候选池与进入训练 gate",
+        "subtitle": "每个 boundary 完整扫描 100 个预注册 seed；固定要求各 20 条 eligible trajectory。",
+        "dataset": "gate_summary",
+        "sourceId": "e012_collection_sql",
+        "defaultSort": {
+          "field": "boundary",
+          "direction": "asc"
+        },
+        "columns": [
+          {
+            "field": "boundary",
+            "label": "Boundary",
+            "type": "text"
+          },
+          {
+            "field": "scanned",
+            "label": "Scanned",
+            "format": "number"
+          },
+          {
+            "field": "accepted",
+            "label": "Accepted",
+            "format": "number"
+          },
+          {
+            "field": "rejected",
+            "label": "Rejected",
+            "format": "number"
+          },
+          {
+            "field": "eligible",
+            "label": "Eligible",
+            "format": "number"
+          },
+          {
+            "field": "required",
+            "label": "Required",
+            "format": "number"
+          },
+          {
+            "field": "acceptance_rate",
+            "label": "接受率",
+            "format": "percent"
+          },
+          {
+            "field": "gate",
+            "label": "Gate",
+            "type": "text"
+          }
+        ]
+      },
+      {
+        "id": "failure_table",
+        "title": "结构化 rejection 分布",
+        "subtitle": "所有 159 条 rejection 都保留明确原因；没有 status=error。",
+        "dataset": "failure_reasons",
+        "sourceId": "e012_collection_sql",
+        "defaultSort": {
+          "field": "count",
+          "direction": "desc"
+        },
+        "columns": [
+          {
+            "field": "boundary",
+            "label": "Boundary",
+            "type": "text"
+          },
+          {
+            "field": "reason",
+            "label": "原因",
+            "type": "text"
+          },
+          {
+            "field": "count",
+            "label": "Count",
+            "format": "number"
+          }
+        ]
+      },
+      {
+        "id": "paired_table",
+        "title": "Policy boundary 相对同 seed clean Expert 的描述性差异",
+        "subtitle": "单位为 environment seed/episode；显示 median(policy−expert) 与 10,000 次 episode-level bootstrap 95% 区间。",
+        "dataset": "paired_differences",
+        "sourceId": "e012_boundary_sql",
+        "defaultSort": {
+          "field": "boundary",
+          "direction": "asc"
+        },
+        "columns": [
+          {
+            "field": "boundary",
+            "label": "Boundary",
+            "type": "text"
+          },
+          {
+            "field": "metric",
+            "label": "Metric",
+            "type": "text"
+          },
+          {
+            "field": "median_difference",
+            "label": "Median difference",
+            "format": "number"
+          },
+          {
+            "field": "ci95",
+            "label": "Bootstrap 95% interval",
+            "type": "text"
+          },
+          {
+            "field": "unit",
+            "label": "Unit",
+            "type": "text"
+          },
+          {
+            "field": "n",
+            "label": "N",
+            "format": "number"
+          }
+        ]
+      },
+      {
+        "id": "identity_table",
+        "title": "冻结实验身份",
+        "subtitle": "RG 与 GL 使用相同 source tree、checkpoint、D0 和推理协议。",
+        "dataset": "identity_checks",
+        "sourceId": "e012_manifest_sql",
+        "defaultSort": {
+          "field": "asset",
+          "direction": "asc"
+        },
+        "columns": [
+          {
+            "field": "asset",
+            "label": "Asset",
+            "type": "text"
+          },
+          {
+            "field": "identity",
+            "label": "Identity",
+            "type": "text"
+          },
+          {
+            "field": "status",
+            "label": "Status",
+            "type": "text"
+          }
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "id": "e012_collection_summary",
+        "label": "E012a collection summary",
+        "path": "docs/results/e012/collection_summary.json"
+      },
+      {
+        "id": "e012_boundary_distribution",
+        "label": "E012a paired boundary distribution",
+        "path": "docs/results/e012/boundary_distribution.json"
+      },
+      {
+        "id": "e012_collection_manifest",
+        "label": "E012a frozen collection manifest",
+        "path": "docs/results/e012/collection_manifest.json"
+      },
+      {
+        "id": "e012_independent_validation",
+        "label": "E012a independent validation",
+        "path": "docs/results/e012/independent_validation.json"
+      },
+      {
+        "id": "e012_collection_sql",
+        "label": "E012a reviewed collection rows",
+        "path": "docs/results/e012/collection_summary.sql"
+      },
+      {
+        "id": "e012_boundary_sql",
+        "label": "E012a reviewed paired boundary rows",
+        "path": "docs/results/e012/boundary_distribution.sql"
+      },
+      {
+        "id": "e012_manifest_sql",
+        "label": "E012a reviewed identity rows",
+        "path": "docs/results/e012/collection_manifest.sql"
+      }
+    ],
+    "blocks": [
+      {
+        "id": "title",
+        "type": "markdown",
+        "body": "# E012a Local DAgger 正式采集结果"
+      },
+      {
+        "id": "technical_summary",
+        "type": "markdown",
+        "sourceId": "e012_collection_summary",
+        "body": "## 技术结论\n\n**E012a 未通过预注册的进入训练 gate。** Reach→Grasp 完整扫描后有 31 条 eligible，并按固定 risk rule 选出 14 high + 6 low；Grasp→Lift 只有 10 条 eligible，低于固定要求 20。两个 runner 均为 100/100 完成且没有 status=error，因此失败来自 frozen policy/Expert recovery 下的候选容量，而不是采集进程崩溃。\n\n按预注册停止规则，本轮没有创建 D1、没有运行 D0+D1 union audit，也没有启动 E012b replay/DAgger 训练。工程链路通过和 boundary diagnostics 均不得解释为行为收益。"
+      },
+      {
+        "id": "headline_metrics",
+        "type": "metric-strip",
+        "cardIds": ["rg_eligible_card", "gl_eligible_card", "error_card"]
+      },
+      {
+        "id": "gate_finding",
+        "type": "markdown",
+        "sourceId": "e012_collection_summary",
+        "body": "## Grasp→Lift 容量不足使正式实验停止\n\nRG 的 31% 接受率足以支持确定性 20 条分层选择；GL 的接受率只有 10%，最终短缺 10 条。两个 boundary 都完整扫描固定 seed 区间，未在达到数量后提前停止，也未为凑数扩 seed 或改变阈值。下表是本轮是否允许进入训练的决定性证据。"
+      },
+      {
+        "id": "gate_evidence",
+        "type": "chart",
+        "chartId": "eligible_vs_required_chart"
+      },
+      {
+        "id": "gate_detail",
+        "type": "table",
+        "tableId": "gate_table"
+      },
+      {
+        "id": "failure_finding",
+        "type": "markdown",
+        "sourceId": "e012_collection_summary",
+        "body": "## 主要失败发生在 Policy 到达目标 boundary 之前\n\nGL 的 90 条 rejection 中，71 条在目标 boundary 前终止或截断，16 条在可信成功前达到时间上限；仅 3 条来自 Expert 完整恢复、MPlib 路径或 snapshot gate。RG 也以 boundary 前终止为主。这说明下一轮首先应诊断 roll-in 到稳定 Grasp/Lift 的到达率，而不是把问题归因于 Dataset 写入或 loss mask。"
+      },
+      {
+        "id": "failure_evidence",
+        "type": "table",
+        "tableId": "failure_table"
+      },
+      {
+        "id": "boundary_finding",
+        "type": "markdown",
+        "sourceId": "e012_boundary_distribution",
+        "body": "## 可恢复 survivor 中存在明显的 policy-induced boundary 偏移\n\n在 31 条 RG survivor 上，Policy boundary 的 TCP-object XY error 中位数比同 seed clean Expert 大约高 0.026 m，且到达时间晚 44 control steps。10 条 GL survivor 的 gripper proposal mean-pairwise disagreement 中位数为 1.260 normalized-action，object angular speed 的 policy−expert 中位差为 4.85 rad/s，到达时间晚 51 steps。\n\n这些只是在 Expert 可完整恢复且 audit 通过的 survivor population 上的描述性差异；尤其 GL 只有 10 条，不能据此推断全部 roll-in，也不能证明 Local DAgger 会降低 matched-state disagreement。"
+      },
+      {
+        "id": "boundary_evidence",
+        "type": "table",
+        "tableId": "paired_table"
+      },
+      {
+        "id": "scope_definitions",
+        "type": "markdown",
+        "sourceId": "e012_collection_manifest",
+        "body": "## 范围、分母与冻结定义\n\n分析单位是一个 environment seed / episode / 指定 boundary。每个 pool 的分母固定为 100 个预注册 seed。Eligible 表示同 seed clean Expert 配对成功、live takeover 后 Expert 完成完整五技能 Pick-and-Place、snapshot round-trip 与 trajectory audit 通过，并具备完整 64-step training window。正式 D1 要求每个 boundary 在完整 pool 内确定性选择 14 high-risk + 6 low-risk trajectory。\n\nCollection policy 固定为 E011 Layer 12 checkpoint + temporal ensemble；checkpoint、D0、Qwen revision、Flow steps、controller、Predicate 与推理配置在 RG/GL 间不变。"
+      },
+      {
+        "id": "identity_evidence",
+        "type": "table",
+        "tableId": "identity_table"
+      },
+      {
+        "id": "method_validation",
+        "type": "markdown",
+        "sourceId": "e012_independent_validation",
+        "body": "## 复算与监督泄漏检查均通过\n\n独立核验逐条读取 200 个 candidate record，并复算 RG 的 mid-rank percentiles、risk score、14+6 selection 与 tie-break。RG 20 条 selected trajectory 各有 49 个完整 Expert-only anchors，合计 980；GL 10 条 accepted trajectory 各有 49 个，合计 490，但不会进入 D1。所有 accepted trajectory 都满足 boundary detection = Expert takeover = training window start，Policy action 只出现在 takeover 前，supervision mask 与 Expert source 逐元素一致。\n\n报告只用一张零基线单系列柱状图比较 RG/GL 的 eligible 与固定门槛四个值；其余失败类型与 paired diagnostics 使用精确表格，避免对稀疏类别过度作图。"
+      },
+      {
+        "id": "limitations",
+        "type": "markdown",
+        "sourceId": "e012_collection_summary",
+        "body": "## 限制与不确定性\n\n- GL paired diagnostics 只有 10 个 episode，bootstrap 区间仅描述 survivor 样本。\n- 90 条 GL rejection 中的大多数从未进入目标 boundary，因而 paired boundary table 存在明确的 survivorship bias。\n- 本轮没有 D1 union audit、训练、checkpoint selection、Stage A/B 或 matched-state held-out bank；不能报告 recovery 改善、行为收益或 Chunk uncertainty 下降。\n- RG/GL 各有 1 条 snapshot gate rejection，但不是容量失败的主因；原始诊断仍保留在远端 record。"
+      },
+      {
+        "id": "next_steps",
+        "type": "markdown",
+        "body": "## 建议的下一步\n\n1. 保持本次 30000..30199 结果冻结并标记为 E012a failed。\n2. 在新 protocol amendment 中先细分 71 条 GL boundary-before-termination 与 16 条 time-limit 的前置技能状态，确认是 Grasp 稳定性、boundary 定义时机还是 rollout budget 限制。\n3. 只有 amendment 明确新增 seed 范围、保持或修改哪些 gate，并重新冻结 source identity 后，才可扩充候选池。\n4. 在 GL 重新达到 20 条并重新通过所有 gate 前，不实现或运行 E012b 训练；避免让训练代码掩盖采集可行性失败。"
+      },
+      {
+        "id": "further_questions",
+        "type": "markdown",
+        "body": "## 仍需回答的问题\n\n- GL 的 71 条 boundary 前终止，分别有多少从未稳定 Grasp、多少在 Grasp 后异常终止？\n- 16 条时间上限是否集中在某个前置技能或特定 boundary delay 区间？\n- 若只扩 seed、保持当前约 10% 接受率，新的候选预算是否仍具有合理成本；还是应先改进诊断与 collection feasibility？\n- 新 amendment 是否需要保留当前 GL survivor 作为历史诊断集，而不是直接并入新 D1？"
+      }
+    ]
+  },
+  "snapshot": {
+    "version": 1,
+    "generatedAt": "2026-08-29T13:34:50Z",
+    "status": "ready",
+    "datasets": {
+      "gate_summary": [
+        {
+          "boundary": "Reach→Grasp",
+          "scanned": 100,
+          "accepted": 31,
+          "rejected": 69,
+          "eligible": 31,
+          "required": 20,
+          "acceptance_rate": 0.31,
+          "wilson_95_low": 0.22779697212376038,
+          "wilson_95_high": 0.40626055719489407,
+          "selected": 20,
+          "gate": "PASS"
+        },
+        {
+          "boundary": "Grasp→Lift",
+          "scanned": 100,
+          "accepted": 10,
+          "rejected": 90,
+          "eligible": 10,
+          "required": 20,
+          "acceptance_rate": 0.1,
+          "wilson_95_low": 0.0552291370606751,
+          "wilson_95_high": 0.17436566150491345,
+          "selected": 0,
+          "gate": "FAIL"
+        }
+      ],
+      "gate_comparison": [
+        {
+          "comparison": "RG eligible",
+          "boundary": "Reach→Grasp",
+          "measure": "Eligible",
+          "count": 31,
+          "required": 20,
+          "scanned": 100,
+          "accepted": 31,
+          "rejected": 69,
+          "acceptance_rate": 0.31,
+          "gate": "PASS"
+        },
+        {
+          "comparison": "RG required",
+          "boundary": "Reach→Grasp",
+          "measure": "Fixed requirement",
+          "count": 20,
+          "required": 20,
+          "scanned": 100,
+          "accepted": 31,
+          "rejected": 69,
+          "acceptance_rate": 0.31,
+          "gate": "PASS"
+        },
+        {
+          "comparison": "GL eligible",
+          "boundary": "Grasp→Lift",
+          "measure": "Eligible",
+          "count": 10,
+          "required": 20,
+          "scanned": 100,
+          "accepted": 10,
+          "rejected": 90,
+          "acceptance_rate": 0.1,
+          "gate": "FAIL"
+        },
+        {
+          "comparison": "GL required",
+          "boundary": "Grasp→Lift",
+          "measure": "Fixed requirement",
+          "count": 20,
+          "required": 20,
+          "scanned": 100,
+          "accepted": 10,
+          "rejected": 90,
+          "acceptance_rate": 0.1,
+          "gate": "FAIL"
+        }
+      ],
+      "system_summary": [
+        {
+          "scope": "RG+GL formal",
+          "errors": 0,
+          "scanned": 200,
+          "rejected": 159,
+          "accepted": 41
+        }
+      ],
+      "failure_reasons": [
+        {
+          "boundary": "Reach→Grasp",
+          "reason": "Policy 在目标 boundary 前终止或截断",
+          "count": 51
+        },
+        {
+          "boundary": "Reach→Grasp",
+          "reason": "可信成功前达到时间上限",
+          "count": 14
+        },
+        {
+          "boundary": "Reach→Grasp",
+          "reason": "Expert takeover 后未形成稳定 Grasp",
+          "count": 3
+        },
+        {
+          "boundary": "Reach→Grasp",
+          "reason": "Snapshot round-trip 未通过",
+          "count": 1
+        },
+        {
+          "boundary": "Grasp→Lift",
+          "reason": "Policy 在目标 boundary 前终止或截断",
+          "count": 71
+        },
+        {
+          "boundary": "Grasp→Lift",
+          "reason": "可信成功前达到时间上限",
+          "count": 16
+        },
+        {
+          "boundary": "Grasp→Lift",
+          "reason": "Expert 未完成完整 Pick-and-Place",
+          "count": 1
+        },
+        {
+          "boundary": "Grasp→Lift",
+          "reason": "MPlib 无可信 screw path",
+          "count": 1
+        },
+        {
+          "boundary": "Grasp→Lift",
+          "reason": "Snapshot round-trip 未通过",
+          "count": 1
+        }
+      ],
+      "paired_differences": [
+        {
+          "boundary": "Reach→Grasp",
+          "metric": "TCP-object XY error",
+          "median_difference": 0.02599069317083326,
+          "ci95": "[0.0188, 0.0311]",
+          "unit": "m",
+          "n": 31
+        },
+        {
+          "boundary": "Reach→Grasp",
+          "metric": "TCP-object relative Z",
+          "median_difference": -0.011440223082900047,
+          "ci95": "[-0.0180, -0.0064]",
+          "unit": "m",
+          "n": 31
+        },
+        {
+          "boundary": "Reach→Grasp",
+          "metric": "Gripper opening",
+          "median_difference": -0.01841270923614502,
+          "ci95": "[-0.0332, -0.0131]",
+          "unit": "opening ratio",
+          "n": 31
+        },
+        {
+          "boundary": "Reach→Grasp",
+          "metric": "Arm mean-pairwise disagreement",
+          "median_difference": 0.03186699375510216,
+          "ci95": "[0.0289, 0.0407]",
+          "unit": "normalized action",
+          "n": 31
+        },
+        {
+          "boundary": "Reach→Grasp",
+          "metric": "Gripper mean-pairwise disagreement",
+          "median_difference": 0.02442866563796997,
+          "ci95": "[0.0183, 0.0284]",
+          "unit": "normalized action",
+          "n": 31
+        },
+        {
+          "boundary": "Reach→Grasp",
+          "metric": "Boundary arrival delay",
+          "median_difference": 44.0,
+          "ci95": "[38.0, 52.0]",
+          "unit": "control steps",
+          "n": 31
+        },
+        {
+          "boundary": "Grasp→Lift",
+          "metric": "Object angular speed",
+          "median_difference": 4.853168585403354,
+          "ci95": "[1.2504, 6.9175]",
+          "unit": "rad/s",
+          "n": 10
+        },
+        {
+          "boundary": "Grasp→Lift",
+          "metric": "Joint velocity RMS",
+          "median_difference": 0.005303063662722707,
+          "ci95": "[0.0032, 0.0095]",
+          "unit": "rad/s",
+          "n": 10
+        },
+        {
+          "boundary": "Grasp→Lift",
+          "metric": "Gripper opening",
+          "median_difference": 0.06686671078205109,
+          "ci95": "[0.0400, 0.1124]",
+          "unit": "opening ratio",
+          "n": 10
+        },
+        {
+          "boundary": "Grasp→Lift",
+          "metric": "Arm mean-pairwise disagreement",
+          "median_difference": 0.029620669782161713,
+          "ci95": "[0.0228, 0.0366]",
+          "unit": "normalized action",
+          "n": 10
+        },
+        {
+          "boundary": "Grasp→Lift",
+          "metric": "Gripper mean-pairwise disagreement",
+          "median_difference": 1.2597848773002625,
+          "ci95": "[0.9921, 1.3168]",
+          "unit": "normalized action",
+          "n": 10
+        },
+        {
+          "boundary": "Grasp→Lift",
+          "metric": "Boundary arrival delay",
+          "median_difference": 51.0,
+          "ci95": "[27.5, 78.5]",
+          "unit": "control steps",
+          "n": 10
+        }
+      ],
+      "identity_checks": [
+        {
+          "asset": "Collection source tree",
+          "identity": "source-tree-sha256:a847e9f90fb255405714351379b1530691f4224f6a29a8e21daad76a5ef8ee00",
+          "status": "MATCH"
+        },
+        {
+          "asset": "E011 Layer 12 checkpoint",
+          "identity": "a542076f291e29b68e3d28930b15c40396d511a44eb358c2eaeb4e113c041ad6",
+          "status": "MATCH"
+        },
+        {
+          "asset": "Frozen D0",
+          "identity": "bc024b6b9c566ca9500945fb6ac262bf657bee713d8a5816229bdc8478139407",
+          "status": "MATCH"
+        },
+        {
+          "asset": "Qwen revision",
+          "identity": "15852e8c16360a2fea060d615a32b45270f8a8fc",
+          "status": "MATCH"
+        },
+        {
+          "asset": "Formal environment seeds",
+          "identity": "RG 30000..30099; GL 30100..30199; overlap=[]",
+          "status": "MATCH"
+        }
+      ]
+    },
+    "accessIssues": []
+  },
+  "sources": [
+    {
+      "id": "e012_collection_summary",
+      "label": "E012a collection summary",
+      "path": "docs/results/e012/collection_summary.json",
+      "description": "从正式 RG/GL collection summary 与 candidate records 独立复算的 gate、计数和 rejection 汇总。"
+    },
+    {
+      "id": "e012_boundary_distribution",
+      "label": "E012a paired boundary distribution",
+      "path": "docs/results/e012/boundary_distribution.json",
+      "description": "以 environment seed/episode 为单位的 policy boundary 减 paired clean Expert boundary 描述性统计。"
+    },
+    {
+      "id": "e012_collection_manifest",
+      "label": "E012a frozen collection manifest",
+      "path": "docs/results/e012/collection_manifest.json",
+      "description": "冻结的 checkpoint、D0、Qwen、source revision、seed、运行环境和远端产物哈希。"
+    },
+    {
+      "id": "e012_independent_validation",
+      "label": "E012a independent validation",
+      "path": "docs/results/e012/independent_validation.json",
+      "description": "对 candidate identity、risk selection、trajectory contract 与 Expert-only anchors 的独立核验。"
+    },
+    {
+      "id": "e012_collection_sql",
+      "label": "E012a reviewed collection rows",
+      "path": "docs/results/e012/collection_summary.sql",
+      "description": "从 collection summary 固定复现 gate、system 与 rejection 报告行的 SQLite query。"
+    },
+    {
+      "id": "e012_boundary_sql",
+      "label": "E012a reviewed paired boundary rows",
+      "path": "docs/results/e012/boundary_distribution.sql",
+      "description": "从 paired boundary distribution 固定复现报告 effect rows 的 SQLite query。"
+    },
+    {
+      "id": "e012_manifest_sql",
+      "label": "E012a reviewed identity rows",
+      "path": "docs/results/e012/collection_manifest.sql",
+      "description": "从 collection manifest 固定复现冻结身份表的 SQLite query。"
+    }
+  ]
+}

@@ -1,0 +1,79 @@
+{
+  "format": "robot-vla-e012-collection-manifest/v1",
+  "experiment_id": "E012a",
+  "generated_at": "2026-08-29T13:34:50Z",
+  "status": "failed",
+  "stop_reason": "grasp_lift eligible candidates 少于预注册的 20 条",
+  "source_revision": "source-tree-sha256:a847e9f90fb255405714351379b1530691f4224f6a29a8e21daad76a5ef8ee00",
+  "frozen_assets": {
+    "checkpoint": {
+      "path": "/home/ubuntu/robot-vla-checkpoints/e011-layer12-best.pt",
+      "sha256": "a542076f291e29b68e3d28930b15c40396d511a44eb358c2eaeb4e113c041ad6"
+    },
+    "base_dataset": {
+      "path": "/home/ubuntu/robot-vla-data/trusted-v0.4-event-recovery-220",
+      "sha256": "bc024b6b9c566ca9500945fb6ac262bf657bee713d8a5816229bdc8478139407",
+      "trajectory_count": 220,
+      "step_count": 48922
+    },
+    "qwen": {
+      "model_id": "Qwen/Qwen3.5-2B",
+      "revision": "15852e8c16360a2fea060d615a32b45270f8a8fc",
+      "context_hidden_state": 12
+    }
+  },
+  "collection_config": {
+    "inference_strategy": "temporal-ensemble",
+    "recency_decay": 0.5,
+    "num_flow_steps": 10,
+    "max_anomaly_replans": 3,
+    "sampling_seed_base": 52012,
+    "action_horizon": 16,
+    "training_window_steps": 64,
+    "risk_selection": {
+      "high_count": 14,
+      "low_count": 6,
+      "percentile": "zero-based mid-rank / (eligible_count - 1)",
+      "score": "unweighted arithmetic mean of component percentiles",
+      "tie_break": "environment_seed ascending"
+    }
+  },
+  "seed_ranges": {
+    "smoke_only": [29990, 29999],
+    "reach_grasp": [30000, 30099],
+    "grasp_lift": [30100, 30199]
+  },
+  "runtime": {
+    "gpu": "NVIDIA GeForce RTX 4090",
+    "gpu_memory_mib": 24564,
+    "nvidia_driver": "570.153.02",
+    "torch": "2.11.0+cu128",
+    "torch_cuda": "12.8",
+    "maniskill": "3.0.1",
+    "mplib": "0.1.1",
+    "gymnasium": "1.3.0",
+    "numpy": "1.26.4"
+  },
+  "remote_outputs": {
+    "root": "/home/ubuntu/robot-vla-runs/e012-local-dagger/formal",
+    "reach_grasp": "/home/ubuntu/robot-vla-runs/e012-local-dagger/formal/reach-grasp",
+    "grasp_lift": "/home/ubuntu/robot-vla-runs/e012-local-dagger/formal/grasp-lift"
+  },
+  "remote_artifact_sha256": {
+    "reach-grasp/experiment.json": "2e3986a9d1a350acce6b9aafdc352f41eb4d4f2ba5d7e69d6ae9d21b89c179ef",
+    "reach-grasp/collection_candidates.jsonl": "7de981939861b136bbe3cec7ff5bc930e57455ff6550bc58e9c2c1999e460137",
+    "reach-grasp/collection_summary.json": "2b23a08d62f2bacf6b2ac1357152d84aad3ac1207d191ca1ef48fb2944ce0035",
+    "reach-grasp/risk_selection.json": "084b35a8655786a6fb66f3d95b4e617c7aff47596ecc6aa5883b85541938cf38",
+    "grasp-lift/experiment.json": "a7e8952a24932cbe8de11f7bf316b7a806d3832413ce697ebb3d51b6eb523a2e",
+    "grasp-lift/collection_candidates.jsonl": "bec0b41f0adddd36e85fac1694d0e59c874a19eda9e2dcbbdefeabb0c164bcc9",
+    "grasp-lift/collection_summary.json": "83c1575d2e15f2fb7db6fd8f0f0a23be6393e37b734e7ca770bce9d8150530f5"
+  },
+  "artifact_policy": {
+    "raw_trajectories_committed": false,
+    "rgb_committed": false,
+    "model_weights_committed": false,
+    "d1_created": false,
+    "d0_d1_union_audit_run": false,
+    "e012b_training_started": false
+  }
+}

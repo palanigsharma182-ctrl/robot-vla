@@ -1112,6 +1112,64 @@ handoff probe 和正式 Key/Value 组合闭环尚未运行。
 
 **Status:** active
 
+## D025 — Local DAgger 保留完整成功轨迹，但只监督同一 Session 内 Expert takeover 后的局部窗口
+
+**Decision:**
+
+E012 的 Local DAgger trajectory 从 frozen Policy roll-in 开始，在指定技能 boundary 的同一个
+CollectionSession 内切换为可信 Expert，并由 Expert 一直执行到完整 Pick-and-Place 成功。第一版不放宽
+`trajectory/v2` 正式 audit 对最终成功和五技能完整连续覆盖的要求，也不把 reset 后的原子 recovery 与
+Policy 前缀拼成一条轨迹。
+
+每条 Local DAgger trajectory 必须保存 `boundary_detection_step`、`expert_takeover_step`、半开区间
+`training_window_start/end`、逐 Action 的 `action_source` 与 `expert_supervision_mask`。Policy roll-in
+Action 只用于产生 policy-induced state 和诊断，禁止作为 BC/Flow target；当前单时刻 Dataset 实际使用
+的是 takeover 当下由 roll-in 产生的双图/proprio，不把更早帧作为模型 history。第一版
+训练窗口为 takeover 后 64 个 control steps，并且 Dataset 只允许完整 16-step Chunk 落在窗口且全部
+Action 都由 Expert 生成；即使当前 Flow target 会把 mask 外 slot 置零，也不使用“Policy slot loss mask
+为 0、Expert slot loss mask 为 1”的 mixed-source Chunk，以保持第一版契约简单且 fail closed。
+
+Local DAgger metadata 或 mask 缺失时 fail closed。训练 loss 仍显式与 Expert supervision mask 求交，
+Sampler 按 source 配额先选择 base-D0/RG/GL，再选择 Episode/timestep 并记录实际 exposure。`D1` 训练和推理
+继续使用 `D0` 的 ProprioStats；新增数据上重算的 stats 只作诊断。warm start 新增只加载 Adapter/Expert
+权重并重置 optimizer/scheduler/scaler/RNG 的 `--init-checkpoint`；现有 `--resume` 只用于同一训练身份的
+中断恢复。
+
+E012 的主因果对照是从同一 `pi_0` 初始化、相同额外 optimizer steps 的 `pi_dagger` 与 `pi_replay`，
+不是直接比较训练后的 DAgger 与未继续训练的历史 checkpoint。正式 promotion 至少需要两个 paired
+training repeats 方向一致，并同时报告无条件阶段完成数、共同 predecessor seeds、atomic 和系统安全
+guardrail；条件率不能单独作为提升证据。
+
+**Reason:**
+
+现有 audit 会拒绝只运行到 Lift/Transport 前几步的 partial recovery；让 Expert 在同一 episode 中完成
+整条任务可以保持可信轨迹契约和控制器连续性。与此同时，直接让现有 sliding-window Dataset 读取整条
+Policy+Expert trajectory 会把 Policy 错误动作蒸馏回模型。显式 source/mask、局部完整 Chunk 和 loss
+防线能够保留 takeover 时刻的 policy-induced Observation 分布，同时确保所有优化 target 都是 Expert
+action。
+
+额外训练步数本身可能改变已有 checkpoint，且 `--resume` 会继承旧 optimizer、scheduler 和 RNG 状态；
+因此 replay control 与独立权重初始化语义是识别 Local DAgger 数据净作用的必要条件。冻结 D0
+ProprioStats 则避免把输入标准化变化混入数据 exposure intervention。
+
+**Alternatives considered:**
+
+- 放宽正式 audit 接受短 partial recovery：会改变可信 Dataset 的完整成功契约，第一版拒绝。
+- reset 到标准原子技能起点后采 Expert 数据：不再是 Policy 自己到达的 boundary distribution，拒绝。
+- 把 takeover 前 Policy action 也作为 target：会自我蒸馏错误动作，拒绝。
+- 允许一个 Chunk 横跨 Policy/Expert 后只 mask 直接 loss：当前实现可以把 mask 外 slot 置零，但会增加
+  index/mask 语义和测试分支；第一版为保持 fail-closed 契约而拒绝。
+- 只比较 `pi_dagger` 与历史 `pi_0`：无法隔离额外训练步数，拒绝作为主因果比较。
+- 在 `D1` 上重新拟合 ProprioStats：同时改变输入归一化，不能识别纯数据 exposure 效果，拒绝。
+
+**Implementation status:** additive Local DAgger provenance、live takeover collector、snapshot ring/round-trip、
+trajectory/writer validator、Expert-only Dataset/Collator/loss 防线、boundary risk selection、正式 pool runner、
+rejection record 与 E012a smoke 已实现并通过针对性测试。正式 E012a 完整扫描后 Reach→Grasp 通过容量 gate，
+但 Grasp→Lift 仅有 10 条 eligible trajectory，低于预注册的 20 条，因此按本决策的 stop rule 未创建 D1、
+未实现或运行 source-first sampler、独立 `--init-checkpoint`、checkpoint selection 与 E012b 训练/评估。
+
+**Status:** active
+
 ## 新决策模板
 
 ```markdown
