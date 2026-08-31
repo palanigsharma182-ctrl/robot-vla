@@ -15,6 +15,7 @@ from robot_vla.contracts import RobotSpec
 from robot_vla.data.events import EVENT_STATE_ARRAYS
 from robot_vla.data.trajectory import (
     LOCAL_DAGGER_ARRAYS,
+    OBSERVATION_V2_ARRAYS,
     REQUIRED_ARRAYS,
     TrajectoryArrays,
     TrajectoryMeta,
@@ -107,6 +108,10 @@ class TrajectoryDatasetWriter:
                 if arrays.local_dagger_available:
                     payload.update(
                         {name: getattr(arrays, name) for name in LOCAL_DAGGER_ARRAYS}
+                    )
+                if arrays.observation_v2_available:
+                    payload.update(
+                        {name: getattr(arrays, name) for name in OBSERVATION_V2_ARRAYS}
                     )
                 np.savez_compressed(
                     handle,

@@ -10,6 +10,9 @@ from pathlib import Path
 import numpy as np
 
 from robot_vla.contracts import (
+    FINGER_FORCE_SENSOR_VERSION,
+    FINGER_FORCE_STATS_VERSION,
+    OBSERVATION_V2_VERSION,
     PROPRIO_STATS_VERSION,
     TRAJECTORY_SCHEMA_VERSION,
     RobotSpec,
@@ -199,6 +202,164 @@ class ProprioNormalizer:
 
 
 @dataclass(frozen=True)
+class FingerForceStats:
+    """只从 train split 有效观测拟合的左右指力稳健尺度。
+
+    零接触是有物理意义的原点，因此不做去中心化。先对牛顿值使用 ``log1p``，
+    再分别除以各指正样本的 95% 分位数，避免少量碰撞尖峰支配尺度。
+    """
+
+    scale_log1p_p95: tuple[float, float]
+    count: int
+    positive_count: tuple[int, int]
+    clip: float = 2.0
+    quantile: float = 0.95
+    version: str = FINGER_FORCE_STATS_VERSION
+    observation_schema: str = OBSERVATION_V2_VERSION
+    sensor_version: str = FINGER_FORCE_SENSOR_VERSION
+    embodiment: str = "maniskill-franka-panda-v1"
+
+    def validate(self, spec: RobotSpec) -> None:
+        if self.version != FINGER_FORCE_STATS_VERSION:
+            raise ValueError(f"不支持的 FingerForceStats version: {self.version}")
+        if self.observation_schema != OBSERVATION_V2_VERSION:
+            raise ValueError(
+                f"FingerForceStats observation schema 不兼容: {self.observation_schema}"
+            )
+        if self.sensor_version != FINGER_FORCE_SENSOR_VERSION:
+            raise ValueError(
+                f"FingerForceStats sensor version 不兼容: {self.sensor_version}"
+            )
+        if self.embodiment != spec.embodiment:
+            raise ValueError(
+                f"FingerForceStats embodiment 应为 {spec.embodiment}，"
+                f"实际为 {self.embodiment}"
+            )
+        scale = np.asarray(self.scale_log1p_p95, dtype=np.float64)
+        if scale.shape != (2,) or not np.isfinite(scale).all() or np.any(scale <= 0.0):
+            raise ValueError("scale_log1p_p95 必须是两个有限正数")
+        if self.count <= 0:
+            raise ValueError("FingerForceStats count 必须为正数")
+        positive_count = np.asarray(self.positive_count, dtype=np.int64)
+        if (
+            positive_count.shape != (2,)
+            or np.any(positive_count <= 0)
+            or np.any(positive_count > self.count)
+        ):
+            raise ValueError("positive_count 必须是两个位于 [1,count] 的整数")
+        if not np.isfinite(self.clip) or self.clip <= 0.0:
+            raise ValueError("FingerForceStats clip 必须是有限正数")
+        if not np.isfinite(self.quantile) or not 0.5 < self.quantile < 1.0:
+            raise ValueError("FingerForceStats quantile 必须位于 (0.5,1.0)")
+
+    @classmethod
+    def fit(
+        cls,
+        batches: Iterable[np.ndarray],
+        spec: RobotSpec,
+        *,
+        quantile: float = 0.95,
+        clip: float = 2.0,
+    ) -> FingerForceStats:
+        if not np.isfinite(quantile) or not 0.5 < quantile < 1.0:
+            raise ValueError("quantile 必须位于 (0.5,1.0)")
+        if not np.isfinite(clip) or clip <= 0.0:
+            raise ValueError("clip 必须是有限正数")
+        rows: list[np.ndarray] = []
+        for batch in batches:
+            values = np.asarray(batch, dtype=np.float64)
+            _check_last_dim(values, 2, "finger_force_n")
+            flat = values.reshape(-1, 2)
+            if np.any(flat < 0.0):
+                raise ValueError("finger_force_n 必须非负")
+            rows.append(flat)
+        if not rows:
+            raise ValueError("不能从空数据拟合 FingerForceStats")
+        force = np.concatenate(rows, axis=0)
+        scales: list[float] = []
+        positive_counts: list[int] = []
+        for finger_index in range(2):
+            positive = force[:, finger_index][force[:, finger_index] > 0.0]
+            if positive.size == 0:
+                side = "F_L" if finger_index == 0 else "F_R"
+                raise ValueError(f"train split 的 {side} 没有正接触样本")
+            transformed = np.log1p(positive)
+            scale = float(np.quantile(transformed, quantile))
+            if not np.isfinite(scale) or scale <= 0.0:
+                raise ValueError("FingerForceStats 稳健尺度退化")
+            scales.append(scale)
+            positive_counts.append(int(positive.size))
+        stats = cls(
+            scale_log1p_p95=(scales[0], scales[1]),
+            count=int(force.shape[0]),
+            positive_count=(positive_counts[0], positive_counts[1]),
+            clip=float(clip),
+            quantile=float(quantile),
+            embodiment=spec.embodiment,
+        )
+        stats.validate(spec)
+        return stats
+
+    def to_json(self, path: str | Path) -> None:
+        payload = {
+            "version": self.version,
+            "observation_schema": self.observation_schema,
+            "sensor_version": self.sensor_version,
+            "embodiment": self.embodiment,
+            "scale_log1p_p95": list(self.scale_log1p_p95),
+            "count": self.count,
+            "positive_count": list(self.positive_count),
+            "clip": self.clip,
+            "quantile": self.quantile,
+        }
+        Path(path).write_text(
+            json.dumps(payload, indent=2, sort_keys=True, allow_nan=False) + "\n",
+            encoding="utf-8",
+        )
+
+    @classmethod
+    def from_json(cls, path: str | Path) -> FingerForceStats:
+        payload = json.loads(Path(path).read_text(encoding="utf-8"))
+        return cls(
+            scale_log1p_p95=tuple(float(value) for value in payload["scale_log1p_p95"]),
+            count=int(payload["count"]),
+            positive_count=tuple(int(value) for value in payload["positive_count"]),
+            clip=float(payload["clip"]),
+            quantile=float(payload["quantile"]),
+            version=str(payload["version"]),
+            observation_schema=str(payload["observation_schema"]),
+            sensor_version=str(payload["sensor_version"]),
+            embodiment=str(payload["embodiment"]),
+        )
+
+
+class FingerForceNormalizer:
+    """训练和在线运行共用的 F_L/F_R 版本化变换。"""
+
+    def __init__(self, stats: FingerForceStats, spec: RobotSpec) -> None:
+        stats.validate(spec)
+        self.spec = spec
+        self.stats = stats
+        self.scale = np.asarray(stats.scale_log1p_p95, dtype=np.float32)
+        self.clip = float(stats.clip)
+
+    def normalize(self, value: np.ndarray) -> np.ndarray:
+        force = np.asarray(value, dtype=np.float32)
+        _check_last_dim(force, 2, "finger_force_n")
+        if np.any(force < 0.0):
+            raise ValueError("finger_force_n 必须非负")
+        normalized = np.log1p(force) / self.scale
+        return np.clip(normalized, 0.0, self.clip).astype(np.float32, copy=False)
+
+    def denormalize(self, value: np.ndarray) -> np.ndarray:
+        normalized = np.asarray(value, dtype=np.float32)
+        _check_last_dim(normalized, 2, "normalized_finger_force")
+        if np.any(normalized < 0.0) or np.any(normalized > self.clip + 1e-6):
+            raise ValueError("normalized_finger_force 超出冻结 clip 范围")
+        return np.expm1(normalized * self.scale).astype(np.float32, copy=False)
+
+
+@dataclass(frozen=True)
 class FrankaCommandSequence:
     joint_position_targets: np.ndarray
     gripper_opening_targets: np.ndarray
@@ -286,12 +447,12 @@ class ActionAdapter:
 
     def build_receding_horizon_commands(
         self,
-        latest_observed_q: np.ndarray,
+        previous_command_q: np.ndarray,
         physical_chunk: np.ndarray,
     ) -> FrankaCommandSequence:
-        q_base = np.asarray(latest_observed_q, dtype=np.float32)
+        q_base = np.asarray(previous_command_q, dtype=np.float32)
         if q_base.shape != (self.spec.arm_dof,) or not np.isfinite(q_base).all():
-            raise ValueError(f"latest_observed_q 应为 [{self.spec.arm_dof}] 有限向量")
+            raise ValueError(f"previous_command_q 应为 [{self.spec.arm_dof}] 有限向量")
         chunk = np.asarray(physical_chunk, dtype=np.float32)
         expected = (self.spec.action_horizon, self.spec.action_dim)
         if chunk.shape != expected:
@@ -301,10 +462,10 @@ class ActionAdapter:
         position_limits = np.asarray(self.spec.joint_position_limits_rad, dtype=np.float32)
         if np.any(q_base < position_limits[:, 0]) or np.any(q_base > position_limits[:, 1]):
             raise ActionContractViolation(
-                "latest_observed_q 超出 Franka 关节位置限制",
-                kind="observed_joint_position_contract",
+                "previous_command_q 超出 Franka 关节位置限制",
+                kind="command_reference_joint_position_contract",
                 details={
-                    "observed_joint_positions_rad": q_base.tolist(),
+                    "previous_command_joint_positions_rad": q_base.tolist(),
                     "joint_position_limits_rad": position_limits.tolist(),
                     "violation_indices": np.argwhere(
                         (q_base < position_limits[:, 0])
@@ -319,7 +480,7 @@ class ActionAdapter:
                 "Action Chunk 累加后的关节目标超出位置限制",
                 kind="chunk_joint_position_contract",
                 details={
-                    "observed_joint_positions_rad": q_base.tolist(),
+                    "previous_command_joint_positions_rad": q_base.tolist(),
                     "physical_action_prefix": prefix.tolist(),
                     "joint_position_targets_rad": targets.tolist(),
                     "joint_position_limits_rad": position_limits.tolist(),

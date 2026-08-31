@@ -7,9 +7,15 @@ import pytest
 torch = pytest.importorskip("torch")
 from torch import nn
 
-from robot_vla.model.expert import ExpertConfig, StandaloneActionExpert
-from robot_vla.model.policy import QwenVLAPolicy
-from robot_vla.model.qwen_context import FrozenQwenContextEncoder
+from robot_vla.model.expert import (
+    ExpertConfig,
+    StandaloneActionExpert,
+    TemporalExpertConfig,
+    TemporalStandaloneActionExpert,
+)
+from robot_vla.model.policy import QwenVLAObservationV2Policy, QwenVLAPolicy
+from robot_vla.model.qwen_context import FrozenQwenContextEncoder, QwenVLAAdapter
+from robot_vla.model.qwen_processor import VLA_CONTEXT_VALID_MASK, VLA_IMAGE_TIME_INDICES
 
 
 def test_policy_can_be_imported_in_a_fresh_python_process() -> None:
@@ -160,3 +166,82 @@ def test_sampling_runs_qwen_once_for_all_flow_steps_and_is_reproducible() -> Non
     assert first.dtype == torch.float32
     assert torch.count_nonzero(first[~action_mask]).item() == 0
     torch.testing.assert_close(first, second)
+
+
+def _build_temporal_policy() -> tuple[QwenVLAObservationV2Policy, FakeQwen]:
+    qwen = FakeQwen()
+    config = TemporalExpertConfig(
+        action_dim=3,
+        action_horizon=4,
+        context_dim=720,
+        hidden_size=32,
+        state_hidden_size=16,
+        num_layers=4,
+        intermediate_size=64,
+        num_attention_heads=4,
+        num_key_value_heads=2,
+        head_dim=8,
+    )
+    policy = QwenVLAObservationV2Policy(
+        FrozenQwenContextEncoder(qwen),
+        TemporalStandaloneActionExpert(config),
+        QwenVLAAdapter(history_length=4),
+    )
+    return policy, qwen
+
+
+def test_observation_v2_policy_trains_and_samples_with_temporal_state() -> None:
+    policy, qwen = _build_temporal_policy()
+    model_inputs, _proprio, action, action_mask = _inputs()
+    model_inputs[VLA_IMAGE_TIME_INDICES] = torch.tensor(
+        ((-1, 0, 2, -1), (-1, 1, -1, -1)),
+        dtype=torch.long,
+    )
+    model_inputs[VLA_CONTEXT_VALID_MASK] = model_inputs["attention_mask"].clone()
+    state = torch.randn(2, 4, 42)
+    state_mask = torch.tensor(
+        ((False, False, True, True), (True, True, True, True)),
+        dtype=torch.bool,
+    )
+    controller = torch.randn(2, 24)
+
+    output = policy.flow_matching_loss(
+        model_inputs,
+        state,
+        action,
+        action_mask,
+        state_history_mask=state_mask,
+        controller_state=controller,
+        generator=torch.Generator().manual_seed(31),
+    )
+    output.loss.backward()
+
+    assert qwen.model.calls == 1
+    assert output.prediction.shape == action.shape
+    assert policy.adapter.visual_time_embedding.grad is not None
+    assert policy.expert.state_encoder.frame_projection[0].weight.grad is not None
+
+    sampled = policy.sample_actions(
+        model_inputs,
+        state,
+        state_history_mask=state_mask,
+        controller_state=controller,
+        action_mask=action_mask,
+        generator=torch.Generator().manual_seed(37),
+        num_steps=2,
+    )
+    rtc = policy.sample_actions_rtc(
+        model_inputs,
+        state,
+        torch.zeros_like(action),
+        torch.ones_like(action_mask, dtype=torch.float32),
+        state_history_mask=state_mask,
+        controller_state=controller,
+        generator=torch.Generator().manual_seed(41),
+        num_steps=2,
+        max_guidance_weight=1.0,
+    )
+    assert sampled.shape == action.shape
+    assert rtc.guided_action.shape == action.shape
+    assert rtc.raw_action.shape == action.shape
+    assert len(rtc.guidance_coefficients) == 2

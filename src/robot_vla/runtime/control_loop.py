@@ -84,6 +84,7 @@ class QwenVLAReplanLoop:
         """清空跨 Chunk 历史；每个新 Episode 必须从普通 Flow 开始。"""
 
         self.ensembler.clear()
+        self.executor.reset()
         self._rtc_previous_chunk = None
         self.control_step = 0
         self._consecutive_anomaly_replans = 0
@@ -103,6 +104,7 @@ class QwenVLAReplanLoop:
         execution: ChunkExecutionResult,
     ) -> ChunkExecutionResult:
         self.ensembler.clear()
+        self.executor.reset()
         self._rtc_previous_chunk = None
         if self.max_anomaly_replans == 0:
             anomaly_kind = (

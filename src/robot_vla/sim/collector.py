@@ -20,7 +20,11 @@ from mani_skill.examples.motionplanning.panda.motionplanner import (
 from typing_extensions import Self
 
 from robot_vla.adapters import ActionAdapter, FrankaObservationAdapter
-from robot_vla.contracts import RobotSpec
+from robot_vla.contracts import (
+    FINGER_FORCE_SENSOR_VERSION,
+    OBSERVATION_V2_VERSION,
+    RobotSpec,
+)
 from robot_vla.data.events import EVENT_STATE_CONTRACT_VERSION
 from robot_vla.data.recovery import RECOVERY_CONTRACT_VERSION, RECOVERY_PROFILES
 from robot_vla.data.trajectory import (
@@ -32,6 +36,12 @@ from robot_vla.data.trajectory import (
     TrajectoryMeta,
 )
 from robot_vla.data.writer import TrajectoryDatasetWriter
+from robot_vla.observation import (
+    invert_se3,
+    opengl_camera_to_opencv,
+    transform_to_position_rotation_6d,
+    validate_se3,
+)
 from robot_vla.sim import PICK_CUBE_TO_REGION_ENV_ID, register_robot_vla_maniskill_envs
 from robot_vla.tasks.pick_place import (
     ATOMIC_PICK_PLACE_SKILLS,
@@ -61,6 +71,13 @@ def _single_bool(value: Any) -> bool:
     return bool(array.reshape(-1)[0])
 
 
+def _single_transform_matrix(pose: Any, name: str) -> np.ndarray:
+    value = _numpy(pose.to_transformation_matrix())
+    if value.shape == (1, 4, 4):
+        value = value[0]
+    return validate_se3(value, name)
+
+
 @dataclass
 class _EpisodeRecorder:
     spec: RobotSpec
@@ -83,6 +100,14 @@ class _EpisodeRecorder:
     object_angular_velocity_rad_s: list[np.ndarray] = field(default_factory=list)
     commanded_joint_target_rad: list[np.ndarray] = field(default_factory=list)
     applied_joint_correction_rad: list[np.ndarray] = field(default_factory=list)
+    tcp_position_base_m: list[np.ndarray] = field(default_factory=list)
+    tcp_rotation_6d_base: list[np.ndarray] = field(default_factory=list)
+    wrist_camera_position_base_m: list[np.ndarray] = field(default_factory=list)
+    wrist_camera_rotation_6d_base: list[np.ndarray] = field(default_factory=list)
+    left_finger_force_n: list[float] = field(default_factory=list)
+    right_finger_force_n: list[float] = field(default_factory=list)
+    previous_command_q_rad: list[np.ndarray] = field(default_factory=list)
+    previous_action: list[np.ndarray] = field(default_factory=list)
     record_action_provenance: bool = False
     action_source: list[int] = field(default_factory=list)
     expert_supervision_mask: list[bool] = field(default_factory=list)
@@ -102,6 +127,11 @@ class _EpisodeRecorder:
         commanded_joint_target_rad: np.ndarray,
         applied_joint_correction_rad: np.ndarray,
         action_source: int = ACTION_SOURCE_EXPERT,
+        *,
+        base_from_tcp: np.ndarray | None = None,
+        base_from_wrist_camera: np.ndarray | None = None,
+        finger_force_n: np.ndarray | None = None,
+        previous_command_q_rad: np.ndarray | None = None,
     ) -> None:
         if self._pending_transition:
             raise RuntimeError("上一条 Transition 尚未记录执行结果")
@@ -121,6 +151,37 @@ class _EpisodeRecorder:
             qpos[0],
             qvel[0],
             joint_names,
+        )
+        if (
+            base_from_tcp is None
+            or base_from_wrist_camera is None
+            or finger_force_n is None
+            or previous_command_q_rad is None
+        ):
+            raise EpisodeRejected("可信采集必须提供完整 Observation V2 deployable state")
+        tcp_position, tcp_rotation = transform_to_position_rotation_6d(base_from_tcp)
+        wrist_position, wrist_rotation = transform_to_position_rotation_6d(
+            base_from_wrist_camera
+        )
+        finger_force = np.asarray(finger_force_n)
+        if (
+            finger_force.shape != (2,)
+            or finger_force.dtype != np.float32
+            or not np.isfinite(finger_force).all()
+            or np.any(finger_force < 0.0)
+        ):
+            raise EpisodeRejected("F_L/F_R 必须是有限非负 float32 [2]，单位 N")
+        previous_command = np.asarray(previous_command_q_rad)
+        if (
+            previous_command.shape != (self.spec.arm_dof,)
+            or previous_command.dtype != np.float32
+            or not np.isfinite(previous_command).all()
+        ):
+            raise EpisodeRejected("previous_command_q_rad 必须是有限 float32 Franka q")
+        previous_action = (
+            np.zeros(self.spec.action_dim, dtype=np.float32)
+            if not self.action
+            else np.asarray(self.action[-1], dtype=np.float32).copy()
         )
 
         external_visible = self._goal_visible(external)
@@ -151,6 +212,14 @@ class _EpisodeRecorder:
         self.applied_joint_correction_rad.append(
             np.asarray(applied_joint_correction_rad, dtype=np.float32).copy()
         )
+        self.tcp_position_base_m.append(tcp_position)
+        self.tcp_rotation_6d_base.append(tcp_rotation)
+        self.wrist_camera_position_base_m.append(wrist_position)
+        self.wrist_camera_rotation_6d_base.append(wrist_rotation)
+        self.left_finger_force_n.append(float(finger_force[0]))
+        self.right_finger_force_n.append(float(finger_force[1]))
+        self.previous_command_q_rad.append(previous_command.copy())
+        self.previous_action.append(previous_action)
         if self.record_action_provenance:
             if action_source not in {ACTION_SOURCE_POLICY, ACTION_SOURCE_EXPERT}:
                 raise ValueError("action_source 必须是 Policy 或 Expert")
@@ -178,6 +247,8 @@ class _EpisodeRecorder:
         steps = len(self.action)
         timestamp = np.arange(steps, dtype=np.float64) / self.spec.control_hz
         valid = np.ones(steps, dtype=np.bool_)
+        previous_action_valid = valid.copy()
+        previous_action_valid[0] = False
         return TrajectoryArrays(
             rgb_external=np.stack(self.rgb_external).astype(np.uint8, copy=False),
             rgb_wrist=np.stack(self.rgb_wrist).astype(np.uint8, copy=False),
@@ -229,6 +300,35 @@ class _EpisodeRecorder:
                 if self.record_action_provenance
                 else None
             ),
+            timestamp_tcp_pose=timestamp.copy(),
+            timestamp_camera_pose=timestamp.copy(),
+            timestamp_finger_force=timestamp.copy(),
+            tcp_position_base_m=np.stack(self.tcp_position_base_m).astype(
+                np.float32,
+                copy=False,
+            ),
+            tcp_rotation_6d_base=np.stack(self.tcp_rotation_6d_base).astype(
+                np.float32,
+                copy=False,
+            ),
+            wrist_camera_position_base_m=np.stack(
+                self.wrist_camera_position_base_m
+            ).astype(np.float32, copy=False),
+            wrist_camera_rotation_6d_base=np.stack(
+                self.wrist_camera_rotation_6d_base
+            ).astype(np.float32, copy=False),
+            left_finger_force_n=np.asarray(self.left_finger_force_n, dtype=np.float32),
+            right_finger_force_n=np.asarray(self.right_finger_force_n, dtype=np.float32),
+            tcp_pose_valid=valid.copy(),
+            camera_pose_valid=valid.copy(),
+            finger_force_valid=valid.copy(),
+            previous_command_q_rad=np.stack(self.previous_command_q_rad).astype(
+                np.float32,
+                copy=False,
+            ),
+            previous_action=np.stack(self.previous_action).astype(np.float32, copy=False),
+            previous_command_valid=valid.copy(),
+            previous_action_valid=previous_action_valid,
         )
 
 
@@ -446,6 +546,8 @@ class TrustedPickPlaceCollector:
                 "environment_id": PICK_CUBE_TO_REGION_ENV_ID,
                 "control_mode": "pd_joint_delta_pos",
                 "event_state_contract_version": EVENT_STATE_CONTRACT_VERSION,
+                "observation_contract_version": OBSERVATION_V2_VERSION,
+                "finger_force_sensor_version": FINGER_FORCE_SENSOR_VERSION,
                 "cube_initial_position_m": cube_initial.tolist(),
                 "goal_position_m": goal_position.tolist(),
                 "recovery_profile": recovery_profile,
@@ -690,14 +792,22 @@ class TrustedPickPlaceCollector:
         except ValueError as exc:
             raise EpisodeRejected("实际跟踪误差使 controller correction 超出安全限制") from exc
 
+        contact_forces = self._read_contact_forces()
+        base_from_tcp, base_from_wrist_camera = self._read_observation_v2_poses(
+            session.observation
+        )
         session.recorder.record_before_action(
             session.observation,
             label,
             session.progress.active_skill_id,
             self._read_predicate_state(),
-            *self._read_contact_forces(),
+            *contact_forces,
             target_q,
             controller_physical[: self.spec.arm_dof],
+            base_from_tcp=base_from_tcp,
+            base_from_wrist_camera=base_from_wrist_camera,
+            finger_force_n=self._last_finger_force_n.copy(),
+            previous_command_q_rad=session.previous_command_q.copy(),
         )
         observation, _, terminated, truncated, info = self.env.step(controller_action)
         session.recorder.record_after_action(terminated, truncated, info)
@@ -730,11 +840,43 @@ class TrustedPickPlaceCollector:
         support = _numpy(
             scene.get_pairwise_contact_forces(cube, self.base_env.table_scene.table)
         )[0]
-        robot_object_force = max(
-            float(np.linalg.norm(left)),
-            float(np.linalg.norm(right)),
+        self._last_finger_force_n = np.asarray(
+            (float(np.linalg.norm(left)), float(np.linalg.norm(right))),
+            dtype=np.float32,
         )
+        robot_object_force = float(np.max(self._last_finger_force_n))
         return robot_object_force, float(np.linalg.norm(support))
+
+    def _read_observation_v2_poses(
+        self,
+        observation: dict[str, Any],
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """返回 base_from_tcp 与 base_from_wrist_cv，均来自同一控制 Tick。"""
+
+        world_from_base = _single_transform_matrix(
+            self.base_env.agent.robot.pose,
+            "world_from_robot_base",
+        )
+        world_from_tcp = _single_transform_matrix(
+            self.base_env.agent.tcp_pose,
+            "world_from_tcp",
+        )
+        wrist_gl = _numpy(
+            observation["sensor_param"]["hand_camera"]["cam2world_gl"]
+        )
+        if wrist_gl.shape == (1, 4, 4):
+            wrist_gl = wrist_gl[0]
+        world_from_wrist_cv = opengl_camera_to_opencv(wrist_gl)
+        base_from_world = invert_se3(world_from_base, "world_from_robot_base")
+        base_from_tcp = validate_se3(
+            base_from_world @ world_from_tcp,
+            "base_from_tcp",
+        )
+        base_from_wrist = validate_se3(
+            base_from_world @ world_from_wrist_cv,
+            "base_from_wrist_camera_cv",
+        )
+        return base_from_tcp.astype(np.float32), base_from_wrist.astype(np.float32)
 
     def _read_predicate_state(self) -> PickPlaceState:
         tcp = _numpy(self.base_env.agent.tcp_pose.p)[0]

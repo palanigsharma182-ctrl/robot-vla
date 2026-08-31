@@ -9,8 +9,13 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from robot_vla.contracts import OBSERVATION_HISTORY_LENGTH, OBSERVATION_V2_VERSION
 from robot_vla.model.layers import FP32RMSNorm
 from robot_vla.model.qwen_context import QwenContext
+from robot_vla.observation import (
+    OBSERVATION_V2_CONTROLLER_STATE_DIM,
+    OBSERVATION_V2_FRAME_STATE_DIM,
+)
 
 
 @dataclass(frozen=True)
@@ -61,6 +66,27 @@ class ExpertConfig:
         return self == ExpertConfig()
 
 
+@dataclass(frozen=True)
+class TemporalExpertConfig(ExpertConfig):
+    """Observation V2 专用配置；与 V1 ExpertConfig/checkpoint 显式隔离。"""
+
+    observation_version: str = OBSERVATION_V2_VERSION
+    history_length: int = OBSERVATION_HISTORY_LENGTH
+    frame_state_dim: int = OBSERVATION_V2_FRAME_STATE_DIM
+    controller_state_dim: int = OBSERVATION_V2_CONTROLLER_STATE_DIM
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if self.observation_version != OBSERVATION_V2_VERSION:
+            raise ValueError(f"Temporal Expert 必须使用 {OBSERVATION_V2_VERSION}")
+        if self.history_length != OBSERVATION_HISTORY_LENGTH:
+            raise ValueError(f"Temporal Expert history_length 必须为 {OBSERVATION_HISTORY_LENGTH}")
+        if self.frame_state_dim != OBSERVATION_V2_FRAME_STATE_DIM:
+            raise ValueError("Temporal Expert frame_state_dim 与 Observation V2 不一致")
+        if self.controller_state_dim != OBSERVATION_V2_CONTROLLER_STATE_DIM:
+            raise ValueError("Temporal Expert controller_state_dim 与 Observation V2 不一致")
+
+
 def sinusoidal_time_embedding(flow_time: torch.Tensor, config: ExpertConfig) -> torch.Tensor:
     if flow_time.ndim != 1 or not torch.isfinite(flow_time).all():
         raise ValueError("flow_time 必须是 [B] 有限 Tensor")
@@ -103,6 +129,81 @@ class StateTokenEncoder(nn.Module):
             raise ValueError("normalized_proprio 包含 NaN 或 Inf")
         state = self.norm(self.projection(normalized_proprio))
         return state.unsqueeze(1) + self.type_embedding
+
+
+class TemporalStateTokenEncoder(nn.Module):
+    """四个共享 MLP frame token + 一个当前 controller token。"""
+
+    def __init__(self, config: TemporalExpertConfig) -> None:
+        super().__init__()
+        self.config = config
+        self.frame_projection = nn.Sequential(
+            nn.Linear(config.frame_state_dim, config.state_hidden_size),
+            nn.SiLU(),
+            nn.Linear(config.state_hidden_size, config.hidden_size),
+        )
+        self.controller_projection = nn.Sequential(
+            nn.Linear(config.controller_state_dim, config.state_hidden_size),
+            nn.SiLU(),
+            nn.Linear(config.state_hidden_size, config.hidden_size),
+        )
+        self.frame_norm = FP32RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.controller_norm = FP32RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.frame_type_embedding = nn.Parameter(torch.empty(1, 1, config.hidden_size))
+        self.controller_type_embedding = nn.Parameter(torch.empty(1, 1, config.hidden_size))
+        self.time_embedding = nn.Parameter(
+            torch.empty(1, config.history_length, config.hidden_size)
+        )
+        nn.init.normal_(self.frame_type_embedding, std=0.02)
+        nn.init.normal_(self.controller_type_embedding, std=0.02)
+        nn.init.normal_(self.time_embedding, std=0.02)
+
+    def forward(
+        self,
+        state_history: torch.Tensor,
+        state_history_mask: torch.Tensor,
+        controller_state: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        batch_size = state_history.shape[0]
+        expected_history = (
+            batch_size,
+            self.config.history_length,
+            self.config.frame_state_dim,
+        )
+        if state_history.ndim != 3 or tuple(state_history.shape) != expected_history:
+            raise ValueError(f"state_history 应为 {expected_history}")
+        if (
+            state_history_mask.shape != expected_history[:2]
+            or state_history_mask.dtype != torch.bool
+        ):
+            raise ValueError("state_history_mask 必须是对齐的 bool [B,4]")
+        if not torch.all(state_history_mask[:, -1]):
+            raise ValueError("Temporal Expert 当前状态 token 必须有效")
+        expected_controller = (batch_size, self.config.controller_state_dim)
+        if tuple(controller_state.shape) != expected_controller:
+            raise ValueError(f"controller_state 应为 {expected_controller}")
+        if not torch.isfinite(state_history).all() or not torch.isfinite(
+            controller_state
+        ).all():
+            raise ValueError("Observation V2 state 包含 NaN 或 Inf")
+
+        frame = self.frame_norm(self.frame_projection(state_history))
+        frame = frame + self.frame_type_embedding + self.time_embedding
+        frame = frame * state_history_mask.unsqueeze(-1).to(dtype=frame.dtype)
+        controller = self.controller_norm(
+            self.controller_projection(controller_state)
+        ).unsqueeze(1)
+        controller = controller + self.controller_type_embedding
+        controller_mask = torch.ones(
+            batch_size,
+            1,
+            dtype=torch.bool,
+            device=state_history_mask.device,
+        )
+        return (
+            torch.cat((frame, controller), dim=1),
+            torch.cat((state_history_mask, controller_mask), dim=1),
+        )
 
 
 class ActionTokenEncoder(nn.Module):
@@ -252,7 +353,7 @@ class ExpertBlock(nn.Module):
         self.cross_attention = cross_attention
         attention_config = config
         if not cross_attention and config.context_dim != config.hidden_size:
-            attention_config = ExpertConfig(
+            attention_config = type(config)(
                 **{**config.__dict__, "context_dim": config.hidden_size}
             )
         self.attention_norm = FP32RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
@@ -377,3 +478,71 @@ class StandaloneActionExpert(nn.Module):
             raise ValueError("Expert Context mask 必须是与 [B,N] 对齐的 bool Tensor")
         if not torch.all(context.mask.any(dim=1)):
             raise ValueError("每个样本必须至少包含一个有效 Context Token")
+
+
+class TemporalStandaloneActionExpert(StandaloneActionExpert):
+    """Observation V2 的四步 State/Controller token Action Expert。"""
+
+    def __init__(self, config: TemporalExpertConfig | None = None) -> None:
+        nn.Module.__init__(self)
+        self.config = config or TemporalExpertConfig()
+        self.state_encoder = TemporalStateTokenEncoder(self.config)
+        self.action_encoder = ActionTokenEncoder(self.config)
+        self.blocks = nn.ModuleList(
+            ExpertBlock(self.config, cross_attention=layer_index % 2 == 1)
+            for layer_index in range(self.config.num_layers)
+        )
+        self.final_norm = FP32RMSNorm(self.config.hidden_size, eps=self.config.rms_norm_eps)
+        self.velocity_head = nn.Linear(self.config.hidden_size, self.config.action_dim)
+
+    def forward(
+        self,
+        context: QwenContext,
+        state_history: torch.Tensor,
+        noisy_action: torch.Tensor,
+        flow_time: torch.Tensor,
+        action_mask: torch.Tensor,
+        *,
+        state_history_mask: torch.Tensor,
+        controller_state: torch.Tensor,
+        context_kv: tuple[AttentionKV, ...] | None = None,
+    ) -> torch.Tensor:
+        self._validate_context(context)
+        batch_size = context.tokens.shape[0]
+        expected_action = (
+            batch_size,
+            self.config.action_horizon,
+            self.config.action_dim,
+        )
+        if tuple(noisy_action.shape) != expected_action:
+            raise ValueError(f"noisy_action 应为 {expected_action}")
+        if action_mask.shape != expected_action[:2] or action_mask.dtype != torch.bool:
+            raise ValueError("action_mask 必须是与 [B,H] 对齐的 bool Tensor")
+        if context_kv is not None and len(context_kv) != self.config.num_layers // 2:
+            raise ValueError("context_kv 数量必须等于 Cross-Attention 层数")
+
+        state_tokens, state_token_mask = self.state_encoder(
+            state_history,
+            state_history_mask,
+            controller_state,
+        )
+        action_tokens = self.action_encoder(noisy_action, flow_time)
+        sequence_mask = torch.cat((state_token_mask, action_mask), dim=1)
+        hidden = torch.cat((state_tokens, action_tokens), dim=1)
+        hidden = hidden * sequence_mask.unsqueeze(-1).to(dtype=hidden.dtype)
+        cross_index = 0
+        for block in self.blocks:
+            cached = None
+            if block.cross_attention and context_kv is not None:
+                cached = context_kv[cross_index]
+            hidden = block(
+                hidden,
+                sequence_mask,
+                context=context if block.cross_attention else None,
+                kv=cached,
+            )
+            if block.cross_attention:
+                cross_index += 1
+        action_hidden = self.final_norm(hidden[:, state_tokens.shape[1] :])
+        velocity = self.velocity_head(action_hidden).float()
+        return velocity * action_mask.unsqueeze(-1).to(dtype=torch.float32)

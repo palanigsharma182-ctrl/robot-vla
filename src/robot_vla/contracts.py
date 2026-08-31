@@ -7,12 +7,24 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 TRAJECTORY_SCHEMA_VERSION = "robot-vla-trajectory/v2"
+OBSERVATION_V1_VERSION = "robot-vla-observation/v1"
+OBSERVATION_V2_VERSION = "robot-vla-observation/v2"
 MODEL_ARCH = "qwen_vla_late_fusion_v1"
+MODEL_ARCH_OBSERVATION_V2 = "qwen_vla_temporal_state_fusion_v2"
 PROMPT_VERSION = "qwen-vla-prompt/v1"
+PROMPT_VERSION_OBSERVATION_V2 = "qwen-vla-prompt/v2-history4"
 QWEN_MODEL_ID = "Qwen/Qwen3.5-2B"
 QWEN_REVISION = "15852e8c16360a2fea060d615a32b45270f8a8fc"
 OUTCOME_PREDICATE_VERSION = "pick-and-place-predicates/v1"
 PROPRIO_STATS_VERSION = "franka-proprio-zscore/v1"
+FINGER_FORCE_SENSOR_VERSION = (
+    "maniskill-target-cube-pairwise-contact-force-magnitude-per-finger/v1"
+)
+FINGER_FORCE_STATS_VERSION = "franka-finger-force-log1p-positive-p95/v1"
+
+OBSERVATION_HISTORY_LENGTH = 4
+OBSERVATION_HISTORY_STRIDE_CONTROL_STEPS = 1
+OBSERVATION_HISTORY_ORDER = "oldest_to_newest"
 
 UNKNOWN_SKILL_ID = -1
 PICK_AND_PLACE_SKILLS = ("reach", "grasp", "lift", "transport", "place")

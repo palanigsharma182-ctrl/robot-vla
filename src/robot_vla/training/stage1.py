@@ -399,6 +399,53 @@ class Stage1Trainer:
             raise ValueError("event_mask 不能标记无效 Action Token")
         if self.config.executed_action_steps > action.shape[1]:
             raise ValueError("executed_action_steps 不能超过 Action Horizon")
+        temporal_fields = {
+            "state_history",
+            "state_history_mask",
+            "controller_state",
+        }
+        temporal_present = temporal_fields.intersection(batch)
+        if temporal_present and temporal_present != temporal_fields:
+            raise ValueError("Observation V2 temporal batch 字段必须同时存在")
+        expert_config = self.policy.expert.config
+        temporal_policy = all(
+            hasattr(expert_config, name)
+            for name in (
+                "history_length",
+                "frame_state_dim",
+                "controller_state_dim",
+            )
+        )
+        if bool(temporal_present) != temporal_policy:
+            raise ValueError("Policy 与训练 batch 的 Observation V1/V2 契约不一致")
+        if temporal_present:
+            state_history = batch["state_history"]
+            state_history_mask = batch["state_history_mask"]
+            controller_state = batch["controller_state"]
+            if not all(
+                isinstance(value, torch.Tensor)
+                for value in (state_history, state_history_mask, controller_state)
+            ):
+                raise TypeError("Observation V2 temporal state 必须为 Tensor")
+            if (
+                state_history.ndim != 3
+                or state_history_mask.shape != state_history.shape[:2]
+                or state_history_mask.dtype != torch.bool
+                or controller_state.ndim != 2
+                or controller_state.shape[0] != state_history.shape[0]
+            ):
+                raise ValueError("Observation V2 temporal state shape/dtype 无效")
+            expected_state = (
+                int(expert_config.history_length),
+                int(expert_config.frame_state_dim),
+            )
+            if tuple(state_history.shape[1:]) != expected_state:
+                raise ValueError(
+                    f"Observation V2 state_history 应为 [B,{expected_state[0]},"
+                    f"{expected_state[1]}]"
+                )
+            if controller_state.shape[1] != int(expert_config.controller_state_dim):
+                raise ValueError("Observation V2 controller_state 维度与 Policy 不一致")
         batch_size = action.shape[0]
         if batch_size <= 0 or batch_size > self.config.micro_batch_size:
             raise ValueError(
@@ -467,16 +514,30 @@ class Stage1Trainer:
                     effective_action_mask = (
                         batch["action_mask"] & batch["supervision_mask"]
                     )
-                    output = self.policy.flow_matching_loss(
-                        batch["qwen_inputs"],
-                        batch["proprio"],
-                        batch["action"],
-                        effective_action_mask,
-                        event_mask=batch["event_mask"],
-                        event_loss_weight=event_loss_weight_end,
-                        executed_action_steps=self.config.executed_action_steps,
-                        generator=self.flow_generator,
-                    )
+                    if "state_history" in batch:
+                        output = self.policy.flow_matching_loss(
+                            batch["qwen_inputs"],
+                            batch["state_history"],
+                            batch["action"],
+                            effective_action_mask,
+                            state_history_mask=batch["state_history_mask"],
+                            controller_state=batch["controller_state"],
+                            event_mask=batch["event_mask"],
+                            event_loss_weight=event_loss_weight_end,
+                            executed_action_steps=self.config.executed_action_steps,
+                            generator=self.flow_generator,
+                        )
+                    else:
+                        output = self.policy.flow_matching_loss(
+                            batch["qwen_inputs"],
+                            batch["proprio"],
+                            batch["action"],
+                            effective_action_mask,
+                            event_mask=batch["event_mask"],
+                            event_loss_weight=event_loss_weight_end,
+                            executed_action_steps=self.config.executed_action_steps,
+                            generator=self.flow_generator,
+                        )
                 valid_elements = int(effective_action_mask.sum().item()) * int(
                     batch["action"].shape[-1]
                 )
@@ -576,16 +637,30 @@ class Stage1Trainer:
                         effective_action_mask = (
                             batch["action_mask"] & batch["supervision_mask"]
                         )
-                        output = self.policy.flow_matching_loss(
-                            batch["qwen_inputs"],
-                            batch["proprio"],
-                            batch["action"],
-                            effective_action_mask,
-                            event_mask=batch["event_mask"],
-                            event_loss_weight=self.config.event_loss_weight,
-                            executed_action_steps=self.config.executed_action_steps,
-                            generator=generator,
-                        )
+                        if "state_history" in batch:
+                            output = self.policy.flow_matching_loss(
+                                batch["qwen_inputs"],
+                                batch["state_history"],
+                                batch["action"],
+                                effective_action_mask,
+                                state_history_mask=batch["state_history_mask"],
+                                controller_state=batch["controller_state"],
+                                event_mask=batch["event_mask"],
+                                event_loss_weight=self.config.event_loss_weight,
+                                executed_action_steps=self.config.executed_action_steps,
+                                generator=generator,
+                            )
+                        else:
+                            output = self.policy.flow_matching_loss(
+                                batch["qwen_inputs"],
+                                batch["proprio"],
+                                batch["action"],
+                                effective_action_mask,
+                                event_mask=batch["event_mask"],
+                                event_loss_weight=self.config.event_loss_weight,
+                                executed_action_steps=self.config.executed_action_steps,
+                                generator=generator,
+                            )
                     valid_elements = int(effective_action_mask.sum().item()) * int(
                         batch["action"].shape[-1]
                     )

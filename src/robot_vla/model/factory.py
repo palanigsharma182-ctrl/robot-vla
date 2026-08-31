@@ -8,9 +8,14 @@ from typing import Any
 import torch
 from torch import nn
 
-from robot_vla.contracts import QWEN_MODEL_ID, QWEN_REVISION
-from robot_vla.model.expert import ExpertConfig, StandaloneActionExpert
-from robot_vla.model.policy import QwenVLAPolicy
+from robot_vla.contracts import OBSERVATION_HISTORY_LENGTH, QWEN_MODEL_ID, QWEN_REVISION
+from robot_vla.model.expert import (
+    ExpertConfig,
+    StandaloneActionExpert,
+    TemporalExpertConfig,
+    TemporalStandaloneActionExpert,
+)
+from robot_vla.model.policy import QwenVLAObservationV2Policy, QwenVLAPolicy
 from robot_vla.model.qwen_context import (
     FrozenQwenContextEncoder,
     FrozenQwenLayerContextEncoder,
@@ -130,6 +135,54 @@ def load_qwen_vla_policy(
         hf_endpoint=hf_endpoint,
     )
     policy = build_qwen_vla_policy(qwen, context_layer=context_layer)
+    if device is not None:
+        policy.to(torch.device(device))
+    return policy
+
+
+def build_qwen_vla_observation_v2_policy(
+    qwen: nn.Module,
+    *,
+    expert_config: TemporalExpertConfig | None = None,
+    context_layer: int = QWEN_TEXT_LAYER_COUNT,
+) -> QwenVLAObservationV2Policy:
+    """构造与 V1 checkpoint 显式不兼容的四步 Observation V2 策略。"""
+
+    validate_qwen_v01_architecture(qwen)
+    if not 1 <= context_layer <= QWEN_TEXT_LAYER_COUNT:
+        raise ValueError(
+            f"Qwen context layer 应位于 [1,{QWEN_TEXT_LAYER_COUNT}]，实际为 {context_layer}"
+        )
+    context_encoder = (
+        FrozenQwenContextEncoder(qwen)
+        if context_layer == QWEN_TEXT_LAYER_COUNT
+        else FrozenQwenLayerContextEncoder(qwen, context_layer)
+    )
+    return QwenVLAObservationV2Policy(
+        context_encoder,
+        TemporalStandaloneActionExpert(expert_config),
+        QwenVLAAdapter(history_length=OBSERVATION_HISTORY_LENGTH),
+    )
+
+
+def load_qwen_vla_observation_v2_policy(
+    *,
+    cache_dir: str | None = None,
+    local_files_only: bool = False,
+    device: str | torch.device | None = None,
+    hf_endpoint: str = "https://hf-mirror.com",
+    context_layer: int = QWEN_TEXT_LAYER_COUNT,
+) -> QwenVLAObservationV2Policy:
+    qwen = load_frozen_qwen_v01(
+        cache_dir=cache_dir,
+        local_files_only=local_files_only,
+        device=device,
+        hf_endpoint=hf_endpoint,
+    )
+    policy = build_qwen_vla_observation_v2_policy(
+        qwen,
+        context_layer=context_layer,
+    )
     if device is not None:
         policy.to(torch.device(device))
     return policy

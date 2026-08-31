@@ -4,7 +4,12 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from robot_vla.contracts import RobotSpec
+from robot_vla.contracts import (
+    FINGER_FORCE_SENSOR_VERSION,
+    OBSERVATION_V2_VERSION,
+    RobotSpec,
+)
+from robot_vla.data.events import EVENT_STATE_CONTRACT_VERSION
 from robot_vla.data.trajectory import (
     ACTION_SOURCE_EXPERT,
     ACTION_SOURCE_POLICY,
@@ -64,6 +69,69 @@ def _with_segmented_budget(meta, *, steps: int, takeover: int):
     )
 
 
+def _with_observation_v2(meta, arrays, spec: RobotSpec):
+    steps = arrays.num_steps
+    previous_command = np.empty((steps, spec.arm_dof), dtype=np.float32)
+    commanded = np.empty_like(previous_command)
+    proprio = arrays.proprio.copy()
+    previous_command[0] = proprio[0, : spec.arm_dof]
+    for step in range(steps):
+        if step > 0:
+            previous_command[step] = commanded[step - 1]
+        proprio[step, : spec.arm_dof] = previous_command[step]
+        commanded[step] = previous_command[step] + arrays.action[step, : spec.arm_dof]
+    previous_action = np.zeros((steps, spec.action_dim), dtype=np.float32)
+    previous_action[1:] = arrays.action[:-1]
+    rotation = np.tile(
+        np.asarray((1.0, 0.0, 0.0, 0.0, 1.0, 0.0), dtype=np.float32),
+        (steps, 1),
+    )
+    timestamp = arrays.timestamp_action.copy()
+    left = np.linspace(0.0, 2.0, steps, dtype=np.float32)
+    right = np.linspace(0.5, 1.0, steps, dtype=np.float32)
+    valid = np.ones(steps, dtype=np.bool_)
+    previous_action_valid = valid.copy()
+    previous_action_valid[0] = False
+    arrays = replace(
+        arrays,
+        proprio=proprio,
+        robot_object_contact_force_n=np.maximum(left, right),
+        support_contact_force_n=np.zeros(steps, dtype=np.float32),
+        is_grasped=np.zeros(steps, dtype=np.bool_),
+        object_position_m=np.zeros((steps, 3), dtype=np.float32),
+        object_linear_velocity_m_s=np.zeros((steps, 3), dtype=np.float32),
+        object_angular_velocity_rad_s=np.zeros((steps, 3), dtype=np.float32),
+        commanded_joint_target_rad=commanded,
+        applied_joint_correction_rad=arrays.action[:, : spec.arm_dof].copy(),
+        timestamp_tcp_pose=timestamp.copy(),
+        timestamp_camera_pose=timestamp.copy(),
+        timestamp_finger_force=timestamp.copy(),
+        tcp_position_base_m=np.zeros((steps, 3), dtype=np.float32),
+        tcp_rotation_6d_base=rotation.copy(),
+        wrist_camera_position_base_m=np.zeros((steps, 3), dtype=np.float32),
+        wrist_camera_rotation_6d_base=rotation.copy(),
+        left_finger_force_n=left,
+        right_finger_force_n=right,
+        tcp_pose_valid=valid.copy(),
+        camera_pose_valid=valid.copy(),
+        finger_force_valid=valid.copy(),
+        previous_command_q_rad=previous_command,
+        previous_action=previous_action,
+        previous_command_valid=valid.copy(),
+        previous_action_valid=previous_action_valid,
+    )
+    meta = replace(
+        meta,
+        randomization={
+            **meta.randomization,
+            "event_state_contract_version": EVENT_STATE_CONTRACT_VERSION,
+            "observation_contract_version": OBSERVATION_V2_VERSION,
+            "finger_force_sensor_version": FINGER_FORCE_SENSOR_VERSION,
+        },
+    )
+    return meta, arrays
+
+
 def test_manifest_and_trajectory_v2_round_trip(
     tmp_path,
     meta_factory,
@@ -83,6 +151,56 @@ def test_manifest_and_trajectory_v2_round_trip(
     assert loaded.proprio.shape == (5, 15)
     assert loaded.action.shape == (5, 8)
     assert loaded.observation_valid.tolist() == [True] * 5
+
+
+def test_observation_v2_round_trip_and_action_semantics(
+    tmp_path,
+    meta_factory,
+    arrays_factory,
+    write_dataset,
+) -> None:
+    spec = RobotSpec()
+    meta, arrays = _with_observation_v2(meta_factory(), arrays_factory(), spec)
+    write_dataset(meta, arrays)
+
+    loaded_meta = load_manifest(tmp_path, split="train")[0]
+    loaded = TrajectoryStore(tmp_path, spec).get(loaded_meta)
+
+    assert loaded.observation_v2_available is True
+    assert loaded.observation_v2_valid.all()
+    np.testing.assert_allclose(
+        loaded.commanded_joint_target_rad,
+        loaded.previous_command_q_rad + loaded.action[:, : spec.arm_dof],
+    )
+    np.testing.assert_allclose(loaded.previous_action[1:], loaded.action[:-1])
+    assert loaded.previous_action_valid.tolist() == [False, True, True, True, True]
+
+
+def test_observation_v2_rejects_action_label_execution_mismatch(
+    meta_factory,
+    arrays_factory,
+) -> None:
+    spec = RobotSpec()
+    meta, arrays = _with_observation_v2(meta_factory(), arrays_factory(), spec)
+    commanded = arrays.commanded_joint_target_rad.copy()
+    commanded[2, 0] += 0.001
+    arrays = replace(arrays, commanded_joint_target_rad=commanded)
+
+    with pytest.raises(ValueError, match="Action 标签.*执行语义"):
+        validate_trajectory(arrays, meta, spec)
+
+
+def test_observation_v2_rejects_fabricated_symmetric_finger_force(
+    meta_factory,
+    arrays_factory,
+) -> None:
+    spec = RobotSpec()
+    meta, arrays = _with_observation_v2(meta_factory(), arrays_factory(), spec)
+    right = arrays.left_finger_force_n.copy()
+    arrays = replace(arrays, right_finger_force_n=right)
+
+    with pytest.raises(ValueError, match="aggregate contact force"):
+        validate_trajectory(arrays, meta, spec)
 
 
 def test_invalid_camera_marks_index_unavailable_without_fabricating_input(
