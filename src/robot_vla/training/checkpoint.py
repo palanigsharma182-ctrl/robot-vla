@@ -15,16 +15,20 @@ import numpy as np
 import torch
 
 from robot_vla import __version__
-from robot_vla.adapters import ProprioStats
+from robot_vla.adapters import FingerForceStats, ProprioStats
 from robot_vla.contracts import (
     MODEL_ARCH,
+    MODEL_ARCH_OBSERVATION_V2,
+    OBSERVATION_V2_VERSION,
     PROMPT_VERSION,
+    PROMPT_VERSION_OBSERVATION_V2,
     QWEN_MODEL_ID,
     QWEN_REVISION,
     TRAJECTORY_SCHEMA_VERSION,
     RobotSpec,
 )
 from robot_vla.model.policy import QwenVLAPolicy
+from robot_vla.model.policy import QwenVLAObservationV2Policy
 from robot_vla.model.qwen_processor import QwenProcessorConfig
 from robot_vla.training.stage1 import (
     Stage1Trainer,
@@ -107,24 +111,45 @@ def _metadata(
     processor_config: QwenProcessorConfig,
     proprio_stats: ProprioStats,
     code_revision: str,
+    *,
+    finger_force_stats: FingerForceStats | None = None,
 ) -> dict[str, Any]:
     if not code_revision.strip():
         raise ValueError("code_revision 不能为空")
     proprio_stats.validate(robot_spec)
-    return {
+    observation_v2 = isinstance(policy, QwenVLAObservationV2Policy)
+    if observation_v2:
+        if finger_force_stats is None:
+            raise ValueError("Observation V2 checkpoint 必须冻结 FingerForceStats")
+        finger_force_stats.validate(robot_spec)
+    elif finger_force_stats is not None:
+        raise ValueError("Observation V1 checkpoint 禁止混入 FingerForceStats")
+    expected_prompt_version = (
+        PROMPT_VERSION_OBSERVATION_V2 if observation_v2 else PROMPT_VERSION
+    )
+    if processor_config.prompt_version != expected_prompt_version:
+        raise ValueError(
+            "Policy 与 Processor prompt version 不一致: "
+            f"期望 {expected_prompt_version}，实际 {processor_config.prompt_version}"
+        )
+    metadata = {
         "format": CHECKPOINT_FORMAT,
-        "model_arch": MODEL_ARCH,
+        "model_arch": MODEL_ARCH_OBSERVATION_V2 if observation_v2 else MODEL_ARCH,
         "dataset_schema": TRAJECTORY_SCHEMA_VERSION,
         "robot_spec": robot_spec.to_dict(),
         "qwen": {"model_id": QWEN_MODEL_ID, "revision": QWEN_REVISION},
         "qwen_context_hidden_state": _qwen_context_hidden_state(policy),
-        "prompt_version": PROMPT_VERSION,
+        "prompt_version": expected_prompt_version,
         "processor_config": asdict(processor_config),
         "proprio_stats": asdict(proprio_stats),
         "training_config": trainer.config.to_dict(),
         "expert_config": asdict(policy.expert.config),
         "code": {"package_version": __version__, "revision": code_revision},
     }
+    if observation_v2:
+        metadata["observation_schema"] = OBSERVATION_V2_VERSION
+        metadata["finger_force_stats"] = asdict(finger_force_stats)
+    return metadata
 
 
 def build_stage1_checkpoint(
@@ -135,6 +160,7 @@ def build_stage1_checkpoint(
     proprio_stats: ProprioStats,
     *,
     code_revision: str,
+    finger_force_stats: FingerForceStats | None = None,
 ) -> dict[str, Any]:
     if trainer.scheduler.completed_steps != trainer.state.optimizer_steps:
         raise RuntimeError("Trainer 与 Scheduler optimizer step 不一致，拒绝保存")
@@ -146,6 +172,7 @@ def build_stage1_checkpoint(
             processor_config,
             proprio_stats,
             code_revision,
+            finger_force_stats=finger_force_stats,
         ),
         "model": {
             "adapter": policy.adapter.state_dict(),
@@ -213,6 +240,7 @@ def save_stage1_checkpoint_set(
     *,
     code_revision: str,
     is_best: bool = False,
+    finger_force_stats: FingerForceStats | None = None,
 ) -> SavedCheckpointPaths:
     """保存 latest，并按配置选择 periodic/best；所有文件都原子替换。"""
 
@@ -223,6 +251,7 @@ def save_stage1_checkpoint_set(
         processor_config,
         proprio_stats,
         code_revision=code_revision,
+        finger_force_stats=finger_force_stats,
     )
     directory = Path(output_dir)
     latest = directory / "latest.pt"
@@ -249,6 +278,7 @@ def _expected_metadata(
     robot_spec: RobotSpec,
     processor_config: QwenProcessorConfig,
     proprio_stats: ProprioStats,
+    finger_force_stats: FingerForceStats | None = None,
 ) -> dict[str, Any]:
     metadata = _metadata(
         policy,
@@ -257,6 +287,7 @@ def _expected_metadata(
         processor_config,
         proprio_stats,
         code_revision="comparison-placeholder",
+        finger_force_stats=finger_force_stats,
     )
     metadata.pop("code")
     return metadata
@@ -281,22 +312,41 @@ def _validate_inference_metadata(
     robot_spec: RobotSpec,
     processor_config: QwenProcessorConfig,
     proprio_stats: ProprioStats,
+    finger_force_stats: FingerForceStats | None = None,
 ) -> None:
     """验证推理必需契约，不要求评估源码与训练源码具有相同哈希。"""
 
     proprio_stats.validate(robot_spec)
+    observation_v2 = isinstance(policy, QwenVLAObservationV2Policy)
+    if observation_v2:
+        if finger_force_stats is None:
+            raise ValueError("Observation V2 inference 必须提供 FingerForceStats")
+        finger_force_stats.validate(robot_spec)
+    elif finger_force_stats is not None:
+        raise ValueError("Observation V1 inference 禁止混入 FingerForceStats")
+    expected_prompt_version = (
+        PROMPT_VERSION_OBSERVATION_V2 if observation_v2 else PROMPT_VERSION
+    )
+    if processor_config.prompt_version != expected_prompt_version:
+        raise ValueError(
+            "Policy 与 Processor prompt version 不一致: "
+            f"期望 {expected_prompt_version}，实际 {processor_config.prompt_version}"
+        )
     expected = {
         "format": CHECKPOINT_FORMAT,
-        "model_arch": MODEL_ARCH,
+        "model_arch": MODEL_ARCH_OBSERVATION_V2 if observation_v2 else MODEL_ARCH,
         "dataset_schema": TRAJECTORY_SCHEMA_VERSION,
         "robot_spec": robot_spec.to_dict(),
         "qwen": {"model_id": QWEN_MODEL_ID, "revision": QWEN_REVISION},
         "qwen_context_hidden_state": _qwen_context_hidden_state(policy),
-        "prompt_version": PROMPT_VERSION,
+        "prompt_version": expected_prompt_version,
         "processor_config": asdict(processor_config),
         "proprio_stats": asdict(proprio_stats),
         "expert_config": asdict(policy.expert.config),
     }
+    if observation_v2:
+        expected["observation_schema"] = OBSERVATION_V2_VERSION
+        expected["finger_force_stats"] = asdict(finger_force_stats)
     for key, expected_value in expected.items():
         if _metadata_value(metadata, key, expected_value) != expected_value:
             raise ValueError(f"Checkpoint metadata 不兼容: {key}")
@@ -311,6 +361,8 @@ def load_stage1_policy_checkpoint(
     robot_spec: RobotSpec,
     processor_config: QwenProcessorConfig,
     proprio_stats: ProprioStats,
+    *,
+    finger_force_stats: FingerForceStats | None = None,
 ) -> dict[str, Any]:
     """只恢复在线推理所需权重，同时严格验证模型、Processor 和状态契约。"""
 
@@ -324,6 +376,7 @@ def load_stage1_policy_checkpoint(
         robot_spec,
         processor_config,
         proprio_stats,
+        finger_force_stats,
     )
     restored_trainer_state = TrainerState.from_dict(payload["trainer"])
     scheduler_state = payload["scheduler"]
@@ -373,6 +426,8 @@ def initialize_stage1_policy_checkpoint(
     robot_spec: RobotSpec,
     processor_config: QwenProcessorConfig,
     proprio_stats: ProprioStats,
+    *,
+    finger_force_stats: FingerForceStats | None = None,
 ) -> dict[str, Any]:
     """训练 warm start：只加载权重，并返回可比较的实际 tensor state receipt。"""
 
@@ -386,6 +441,7 @@ def initialize_stage1_policy_checkpoint(
         robot_spec,
         processor_config,
         proprio_stats,
+        finger_force_stats,
     )
     restored_trainer_state = TrainerState.from_dict(payload["trainer"])
     scheduler_state = payload["scheduler"]
@@ -414,6 +470,7 @@ def load_stage1_checkpoint(
     *,
     expected_code_revision: str | None = None,
     restore_rng: bool = True,
+    finger_force_stats: FingerForceStats | None = None,
 ) -> dict[str, Any]:
     """先验证完整契约，再恢复模型、优化器、调度器和 RNG。"""
 
@@ -426,6 +483,7 @@ def load_stage1_checkpoint(
         robot_spec,
         processor_config,
         proprio_stats,
+        finger_force_stats,
     )
     for key, expected in expected_metadata.items():
         if _metadata_value(actual_metadata, key, expected) != expected:

@@ -9,12 +9,25 @@ from typing import Any
 
 import numpy as np
 
-from robot_vla.contracts import PROMPT_VERSION, QWEN_MODEL_ID, QWEN_REVISION
+from robot_vla.contracts import (
+    OBSERVATION_HISTORY_LENGTH,
+    PROMPT_VERSION,
+    PROMPT_VERSION_OBSERVATION_V2,
+    QWEN_MODEL_ID,
+    QWEN_REVISION,
+)
 
 SYSTEM_PROMPT = (
     "You control a 7-DoF robot arm with a two-finger gripper.\n"
     "Encode the observation and instruction for continuous robot control."
 )
+SYSTEM_PROMPT_V2 = (
+    "You control a 7-DoF robot arm with a two-finger gripper.\n"
+    "The observation contains four consecutive control steps ordered oldest to newest.\n"
+    "Encode the synchronized camera history and instruction for continuous robot control."
+)
+VLA_IMAGE_TIME_INDICES = "vla_image_time_indices"
+VLA_CONTEXT_VALID_MASK = "vla_context_valid_mask"
 
 
 @dataclass(frozen=True)
@@ -31,8 +44,11 @@ class QwenProcessorConfig:
     def __post_init__(self) -> None:
         if self.model_id != QWEN_MODEL_ID or self.revision != QWEN_REVISION:
             raise ValueError("Qwen model ID 和 revision 必须与 qwen-vla-v0.1 身份一致")
-        if self.prompt_version != PROMPT_VERSION:
-            raise ValueError(f"Prompt version 必须为 {PROMPT_VERSION}")
+        if self.prompt_version not in (
+            PROMPT_VERSION,
+            PROMPT_VERSION_OBSERVATION_V2,
+        ):
+            raise ValueError("Prompt version 必须是已注册的 Observation V1/V2 版本")
         if self.max_instruction_tokens <= 0:
             raise ValueError("max_instruction_tokens 必须为正数")
         if not 0 < self.min_visual_tokens_per_image <= self.max_visual_tokens_per_image:
@@ -56,7 +72,7 @@ class QwenProcessorConfig:
 @dataclass(frozen=True)
 class ProcessedObservationBatch:
     model_inputs: dict[str, Any]
-    visual_tokens_per_image: tuple[tuple[int, int], ...]
+    visual_tokens_per_image: tuple[tuple[int, ...], ...]
     context_lengths: tuple[int, ...]
 
 
@@ -100,6 +116,61 @@ def build_qwen_conversation(
     ]
 
 
+def build_qwen_history_conversation(
+    rgb_external_history: Any,
+    rgb_wrist_history: Any,
+    history_valid: Any,
+    instruction: str,
+) -> list[dict[str, Any]]:
+    """按 ``t-3→t``、每步 ``external→wrist`` 的固定顺序构造八图输入。"""
+
+    if not isinstance(instruction, str) or not instruction.strip():
+        raise ValueError("instruction 必须是非空字符串")
+    external = np.asarray(rgb_external_history)
+    wrist = np.asarray(rgb_wrist_history)
+    valid = np.asarray(history_valid)
+    if external.ndim != 4 or external.shape[0] != OBSERVATION_HISTORY_LENGTH:
+        raise ValueError("rgb_external_history 必须是 [4,H,W,3]")
+    if wrist.ndim != 4 or wrist.shape[0] != OBSERVATION_HISTORY_LENGTH:
+        raise ValueError("rgb_wrist_history 必须是 [4,H,W,3]")
+    if valid.shape != (OBSERVATION_HISTORY_LENGTH,) or valid.dtype != np.bool_:
+        raise ValueError("history_valid 必须是 bool [4]")
+    content: list[dict[str, Any]] = []
+    for time_index in range(OBSERVATION_HISTORY_LENGTH):
+        external_image = _validate_rgb(
+            external[time_index],
+            f"rgb_external_history[{time_index}]",
+        )
+        wrist_image = _validate_rgb(
+            wrist[time_index],
+            f"rgb_wrist_history[{time_index}]",
+        )
+        status = "valid" if bool(valid[time_index]) else "padding-invalid"
+        relative_step = time_index - (OBSERVATION_HISTORY_LENGTH - 1)
+        content.extend(
+            (
+                {
+                    "type": "text",
+                    "text": (
+                        f"History step {relative_step:+d} ({status}), external/front camera:\n"
+                    ),
+                },
+                {"type": "image", "image": external_image},
+                {"type": "text", "text": "\nWrist camera:\n"},
+                {"type": "image", "image": wrist_image},
+                {"type": "text", "text": "\n\n"},
+            )
+        )
+    content.append({"type": "text", "text": f"Robot instruction:\n{instruction}"})
+    return [
+        {
+            "role": "system",
+            "content": [{"type": "text", "text": SYSTEM_PROMPT_V2}],
+        },
+        {"role": "user", "content": content},
+    ]
+
+
 def _as_numpy(value: Any) -> np.ndarray:
     if hasattr(value, "detach"):
         value = value.detach().cpu().numpy()
@@ -111,6 +182,13 @@ def _contiguous_run_lengths(positions: np.ndarray) -> tuple[int, ...]:
         return ()
     split_indices = np.flatnonzero(np.diff(positions) != 1) + 1
     return tuple(len(run) for run in np.split(positions, split_indices))
+
+
+def _contiguous_runs(positions: np.ndarray) -> tuple[np.ndarray, ...]:
+    if positions.size == 0:
+        return ()
+    split_indices = np.flatnonzero(np.diff(positions) != 1) + 1
+    return tuple(np.split(positions, split_indices))
 
 
 class QwenVLAProcessorAdapter:
@@ -236,11 +314,93 @@ class QwenVLAProcessorAdapter:
             context_lengths=context_lengths,
         )
 
+    def encode_history(
+        self,
+        rgb_external_history: Any,
+        rgb_wrist_history: Any,
+        history_valid: Any,
+        instruction: str,
+    ) -> ProcessedObservationBatch:
+        return self.encode_history_batch(
+            [rgb_external_history],
+            [rgb_wrist_history],
+            [history_valid],
+            [instruction],
+        )
+
+    def encode_history_batch(
+        self,
+        rgb_external_history: Sequence[Any],
+        rgb_wrist_history: Sequence[Any],
+        history_valid: Sequence[Any],
+        instructions: Sequence[str],
+    ) -> ProcessedObservationBatch:
+        batch_size = len(instructions)
+        if batch_size == 0:
+            raise ValueError("不能编码空 history batch")
+        if not (
+            len(rgb_external_history)
+            == len(rgb_wrist_history)
+            == len(history_valid)
+            == batch_size
+        ):
+            raise ValueError("双相机 history、valid 和 instruction batch size 必须相同")
+        conversations = []
+        resolved_valid: list[np.ndarray] = []
+        for external, wrist, valid, instruction in zip(
+            rgb_external_history,
+            rgb_wrist_history,
+            history_valid,
+            instructions,
+            strict=True,
+        ):
+            self._validate_instruction(instruction)
+            valid_array = np.asarray(valid)
+            conversations.append(
+                build_qwen_history_conversation(external, wrist, valid_array, instruction)
+            )
+            resolved_valid.append(valid_array.copy())
+        encoded = self.processor.apply_chat_template(
+            conversations,
+            tokenize=True,
+            add_generation_prompt=False,
+            return_dict=True,
+            return_tensors="pt",
+            processor_kwargs={"padding": True},
+        )
+        model_inputs = dict(encoded)
+        model_inputs["attention_mask"] = model_inputs["attention_mask"].bool()
+        image_time_indices = tuple(
+            time_index
+            for time_index in range(OBSERVATION_HISTORY_LENGTH)
+            for _camera_index in range(2)
+        )
+        visual_tokens = self._validate_encoded(
+            model_inputs,
+            batch_size,
+            images_per_sample=OBSERVATION_HISTORY_LENGTH * 2,
+            image_time_indices=image_time_indices,
+            history_valid=resolved_valid,
+        )
+        context_lengths = tuple(
+            int(value)
+            for value in _as_numpy(model_inputs["attention_mask"]).sum(axis=1).tolist()
+        )
+        return ProcessedObservationBatch(
+            model_inputs=model_inputs,
+            visual_tokens_per_image=visual_tokens,
+            context_lengths=context_lengths,
+        )
+
     def _validate_encoded(
         self,
         model_inputs: dict[str, Any],
         batch_size: int,
-    ) -> tuple[tuple[int, int], ...]:
+        *,
+        images_per_sample: int = 2,
+        image_time_indices: tuple[int, ...] | None = None,
+        history_valid: Sequence[np.ndarray] | None = None,
+    ) -> tuple[tuple[int, ...], ...]:
         required = {
             "input_ids",
             "attention_mask",
@@ -259,8 +419,15 @@ class QwenVLAProcessorAdapter:
             raise RuntimeError(f"input_ids 应为 [B,N]，实际为 {input_ids.shape}")
         if attention_mask.shape != input_ids.shape:
             raise RuntimeError("attention_mask shape 必须与 input_ids 相同")
-        if grids.shape != (batch_size * 2, 3):
-            raise RuntimeError(f"双图 image_grid_thw 应为 [{batch_size * 2},3]，实际为 {grids.shape}")
+        if grids.shape != (batch_size * images_per_sample, 3):
+            raise RuntimeError(
+                "image_grid_thw 应为 "
+                f"[{batch_size * images_per_sample},3]，实际为 {grids.shape}"
+            )
+        if image_time_indices is not None and len(image_time_indices) != images_per_sample:
+            raise RuntimeError("image_time_indices 数量必须与每样本图像数一致")
+        if (image_time_indices is None) != (history_valid is None):
+            raise RuntimeError("history time index 与 validity 必须同时提供")
 
         merge_area = self.config.merge_size**2
         flat_visual_tokens: list[int] = []
@@ -278,14 +445,47 @@ class QwenVLAProcessorAdapter:
             flat_visual_tokens.append(count)
 
         image_token_id = self.processor.tokenizer.convert_tokens_to_ids("<|image_pad|>")
-        per_sample: list[tuple[int, int]] = []
+        per_sample: list[tuple[int, ...]] = []
+        auxiliary_time = np.full(input_ids.shape, -1, dtype=np.int64)
+        context_valid = attention_mask.astype(np.bool_, copy=True)
         for batch_index in range(batch_size):
-            expected = tuple(flat_visual_tokens[batch_index * 2 : batch_index * 2 + 2])
+            start = batch_index * images_per_sample
+            expected = tuple(flat_visual_tokens[start : start + images_per_sample])
             positions = np.flatnonzero(input_ids[batch_index] == image_token_id)
-            actual_runs = _contiguous_run_lengths(positions)
+            runs = _contiguous_runs(positions)
+            actual_runs = tuple(len(run) for run in runs)
             if actual_runs != expected:
                 raise RuntimeError(
-                    f"样本 {batch_index} 的双图 token span 应为 {expected}，实际为 {actual_runs}"
+                    f"样本 {batch_index} 的图像 token span 应为 {expected}，实际为 {actual_runs}"
                 )
+            if image_time_indices is not None:
+                assert history_valid is not None
+                valid = np.asarray(history_valid[batch_index])
+                if valid.shape != (OBSERVATION_HISTORY_LENGTH,) or valid.dtype != np.bool_:
+                    raise RuntimeError("history_valid 必须是 bool [4]")
+                for run, time_index in zip(runs, image_time_indices, strict=True):
+                    auxiliary_time[batch_index, run] = time_index
+                    if not bool(valid[time_index]):
+                        context_valid[batch_index, run] = False
             per_sample.append(expected)
+        if image_time_indices is not None:
+            template = model_inputs["input_ids"]
+            if hasattr(template, "new_tensor"):
+                model_inputs[VLA_IMAGE_TIME_INDICES] = template.new_tensor(auxiliary_time)
+                valid_tensor = template.new_tensor(
+                    context_valid,
+                    dtype=getattr(model_inputs["attention_mask"], "dtype", None),
+                ).bool()
+                model_inputs[VLA_CONTEXT_VALID_MASK] = valid_tensor
+                # padding 图像仍占固定八图 layout，但不能作为 Qwen K/V 影响有效文本或图像。
+                model_inputs["attention_mask"] = (
+                    model_inputs["attention_mask"].bool() & valid_tensor
+                )
+            else:
+                model_inputs[VLA_IMAGE_TIME_INDICES] = auxiliary_time
+                model_inputs[VLA_CONTEXT_VALID_MASK] = context_valid
+                model_inputs["attention_mask"] = (
+                    np.asarray(model_inputs["attention_mask"], dtype=np.bool_)
+                    & context_valid
+                )
         return tuple(per_sample)

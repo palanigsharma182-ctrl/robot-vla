@@ -6,9 +6,17 @@ import pytest
 torch = pytest.importorskip("torch")
 from torch import nn
 
-from robot_vla.adapters import ProprioStats
-from robot_vla.contracts import MODEL_ARCH, QWEN_REVISION, RobotSpec
-from robot_vla.model.expert import ExpertConfig
+from robot_vla.adapters import FingerForceStats, ProprioStats
+from robot_vla.contracts import (
+    MODEL_ARCH,
+    MODEL_ARCH_OBSERVATION_V2,
+    OBSERVATION_V2_VERSION,
+    PROMPT_VERSION_OBSERVATION_V2,
+    QWEN_REVISION,
+    RobotSpec,
+)
+from robot_vla.model.expert import ExpertConfig, TemporalExpertConfig
+from robot_vla.model.policy import QwenVLAObservationV2Policy
 from robot_vla.model.qwen_processor import QwenProcessorConfig
 from robot_vla.training.checkpoint import (
     initialize_stage1_policy_checkpoint,
@@ -40,6 +48,32 @@ class CheckpointPolicy(nn.Module):
         return self
 
 
+class ObservationV2CheckpointExpert(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.config = TemporalExpertConfig(
+            hidden_size=32,
+            state_hidden_size=16,
+            num_layers=2,
+            intermediate_size=64,
+            num_attention_heads=4,
+            num_key_value_heads=2,
+            head_dim=8,
+        )
+        self.weight = nn.Parameter(torch.tensor([1.0]))
+
+
+class ObservationV2CheckpointPolicy(QwenVLAObservationV2Policy):
+    """只保留 checkpoint 所需结构，避免单测分配完整 Qwen Adapter。"""
+
+    def __init__(self) -> None:
+        nn.Module.__init__(self)
+        self.context_encoder = nn.Linear(1, 1, bias=False)
+        self.context_encoder.requires_grad_(False)
+        self.adapter = nn.Linear(1, 1, bias=False)
+        self.expert = ObservationV2CheckpointExpert()
+
+
 def _stats(spec: RobotSpec, *, first_mean: float = 0.0) -> ProprioStats:
     mean = [0.0] * spec.proprio_dim
     mean[0] = first_mean
@@ -49,6 +83,23 @@ def _stats(spec: RobotSpec, *, first_mean: float = 0.0) -> ProprioStats:
         count=100,
         embodiment=spec.embodiment,
     )
+
+
+def _finger_stats(
+    spec: RobotSpec,
+    *,
+    left_scale: float = 1.0,
+) -> FingerForceStats:
+    return FingerForceStats(
+        scale_log1p_p95=(left_scale, 2.0),
+        count=100,
+        positive_count=(50, 40),
+        embodiment=spec.embodiment,
+    )
+
+
+def _v2_processor_config() -> QwenProcessorConfig:
+    return QwenProcessorConfig(prompt_version=PROMPT_VERSION_OBSERVATION_V2)
 
 
 def test_checkpoint_round_trip_restores_trainable_state_and_all_rng(tmp_path) -> None:
@@ -104,6 +155,8 @@ def test_checkpoint_round_trip_restores_trainable_state_and_all_rng(tmp_path) ->
     )
 
     assert metadata["model_arch"] == MODEL_ARCH
+    assert "observation_schema" not in metadata
+    assert "finger_force_stats" not in metadata
     assert metadata["qwen"]["revision"] == QWEN_REVISION
     assert policy.adapter.weight.item() == pytest.approx(2.0)
     assert policy.expert.weight.item() == pytest.approx(3.0)
@@ -410,3 +463,158 @@ def test_legacy_final_layer_checkpoint_without_context_metadata_remains_loadable
         _stats(spec),
     )
     assert "qwen_context_hidden_state" not in metadata
+
+
+def test_observation_v2_checkpoint_round_trip_freezes_force_stats(tmp_path) -> None:
+    spec = RobotSpec()
+    processor_config = _v2_processor_config()
+    policy = ObservationV2CheckpointPolicy()
+    trainer = Stage1Trainer(
+        policy,
+        Stage1TrainingConfig(use_bf16=False),
+        "cpu",
+    )
+    force_stats = _finger_stats(spec)
+    with torch.no_grad():
+        policy.adapter.weight.fill_(2.0)
+        policy.expert.weight.fill_(3.0)
+
+    paths = save_stage1_checkpoint_set(
+        tmp_path,
+        policy,
+        trainer,
+        spec,
+        processor_config,
+        _stats(spec),
+        code_revision="source-digest-v2",
+        finger_force_stats=force_stats,
+    )
+    with torch.no_grad():
+        policy.adapter.weight.zero_()
+        policy.expert.weight.zero_()
+
+    metadata = load_stage1_checkpoint(
+        paths.latest,
+        policy,
+        trainer,
+        spec,
+        processor_config,
+        _stats(spec),
+        finger_force_stats=force_stats,
+    )
+
+    assert metadata["model_arch"] == MODEL_ARCH_OBSERVATION_V2
+    assert metadata["observation_schema"] == OBSERVATION_V2_VERSION
+    assert metadata["finger_force_stats"]["scale_log1p_p95"] == (1.0, 2.0)
+    assert policy.adapter.weight.item() == pytest.approx(2.0)
+    assert policy.expert.weight.item() == pytest.approx(3.0)
+
+
+def test_observation_v2_checkpoint_requires_force_stats(tmp_path) -> None:
+    spec = RobotSpec()
+    policy = ObservationV2CheckpointPolicy()
+    trainer = Stage1Trainer(
+        policy,
+        Stage1TrainingConfig(use_bf16=False),
+        "cpu",
+    )
+
+    with pytest.raises(ValueError, match="必须冻结 FingerForceStats"):
+        save_stage1_checkpoint_set(
+            tmp_path,
+            policy,
+            trainer,
+            spec,
+            _v2_processor_config(),
+            _stats(spec),
+            code_revision="source-digest-v2",
+        )
+
+
+def test_observation_v2_checkpoint_rejects_v1_processor_prompt(tmp_path) -> None:
+    spec = RobotSpec()
+    policy = ObservationV2CheckpointPolicy()
+    trainer = Stage1Trainer(
+        policy,
+        Stage1TrainingConfig(use_bf16=False),
+        "cpu",
+    )
+
+    with pytest.raises(ValueError, match="Processor prompt version"):
+        save_stage1_checkpoint_set(
+            tmp_path,
+            policy,
+            trainer,
+            spec,
+            QwenProcessorConfig(),
+            _stats(spec),
+            code_revision="source-digest-v2",
+            finger_force_stats=_finger_stats(spec),
+        )
+
+
+def test_observation_v2_checkpoint_rejects_force_stats_drift_before_weights(
+    tmp_path,
+) -> None:
+    spec = RobotSpec()
+    processor_config = _v2_processor_config()
+    policy = ObservationV2CheckpointPolicy()
+    trainer = Stage1Trainer(
+        policy,
+        Stage1TrainingConfig(use_bf16=False),
+        "cpu",
+    )
+    paths = save_stage1_checkpoint_set(
+        tmp_path,
+        policy,
+        trainer,
+        spec,
+        processor_config,
+        _stats(spec),
+        code_revision="source-digest-v2",
+        finger_force_stats=_finger_stats(spec),
+    )
+    with torch.no_grad():
+        policy.adapter.weight.fill_(9.0)
+
+    with pytest.raises(ValueError, match="finger_force_stats"):
+        load_stage1_policy_checkpoint(
+            paths.latest,
+            policy,
+            spec,
+            processor_config,
+            _stats(spec),
+            finger_force_stats=_finger_stats(spec, left_scale=1.5),
+        )
+
+    assert policy.adapter.weight.item() == pytest.approx(9.0)
+
+
+def test_observation_v2_checkpoint_load_rejects_missing_force_stats(tmp_path) -> None:
+    spec = RobotSpec()
+    processor_config = _v2_processor_config()
+    policy = ObservationV2CheckpointPolicy()
+    trainer = Stage1Trainer(
+        policy,
+        Stage1TrainingConfig(use_bf16=False),
+        "cpu",
+    )
+    paths = save_stage1_checkpoint_set(
+        tmp_path,
+        policy,
+        trainer,
+        spec,
+        processor_config,
+        _stats(spec),
+        code_revision="source-digest-v2",
+        finger_force_stats=_finger_stats(spec),
+    )
+
+    with pytest.raises(ValueError, match="必须提供 FingerForceStats"):
+        load_stage1_policy_checkpoint(
+            paths.latest,
+            policy,
+            spec,
+            processor_config,
+            _stats(spec),
+        )

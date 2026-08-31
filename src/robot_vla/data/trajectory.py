@@ -13,6 +13,8 @@ from typing import Any
 import numpy as np
 
 from robot_vla.contracts import (
+    FINGER_FORCE_SENSOR_VERSION,
+    OBSERVATION_V2_VERSION,
     TRAJECTORY_SCHEMA_VERSION,
     UNKNOWN_SKILL_ID,
     RobotSpec,
@@ -61,6 +63,25 @@ ACTION_SOURCE_EXPERT = 1
 LOCAL_DAGGER_ARRAYS = (
     "action_source",
     "expert_supervision_mask",
+)
+
+OBSERVATION_V2_ARRAYS = (
+    "timestamp_tcp_pose",
+    "timestamp_camera_pose",
+    "timestamp_finger_force",
+    "tcp_position_base_m",
+    "tcp_rotation_6d_base",
+    "wrist_camera_position_base_m",
+    "wrist_camera_rotation_6d_base",
+    "left_finger_force_n",
+    "right_finger_force_n",
+    "tcp_pose_valid",
+    "camera_pose_valid",
+    "finger_force_valid",
+    "previous_command_q_rad",
+    "previous_action",
+    "previous_command_valid",
+    "previous_action_valid",
 )
 
 
@@ -387,6 +408,22 @@ class TrajectoryArrays:
     applied_joint_correction_rad: np.ndarray | None = None
     action_source: np.ndarray | None = None
     expert_supervision_mask: np.ndarray | None = None
+    timestamp_tcp_pose: np.ndarray | None = None
+    timestamp_camera_pose: np.ndarray | None = None
+    timestamp_finger_force: np.ndarray | None = None
+    tcp_position_base_m: np.ndarray | None = None
+    tcp_rotation_6d_base: np.ndarray | None = None
+    wrist_camera_position_base_m: np.ndarray | None = None
+    wrist_camera_rotation_6d_base: np.ndarray | None = None
+    left_finger_force_n: np.ndarray | None = None
+    right_finger_force_n: np.ndarray | None = None
+    tcp_pose_valid: np.ndarray | None = None
+    camera_pose_valid: np.ndarray | None = None
+    finger_force_valid: np.ndarray | None = None
+    previous_command_q_rad: np.ndarray | None = None
+    previous_action: np.ndarray | None = None
+    previous_command_valid: np.ndarray | None = None
+    previous_action_valid: np.ndarray | None = None
 
     @property
     def num_steps(self) -> int:
@@ -411,6 +448,24 @@ class TrajectoryArrays:
         if any(present) and not all(present):
             raise ValueError("Local DAgger optional arrays 必须同时存在或同时缺失")
         return all(present)
+
+    @property
+    def observation_v2_available(self) -> bool:
+        present = [getattr(self, name) is not None for name in OBSERVATION_V2_ARRAYS]
+        if any(present) and not all(present):
+            raise ValueError("Observation V2 optional arrays 必须同时存在或同时缺失")
+        return all(present)
+
+    @property
+    def observation_v2_valid(self) -> np.ndarray:
+        if not self.observation_v2_available:
+            return np.zeros(self.num_steps, dtype=np.bool_)
+        return (
+            self.observation_valid
+            & self.tcp_pose_valid
+            & self.camera_pose_valid
+            & self.finger_force_valid
+        )
 
 
 def load_manifest(root: str | Path, *, split: str | None = None) -> list[TrajectoryMeta]:
@@ -484,6 +539,13 @@ def read_trajectory(root: str | Path, meta: TrajectoryMeta) -> TrajectoryArrays:
                     if name in npz
                 }
             )
+            values.update(
+                {
+                    name: np.asarray(npz[name]).copy()
+                    for name in OBSERVATION_V2_ARRAYS
+                    if name in npz
+                }
+            )
             arrays = TrajectoryArrays(**values)
     except (OSError, ValueError) as exc:
         raise ValueError(f"读取轨迹 {path} 失败: {exc}") from exc
@@ -551,6 +613,146 @@ def _validate_timestamps(arrays: TrajectoryArrays, spec: RobotSpec) -> None:
             raise ValueError(
                 f"timestamp_action 中位间隔 {median_dt:.6f}s 与契约 {expected_dt:.6f}s 偏差过大"
             )
+
+
+def _validate_observation_v2(
+    arrays: TrajectoryArrays,
+    meta: TrajectoryMeta,
+    spec: RobotSpec,
+) -> None:
+    available = arrays.observation_v2_available
+    declared = meta.randomization.get("observation_contract_version")
+    if not available:
+        if declared is not None:
+            raise ValueError("声明 Observation V2 的轨迹缺少 optional arrays")
+        return
+    if declared != OBSERVATION_V2_VERSION:
+        raise ValueError("Observation V2 contract version 缺失或不兼容")
+    if meta.randomization.get("finger_force_sensor_version") != FINGER_FORCE_SENSOR_VERSION:
+        raise ValueError("Observation V2 finger force sensor version 缺失或不兼容")
+    if not arrays.event_state_available:
+        raise ValueError("Observation V2 必须包含 event-state 以审计 Action 执行语义")
+
+    length = arrays.num_steps
+    for name in (
+        "timestamp_tcp_pose",
+        "timestamp_camera_pose",
+        "timestamp_finger_force",
+    ):
+        value = getattr(arrays, name)
+        _validate_array(value, (length,), np.float64, name)
+        if not np.isfinite(value).all():
+            raise ValueError(f"{name} 包含 NaN 或 Inf")
+        if length > 1 and np.any(np.diff(value) <= 0):
+            raise ValueError(f"{name} 必须严格递增")
+    for name, valid in (
+        ("timestamp_tcp_pose", arrays.tcp_pose_valid),
+        ("timestamp_camera_pose", arrays.camera_pose_valid),
+        ("timestamp_finger_force", arrays.finger_force_valid),
+    ):
+        delta = arrays.timestamp_action[valid] - getattr(arrays, name)[valid]
+        if np.any(delta < -1e-9):
+            raise ValueError(f"{name} 使用了晚于 action 的未来观测")
+        if np.any(delta > 1e-6):
+            raise ValueError(f"ManiSkill {name} 与 action 不在同一 Simulator Tick")
+
+    for name in (
+        "tcp_position_base_m",
+        "wrist_camera_position_base_m",
+    ):
+        value = getattr(arrays, name)
+        _validate_array(value, (length, 3), np.float32, name)
+        if not np.isfinite(value).all():
+            raise ValueError(f"{name} 包含 NaN 或 Inf")
+    for name in (
+        "tcp_rotation_6d_base",
+        "wrist_camera_rotation_6d_base",
+    ):
+        value = getattr(arrays, name)
+        _validate_array(value, (length, 6), np.float32, name)
+        if not np.isfinite(value).all():
+            raise ValueError(f"{name} 包含 NaN 或 Inf")
+        # 延迟 import，避免基础 trajectory schema 与模型模块形成依赖环。
+        from robot_vla.observation import rotation_6d_to_matrix
+
+        for index in np.flatnonzero(
+            arrays.tcp_pose_valid if name.startswith("tcp_") else arrays.camera_pose_valid
+        ):
+            try:
+                rotation_6d_to_matrix(value[index])
+            except ValueError as error:
+                raise ValueError(f"{name}[{index}] 不是有效 Rotation-6D") from error
+    for name in ("left_finger_force_n", "right_finger_force_n"):
+        value = getattr(arrays, name)
+        _validate_array(value, (length,), np.float32, name)
+        if not np.isfinite(value).all() or np.any(value < 0.0):
+            raise ValueError(f"{name} 必须是有限非负数")
+    for name in (
+        "tcp_pose_valid",
+        "camera_pose_valid",
+        "finger_force_valid",
+        "previous_command_valid",
+        "previous_action_valid",
+    ):
+        _validate_array(getattr(arrays, name), (length,), np.bool_, name)
+    _validate_array(
+        arrays.previous_command_q_rad,
+        (length, spec.arm_dof),
+        np.float32,
+        "previous_command_q_rad",
+    )
+    _validate_array(
+        arrays.previous_action,
+        (length, spec.action_dim),
+        np.float32,
+        "previous_action",
+    )
+    if not np.isfinite(arrays.previous_command_q_rad).all() or not np.isfinite(
+        arrays.previous_action
+    ).all():
+        raise ValueError("Observation V2 controller state 包含 NaN 或 Inf")
+    if not bool(arrays.previous_command_valid.all()):
+        raise ValueError("可信仿真轨迹的 previous_command_q 必须逐步有效")
+    expected_previous_action_valid = np.ones(length, dtype=np.bool_)
+    expected_previous_action_valid[0] = False
+    if not np.array_equal(arrays.previous_action_valid, expected_previous_action_valid):
+        raise ValueError("previous_action_valid 必须仅在 Episode 第一步为 False")
+    if not np.allclose(arrays.previous_action[0], 0.0, rtol=0.0, atol=0.0):
+        raise ValueError("Episode 第一步无 previous_action，数值 padding 必须为零")
+    if length > 1 and not np.allclose(
+        arrays.previous_action[1:],
+        arrays.action[:-1],
+        rtol=0.0,
+        atol=1e-7,
+    ):
+        raise ValueError("previous_action 与上一控制步 Action 不一致")
+    position_limits = np.asarray(spec.joint_position_limits_rad, dtype=np.float32)
+    commands = arrays.previous_command_q_rad[arrays.previous_command_valid]
+    if np.any(commands < position_limits[:, 0]) or np.any(commands > position_limits[:, 1]):
+        raise ValueError("previous_command_q_rad 超出 Franka 关节位置限制")
+    if arrays.event_state_available:
+        expected_target = (
+            arrays.previous_command_q_rad
+            + arrays.action[:, : spec.arm_dof]
+        )
+        if not np.allclose(
+            arrays.commanded_joint_target_rad,
+            expected_target,
+            rtol=0.0,
+            atol=1e-6,
+        ):
+            raise ValueError("Action 标签与 commanded target 执行语义不一致")
+        expected_aggregate = np.maximum(
+            arrays.left_finger_force_n,
+            arrays.right_finger_force_n,
+        )
+        if not np.allclose(
+            arrays.robot_object_contact_force_n,
+            expected_aggregate,
+            rtol=0.0,
+            atol=1e-6,
+        ):
+            raise ValueError("左右指力与旧 aggregate contact force 不一致")
 
 
 def validate_trajectory(arrays: TrajectoryArrays, meta: TrajectoryMeta, spec: RobotSpec) -> None:
@@ -622,6 +824,8 @@ def validate_trajectory(arrays: TrajectoryArrays, meta: TrajectoryMeta, spec: Ro
             raise ValueError("applied_joint_correction_rad 超出单步安全限制")
     elif meta.randomization.get("event_state_contract_version") is not None:
         raise ValueError("声明 event-state contract 的轨迹缺少 optional arrays")
+
+    _validate_observation_v2(arrays, meta, spec)
 
     local_dagger_available = arrays.local_dagger_available
     action_budget_protocol_present = (

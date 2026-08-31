@@ -16,14 +16,31 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, Subset
 
-from robot_vla.adapters import ProprioNormalizer, ProprioStats
-from robot_vla.contracts import PICK_AND_PLACE_SKILLS, RobotSpec
-from robot_vla.data.collator import QwenVLACollator
-from robot_vla.data.dataset import ActionChunkDataset, CompositeActionChunkDataset
+from robot_vla.adapters import (
+    FingerForceNormalizer,
+    FingerForceStats,
+    ProprioNormalizer,
+    ProprioStats,
+)
+from robot_vla.contracts import (
+    PICK_AND_PLACE_SKILLS,
+    PROMPT_VERSION,
+    PROMPT_VERSION_OBSERVATION_V2,
+    RobotSpec,
+)
+from robot_vla.data.collator import QwenVLACollator, QwenVLAObservationV2Collator
+from robot_vla.data.dataset import (
+    ActionChunkDataset,
+    CompositeActionChunkDataset,
+    ObservationV2ActionChunkDataset,
+)
 from robot_vla.data.sampler import TaskEpisodeBalancedSampler
 from robot_vla.data.trajectory import load_manifest
-from robot_vla.model.factory import load_qwen_vla_policy
-from robot_vla.model.qwen_processor import QwenVLAProcessorAdapter
+from robot_vla.model.factory import (
+    load_qwen_vla_observation_v2_policy,
+    load_qwen_vla_policy,
+)
+from robot_vla.model.qwen_processor import QwenProcessorConfig, QwenVLAProcessorAdapter
 from robot_vla.training.checkpoint import (
     initialize_stage1_policy_checkpoint,
     load_stage1_checkpoint,
@@ -48,6 +65,11 @@ def _parse_args() -> argparse.Namespace:
         help="只含 Local DAgger train trajectory 的已审计 additions 数据根",
     )
     parser.add_argument("--model-cache", type=Path, required=True)
+    parser.add_argument(
+        "--observation-v2",
+        action="store_true",
+        help="启用 TCP/相机位姿、四步双图、F_L/F_R 与 controller state；拒绝缺失字段的旧数据",
+    )
     parser.add_argument(
         "--qwen-context-layer",
         type=int,
@@ -363,19 +385,48 @@ def run(args: argparse.Namespace) -> None:
     stats = ProprioStats.from_json(stats_path)
     stats.validate(spec)
     normalizer = ProprioNormalizer(stats, spec)
+    finger_force_stats_path = stats_root / "finger_force_stats.json"
+    finger_force_stats = None
+    finger_force_normalizer = None
+    if args.observation_v2:
+        finger_force_stats = FingerForceStats.from_json(finger_force_stats_path)
+        finger_force_stats.validate(spec)
+        finger_force_normalizer = FingerForceNormalizer(finger_force_stats, spec)
     processor = QwenVLAProcessorAdapter.from_pretrained(
         cache_dir=str(args.model_cache),
         local_files_only=True,
+        config=QwenProcessorConfig(
+            prompt_version=(
+                PROMPT_VERSION_OBSERVATION_V2
+                if args.observation_v2
+                else PROMPT_VERSION
+            )
+        ),
     )
-    collator = QwenVLACollator(processor, spec)
+    collator = (
+        QwenVLAObservationV2Collator(processor, spec)
+        if args.observation_v2
+        else QwenVLACollator(processor, spec)
+    )
+    dataset_type = (
+        ObservationV2ActionChunkDataset
+        if args.observation_v2
+        else ActionChunkDataset
+    )
+    dataset_kwargs = (
+        {"finger_force_normalizer": finger_force_normalizer}
+        if finger_force_normalizer is not None
+        else {}
+    )
     train_entries = load_manifest(args.data, split="train")
     val_entries = load_manifest(args.data, split="val")
-    base_train_dataset = ActionChunkDataset(
+    base_train_dataset = dataset_type(
         str(args.data),
         train_entries,
         spec,
         normalizer,
         cache_size=len(train_entries),
+        **dataset_kwargs,
     )
     train_dataset: ActionChunkDataset | CompositeActionChunkDataset
     dagger_dataset_identity = None
@@ -385,23 +436,25 @@ def run(args: argparse.Namespace) -> None:
         dagger_entries = load_manifest(args.dagger_data, split="train")
         if any(entry.local_dagger is None for entry in dagger_entries):
             raise ValueError("--dagger-data 禁止包含 clean/base trajectory")
-        dagger_dataset = ActionChunkDataset(
+        dagger_dataset = dataset_type(
             str(args.dagger_data),
             dagger_entries,
             spec,
             normalizer,
             cache_size=len(dagger_entries),
+            **dataset_kwargs,
         )
         train_dataset = CompositeActionChunkDataset(
             (base_train_dataset, dagger_dataset)
         )
         dagger_dataset_identity = _load_audit_identity(args.dagger_data)
-    val_dataset = ActionChunkDataset(
+    val_dataset = dataset_type(
         str(args.data),
         val_entries,
         spec,
         normalizer,
         cache_size=len(val_entries),
+        **dataset_kwargs,
     )
 
     if args.overfit_samples > 0:
@@ -468,7 +521,12 @@ def run(args: argparse.Namespace) -> None:
         executed_action_steps=spec.execute_steps,
     )
 
-    policy = load_qwen_vla_policy(
+    policy_loader = (
+        load_qwen_vla_observation_v2_policy
+        if args.observation_v2
+        else load_qwen_vla_policy
+    )
+    policy = policy_loader(
         cache_dir=str(args.model_cache),
         local_files_only=True,
         device="cuda",
@@ -488,6 +546,7 @@ def run(args: argparse.Namespace) -> None:
             processor.config,
             stats,
             expected_code_revision=code_revision,
+            finger_force_stats=finger_force_stats,
         )
         initialization = {
             "mode": "resume",
@@ -504,6 +563,7 @@ def run(args: argparse.Namespace) -> None:
             spec,
             processor.config,
             stats,
+            finger_force_stats=finger_force_stats,
         )
         checkpoint_metadata = initialization_receipt["metadata"]
         if (
@@ -565,6 +625,15 @@ def run(args: argparse.Namespace) -> None:
             "sha256": _sha256_file(stats_path),
             "frozen_from_data": str(stats_root.resolve()),
         },
+        "finger_force_stats": (
+            {
+                "path": str(finger_force_stats_path.resolve()),
+                "sha256": _sha256_file(finger_force_stats_path),
+                "frozen_from_data": str(stats_root.resolve()),
+            }
+            if finger_force_stats is not None
+            else None
+        ),
         "initialization": initialization,
         "code_revision": code_revision,
         "trainable_parameters": trainable_parameters,
@@ -652,6 +721,7 @@ def run(args: argparse.Namespace) -> None:
                     stats,
                     code_revision=code_revision,
                     is_best=validation.improved,
+                    finger_force_stats=finger_force_stats,
                 )
         _append_metric(metrics_path, payload)
         if exposure_record is not None:

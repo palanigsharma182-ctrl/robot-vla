@@ -5,6 +5,9 @@ torch = pytest.importorskip("torch")
 from robot_vla.model.expert import (
     ExpertConfig,
     StandaloneActionExpert,
+    TemporalExpertConfig,
+    TemporalStandaloneActionExpert,
+    TemporalStateTokenEncoder,
     sinusoidal_time_embedding,
 )
 from robot_vla.model.qwen_context import QwenContext
@@ -90,3 +93,90 @@ def test_context_kv_cache_is_numerically_equivalent() -> None:
 
     assert len(context_kv) == config.num_layers // 2
     torch.testing.assert_close(cached, uncached)
+
+
+def _tiny_temporal_config() -> TemporalExpertConfig:
+    return TemporalExpertConfig(
+        action_dim=3,
+        action_horizon=4,
+        context_dim=32,
+        hidden_size=32,
+        state_hidden_size=16,
+        num_layers=4,
+        intermediate_size=64,
+        num_attention_heads=4,
+        num_key_value_heads=2,
+        head_dim=8,
+    )
+
+
+def test_temporal_state_encoder_masks_padding_and_keeps_explicit_time_tokens() -> None:
+    config = _tiny_temporal_config()
+    encoder = TemporalStateTokenEncoder(config)
+    with torch.no_grad():
+        for layer in (encoder.frame_projection[0], encoder.frame_projection[2]):
+            layer.weight.zero_()
+            layer.bias.zero_()
+        encoder.frame_type_embedding.zero_()
+        encoder.time_embedding.copy_(
+            torch.arange(config.history_length, dtype=torch.float32)
+            .view(1, config.history_length, 1)
+            .expand_as(encoder.time_embedding)
+        )
+    state = torch.zeros(2, config.history_length, config.frame_state_dim)
+    state_mask = torch.tensor(
+        ((False, False, True, True), (True, True, True, True)),
+        dtype=torch.bool,
+    )
+    controller = torch.zeros(2, config.controller_state_dim)
+
+    tokens, token_mask = encoder(state, state_mask, controller)
+
+    assert tokens.shape == (2, config.history_length + 1, config.hidden_size)
+    assert token_mask.shape == (2, config.history_length + 1)
+    assert torch.count_nonzero(tokens[0, :2]).item() == 0
+    torch.testing.assert_close(tokens[0, 2], torch.full((config.hidden_size,), 2.0))
+    torch.testing.assert_close(tokens[0, 3], torch.full((config.hidden_size,), 3.0))
+    assert token_mask[:, -1].all()
+
+
+def test_temporal_expert_outputs_masked_velocity_and_backpropagates() -> None:
+    config = _tiny_temporal_config()
+    expert = TemporalStandaloneActionExpert(config)
+    context = QwenContext(
+        tokens=torch.randn(2, 5, config.context_dim),
+        mask=torch.tensor(
+            ((True, True, True, False, False), (True, True, False, False, False)),
+            dtype=torch.bool,
+        ),
+    )
+    state = torch.randn(2, config.history_length, config.frame_state_dim)
+    state_mask = torch.tensor(
+        ((False, False, True, True), (True, True, True, True)),
+        dtype=torch.bool,
+    )
+    controller = torch.randn(2, config.controller_state_dim)
+    action = torch.randn(2, config.action_horizon, config.action_dim)
+    flow_time = torch.tensor((0.25, 0.75))
+    action_mask = torch.tensor(
+        ((True, True, False, False), (True, True, True, False)),
+        dtype=torch.bool,
+    )
+
+    velocity = expert(
+        context,
+        state,
+        action,
+        flow_time,
+        action_mask,
+        state_history_mask=state_mask,
+        controller_state=controller,
+    )
+    velocity.square().mean().backward()
+
+    assert velocity.shape == action.shape
+    assert velocity.dtype == torch.float32
+    assert torch.count_nonzero(velocity[~action_mask]).item() == 0
+    assert expert.state_encoder.frame_projection[0].weight.grad is not None
+    assert expert.state_encoder.controller_projection[0].weight.grad is not None
+    assert expert.velocity_head.weight.grad is not None

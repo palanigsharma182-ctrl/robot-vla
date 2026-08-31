@@ -22,6 +22,7 @@ from robot_vla.model.expert import StandaloneActionExpert
 from robot_vla.model.layers import FP32RMSNorm
 from robot_vla.model.policy import QwenVLAPolicy
 from robot_vla.model.qwen_context import QwenContext
+from robot_vla.observation import validate_se3
 from robot_vla.runtime.policy_runtime import (
     OnlineObservation,
     RuntimeActionChunk,
@@ -79,26 +80,47 @@ class FrankaTCPForwardKinematics:
         self.spec = spec
         self.urdf_path = path
         self.base_position_world_m = base
+        self.world_from_base = np.eye(4, dtype=np.float64)
+        self.world_from_base[:3, 3] = base
         self._model = PinocchioModel(xml, [0.0, 0.0, -9.81])
         self._model.set_joint_order(joint_order)
         self._model.set_link_order(link_order)
         self._tcp_link_index = link_order.index(FRANKA_TCP_LINK_NAME)
 
-    def __call__(self, arm_q_rad: np.ndarray) -> np.ndarray:
+    def _validated_arm_q(self, arm_q_rad: np.ndarray) -> np.ndarray:
         q = np.asarray(arm_q_rad, dtype=np.float64)
         if q.shape != (self.spec.arm_dof,) or not np.isfinite(q).all():
             raise ValueError(f"Franka arm_q 应为有限 [{self.spec.arm_dof}] rad")
+        return q
+
+    def pose_base(self, arm_q_rad: np.ndarray) -> np.ndarray:
+        """返回 ``base_from_tcp`` 完整 SE(3)，而不是只保留平移。"""
+
+        q = self._validated_arm_q(arm_q_rad)
         full_q = np.zeros(len(self.spec.active_joint_names), dtype=np.float64)
         full_q[: self.spec.arm_dof] = q
         self._model.compute_forward_kinematics(full_q)
-        tcp_base = np.asarray(
-            self._model.get_link_pose(self._tcp_link_index).p,
-            dtype=np.float64,
-        )
-        tcp_world = tcp_base + self.base_position_world_m
-        if tcp_world.shape != (3,) or not np.isfinite(tcp_world).all():
-            raise RuntimeError("Franka FK 返回了无效 TCP 世界坐标")
-        return tcp_world.astype(np.float32)
+        pose = self._model.get_link_pose(self._tcp_link_index)
+        if not hasattr(pose, "to_transformation_matrix"):
+            raise RuntimeError("SAPIEN Pinocchio link pose 缺少完整 SE(3) 接口")
+        base_from_tcp = np.asarray(pose.to_transformation_matrix(), dtype=np.float64)
+        if base_from_tcp.shape == (1, 4, 4):
+            base_from_tcp = base_from_tcp[0]
+        try:
+            return validate_se3(base_from_tcp, "base_from_tcp").astype(np.float32)
+        except ValueError as error:
+            raise RuntimeError("Franka FK 返回了无效 TCP base pose") from error
+
+    def pose_world(self, arm_q_rad: np.ndarray) -> np.ndarray:
+        """返回当前固定 robot base 对应的 ``world_from_tcp`` 完整 SE(3)。"""
+
+        world_from_tcp = self.world_from_base @ self.pose_base(arm_q_rad)
+        return validate_se3(world_from_tcp, "world_from_tcp").astype(np.float32)
+
+    def __call__(self, arm_q_rad: np.ndarray) -> np.ndarray:
+        """兼容 Oracle Reach 旧接口：仍只返回 TCP 世界位置。"""
+
+        return self.pose_world(arm_q_rad)[:3, 3].copy()
 
 
 def find_maniskill_panda_urdf() -> Path:

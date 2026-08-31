@@ -11,7 +11,11 @@ import numpy as np
 import torch
 from typing_extensions import Self
 
-from robot_vla.adapters import FrankaObservationAdapter, ProprioNormalizer
+from robot_vla.adapters import (
+    FingerForceNormalizer,
+    FrankaObservationAdapter,
+    ProprioNormalizer,
+)
 from robot_vla.contracts import PICK_AND_PLACE_SKILLS, RobotSpec
 from robot_vla.evaluation.atomic import AtomicSkillEpisodeResult, derive_atomic_sampling_seed
 from robot_vla.evaluation.rollout import (
@@ -25,9 +29,23 @@ from robot_vla.execution import (
     RecedingHorizonChunkExecutor,
     RTCConfig,
 )
-from robot_vla.model.policy import QwenVLAPolicy
+from robot_vla.model.policy import QwenVLAObservationV2Policy, QwenVLAPolicy
 from robot_vla.model.qwen_processor import QwenVLAProcessorAdapter
-from robot_vla.runtime import OnlineObservation, QwenVLAReplanLoop, QwenVLARuntime, RuntimeConfig
+from robot_vla.observation import (
+    OBSERVATION_MODALITIES,
+    ObservationV2Frame,
+    ObservationV2History,
+    invert_se3,
+    opengl_camera_to_opencv,
+    validate_se3,
+)
+from robot_vla.runtime import (
+    OnlineObservation,
+    QwenVLAObservationV2Runtime,
+    QwenVLAReplanLoop,
+    QwenVLARuntime,
+    RuntimeConfig,
+)
 from robot_vla.sim import PICK_CUBE_TO_REGION_ENV_ID, register_robot_vla_maniskill_envs
 from robot_vla.tasks.pick_place import (
     PickPlaceState,
@@ -100,6 +118,75 @@ def _read_online_observation(
     )
 
 
+def _single_transform_matrix(pose: Any, name: str) -> np.ndarray:
+    value = _numpy(pose.to_transformation_matrix())
+    if value.shape == (1, 4, 4):
+        value = value[0]
+    return validate_se3(value, name)
+
+
+def _read_observation_v2_frame(
+    observation: dict[str, Any],
+    base_env: Any,
+    observation_adapter: FrankaObservationAdapter,
+    spec: RobotSpec,
+    *,
+    control_step: int,
+) -> ObservationV2Frame:
+    """仿真 adapter：所有 modality 在同一 Simulator Tick 取样。"""
+
+    current = _read_online_observation(
+        observation,
+        base_env,
+        observation_adapter,
+        instruction="observation-v2-frame",
+    )
+    world_from_base = _single_transform_matrix(
+        base_env.agent.robot.pose,
+        "world_from_robot_base",
+    )
+    world_from_tcp = _single_transform_matrix(base_env.agent.tcp_pose, "world_from_tcp")
+    wrist_gl = _numpy(
+        observation["sensor_param"]["hand_camera"]["cam2world_gl"]
+    )
+    if wrist_gl.shape == (1, 4, 4):
+        wrist_gl = wrist_gl[0]
+    base_from_world = invert_se3(world_from_base, "world_from_robot_base")
+    base_from_tcp = validate_se3(base_from_world @ world_from_tcp, "base_from_tcp")
+    base_from_wrist = validate_se3(
+        base_from_world @ opengl_camera_to_opencv(wrist_gl),
+        "base_from_wrist_camera_cv",
+    )
+    scene = base_env.scene
+    left = _numpy(
+        scene.get_pairwise_contact_forces(base_env.agent.finger1_link, base_env.cube)
+    )[0]
+    right = _numpy(
+        scene.get_pairwise_contact_forces(base_env.agent.finger2_link, base_env.cube)
+    )[0]
+    # ManiSkill 没有真实应变片；这是 target-pairwise force-magnitude sensor approximation。
+    finger_force = np.asarray(
+        (float(np.linalg.norm(left)), float(np.linalg.norm(right))),
+        dtype=np.float32,
+    )
+    timestamp = control_step / spec.control_hz
+    return ObservationV2Frame(
+        rgb_external=current.rgb_external,
+        rgb_wrist=current.rgb_wrist,
+        physical_proprio=current.physical_proprio,
+        base_from_tcp=base_from_tcp.astype(np.float32),
+        base_from_wrist_camera=base_from_wrist.astype(np.float32),
+        finger_force_n=finger_force,
+        timestamp_s=timestamp,
+        modality_timestamp_s=np.full(
+            len(OBSERVATION_MODALITIES),
+            timestamp,
+            dtype=np.float64,
+        ),
+        modality_valid=np.ones(len(OBSERVATION_MODALITIES), dtype=np.bool_),
+    )
+
+
 def _reset_atomic_time_limit(env: Any) -> None:
     """只重置 Gymnasium TimeLimit 计数，不修改仿真物理状态。"""
 
@@ -133,11 +220,15 @@ class _TrackingManiSkillController(ManiSkillFrankaController):
         observation: dict[str, Any],
         tracker: PickPlaceTaskTracker,
         progress: PickPlaceTaskProgress,
+        observation_adapter: FrankaObservationAdapter,
+        *,
+        observation_v2_enabled: bool = False,
     ) -> None:
         super().__init__(env, spec)
         self.observation = observation
         self.tracker = tracker
         self.progress = progress
+        self.observation_adapter = observation_adapter
         self.environment_steps = 0
         self.environment_success = False
         self.terminated = False
@@ -149,6 +240,19 @@ class _TrackingManiSkillController(ManiSkillFrankaController):
             0 if index < progress.completed_skill_count else None
             for index in range(len(PICK_AND_PLACE_SKILLS))
         ]
+        self.observation_v2_history = (
+            ObservationV2History(spec) if observation_v2_enabled else None
+        )
+        if self.observation_v2_history is not None:
+            self.observation_v2_history.append(
+                _read_observation_v2_frame(
+                    observation,
+                    env.unwrapped,
+                    observation_adapter,
+                    spec,
+                    control_step=0,
+                )
+            )
 
     @property
     def done(self) -> bool:
@@ -164,6 +268,16 @@ class _TrackingManiSkillController(ManiSkillFrankaController):
         observation, _, terminated, truncated, info = self.last_step_output
         self.observation = observation
         self.environment_steps += 1
+        if self.observation_v2_history is not None:
+            self.observation_v2_history.append(
+                _read_observation_v2_frame(
+                    observation,
+                    self.env.unwrapped,
+                    self.observation_adapter,
+                    self.spec,
+                    control_step=self.environment_steps,
+                )
+            )
         previous_completed = self.progress.completed_skill_count
         predicate_state = _read_predicate_state(self.env.unwrapped)
         tcp_position = np.asarray(predicate_state.tcp_position, dtype=np.float64)
@@ -197,7 +311,16 @@ def run_maniskill_episode(
     observation, _ = env.reset(seed=episode.seed)
     tracker = PickPlaceTaskTracker()
     progress = tracker.update(_read_predicate_state(env.unwrapped))
-    controller = _TrackingManiSkillController(env, spec, observation, tracker, progress)
+    observation_adapter = FrankaObservationAdapter(spec)
+    controller = _TrackingManiSkillController(
+        env,
+        spec,
+        observation,
+        tracker,
+        progress,
+        observation_adapter,
+        observation_v2_enabled=isinstance(runtime, QwenVLAObservationV2Runtime),
+    )
     loop = QwenVLAReplanLoop(
         runtime,
         RecedingHorizonChunkExecutor(spec),
@@ -207,7 +330,6 @@ def run_maniskill_episode(
         rtc_config=rtc_config,
         max_anomaly_replans=max_anomaly_replans,
     )
-    observation_adapter = FrankaObservationAdapter(spec)
     # Anomaly 可能在执行满 4 步前触发安全重规划，最坏按每控制步一次 Replan 预留。
     max_replans = int(env._max_episode_steps) + 1
     replans = 0
@@ -232,12 +354,22 @@ def run_maniskill_episode(
     while not controller.done and replans < max_replans:
         replans += 1
         try:
-            online_observation = _read_online_observation(
-                controller.observation,
-                env.unwrapped,
-                observation_adapter,
-                episode.instruction,
-            )
+            if controller.observation_v2_history is None:
+                online_observation = _read_online_observation(
+                    controller.observation,
+                    env.unwrapped,
+                    observation_adapter,
+                    episode.instruction,
+                )
+            else:
+                command_reference = loop.executor.previous_command_q
+                if command_reference is None:
+                    command_reference = controller.read_state().joint_positions
+                online_observation = controller.observation_v2_history.snapshot(
+                    episode.instruction,
+                    previous_command_q=command_reference,
+                    previous_action=loop.executor.previous_action,
+                )
         except Exception as observation_error:  # noqa: BLE001 - 必须形成可审计 Episode
             failure_stage = "rollout"
             error = f"{type(observation_error).__name__}: {observation_error}"
@@ -476,12 +608,15 @@ def run_maniskill_atomic_episode(
         raise ValueError("原子评估前置技能数与目标技能不一致")
     _reset_atomic_time_limit(env)
     started = time.monotonic()
+    observation_adapter = FrankaObservationAdapter(spec)
     controller = _TrackingManiSkillController(
         env,
         spec,
         preparation.observation,
         preparation.tracker,
         preparation.progress,
+        observation_adapter,
+        observation_v2_enabled=isinstance(runtime, QwenVLAObservationV2Runtime),
     )
     loop = QwenVLAReplanLoop(
         runtime,
@@ -492,7 +627,6 @@ def run_maniskill_atomic_episode(
         rtc_config=rtc_config,
         max_anomaly_replans=max_anomaly_replans,
     )
-    observation_adapter = FrankaObservationAdapter(spec)
     replans = 0
     sampling_seeds: list[int] = []
     action_chunks = 0
@@ -516,12 +650,22 @@ def run_maniskill_atomic_episode(
         and controller.environment_steps < max_policy_steps
     ):
         replans += 1
-        online_observation = _read_online_observation(
-            controller.observation,
-            env.unwrapped,
-            observation_adapter,
-            instruction,
-        )
+        if controller.observation_v2_history is None:
+            online_observation = _read_online_observation(
+                controller.observation,
+                env.unwrapped,
+                observation_adapter,
+                instruction,
+            )
+        else:
+            command_reference = loop.executor.previous_command_q
+            if command_reference is None:
+                command_reference = controller.read_state().joint_positions
+            online_observation = controller.observation_v2_history.snapshot(
+                instruction,
+                previous_command_q=command_reference,
+                previous_action=loop.executor.previous_action,
+            )
         replan_control_step = loop.control_step
         result = loop.replan_and_execute(online_observation, controller)
         execution = result.execution
@@ -649,6 +793,7 @@ class ManiSkillPickPlaceEvaluator:
         proprio_normalizer: ProprioNormalizer,
         spec: RobotSpec,
         *,
+        finger_force_normalizer: FingerForceNormalizer | None = None,
         device: str | torch.device = "cuda",
         num_flow_steps: int = 10,
         sampling_seed: int = 42,
@@ -663,7 +808,12 @@ class ManiSkillPickPlaceEvaluator:
         self.policy = policy
         self.processor_adapter = processor_adapter
         self.proprio_normalizer = proprio_normalizer
+        self.finger_force_normalizer = finger_force_normalizer
         self.spec = spec
+        if isinstance(policy, QwenVLAObservationV2Policy) != (
+            finger_force_normalizer is not None
+        ):
+            raise ValueError("Observation V2 policy 与 FingerForceNormalizer 必须成对提供")
         self.device = torch.device(device)
         self.num_flow_steps = num_flow_steps
         self.sampling_seed = sampling_seed
@@ -691,18 +841,31 @@ class ManiSkillPickPlaceEvaluator:
 
     def evaluate(self, episode: RolloutEpisodeSpec) -> RolloutEpisodeResult:
         episode_sampling_seed = derive_episode_sampling_seed(self.sampling_seed, episode)
-        runtime = QwenVLARuntime(
-            self.policy,
-            self.processor_adapter,
-            self.proprio_normalizer,
-            self.spec,
-            self.device,
-            RuntimeConfig(
-                num_flow_steps=self.num_flow_steps,
-                use_bf16=self.device.type == "cuda",
-                sampling_seed=episode_sampling_seed,
-            ),
+        runtime_config = RuntimeConfig(
+            num_flow_steps=self.num_flow_steps,
+            use_bf16=self.device.type == "cuda",
+            sampling_seed=episode_sampling_seed,
         )
+        if isinstance(self.policy, QwenVLAObservationV2Policy):
+            assert self.finger_force_normalizer is not None
+            runtime = QwenVLAObservationV2Runtime(
+                self.policy,
+                self.processor_adapter,
+                self.proprio_normalizer,
+                self.finger_force_normalizer,
+                self.spec,
+                self.device,
+                runtime_config,
+            )
+        else:
+            runtime = QwenVLARuntime(
+                self.policy,
+                self.processor_adapter,
+                self.proprio_normalizer,
+                self.spec,
+                self.device,
+                runtime_config,
+            )
         return run_maniskill_episode(
             self.env,
             runtime,
@@ -725,6 +888,7 @@ class ManiSkillAtomicPickPlaceEvaluator:
         proprio_normalizer: ProprioNormalizer,
         spec: RobotSpec,
         *,
+        finger_force_normalizer: FingerForceNormalizer | None = None,
         device: str | torch.device = "cuda",
         num_flow_steps: int = 10,
         sampling_seed: int = 42,
@@ -739,7 +903,12 @@ class ManiSkillAtomicPickPlaceEvaluator:
         self.policy = policy
         self.processor_adapter = processor_adapter
         self.proprio_normalizer = proprio_normalizer
+        self.finger_force_normalizer = finger_force_normalizer
         self.spec = spec
+        if isinstance(policy, QwenVLAObservationV2Policy) != (
+            finger_force_normalizer is not None
+        ):
+            raise ValueError("Observation V2 policy 与 FingerForceNormalizer 必须成对提供")
         self.device = torch.device(device)
         self.num_flow_steps = num_flow_steps
         self.sampling_seed = sampling_seed
@@ -773,18 +942,31 @@ class ManiSkillAtomicPickPlaceEvaluator:
             seed,
             skill_name,
         )
-        runtime = QwenVLARuntime(
-            self.policy,
-            self.processor_adapter,
-            self.proprio_normalizer,
-            self.spec,
-            self.device,
-            RuntimeConfig(
-                num_flow_steps=self.num_flow_steps,
-                use_bf16=self.device.type == "cuda",
-                sampling_seed=episode_sampling_seed,
-            ),
+        runtime_config = RuntimeConfig(
+            num_flow_steps=self.num_flow_steps,
+            use_bf16=self.device.type == "cuda",
+            sampling_seed=episode_sampling_seed,
         )
+        if isinstance(self.policy, QwenVLAObservationV2Policy):
+            assert self.finger_force_normalizer is not None
+            runtime = QwenVLAObservationV2Runtime(
+                self.policy,
+                self.processor_adapter,
+                self.proprio_normalizer,
+                self.finger_force_normalizer,
+                self.spec,
+                self.device,
+                runtime_config,
+            )
+        else:
+            runtime = QwenVLARuntime(
+                self.policy,
+                self.processor_adapter,
+                self.proprio_normalizer,
+                self.spec,
+                self.device,
+                runtime_config,
+            )
         return run_maniskill_atomic_episode(
             self.preparer.env,
             runtime,

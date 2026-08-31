@@ -10,7 +10,11 @@ from typing import Any
 
 import numpy as np
 
-from robot_vla.contracts import RobotSpec
+from robot_vla.contracts import (
+    FINGER_FORCE_SENSOR_VERSION,
+    OBSERVATION_V2_VERSION,
+    RobotSpec,
+)
 from robot_vla.data.events import EVENT_STATE_CONTRACT_VERSION
 from robot_vla.data.trajectory import (
     ACTION_SOURCE_POLICY,
@@ -176,15 +180,32 @@ class _LocalDaggerPolicyController(ManiSkillFrankaController):
         self.collector.action_adapter.normalize(physical, strict=True)
 
         predicate_before = self.collector._read_predicate_state()
+        contact_forces = self.collector._read_contact_forces()
+        pose_reader = getattr(self.collector, "_read_observation_v2_poses", None)
+        if pose_reader is None:
+            # 仅供不构造真实 _EpisodeRecorder 的最小预算单测使用。
+            base_from_tcp = np.eye(4, dtype=np.float32)
+            base_from_wrist_camera = np.eye(4, dtype=np.float32)
+        else:
+            base_from_tcp, base_from_wrist_camera = pose_reader(self.session.observation)
+        finger_force_n = getattr(
+            self.collector,
+            "_last_finger_force_n",
+            np.zeros(2, dtype=np.float32),
+        )
         self.session.recorder.record_before_action(
             self.session.observation,
             physical,
             self.session.progress.active_skill_id,
             predicate_before,
-            *self.collector._read_contact_forces(),
+            *contact_forces,
             target_q,
             physical[: self.spec.arm_dof],
             action_source=ACTION_SOURCE_POLICY,
+            base_from_tcp=base_from_tcp,
+            base_from_wrist_camera=base_from_wrist_camera,
+            finger_force_n=np.asarray(finger_force_n, dtype=np.float32).copy(),
+            previous_command_q_rad=self.session.previous_command_q.copy(),
         )
         super().send_action(action)
         observation, _, terminated, truncated, info = self.last_step_output
@@ -839,6 +860,8 @@ class LocalDaggerPickPlaceCollector(TrustedPickPlaceCollector):
             "environment_id": PICK_CUBE_TO_REGION_ENV_ID,
             "control_mode": "pd_joint_delta_pos",
             "event_state_contract_version": EVENT_STATE_CONTRACT_VERSION,
+            "observation_contract_version": OBSERVATION_V2_VERSION,
+            "finger_force_sensor_version": FINGER_FORCE_SENSOR_VERSION,
             "cube_initial_position_m": cube_initial.tolist(),
             "goal_position_m": goal_position.tolist(),
             "collection_inference_strategy": "temporal-ensemble",

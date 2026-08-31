@@ -6,7 +6,12 @@ import pytest
 torch = pytest.importorskip("torch")
 from torch import nn
 
-from robot_vla.adapters import ProprioNormalizer, ProprioStats
+from robot_vla.adapters import (
+    FingerForceNormalizer,
+    FingerForceStats,
+    ProprioNormalizer,
+    ProprioStats,
+)
 from robot_vla.contracts import RobotSpec
 from robot_vla.execution.chunk_executor import (
     ChunkExecutionResult,
@@ -14,12 +19,24 @@ from robot_vla.execution.chunk_executor import (
     RecedingHorizonChunkExecutor,
 )
 from robot_vla.execution.rtc import RTCConfig
-from robot_vla.model.expert import ExpertConfig, StandaloneActionExpert
-from robot_vla.model.policy import QwenVLAPolicy
-from robot_vla.model.qwen_context import FrozenQwenContextEncoder
+from robot_vla.model.expert import (
+    ExpertConfig,
+    StandaloneActionExpert,
+    TemporalExpertConfig,
+    TemporalStandaloneActionExpert,
+)
+from robot_vla.model.policy import QwenVLAObservationV2Policy, QwenVLAPolicy
+from robot_vla.model.qwen_context import FrozenQwenContextEncoder, QwenVLAAdapter
+from robot_vla.model.qwen_processor import VLA_CONTEXT_VALID_MASK, VLA_IMAGE_TIME_INDICES
+from robot_vla.observation import (
+    OBSERVATION_MODALITIES,
+    ObservationV2Frame,
+    ObservationV2History,
+)
 from robot_vla.runtime.control_loop import QwenVLAReplanLoop
 from robot_vla.runtime.policy_runtime import (
     OnlineObservation,
+    QwenVLAObservationV2Runtime,
     QwenVLARuntime,
     RuntimeActionChunk,
     RuntimeConfig,
@@ -61,6 +78,41 @@ class FakeProcessorAdapter:
                 "image_grid_thw": torch.ones(2, 3, dtype=torch.long),
             },
             visual_tokens_per_image=((4, 3),),
+            context_lengths=(4,),
+        )
+
+
+class FakeHistoryProcessorAdapter:
+    def __init__(self) -> None:
+        self.calls = 0
+        self.last_history_valid = None
+
+    def encode_history(
+        self,
+        rgb_external_history,
+        rgb_wrist_history,
+        history_valid,
+        instruction,
+    ):
+        self.calls += 1
+        assert rgb_external_history.shape == (4, 8, 10, 3)
+        assert rgb_wrist_history.shape == (4, 6, 6, 3)
+        assert instruction == "pick the cube"
+        self.last_history_valid = np.asarray(history_valid).copy()
+        return SimpleNamespace(
+            model_inputs={
+                "input_ids": torch.tensor([[1, 2, 3, 4]], dtype=torch.long),
+                "attention_mask": torch.ones(1, 4, dtype=torch.bool),
+                "mm_token_type_ids": torch.zeros(1, 4, dtype=torch.long),
+                "pixel_values": torch.zeros(8, 1536),
+                "image_grid_thw": torch.ones(8, 3, dtype=torch.long),
+                VLA_IMAGE_TIME_INDICES: torch.tensor(
+                    [[0, 1, 2, 3]],
+                    dtype=torch.long,
+                ),
+                VLA_CONTEXT_VALID_MASK: torch.ones(1, 4, dtype=torch.bool),
+            },
+            visual_tokens_per_image=((1,) * 8,),
             context_lengths=(4,),
         )
 
@@ -138,6 +190,85 @@ def _policy() -> tuple[QwenVLAPolicy, FakeQwen]:
     return QwenVLAPolicy(FrozenQwenContextEncoder(qwen), expert), qwen
 
 
+class RecordingObservationV2Policy(QwenVLAObservationV2Policy):
+    def __init__(self, qwen: FakeQwen) -> None:
+        config = TemporalExpertConfig(
+            hidden_size=32,
+            state_hidden_size=16,
+            num_layers=2,
+            intermediate_size=64,
+            num_attention_heads=4,
+            num_key_value_heads=2,
+            head_dim=8,
+        )
+        super().__init__(
+            FrozenQwenContextEncoder(qwen),
+            TemporalStandaloneActionExpert(config),
+            QwenVLAAdapter(history_length=4),
+        )
+        self.last_state_history = None
+        self.last_state_history_mask = None
+        self.last_controller_state = None
+
+    def _record_temporal_inputs(
+        self,
+        state_history,
+        state_history_mask,
+        controller_state,
+    ) -> None:
+        self.last_state_history = state_history.detach().cpu().clone()
+        self.last_state_history_mask = state_history_mask.detach().cpu().clone()
+        self.last_controller_state = controller_state.detach().cpu().clone()
+
+    def sample_actions(
+        self,
+        model_inputs,
+        state_history,
+        *,
+        state_history_mask,
+        controller_state,
+        **kwargs,
+    ):
+        self._record_temporal_inputs(
+            state_history,
+            state_history_mask,
+            controller_state,
+        )
+        return super().sample_actions(
+            model_inputs,
+            state_history,
+            state_history_mask=state_history_mask,
+            controller_state=controller_state,
+            **kwargs,
+        )
+
+    def sample_actions_rtc(
+        self,
+        model_inputs,
+        state_history,
+        previous_action_target,
+        slot_weights,
+        *,
+        state_history_mask,
+        controller_state,
+        **kwargs,
+    ):
+        self._record_temporal_inputs(
+            state_history,
+            state_history_mask,
+            controller_state,
+        )
+        return super().sample_actions_rtc(
+            model_inputs,
+            state_history,
+            previous_action_target,
+            slot_weights,
+            state_history_mask=state_history_mask,
+            controller_state=controller_state,
+            **kwargs,
+        )
+
+
 def _normalizer(spec: RobotSpec) -> ProprioNormalizer:
     return ProprioNormalizer(
         ProprioStats(
@@ -148,6 +279,83 @@ def _normalizer(spec: RobotSpec) -> ProprioNormalizer:
         ),
         spec,
     )
+
+
+def _force_normalizer(spec: RobotSpec) -> FingerForceNormalizer:
+    return FingerForceNormalizer(
+        FingerForceStats(
+            scale_log1p_p95=(1.0, 2.0),
+            count=100,
+            positive_count=(50, 40),
+            embodiment=spec.embodiment,
+        ),
+        spec,
+    )
+
+
+def _base_from_pose(x: float, y: float, z: float) -> np.ndarray:
+    pose = np.eye(4, dtype=np.float32)
+    pose[:3, 3] = (x, y, z)
+    return pose
+
+
+def _observation_v2(spec: RobotSpec):
+    history = ObservationV2History(spec)
+    base_q = np.asarray(
+        (0.0, -0.5, 0.0, -1.5, 0.0, 1.5, 0.0),
+        dtype=np.float32,
+    )
+    for step in range(4):
+        proprio = np.zeros(spec.proprio_dim, dtype=np.float32)
+        proprio[: spec.arm_dof] = base_q + np.float32(step * 0.001)
+        proprio[-1] = 0.5
+        timestamp = step / spec.control_hz
+        history.append(
+            ObservationV2Frame(
+                rgb_external=np.full((8, 10, 3), step, dtype=np.uint8),
+                rgb_wrist=np.full((6, 6, 3), step + 10, dtype=np.uint8),
+                physical_proprio=proprio,
+                base_from_tcp=_base_from_pose(0.4 + step * 0.001, 0.0, 0.3),
+                base_from_wrist_camera=_base_from_pose(0.2, 0.0, 0.5),
+                finger_force_n=np.asarray((step + 1.0, step + 2.0), dtype=np.float32),
+                timestamp_s=timestamp,
+                modality_timestamp_s=np.full(
+                    len(OBSERVATION_MODALITIES),
+                    timestamp,
+                    dtype=np.float64,
+                ),
+                modality_valid=np.ones(
+                    len(OBSERVATION_MODALITIES),
+                    dtype=np.bool_,
+                ),
+            )
+        )
+    previous_command = base_q + np.float32(0.005)
+    previous_action = np.asarray((0.001,) * spec.arm_dof + (0.5,), dtype=np.float32)
+    return history.snapshot(
+        "pick the cube",
+        previous_command_q=previous_command,
+        previous_action=previous_action,
+    )
+
+
+def _runtime_v2(seed: int = 123):
+    spec = RobotSpec()
+    torch.manual_seed(77)
+    qwen = FakeQwen()
+    policy = RecordingObservationV2Policy(qwen)
+    processor = FakeHistoryProcessorAdapter()
+    force_normalizer = _force_normalizer(spec)
+    runtime = QwenVLAObservationV2Runtime(
+        policy,
+        processor,
+        _normalizer(spec),
+        force_normalizer,
+        spec,
+        "cpu",
+        RuntimeConfig(num_flow_steps=2, use_bf16=False, sampling_seed=seed),
+    )
+    return runtime, policy, qwen, processor, force_normalizer
 
 
 def _observation(spec: RobotSpec) -> OnlineObservation:
@@ -379,3 +587,57 @@ def test_rtc_anomaly_clears_previous_reference() -> None:
     loop.replan_and_execute(_observation(spec), controller)
 
     assert runtime.calls[1]["rtc_previous_overlap"] is None
+
+
+def test_observation_v2_runtime_uses_shared_force_transform_and_runs_qwen_once() -> None:
+    spec = RobotSpec()
+    runtime, policy, qwen, processor, force_normalizer = _runtime_v2()
+    observation = _observation_v2(spec)
+
+    chunk = runtime.infer_action_chunk(observation)
+
+    assert qwen.model.calls == 1
+    assert processor.calls == 1
+    np.testing.assert_array_equal(processor.last_history_valid, np.ones(4, dtype=np.bool_))
+    assert chunk.normalized_action.shape == (spec.action_horizon, spec.action_dim)
+    assert policy.last_state_history is not None
+    captured = policy.last_state_history[0].numpy()
+    normalized_proprio = runtime.proprio_normalizer.normalize(
+        observation.physical_proprio
+    )
+    normalized_force = force_normalizer.normalize(observation.finger_force_n)
+    expected = observation.frame_state(normalized_proprio, normalized_force)
+    np.testing.assert_allclose(captured, expected, atol=1e-6)
+
+
+def test_observation_v2_runtime_rtc_runs_qwen_once() -> None:
+    spec = RobotSpec()
+    runtime, _policy, qwen, _processor, _force_normalizer = _runtime_v2(seed=321)
+    overlap = np.zeros(
+        (spec.action_horizon - spec.execute_steps, spec.action_dim),
+        dtype=np.float32,
+    )
+
+    chunk = runtime.infer_action_chunk(
+        _observation_v2(spec),
+        rtc_previous_overlap=overlap,
+        rtc_config=RTCConfig(),
+    )
+
+    assert qwen.model.calls == 1
+    assert chunk.rtc_trace is not None
+    assert chunk.rtc_trace.previous_chunk_available is True
+
+
+def test_observation_v2_runtime_rejects_incomplete_current_state_before_qwen() -> None:
+    spec = RobotSpec()
+    runtime, _policy, qwen, processor, _force_normalizer = _runtime_v2()
+    observation = _observation_v2(spec)
+    observation.modality_valid[-1, 5] = False
+    observation.finger_force_n[-1] = 0.0
+
+    with pytest.raises(ValueError, match="当前控制步必须六模态完整有效"):
+        runtime.infer_action_chunk(observation)
+
+    assert qwen.model.calls == 0
+    assert processor.calls == 0

@@ -33,6 +33,11 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--data", type=Path, required=True)
     parser.add_argument("--model-cache", type=Path, required=True)
     parser.add_argument(
+        "--observation-v2",
+        action="store_true",
+        help="使用四步图像/TCP/相机/F_L/F_R/controller state checkpoint",
+    )
+    parser.add_argument(
         "--qwen-context-layer", type=int, choices=(12, 24), default=24
     )
     parser.add_argument("--checkpoint", type=Path, required=True)
@@ -188,11 +193,26 @@ def _read_existing_results(path: Path) -> list[RolloutEpisodeResult]:
 def run(args: argparse.Namespace) -> None:
     import torch
 
-    from robot_vla.adapters import ProprioNormalizer, ProprioStats
+    from robot_vla.adapters import (
+        FingerForceNormalizer,
+        FingerForceStats,
+        ProprioNormalizer,
+        ProprioStats,
+    )
     from robot_vla.cli.train_stage1 import compute_source_revision
-    from robot_vla.contracts import RobotSpec
-    from robot_vla.model.factory import load_qwen_vla_policy
-    from robot_vla.model.qwen_processor import QwenVLAProcessorAdapter
+    from robot_vla.contracts import (
+        PROMPT_VERSION,
+        PROMPT_VERSION_OBSERVATION_V2,
+        RobotSpec,
+    )
+    from robot_vla.model.factory import (
+        load_qwen_vla_observation_v2_policy,
+        load_qwen_vla_policy,
+    )
+    from robot_vla.model.qwen_processor import (
+        QwenProcessorConfig,
+        QwenVLAProcessorAdapter,
+    )
     from robot_vla.training.checkpoint import load_stage1_policy_checkpoint
 
     strategy = resolve_inference_strategy(
@@ -224,11 +244,30 @@ def run(args: argparse.Namespace) -> None:
     spec = RobotSpec()
     stats = ProprioStats.from_json(args.data / "proprio_stats.json")
     stats.validate(spec)
+    finger_force_stats_path = args.data / "finger_force_stats.json"
+    finger_force_stats = None
+    finger_force_normalizer = None
+    if args.observation_v2:
+        finger_force_stats = FingerForceStats.from_json(finger_force_stats_path)
+        finger_force_stats.validate(spec)
+        finger_force_normalizer = FingerForceNormalizer(finger_force_stats, spec)
     processor = QwenVLAProcessorAdapter.from_pretrained(
         cache_dir=str(args.model_cache),
         local_files_only=True,
+        config=QwenProcessorConfig(
+            prompt_version=(
+                PROMPT_VERSION_OBSERVATION_V2
+                if args.observation_v2
+                else PROMPT_VERSION
+            )
+        ),
     )
-    policy = load_qwen_vla_policy(
+    policy_loader = (
+        load_qwen_vla_observation_v2_policy
+        if args.observation_v2
+        else load_qwen_vla_policy
+    )
+    policy = policy_loader(
         cache_dir=str(args.model_cache),
         local_files_only=True,
         device="cuda",
@@ -240,12 +279,21 @@ def run(args: argparse.Namespace) -> None:
         spec,
         processor.config,
         stats,
+        finger_force_stats=finger_force_stats,
     )
     project_root = Path(__file__).resolve().parents[3]
     experiment = {
         "format": EVALUATION_EXPERIMENT_FORMAT,
         "rollout_format": ROLLOUT_FORMAT,
         "dataset": _load_audit_identity(args.data),
+        "finger_force_stats": (
+            {
+                "sha256": _sha256_file(finger_force_stats_path),
+                "metadata": asdict(finger_force_stats),
+            }
+            if finger_force_stats is not None
+            else None
+        ),
         "checkpoint": {
             "sha256": _sha256_file(args.checkpoint),
             "size_bytes": args.checkpoint.stat().st_size,
@@ -267,6 +315,7 @@ def run(args: argparse.Namespace) -> None:
             "rtc_schedule": rtc_config.schedule,
             "max_anomaly_replans": args.max_anomaly_replans,
             "qwen_context_layer": args.qwen_context_layer,
+            "observation_v2": args.observation_v2,
         },
         "episodes": [asdict(episode) for episode in specs],
     }
@@ -302,6 +351,7 @@ def run(args: argparse.Namespace) -> None:
         processor,
         normalizer,
         spec,
+        finger_force_normalizer=finger_force_normalizer,
         num_flow_steps=args.num_flow_steps,
         sampling_seed=args.sampling_seed,
         inference_strategy=strategy,

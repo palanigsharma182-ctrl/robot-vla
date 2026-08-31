@@ -86,6 +86,56 @@ class RandomToyPolicy(ToyPolicy):
         )
 
 
+class TemporalToyExpert(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.config = SimpleNamespace(
+            action_dim=1,
+            history_length=4,
+            frame_state_dim=2,
+            controller_state_dim=3,
+        )
+
+
+class TemporalToyPolicy(ToyPolicy):
+    def __init__(self) -> None:
+        super().__init__()
+        self.expert = TemporalToyExpert()
+
+    def flow_matching_loss(
+        self,
+        _model_inputs,
+        state_history,
+        normalized_action,
+        action_mask,
+        *,
+        state_history_mask,
+        controller_state,
+        event_mask=None,
+        event_loss_weight=0.0,
+        executed_action_steps=4,
+        generator=None,
+    ):
+        del (
+            controller_state,
+            event_mask,
+            event_loss_weight,
+            executed_action_steps,
+            generator,
+        )
+        assert state_history_mask[:, -1].all()
+        prediction = self.adapter(state_history[:, -1, :1]).view(-1, 1, 1)
+        target = normalized_action[..., :1]
+        loss = ((prediction - target).square() * action_mask.unsqueeze(-1)).sum()
+        loss = loss / action_mask.sum()
+        return SimpleNamespace(
+            loss=loss,
+            base_loss=loss,
+            event_loss=loss * 0.0,
+            critical_mask=torch.zeros_like(action_mask),
+        )
+
+
 def _toy_batch(target: float) -> dict:
     return {
         "qwen_inputs": {"input_ids": torch.ones(1, 1, dtype=torch.long)},
@@ -96,6 +146,18 @@ def _toy_batch(target: float) -> dict:
         "event_mask": torch.zeros(1, 1, dtype=torch.bool),
         "trajectory_id": ["episode"],
     }
+
+
+def _temporal_toy_batch(target: float) -> dict:
+    batch = _toy_batch(target)
+    batch.update(
+        {
+            "state_history": torch.ones(1, 4, 2),
+            "state_history_mask": torch.ones(1, 4, dtype=torch.bool),
+            "controller_state": torch.zeros(1, 3),
+        }
+    )
+    return batch
 
 
 def test_default_learning_rate_schedule_has_fixed_warmup_and_decay_boundaries() -> None:
@@ -186,6 +248,41 @@ def test_partial_accumulation_group_is_normalized_by_its_actual_size() -> None:
     assert trainer.state.optimizer_steps == 2
     assert trainer.scheduler.completed_steps == 2
     assert policy.context_encoder.training is False
+
+
+def test_temporal_training_uses_v2_state_and_rejects_v1_v2_mismatch() -> None:
+    policy = TemporalToyPolicy()
+    config = Stage1TrainingConfig(
+        learning_rate=0.1,
+        decay_learning_rate=0.1,
+        weight_decay=0.0,
+        max_grad_norm=100.0,
+        warmup_steps=1,
+        cosine_decay_steps=10,
+        use_bf16=False,
+        executed_action_steps=1,
+    )
+    optimizer = torch.optim.SGD(policy.adapter.parameters(), lr=config.learning_rate)
+    trainer = Stage1Trainer(policy, config, "cpu", optimizer=optimizer)
+
+    metrics = trainer.train_epoch([_temporal_toy_batch(1.0)])
+
+    assert metrics.optimizer_steps == 1
+    assert policy.adapter.weight.item() == pytest.approx(0.2)
+    with pytest.raises(ValueError, match="Observation V1/V2 契约不一致"):
+        trainer.train_epoch([_toy_batch(1.0)])
+
+
+def test_v1_policy_rejects_temporal_batch_before_forward() -> None:
+    policy = ToyPolicy()
+    trainer = Stage1Trainer(
+        policy,
+        Stage1TrainingConfig(use_bf16=False, executed_action_steps=1),
+        "cpu",
+    )
+
+    with pytest.raises(ValueError, match="Observation V1/V2 契约不一致"):
+        trainer.train_epoch([_temporal_toy_batch(1.0)])
 
 
 def test_optimizer_rejects_parameters_outside_stage1_boundary() -> None:

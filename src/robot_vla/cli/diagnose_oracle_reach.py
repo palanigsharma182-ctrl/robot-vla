@@ -58,6 +58,7 @@ from robot_vla.diagnostics.qwen_layer_reach import (
 from robot_vla.model.expert import ExpertConfig, StandaloneActionExpert
 from robot_vla.model.policy import QwenVLAPolicy
 from robot_vla.model.qwen_context import FrozenQwenContextEncoder, QwenVLAAdapter
+from robot_vla.observation import validate_se3
 from robot_vla.training.stage1 import Stage1Trainer, Stage1TrainingConfig
 
 
@@ -123,6 +124,7 @@ def _parse_args() -> argparse.Namespace:
     check.add_argument("--seed-start", type=int, default=10_000)
     check.add_argument("--episodes", type=int, default=5)
     check.add_argument("--max-error-m", type=float, default=1e-5)
+    check.add_argument("--max-orientation-error-rad", type=float, default=1e-5)
 
     compare = subparsers.add_parser("compare", help="验证 A/B 身份并生成最终判断")
     compare.add_argument("--control-train", type=Path, required=True)
@@ -755,6 +757,8 @@ def _run_fk_check(args: argparse.Namespace) -> None:
         or args.episodes <= 0
         or not math.isfinite(args.max_error_m)
         or args.max_error_m <= 0
+        or not math.isfinite(args.max_orientation_error_rad)
+        or args.max_orientation_error_rad <= 0
     ):
         raise ValueError("FK check 参数无效")
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -778,33 +782,54 @@ def _run_fk_check(args: argparse.Namespace) -> None:
             env.reset(seed=seed)
             base = env.unwrapped
             q = base.agent.robot.get_qpos()[0].detach().cpu().numpy()[: spec.arm_dof]
-            predicted = fk(q)
-            actual = base.agent.tcp_pose.p[0].detach().cpu().numpy()
-            error_m = float(np.linalg.norm(predicted.astype(np.float64) - actual))
+            predicted_pose = fk.pose_world(q).astype(np.float64)
+            actual_pose = (
+                base.agent.tcp_pose.to_transformation_matrix()[0]
+                .detach()
+                .cpu()
+                .numpy()
+                .astype(np.float64)
+            )
+            validate_se3(actual_pose, "sim_world_from_tcp")
+            position_error_m = float(
+                np.linalg.norm(predicted_pose[:3, 3] - actual_pose[:3, 3])
+            )
+            relative_rotation = predicted_pose[:3, :3].T @ actual_pose[:3, :3]
+            cosine = float(np.clip((np.trace(relative_rotation) - 1.0) * 0.5, -1.0, 1.0))
+            orientation_error_rad = float(math.acos(cosine))
             rows.append(
                 {
                     "seed": seed,
-                    "fk_tcp_position_world_m": predicted.tolist(),
-                    "sim_tcp_position_world_m": actual.tolist(),
-                    "error_m": error_m,
+                    "fk_tcp_pose_world": predicted_pose.tolist(),
+                    "sim_tcp_pose_world": actual_pose.tolist(),
+                    "position_error_m": position_error_m,
+                    "orientation_error_rad": orientation_error_rad,
                 }
             )
     finally:
         env.close()
-    maximum = max(row["error_m"] for row in rows)
+    maximum_position = max(row["position_error_m"] for row in rows)
+    maximum_orientation = max(row["orientation_error_rad"] for row in rows)
     result = {
-        "complete": maximum <= args.max_error_m,
+        "complete": (
+            maximum_position <= args.max_error_m
+            and maximum_orientation <= args.max_orientation_error_rad
+        ),
         "urdf": str(urdf),
         "tcp_link": "panda_hand_tcp",
         "threshold_m": args.max_error_m,
-        "max_error_m": maximum,
+        "orientation_threshold_rad": args.max_orientation_error_rad,
+        "max_position_error_m": maximum_position,
+        "max_orientation_error_rad": maximum_orientation,
         "episodes": rows,
     }
     _atomic_write_json(args.output, result)
     print(json.dumps(result, sort_keys=True), flush=True)
     if not result["complete"]:
         raise RuntimeError(
-            f"Franka FK 与仿真 TCP 最大误差 {maximum:.9g} m 超过阈值"
+            "Franka FK 与仿真 TCP pose 超出阈值："
+            f"position={maximum_position:.9g} m, "
+            f"orientation={maximum_orientation:.9g} rad"
         )
 
 
