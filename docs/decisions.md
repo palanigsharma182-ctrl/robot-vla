@@ -1309,6 +1309,47 @@ technical report 已生成。Stage A/repeat 2/Stage B/matched-state selected-pai
 
 **Status:** active
 
+## D028 — 最小可部署状态使用显式 Observation V2，Action 以 commanded target 为唯一标签语义
+
+**Decision:**
+
+保留 Expert 历史标签 `a_t = r_t - r_(t-1)`，其中 `r` 是 commanded joint target。Runtime 不再在每次
+Replan 时从 actual `q_t` 重新解释 Action；它跨 Replan 保存最后一次成功 command reference，先积分标签得到
+新 target，再以 `target - actual` 计算 controller correction。reset、hold、failure、tracking saturation 和
+anomaly 清空 reference。
+
+新建 `robot-vla-observation/v2` / `qwen_vla_temporal_state_fusion_v2`，固定输入为最近四个连续控制步的
+双相机图像、proprio、base-frame TCP pose、OpenCV optical wrist-camera pose、左右 finger–cube pairwise
+contact-force magnitude、时间/validity，以及 current controller state。Episode 起点使用前缀零 padding；
+当前六模态必须完整，历史缺失模态必须零化并显式标记。位姿在模型中用 position + Rotation-6D，在数据
+审计中保留可复算的 SE(3) 来源。
+
+`F_L/F_R` 只从 train split 的有效值拟合版本化 `log1p / positive-P95` 稳健尺度；零接触不去中心。该
+FingerForceStats 是 V2 checkpoint identity 的一部分。旧 D0 只有 aggregate force，不能复制成左右值；V2
+Dataset 对缺失状态 fail closed。V1 schema/checkpoint 继续可读，但不得与 V2 policy、stats 或 prompt 混用。
+
+**Reason:**
+
+旧 Runtime 把 command-relative Expert label 当成 actual-relative correction，跟踪滞后时会让相同 Action 在
+训练和执行指向不同 target。与此同时，单帧双图与关节状态无法显式观察末端几何、腕部视角运动、接触
+不对称和历史速度线索，controller lag 也与策略动作混在一起。先修 correctness，再以独立版本增加最小状态，
+可以避免把控制 bug、伪造数据或 checkpoint 兼容问题误归因为模型能力。
+
+**Alternatives considered:**
+
+- 把 Expert 标签改成 `target - actual`：会重写已采集监督语义，并把 controller dynamics 混入策略目标，拒绝。
+- 每次 Replan 从 actual q 重新锚定：正是现有不一致，拒绝。
+- 用旧 aggregate contact force 同时填 `F_L/F_R`：无法恢复接触不对称，属于伪造观测，拒绝。
+- 用首帧复制填满四步历史：制造不存在的静止历史，并改变 Episode 起点分布，拒绝。
+- 原地扩展 V1 checkpoint：状态 token、visual time embedding 和 force stats 都改变参数/输入身份，拒绝隐式兼容。
+
+**Implementation status:** command-reference executor、V2 schema/history/coordinate helpers、Dataset/Collator、
+Temporal Expert、八图 Processor、Runtime、ManiSkill adapter、train/eval CLI、force stats、checkpoint identity、
+TCP FK orientation diagnostic 和 fail-closed tests 已实现。当前轻依赖回归为 `313 passed, 18 skipped`；真实
+PyTorch/Qwen/ManiSkill GPU smoke、新 D0-V2 audit 和正式 paired training 尚未运行。
+
+**Status:** active
+
 ## 新决策模板
 
 ```markdown
