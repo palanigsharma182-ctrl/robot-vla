@@ -213,6 +213,14 @@ class RecedingHorizonChunkExecutor:
                     replan_required=True,
                     anomaly_kind="tracking_correction_saturation",
                 )
+            if bool(getattr(controller, "chunk_stop_requested", False)):
+                return ChunkExecutionResult(
+                    success=True,
+                    executed_steps=executed_steps,
+                    correction_saturation_steps=correction_saturation_steps,
+                    requested_correction_abs_max_rad=requested_correction_abs_max_rad,
+                    applied_correction_abs_max_rad=applied_correction_abs_max_rad,
+                )
 
         return ChunkExecutionResult(
             success=True,

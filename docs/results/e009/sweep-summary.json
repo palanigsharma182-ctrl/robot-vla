@@ -46,7 +46,7 @@
   "confirmation_candidate_summaries": [
     {
       "candidate": {
-        "checkpoint": "/home/ubuntu/robot-vla-runs/stage1-layer12-data220-event025-e100/checkpoints/step-00005760.pt",
+        "checkpoint": "run://stage1-layer12-data220-event025-e100/checkpoints/step-00005760.pt",
         "epoch": 90,
         "is_validation_best": false,
         "label": "e090",
@@ -220,7 +220,7 @@
     },
     {
       "candidate": {
-        "checkpoint": "/home/ubuntu/robot-vla-runs/stage1-layer12-data220-event025-e100/checkpoints/best.pt",
+        "checkpoint": "run://stage1-layer12-data220-event025-e100/checkpoints/best.pt",
         "epoch": 98,
         "is_validation_best": true,
         "label": "e098-best",
@@ -394,7 +394,7 @@
     },
     {
       "candidate": {
-        "checkpoint": "/home/ubuntu/robot-vla-runs/stage1-layer12-data220-event025-e100/checkpoints/step-00006400.pt",
+        "checkpoint": "run://stage1-layer12-data220-event025-e100/checkpoints/step-00006400.pt",
         "epoch": 100,
         "is_validation_best": false,
         "label": "e100",

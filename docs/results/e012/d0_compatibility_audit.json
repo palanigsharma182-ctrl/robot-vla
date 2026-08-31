@@ -1,0 +1,46 @@
+{
+  "audit_report": {
+    "sha256": "b7ab50f0240d0795c49ebad7d8ed7695753b30c97cb72a7724a66162da81a24f"
+  },
+  "current": {
+    "dataset_sha256": "bb06628a01b1c55a388aecc18c57f1a773717175ca0e6d71f14268274b92c6cf",
+    "projection": "trajectory-meta-with-local-dagger-null/v2"
+  },
+  "evidence_role": "read-only pre-rollout D0 compatibility audit",
+  "format": "robot-vla-dataset-hash-compatibility/v1",
+  "formal_rollout_started": false,
+  "historical": {
+    "dataset_sha256": "bc024b6b9c566ca9500945fb6ac262bf657bee713d8a5816229bdc8478139407",
+    "projection": "trajectory-meta-pre-local-dagger-null/v1"
+  },
+  "manifest": {
+    "sha256": "43f131cc1b79b93cf6e38f3f5e476d7a03fe29410daa720a672989c95afc477f",
+    "split_step_counts": {
+      "test": 4967,
+      "train": 39337,
+      "val": 4618
+    },
+    "split_trajectory_counts": {
+      "test": 22,
+      "train": 176,
+      "val": 22
+    },
+    "trajectory_count": 220
+  },
+  "proprio_stats": {
+    "count": 39337,
+    "semantic_sha256": "e0638aa48d52d80270460c518d6423002a1be87e56d3b47a19d860de984d6e3a",
+    "sha256": "fdad9119e3c86a26cc8c63ac2d38d6575a3f79dba475daff6bd290a0967ef64d"
+  },
+  "status": "matched",
+  "step_count": 48922,
+  "trajectory_files": {
+    "aggregate_sha256": "b6ea7f054bf9e93cab34273c0f6e6ebc852ab10a2a16568506d8b8eb44531e46",
+    "count": 220,
+    "hash_scheme": "sorted-relative-file-sha256-pairs/v1"
+  },
+  "translation": {
+    "operation": "add-top-level-local_dagger-null",
+    "translated_row_count": 220
+  }
+}

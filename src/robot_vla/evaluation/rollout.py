@@ -336,6 +336,14 @@ def _summarize_group(results: list[RolloutEpisodeResult]) -> dict[str, Any]:
             if reach_count == 0
             else _wilson_interval(grasp_count, reach_count),
         },
+        "lift_given_grasp": {
+            "numerator": lift_count,
+            "denominator": grasp_count,
+            "rate": None if grasp_count == 0 else lift_count / grasp_count,
+            "wilson_95": None
+            if grasp_count == 0
+            else _wilson_interval(lift_count, grasp_count),
+        },
         "transport_given_lift": {
             "numerator": transport_count,
             "denominator": lift_count,

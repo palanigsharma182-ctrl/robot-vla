@@ -92,6 +92,7 @@ def _toy_batch(target: float) -> dict:
         "proprio": torch.ones(1, 1),
         "action": torch.tensor([[[target]]], dtype=torch.float32),
         "action_mask": torch.ones(1, 1, dtype=torch.bool),
+        "supervision_mask": torch.ones(1, 1, dtype=torch.bool),
         "event_mask": torch.zeros(1, 1, dtype=torch.bool),
         "trajectory_id": ["episode"],
     }
@@ -126,6 +127,24 @@ def test_event_loss_weight_warmup_is_linear_and_optional() -> None:
 def test_event_loss_weight_warmup_rejects_negative_steps() -> None:
     with pytest.raises(ValueError, match="event_loss_warmup_steps"):
         Stage1TrainingConfig(event_loss_warmup_steps=-1)
+
+
+def test_training_config_round_trip_preserves_source_sampling_weights() -> None:
+    config = Stage1TrainingConfig(
+        source_sampling_weights=(
+            ("base_d0", 0.8),
+            ("dagger_reach_grasp", 0.1),
+            ("dagger_grasp_lift", 0.1),
+        )
+    )
+
+    restored = Stage1TrainingConfig.from_dict(config.to_dict())
+
+    assert restored == config
+    with pytest.raises(ValueError, match="不能重复定义 source"):
+        Stage1TrainingConfig(
+            source_sampling_weights=(("base_d0", 1.0), ("base_d0", 1.0))
+        )
 
 
 def test_recursive_move_preserves_metadata_and_container_types() -> None:

@@ -1,0 +1,135 @@
+{
+  "format": "robot-vla-e012-boundary-distribution/v1",
+  "generated_at": "2026-08-29T13:34:50Z",
+  "population": "all accepted, paired-clean, snapshot-passed and trajectory-audited candidates before risk selection",
+  "paired_difference": "policy_boundary - paired_clean_expert_boundary",
+  "bootstrap": {
+    "unit": "environment seed / episode",
+    "statistic": "median paired difference",
+    "method": "nonparametric percentile bootstrap",
+    "resamples": 10000,
+    "reach_grasp_seed": 12012,
+    "grasp_lift_seed": 12013
+  },
+  "boundaries": {
+    "reach_grasp": {
+      "n": 31,
+      "environment_seeds": [
+        30002,
+        30007,
+        30009,
+        30011,
+        30013,
+        30016,
+        30017,
+        30025,
+        30027,
+        30031,
+        30035,
+        30036,
+        30042,
+        30047,
+        30053,
+        30057,
+        30058,
+        30065,
+        30067,
+        30076,
+        30077,
+        30079,
+        30080,
+        30082,
+        30084,
+        30086,
+        30094,
+        30095,
+        30096,
+        30097,
+        30099
+      ],
+      "paired_median_differences": {
+        "tcp_object_xy_error_m": {
+          "estimate": 0.02599069317083326,
+          "ci95": [0.018819617606476536, 0.03110429356811795]
+        },
+        "tcp_object_relative_z_m": {
+          "estimate": -0.011440223082900047,
+          "ci95": [-0.017976203933358192, -0.006394876167178154]
+        },
+        "tcp_linear_speed_m_s": {
+          "estimate": -0.024436338905635825,
+          "ci95": [-0.02714632288017041, -0.01934419848801023]
+        },
+        "joint_velocity_rms_rad_s": {
+          "estimate": -0.014364823698997498,
+          "ci95": [-0.02801293507218361, 0.00010892003774642944]
+        },
+        "gripper_opening_ratio": {
+          "estimate": -0.01841270923614502,
+          "ci95": [-0.03315389156341553, -0.013126611709594727]
+        },
+        "arm_mean_pairwise_disagreement": {
+          "estimate": 0.03186699375510216,
+          "ci95": [0.028929969295859337, 0.040663134306669235]
+        },
+        "gripper_mean_pairwise_disagreement": {
+          "estimate": 0.02442866563796997,
+          "ci95": [0.018256237730383873, 0.028356969356536865]
+        },
+        "control_step": {
+          "estimate": 44.0,
+          "ci95": [38.0, 52.0]
+        }
+      }
+    },
+    "grasp_lift": {
+      "n": 10,
+      "environment_seeds": [30111, 30125, 30133, 30138, 30154, 30161, 30176, 30183, 30192, 30197],
+      "risk_component_medians": {
+        "object_tcp_relative_position_deviation_m": 0.009834903515720613,
+        "object_linear_speed_m_s": 0.06212574502778789,
+        "object_angular_speed_rad_s": 6.407199295422558,
+        "joint_velocity_rms_rad_s": 0.01041756197810173,
+        "gripper_opening_deviation": 0.06686671078205109,
+        "contact_grasp_instability": 0.0,
+        "arm_mean_pairwise_disagreement": 0.029620669782161713,
+        "gripper_mean_pairwise_disagreement": 1.2597848773002625
+      },
+      "paired_median_differences": {
+        "object_linear_speed_m_s": {
+          "estimate": 0.011200482460346661,
+          "ci95": [-0.008979079003084305, 0.0246466563889908]
+        },
+        "object_angular_speed_rad_s": {
+          "estimate": 4.853168585403354,
+          "ci95": [1.250443070265686, 6.917546624046038]
+        },
+        "joint_velocity_rms_rad_s": {
+          "estimate": 0.005303063662722707,
+          "ci95": [0.0032124354038387537, 0.009476952604018152]
+        },
+        "gripper_opening_ratio": {
+          "estimate": 0.06686671078205109,
+          "ci95": [0.04001152515411377, 0.11242949962615967]
+        },
+        "arm_mean_pairwise_disagreement": {
+          "estimate": 0.029620669782161713,
+          "ci95": [0.022762715816497803, 0.036626920104026794]
+        },
+        "gripper_mean_pairwise_disagreement": {
+          "estimate": 1.2597848773002625,
+          "ci95": [0.9920904636383057, 1.316806674003601]
+        },
+        "control_step": {
+          "estimate": 51.0,
+          "ci95": [27.5, 78.5]
+        }
+      }
+    }
+  },
+  "limitations": [
+    "grasp_lift 只有 10 条 eligible trajectory，低于预注册的 20 条，统计仅作描述性诊断",
+    "paired 分布只覆盖 Expert 可完整恢复且正式 audit 通过的 survivor population，不代表全部 100 个 policy roll-in",
+    "未训练 pi_replay/pi_dagger，因此这些差异不能解释为 Local DAgger 收益或 matched-state 机制结论"
+  ]
+}

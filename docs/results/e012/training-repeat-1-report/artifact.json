@@ -1,0 +1,773 @@
+{
+  "surface": "report",
+  "manifest": {
+    "version": 1,
+    "surface": "report",
+    "title": "E012 repeat-1：checkpoint guardrail 停止 promotion",
+    "description": "E012 Local DAgger repeat-1 的训练完整性、checkpoint validation、预注册 lexicographic selection 与停止边界技术报告。",
+    "generatedAt": "2026-08-31T05:23:49Z",
+    "cards": [],
+    "charts": [
+      {
+        "id": "candidate_net_wins_chart",
+        "title": "预注册 checkpoint 的 paired net wins",
+        "subtitle": "Full-chain Reach/Grasp/Lift 各基于 20 个 paired seeds；atomic Place 基于 5 个 paired skill seeds；正值偏向候选，负值偏向 pi0。",
+        "type": "bar",
+        "dataset": "candidate_net_wins",
+        "sourceId": "e012_candidate_net_projection",
+        "valueFormat": "number",
+        "intent": "comparison",
+        "question": "六个预注册 checkpoint 的闭环 Grasp/Lift 信号是否与 Reach 和 atomic Place guardrail 同向？",
+        "rationale": "候选 checkpoint 与四个 signed paired outcome 使用同一 net-win 单位；grouped diverging bar 和零参考线能直接显示收益与回归并存，同时保留不同分母的显式 subtitle。",
+        "comparisonContext": {
+          "baseline": "frozen pi0 on identical environment and Flow seeds",
+          "denominator": "20 full-chain seed pairs per checkpoint; 5 atomic Place seed pairs per checkpoint",
+          "grain": "training arm × preregistered checkpoint",
+          "unit": "candidate wins minus pi0 wins",
+          "semanticFamily": "paired binary outcome deltas"
+        },
+        "palette": {
+          "kind": "categorical",
+          "name": "technical"
+        },
+        "legend": {
+          "interactive": true,
+          "position": "bottom",
+          "sort": "spec",
+          "title": "Outcome"
+        },
+        "labels": {
+          "values": "auto"
+        },
+        "referenceLines": [
+          {
+            "axis": "y",
+            "value": 0,
+            "label": "pi0 parity",
+            "color": "neutral",
+            "lineStyle": "solid"
+          }
+        ],
+        "encodings": {
+          "x": {
+            "field": "candidate",
+            "type": "nominal",
+            "label": "预注册候选"
+          },
+          "y": {
+            "field": "net_wins",
+            "type": "quantitative",
+            "label": "Paired net wins"
+          },
+          "color": {
+            "field": "outcome",
+            "type": "nominal",
+            "label": "Outcome"
+          },
+          "tooltip": [
+            {
+              "field": "candidate",
+              "type": "nominal",
+              "label": "Checkpoint"
+            },
+            {
+              "field": "outcome",
+              "type": "nominal",
+              "label": "Outcome"
+            },
+            {
+              "field": "net_wins",
+              "type": "quantitative",
+              "label": "Paired net wins"
+            },
+            {
+              "field": "failed_checks",
+              "type": "text",
+              "label": "Failed checks"
+            }
+          ]
+        }
+      }
+    ],
+    "tables": [
+      {
+        "id": "candidate_guardrail_table",
+        "title": "候选 checkpoint guardrail 明细",
+        "subtitle": "六个候选均为 ineligible；mean skills delta 相对同 seed pi0，loss 只用于预注册末级 tie-break。",
+        "dataset": "candidate_metrics",
+        "sourceId": "e012_candidate_projection",
+        "columns": [
+          {
+            "field": "candidate",
+            "label": "Candidate",
+            "type": "text"
+          },
+          {
+            "field": "eligible",
+            "label": "Eligible",
+            "type": "text"
+          },
+          {
+            "field": "failed_checks",
+            "label": "Failed guardrails",
+            "type": "text"
+          },
+          {
+            "field": "mean_skills_delta",
+            "label": "Mean skills Δ",
+            "format": "number",
+            "semantic": "movement"
+          },
+          {
+            "field": "full_grasp_net",
+            "label": "Full Grasp net",
+            "format": "number",
+            "semantic": "movement"
+          },
+          {
+            "field": "full_lift_net",
+            "label": "Full Lift net",
+            "format": "number",
+            "semantic": "movement"
+          },
+          {
+            "field": "atomic_place_net",
+            "label": "Atomic Place net",
+            "format": "number",
+            "semantic": "movement"
+          },
+          {
+            "field": "new_anomaly_episodes",
+            "label": "New anomaly episodes",
+            "format": "number"
+          },
+          {
+            "field": "new_tracking_episodes",
+            "label": "New tracking episodes",
+            "format": "number"
+          }
+        ]
+      },
+      {
+        "id": "training_audit_table",
+        "title": "Repeat-1 训练与 exposure audit",
+        "subtitle": "两臂从同一权重初始化，训练量相同；D1 只在 pi_dagger 中以 Expert-only boundary-local source 暴露。",
+        "dataset": "training_audit",
+        "sourceId": "e012_training_projection",
+        "columns": [
+          {
+            "field": "arm",
+            "label": "Arm",
+            "type": "text"
+          },
+          {
+            "field": "epochs",
+            "label": "Epochs",
+            "format": "number"
+          },
+          {
+            "field": "examples",
+            "label": "Examples",
+            "format": "number"
+          },
+          {
+            "field": "optimizer_steps",
+            "label": "Optimizer steps",
+            "format": "number"
+          },
+          {
+            "field": "base_d0_exposure",
+            "label": "D0 exposure",
+            "format": "number"
+          },
+          {
+            "field": "rg_exposure",
+            "label": "RG D1 exposure",
+            "format": "number"
+          },
+          {
+            "field": "gl_exposure",
+            "label": "GL D1 exposure",
+            "format": "number"
+          },
+          {
+            "field": "verifier",
+            "label": "Paired verifier",
+            "type": "text"
+          }
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "id": "e012_validation_summary",
+        "label": "E012 repeat-1 compact checkpoint-validation summary",
+        "path": "docs/results/e012/checkpoint-validation/summary.json",
+        "description": "Independently checked compact projection of paired training integrity, 315 checkpoint-validation episodes, candidate guardrails, selection stop, and promotion boundary."
+      },
+      {
+        "id": "e012_candidate_net_projection",
+        "label": "E012 candidate paired-net-wins long projection",
+        "path": "docs/results/e012/checkpoint-validation/summary.json",
+        "description": "Reviewed 24-row long-form projection of Reach, Grasp, Lift and atomic Place paired net wins for the six preregistered candidates; reproduced by the report verifier.",
+        "query": {
+          "engine": "SQLite",
+          "id": "e012-repeat1-candidate-net-wins-v1",
+          "language": "sql",
+          "executed_at": "2026-08-31T05:23:49Z",
+          "description": "Projects four paired net-win outcomes for each of the six preregistered checkpoint candidates.",
+          "sql": "WITH net(candidate_order, candidate, outcome_order, outcome, net_wins, failed_checks) AS (\n  VALUES\n    (1, 'replay e10', 1, 'Full Reach', -2, 'atomic_place_not_regressed; full_chain_reach_delta_at_least_minus_1'),\n    (1, 'replay e10', 2, 'Full Grasp', -2, 'atomic_place_not_regressed; full_chain_reach_delta_at_least_minus_1'),\n    (1, 'replay e10', 3, 'Full Lift', -2, 'atomic_place_not_regressed; full_chain_reach_delta_at_least_minus_1'),\n    (1, 'replay e10', 4, 'Atomic Place', -2, 'atomic_place_not_regressed; full_chain_reach_delta_at_least_minus_1'),\n    (2, 'replay e20', 1, 'Full Reach', 8, 'atomic_place_not_regressed'),\n    (2, 'replay e20', 2, 'Full Grasp', 9, 'atomic_place_not_regressed'),\n    (2, 'replay e20', 3, 'Full Lift', 6, 'atomic_place_not_regressed'),\n    (2, 'replay e20', 4, 'Atomic Place', -3, 'atomic_place_not_regressed'),\n    (3, 'replay e30', 1, 'Full Reach', -6, 'full_chain_reach_delta_at_least_minus_1'),\n    (3, 'replay e30', 2, 'Full Grasp', -2, 'full_chain_reach_delta_at_least_minus_1'),\n    (3, 'replay e30', 3, 'Full Lift', -2, 'full_chain_reach_delta_at_least_minus_1'),\n    (3, 'replay e30', 4, 'Atomic Place', 0, 'full_chain_reach_delta_at_least_minus_1'),\n    (4, 'Dagger e10', 1, 'Full Reach', -7, 'anomaly_not_regressed; full_chain_reach_delta_at_least_minus_1'),\n    (4, 'Dagger e10', 2, 'Full Grasp', -3, 'anomaly_not_regressed; full_chain_reach_delta_at_least_minus_1'),\n    (4, 'Dagger e10', 3, 'Full Lift', -2, 'anomaly_not_regressed; full_chain_reach_delta_at_least_minus_1'),\n    (4, 'Dagger e10', 4, 'Atomic Place', 0, 'anomaly_not_regressed; full_chain_reach_delta_at_least_minus_1'),\n    (5, 'Dagger e20', 1, 'Full Reach', 1, 'atomic_place_not_regressed'),\n    (5, 'Dagger e20', 2, 'Full Grasp', 1, 'atomic_place_not_regressed'),\n    (5, 'Dagger e20', 3, 'Full Lift', 0, 'atomic_place_not_regressed'),\n    (5, 'Dagger e20', 4, 'Atomic Place', -4, 'atomic_place_not_regressed'),\n    (6, 'Dagger e30', 1, 'Full Reach', 2, 'anomaly_not_regressed; atomic_place_not_regressed; tracking_not_regressed'),\n    (6, 'Dagger e30', 2, 'Full Grasp', 3, 'anomaly_not_regressed; atomic_place_not_regressed; tracking_not_regressed'),\n    (6, 'Dagger e30', 3, 'Full Lift', 4, 'anomaly_not_regressed; atomic_place_not_regressed; tracking_not_regressed'),\n    (6, 'Dagger e30', 4, 'Atomic Place', -2, 'anomaly_not_regressed; atomic_place_not_regressed; tracking_not_regressed')\n)\nSELECT candidate_order, candidate, outcome_order, outcome, net_wins, failed_checks\nFROM net\nORDER BY candidate_order, outcome_order;"
+        }
+      },
+      {
+        "id": "e012_candidate_projection",
+        "label": "E012 preregistered candidate projection",
+        "path": "docs/results/e012/checkpoint-validation/summary.json",
+        "description": "Executable fixed-row projection of the six candidates recomputed from the two formal selection receipts.",
+        "query": {
+          "engine": "SQLite",
+          "id": "e012-repeat1-candidates-v1",
+          "language": "sql",
+          "executed_at": "2026-08-31T05:23:49Z",
+          "description": "Projects candidate paired net wins, guardrail failures, mean completed skills, issue deltas and validation loss.",
+          "sql": "WITH candidates(candidate_order, candidate, arm, epoch, eligible, failed_checks, full_reach_net, full_grasp_net, full_lift_net, atomic_place_net, mean_skills, mean_skills_delta, grasp_successes, lift_successes, full_successes, validation_total_loss, new_anomaly_episodes, anomaly_replans_delta, new_tracking_episodes, tracking_saturation_delta) AS (\n  VALUES\n    (1, 'replay e10', 'pi_replay', 10, 'false', 'atomic_place_not_regressed; full_chain_reach_delta_at_least_minus_1', -2, -2, -2, -2, 0.5, -0.3, 3, 0, 0, 0.015049984900425414, 0, 0, 0, 0),\n    (2, 'replay e20', 'pi_replay', 20, 'false', 'atomic_place_not_regressed', 8, 9, 6, -3, 2.05, 1.25, 14, 8, 0, 0.017626467794123586, 0, 0, 0, 0),\n    (3, 'replay e30', 'pi_replay', 30, 'false', 'full_chain_reach_delta_at_least_minus_1', -6, -2, -2, 0, 0.3, -0.5, 3, 0, 0, 0.01882744381638927, 0, 0, 0, 0),\n    (4, 'Dagger e10', 'pi_dagger', 10, 'false', 'anomaly_not_regressed; full_chain_reach_delta_at_least_minus_1', -7, -3, -2, 0, 0.2, -0.6, 2, 0, 0, 0.014515381253600466, 3, 7, 0, 0),\n    (5, 'Dagger e20', 'pi_dagger', 20, 'false', 'atomic_place_not_regressed', 1, 1, 0, -4, 0.9, 0.1, 6, 2, 0, 0.01443981167798366, 0, 0, 0, 0),\n    (6, 'Dagger e30', 'pi_dagger', 30, 'false', 'anomaly_not_regressed; atomic_place_not_regressed; tracking_not_regressed', 2, 3, 4, -2, 1.25, 0.45, 8, 6, 0, 0.023852475846069865, 1, 1, 1, 1)\n)\nSELECT * FROM candidates ORDER BY candidate_order;"
+        }
+      },
+      {
+        "id": "e012_training_projection",
+        "label": "E012 repeat-1 paired-training projection",
+        "path": "docs/results/e012/checkpoint-validation/summary.json",
+        "description": "Executable two-row projection of the formal paired training verifier and aggregate sampler exposure.",
+        "query": {
+          "engine": "SQLite",
+          "id": "e012-repeat1-training-v1",
+          "language": "sql",
+          "executed_at": "2026-08-31T05:23:49Z",
+          "description": "Projects equal training volume and exact per-source exposure for pi_replay and pi_dagger.",
+          "sql": "WITH training(arm, epochs, examples, optimizer_steps, base_d0_exposure, rg_exposure, gl_exposure, verifier) AS (\n  VALUES\n    ('pi_replay', 30, 122880, 1920, 122880, 0, 0, 'passed'),\n    ('pi_dagger', 30, 122880, 1920, 98310, 12290, 12280, 'passed')\n)\nSELECT * FROM training ORDER BY arm DESC;"
+        }
+      },
+      {
+        "id": "e012_replay_selection",
+        "label": "E012 replay formal checkpoint selection receipt",
+        "path": "docs/results/e012/checkpoint-validation/pi-replay-selection.json",
+        "description": "Formal select_e012_checkpoint output for replay epochs 10, 20 and 30; SHA-256 0fdc195552e742b017d71da57974a98ff626c018d289a1f5ffa891f74e1ee838."
+      },
+      {
+        "id": "e012_dagger_selection",
+        "label": "E012 Dagger formal checkpoint selection receipt",
+        "path": "docs/results/e012/checkpoint-validation/pi-dagger-selection.json",
+        "description": "Formal select_e012_checkpoint output for Dagger epochs 10, 20 and 30; SHA-256 84ba2e7435438d65ebd1fb926cda21fbf69f92093021cf68cc4f0abc579586f6."
+      }
+    ],
+    "blocks": [
+      {
+        "id": "title",
+        "type": "markdown",
+        "body": "# E012 repeat-1：checkpoint guardrail 停止 promotion"
+      },
+      {
+        "id": "technical_summary",
+        "type": "markdown",
+        "sourceId": "e012_validation_summary",
+        "body": "## Technical summary｜技术摘要\n\n**两臂训练和 315 条 checkpoint-validation Episode 均通过完整性审计，但六个预注册 epoch-10/20/30 候选全部被 checkpoint-selection guardrail 排除。** replay 与 Dagger 的 `selection_gate_passed` 都是 `false`，`selected=null`、eligible ranking 为空，因此不存在合法 Stage A 输入；Stage A、repeat 2、Stage B 和需要 selected pair 的 matched-state diagnostics 均未运行。\n\n部分候选出现正向闭环信号：replay e20 的 full-chain Reach/Grasp/Lift paired net wins 为 `+8/+9/+6`，Dagger e30 为 `+2/+3/+4`。这些信号分别与 atomic Place `-3`，以及 atomic Place `-2` 加新增 anomaly/tracking 回归并存，不能覆盖预注册排除规则，也不能写成 Stage A 效果或 Local DAgger 改善。所有候选 full success 均为 `0/20`。"
+      },
+      {
+        "id": "key_finding_heading",
+        "type": "markdown",
+        "body": "## 闭环 Grasp/Lift 信号与 Reach、Place 和运行 guardrail 回归并存"
+      },
+      {
+        "id": "key_finding_interpretation",
+        "type": "markdown",
+        "sourceId": "e012_candidate_projection",
+        "body": "下图的每个值都是 candidate wins 减 pi0 wins；full-chain 三项各使用相同 20 个 seed pair，atomic Place 使用相同 5 个 atomic seed pair。零线表示与 pi0 配对持平。replay e20 和 Dagger e30 的 Grasp/Lift 正值是真实 validation 信号，但图中同时可见 Place、Reach 或运行异常的反向证据；预注册规则要求先通过这些 guardrail，才进入 lexicographic ranking。"
+      },
+      {
+        "id": "candidate_chart",
+        "type": "chart",
+        "chartId": "candidate_net_wins_chart"
+      },
+      {
+        "id": "guardrail_heading",
+        "type": "markdown",
+        "body": "## 六个候选都在 ranking 前被排除"
+      },
+      {
+        "id": "guardrail_interpretation",
+        "type": "markdown",
+        "sourceId": "e012_candidate_projection",
+        "body": "replay e10 同时违反 Reach 与 atomic Place，e20 违反 atomic Place，e30 违反 Reach；Dagger e10 违反 Reach 且新增 3 个 anomaly episodes（7 次 replans），e20 违反 atomic Place，e30 同时新增 anomaly、tracking saturation 并违反 atomic Place。由于 eligible set 为空，无条件 Lift、Grasp、mean completed skills、D0 validation loss 和较早 epoch 的 lexicographic 次序从未获得选模权限。"
+      },
+      {
+        "id": "guardrail_table",
+        "type": "table",
+        "tableId": "candidate_guardrail_table"
+      },
+      {
+        "id": "scope_definitions",
+        "type": "markdown",
+        "sourceId": "e012_validation_summary",
+        "body": "## 范围、比较基线与指标定义\n\n- **候选集合：**每个训练臂只允许 epoch 10、20、30；没有加入 epoch 24、Dagger epoch 9、运行时 `best.pt` 或 validation-loss 临时候选。\n- **Full-chain validation：**每个模型 20 条 Episode，environment seeds `31000..31019`；相同 seed 和 Flow seed 与 frozen pi0 配对。\n- **Atomic guardrail：**每个模型 25 条 Episode，seeds `31020..31024`，Reach/Grasp/Lift/Transport/Place 各 5 条。\n- **Paired net wins：**候选成功且 pi0 失败的 pair 数，减去 pi0 成功且候选失败的 pair 数。\n- **Mean skills delta：**同 20 个 full-chain seeds 上候选平均完成技能数减 pi0 的 `0.8`。\n- **Selection 顺序：**先排除 system/safety/tracking/anomaly、新增 atomic Grasp/Lift/Place 净回归和 full Reach 小于 `-1/20`；仅对剩余候选依次比较无条件 Lift、Grasp、mean skills、固定 D0 validation loss 和较早 epoch。"
+      },
+      {
+        "id": "experimental_design",
+        "type": "markdown",
+        "sourceId": "e012_validation_summary",
+        "body": "## 实验设计与完整性核验\n\n训练主对照是从同一 pi0 权重初始化、使用相同额外 optimizer steps 的 `pi_dagger` 与 `pi_replay`，不是 Dagger 与未继续训练的历史 pi0。两臂各完成 30 epochs、122,880 examples、1,920 optimizer steps；正式 paired verifier 通过。Checkpoint validation 在单 GPU 上严格顺序执行 14 个 CLI 输出，共 315 Episodes；每个 experiment 的 checkpoint、D0、evaluation code、执行配置、seed registry 与 Flow pairing 均通过独立 audit，错误扫描、system error 和 Action safety rejection 均为 0。"
+      },
+      {
+        "id": "training_heading",
+        "type": "markdown",
+        "body": "## Exposure 改变严格局限于 Expert-only D1"
+      },
+      {
+        "id": "training_interpretation",
+        "type": "markdown",
+        "sourceId": "e012_training_projection",
+        "body": "replay 的全部 122,880 exposures 来自 base D0；Dagger 为 base D0 98,310、Reach→Grasp D1 12,290、Grasp→Lift D1 12,280。D1 只包含 Expert-only boundary-local anchors，D0 的 boundary offset 为 null，D1 offset 为整数 0..48。两臂的初始化权重、源码、D0/D1 identity、ProprioStats、训练量和 checkpoint cadence 均冻结一致，因此训练 receipt 支持“干预按协议执行”，但 selection 结果不支持“干预带来可 promotion 的收益”。"
+      },
+      {
+        "id": "training_table",
+        "type": "table",
+        "tableId": "training_audit_table"
+      },
+      {
+        "id": "limitations",
+        "type": "markdown",
+        "sourceId": "e012_validation_summary",
+        "body": "## 限制、不确定性与稳健性边界\n\n- **Model-selection evidence，不是效果样本：**`31000..31024` 只用于 checkpoint selection，不能与未运行的 Stage A/B 合并或被描述为 promotion evidence。\n- **Small paired denominators：**full-chain 每候选 20 pairs、atomic 每技能 5 pairs；正向 net wins 是候选信号，不是稳定泛化结论。\n- **没有完整成功：**所有六个候选和 pi0 在 full-chain 都是 `0/20` full success；当前差异只发生在中间技能完成。\n- **Matched-state 机制未验证：**没有合法 selected pair，因此 disagreement / Flow-seed variance diagnostics 未运行，不能声称 Chunk uncertainty 下降。\n- **CUDA bitwise 限制：**replay 在实例中断后从不可变 epoch-24 full-state checkpoint 严格恢复；trainer 结构、examples、optimizer steps、source exposure、boundary offsets 与冻结 identity 一致，但 CUDA loss/gradient 数值轨迹不再 bitwise reproducible。该限制不改变 ledger 与 selection audit 的通过状态，但必须保留在最终可重复性声明中。"
+      },
+      {
+        "id": "recommended_next_steps",
+        "type": "markdown",
+        "body": "## 由当前证据支持的下一步\n\n1. 冻结两份正式 selection receipts 和 compact summary；保持 `selected=null`，不手工挑选 replay e20 或 Dagger e30。\n2. 不运行 Stage A、不消费 `32000..` seeds，不训练 repeat 2，也不运行 Stage B 或消费 `32100..` seeds。\n3. 将本次结果记录为 checkpoint-selection guardrail 的负结果：中间 Grasp/Lift 改善信号不足以覆盖 Place、Reach、tracking/anomaly 回归。\n4. 若未来重新提出 Local DAgger 方案，应注册新的实验编号、新候选/guardrail 和全新 seeds；不得在 E012 已观察结果上调参后复用当前 validation seeds。"
+      },
+      {
+        "id": "further_questions",
+        "type": "markdown",
+        "body": "## 仍需回答的问题\n\n- replay e20 的闭环 Grasp/Lift 信号为何伴随 atomic Place 回归；这是状态覆盖、动作分布还是 checkpoint 位移的结果？\n- Dagger e30 的中间技能信号为何同时出现 Place、anomaly 与 tracking saturation；是否存在可在新预注册实验中隔离的训练或执行机制？\n- 在不复用当前 seeds、且先定义可接受的 end-to-end/atomic tradeoff 后，哪一种数据或模型干预最值得与 replay control 配对检验？"
+      }
+    ]
+  },
+  "snapshot": {
+    "version": 1,
+    "generatedAt": "2026-08-31T05:23:49Z",
+    "status": "ready",
+    "datasets": {
+      "candidate_net_wins": [
+        {
+          "candidate_order": 1,
+          "candidate": "replay e10",
+          "outcome_order": 1,
+          "outcome": "Full Reach",
+          "net_wins": -2,
+          "failed_checks": "atomic_place_not_regressed; full_chain_reach_delta_at_least_minus_1"
+        },
+        {
+          "candidate_order": 1,
+          "candidate": "replay e10",
+          "outcome_order": 2,
+          "outcome": "Full Grasp",
+          "net_wins": -2,
+          "failed_checks": "atomic_place_not_regressed; full_chain_reach_delta_at_least_minus_1"
+        },
+        {
+          "candidate_order": 1,
+          "candidate": "replay e10",
+          "outcome_order": 3,
+          "outcome": "Full Lift",
+          "net_wins": -2,
+          "failed_checks": "atomic_place_not_regressed; full_chain_reach_delta_at_least_minus_1"
+        },
+        {
+          "candidate_order": 1,
+          "candidate": "replay e10",
+          "outcome_order": 4,
+          "outcome": "Atomic Place",
+          "net_wins": -2,
+          "failed_checks": "atomic_place_not_regressed; full_chain_reach_delta_at_least_minus_1"
+        },
+        {
+          "candidate_order": 2,
+          "candidate": "replay e20",
+          "outcome_order": 1,
+          "outcome": "Full Reach",
+          "net_wins": 8,
+          "failed_checks": "atomic_place_not_regressed"
+        },
+        {
+          "candidate_order": 2,
+          "candidate": "replay e20",
+          "outcome_order": 2,
+          "outcome": "Full Grasp",
+          "net_wins": 9,
+          "failed_checks": "atomic_place_not_regressed"
+        },
+        {
+          "candidate_order": 2,
+          "candidate": "replay e20",
+          "outcome_order": 3,
+          "outcome": "Full Lift",
+          "net_wins": 6,
+          "failed_checks": "atomic_place_not_regressed"
+        },
+        {
+          "candidate_order": 2,
+          "candidate": "replay e20",
+          "outcome_order": 4,
+          "outcome": "Atomic Place",
+          "net_wins": -3,
+          "failed_checks": "atomic_place_not_regressed"
+        },
+        {
+          "candidate_order": 3,
+          "candidate": "replay e30",
+          "outcome_order": 1,
+          "outcome": "Full Reach",
+          "net_wins": -6,
+          "failed_checks": "full_chain_reach_delta_at_least_minus_1"
+        },
+        {
+          "candidate_order": 3,
+          "candidate": "replay e30",
+          "outcome_order": 2,
+          "outcome": "Full Grasp",
+          "net_wins": -2,
+          "failed_checks": "full_chain_reach_delta_at_least_minus_1"
+        },
+        {
+          "candidate_order": 3,
+          "candidate": "replay e30",
+          "outcome_order": 3,
+          "outcome": "Full Lift",
+          "net_wins": -2,
+          "failed_checks": "full_chain_reach_delta_at_least_minus_1"
+        },
+        {
+          "candidate_order": 3,
+          "candidate": "replay e30",
+          "outcome_order": 4,
+          "outcome": "Atomic Place",
+          "net_wins": 0,
+          "failed_checks": "full_chain_reach_delta_at_least_minus_1"
+        },
+        {
+          "candidate_order": 4,
+          "candidate": "Dagger e10",
+          "outcome_order": 1,
+          "outcome": "Full Reach",
+          "net_wins": -7,
+          "failed_checks": "anomaly_not_regressed; full_chain_reach_delta_at_least_minus_1"
+        },
+        {
+          "candidate_order": 4,
+          "candidate": "Dagger e10",
+          "outcome_order": 2,
+          "outcome": "Full Grasp",
+          "net_wins": -3,
+          "failed_checks": "anomaly_not_regressed; full_chain_reach_delta_at_least_minus_1"
+        },
+        {
+          "candidate_order": 4,
+          "candidate": "Dagger e10",
+          "outcome_order": 3,
+          "outcome": "Full Lift",
+          "net_wins": -2,
+          "failed_checks": "anomaly_not_regressed; full_chain_reach_delta_at_least_minus_1"
+        },
+        {
+          "candidate_order": 4,
+          "candidate": "Dagger e10",
+          "outcome_order": 4,
+          "outcome": "Atomic Place",
+          "net_wins": 0,
+          "failed_checks": "anomaly_not_regressed; full_chain_reach_delta_at_least_minus_1"
+        },
+        {
+          "candidate_order": 5,
+          "candidate": "Dagger e20",
+          "outcome_order": 1,
+          "outcome": "Full Reach",
+          "net_wins": 1,
+          "failed_checks": "atomic_place_not_regressed"
+        },
+        {
+          "candidate_order": 5,
+          "candidate": "Dagger e20",
+          "outcome_order": 2,
+          "outcome": "Full Grasp",
+          "net_wins": 1,
+          "failed_checks": "atomic_place_not_regressed"
+        },
+        {
+          "candidate_order": 5,
+          "candidate": "Dagger e20",
+          "outcome_order": 3,
+          "outcome": "Full Lift",
+          "net_wins": 0,
+          "failed_checks": "atomic_place_not_regressed"
+        },
+        {
+          "candidate_order": 5,
+          "candidate": "Dagger e20",
+          "outcome_order": 4,
+          "outcome": "Atomic Place",
+          "net_wins": -4,
+          "failed_checks": "atomic_place_not_regressed"
+        },
+        {
+          "candidate_order": 6,
+          "candidate": "Dagger e30",
+          "outcome_order": 1,
+          "outcome": "Full Reach",
+          "net_wins": 2,
+          "failed_checks": "anomaly_not_regressed; atomic_place_not_regressed; tracking_not_regressed"
+        },
+        {
+          "candidate_order": 6,
+          "candidate": "Dagger e30",
+          "outcome_order": 2,
+          "outcome": "Full Grasp",
+          "net_wins": 3,
+          "failed_checks": "anomaly_not_regressed; atomic_place_not_regressed; tracking_not_regressed"
+        },
+        {
+          "candidate_order": 6,
+          "candidate": "Dagger e30",
+          "outcome_order": 3,
+          "outcome": "Full Lift",
+          "net_wins": 4,
+          "failed_checks": "anomaly_not_regressed; atomic_place_not_regressed; tracking_not_regressed"
+        },
+        {
+          "candidate_order": 6,
+          "candidate": "Dagger e30",
+          "outcome_order": 4,
+          "outcome": "Atomic Place",
+          "net_wins": -2,
+          "failed_checks": "anomaly_not_regressed; atomic_place_not_regressed; tracking_not_regressed"
+        }
+      ],
+      "candidate_metrics": [
+        {
+          "candidate_order": 1,
+          "candidate": "replay e10",
+          "arm": "pi_replay",
+          "epoch": 10,
+          "eligible": "false",
+          "failed_checks": "atomic_place_not_regressed; full_chain_reach_delta_at_least_minus_1",
+          "full_reach_net": -2,
+          "full_grasp_net": -2,
+          "full_lift_net": -2,
+          "atomic_place_net": -2,
+          "mean_skills": 0.5,
+          "mean_skills_delta": -0.3,
+          "grasp_successes": 3,
+          "lift_successes": 0,
+          "full_successes": 0,
+          "validation_total_loss": 0.015049984900425414,
+          "new_anomaly_episodes": 0,
+          "anomaly_replans_delta": 0,
+          "new_tracking_episodes": 0,
+          "tracking_saturation_delta": 0
+        },
+        {
+          "candidate_order": 2,
+          "candidate": "replay e20",
+          "arm": "pi_replay",
+          "epoch": 20,
+          "eligible": "false",
+          "failed_checks": "atomic_place_not_regressed",
+          "full_reach_net": 8,
+          "full_grasp_net": 9,
+          "full_lift_net": 6,
+          "atomic_place_net": -3,
+          "mean_skills": 2.05,
+          "mean_skills_delta": 1.25,
+          "grasp_successes": 14,
+          "lift_successes": 8,
+          "full_successes": 0,
+          "validation_total_loss": 0.017626467794123586,
+          "new_anomaly_episodes": 0,
+          "anomaly_replans_delta": 0,
+          "new_tracking_episodes": 0,
+          "tracking_saturation_delta": 0
+        },
+        {
+          "candidate_order": 3,
+          "candidate": "replay e30",
+          "arm": "pi_replay",
+          "epoch": 30,
+          "eligible": "false",
+          "failed_checks": "full_chain_reach_delta_at_least_minus_1",
+          "full_reach_net": -6,
+          "full_grasp_net": -2,
+          "full_lift_net": -2,
+          "atomic_place_net": 0,
+          "mean_skills": 0.3,
+          "mean_skills_delta": -0.5,
+          "grasp_successes": 3,
+          "lift_successes": 0,
+          "full_successes": 0,
+          "validation_total_loss": 0.01882744381638927,
+          "new_anomaly_episodes": 0,
+          "anomaly_replans_delta": 0,
+          "new_tracking_episodes": 0,
+          "tracking_saturation_delta": 0
+        },
+        {
+          "candidate_order": 4,
+          "candidate": "Dagger e10",
+          "arm": "pi_dagger",
+          "epoch": 10,
+          "eligible": "false",
+          "failed_checks": "anomaly_not_regressed; full_chain_reach_delta_at_least_minus_1",
+          "full_reach_net": -7,
+          "full_grasp_net": -3,
+          "full_lift_net": -2,
+          "atomic_place_net": 0,
+          "mean_skills": 0.2,
+          "mean_skills_delta": -0.6,
+          "grasp_successes": 2,
+          "lift_successes": 0,
+          "full_successes": 0,
+          "validation_total_loss": 0.014515381253600466,
+          "new_anomaly_episodes": 3,
+          "anomaly_replans_delta": 7,
+          "new_tracking_episodes": 0,
+          "tracking_saturation_delta": 0
+        },
+        {
+          "candidate_order": 5,
+          "candidate": "Dagger e20",
+          "arm": "pi_dagger",
+          "epoch": 20,
+          "eligible": "false",
+          "failed_checks": "atomic_place_not_regressed",
+          "full_reach_net": 1,
+          "full_grasp_net": 1,
+          "full_lift_net": 0,
+          "atomic_place_net": -4,
+          "mean_skills": 0.9,
+          "mean_skills_delta": 0.1,
+          "grasp_successes": 6,
+          "lift_successes": 2,
+          "full_successes": 0,
+          "validation_total_loss": 0.01443981167798366,
+          "new_anomaly_episodes": 0,
+          "anomaly_replans_delta": 0,
+          "new_tracking_episodes": 0,
+          "tracking_saturation_delta": 0
+        },
+        {
+          "candidate_order": 6,
+          "candidate": "Dagger e30",
+          "arm": "pi_dagger",
+          "epoch": 30,
+          "eligible": "false",
+          "failed_checks": "anomaly_not_regressed; atomic_place_not_regressed; tracking_not_regressed",
+          "full_reach_net": 2,
+          "full_grasp_net": 3,
+          "full_lift_net": 4,
+          "atomic_place_net": -2,
+          "mean_skills": 1.25,
+          "mean_skills_delta": 0.45,
+          "grasp_successes": 8,
+          "lift_successes": 6,
+          "full_successes": 0,
+          "validation_total_loss": 0.023852475846069865,
+          "new_anomaly_episodes": 1,
+          "anomaly_replans_delta": 1,
+          "new_tracking_episodes": 1,
+          "tracking_saturation_delta": 1
+        }
+      ],
+      "training_audit": [
+        {
+          "arm": "pi_replay",
+          "epochs": 30,
+          "examples": 122880,
+          "optimizer_steps": 1920,
+          "base_d0_exposure": 122880,
+          "rg_exposure": 0,
+          "gl_exposure": 0,
+          "verifier": "passed"
+        },
+        {
+          "arm": "pi_dagger",
+          "epochs": 30,
+          "examples": 122880,
+          "optimizer_steps": 1920,
+          "base_d0_exposure": 98310,
+          "rg_exposure": 12290,
+          "gl_exposure": 12280,
+          "verifier": "passed"
+        }
+      ]
+    },
+    "accessIssues": []
+  },
+  "sources": [
+      {
+        "id": "e012_validation_summary",
+        "label": "E012 repeat-1 compact checkpoint-validation summary",
+        "path": "docs/results/e012/checkpoint-validation/summary.json",
+        "description": "Independently checked compact projection of paired training integrity, 315 checkpoint-validation episodes, candidate guardrails, selection stop, and promotion boundary."
+      },
+      {
+        "id": "e012_candidate_net_projection",
+        "label": "E012 candidate paired-net-wins long projection",
+        "path": "docs/results/e012/checkpoint-validation/summary.json",
+        "description": "Reviewed 24-row long-form projection of Reach, Grasp, Lift and atomic Place paired net wins for the six preregistered candidates; reproduced by the report verifier.",
+        "query": {
+          "engine": "SQLite",
+          "id": "e012-repeat1-candidate-net-wins-v1",
+          "language": "sql",
+          "executed_at": "2026-08-31T05:23:49Z",
+          "description": "Projects four paired net-win outcomes for each of the six preregistered checkpoint candidates.",
+          "sql": "WITH net(candidate_order, candidate, outcome_order, outcome, net_wins, failed_checks) AS (\n  VALUES\n    (1, 'replay e10', 1, 'Full Reach', -2, 'atomic_place_not_regressed; full_chain_reach_delta_at_least_minus_1'),\n    (1, 'replay e10', 2, 'Full Grasp', -2, 'atomic_place_not_regressed; full_chain_reach_delta_at_least_minus_1'),\n    (1, 'replay e10', 3, 'Full Lift', -2, 'atomic_place_not_regressed; full_chain_reach_delta_at_least_minus_1'),\n    (1, 'replay e10', 4, 'Atomic Place', -2, 'atomic_place_not_regressed; full_chain_reach_delta_at_least_minus_1'),\n    (2, 'replay e20', 1, 'Full Reach', 8, 'atomic_place_not_regressed'),\n    (2, 'replay e20', 2, 'Full Grasp', 9, 'atomic_place_not_regressed'),\n    (2, 'replay e20', 3, 'Full Lift', 6, 'atomic_place_not_regressed'),\n    (2, 'replay e20', 4, 'Atomic Place', -3, 'atomic_place_not_regressed'),\n    (3, 'replay e30', 1, 'Full Reach', -6, 'full_chain_reach_delta_at_least_minus_1'),\n    (3, 'replay e30', 2, 'Full Grasp', -2, 'full_chain_reach_delta_at_least_minus_1'),\n    (3, 'replay e30', 3, 'Full Lift', -2, 'full_chain_reach_delta_at_least_minus_1'),\n    (3, 'replay e30', 4, 'Atomic Place', 0, 'full_chain_reach_delta_at_least_minus_1'),\n    (4, 'Dagger e10', 1, 'Full Reach', -7, 'anomaly_not_regressed; full_chain_reach_delta_at_least_minus_1'),\n    (4, 'Dagger e10', 2, 'Full Grasp', -3, 'anomaly_not_regressed; full_chain_reach_delta_at_least_minus_1'),\n    (4, 'Dagger e10', 3, 'Full Lift', -2, 'anomaly_not_regressed; full_chain_reach_delta_at_least_minus_1'),\n    (4, 'Dagger e10', 4, 'Atomic Place', 0, 'anomaly_not_regressed; full_chain_reach_delta_at_least_minus_1'),\n    (5, 'Dagger e20', 1, 'Full Reach', 1, 'atomic_place_not_regressed'),\n    (5, 'Dagger e20', 2, 'Full Grasp', 1, 'atomic_place_not_regressed'),\n    (5, 'Dagger e20', 3, 'Full Lift', 0, 'atomic_place_not_regressed'),\n    (5, 'Dagger e20', 4, 'Atomic Place', -4, 'atomic_place_not_regressed'),\n    (6, 'Dagger e30', 1, 'Full Reach', 2, 'anomaly_not_regressed; atomic_place_not_regressed; tracking_not_regressed'),\n    (6, 'Dagger e30', 2, 'Full Grasp', 3, 'anomaly_not_regressed; atomic_place_not_regressed; tracking_not_regressed'),\n    (6, 'Dagger e30', 3, 'Full Lift', 4, 'anomaly_not_regressed; atomic_place_not_regressed; tracking_not_regressed'),\n    (6, 'Dagger e30', 4, 'Atomic Place', -2, 'anomaly_not_regressed; atomic_place_not_regressed; tracking_not_regressed')\n)\nSELECT candidate_order, candidate, outcome_order, outcome, net_wins, failed_checks\nFROM net\nORDER BY candidate_order, outcome_order;"
+        }
+      },
+      {
+        "id": "e012_candidate_projection",
+      "label": "E012 preregistered candidate projection",
+      "path": "docs/results/e012/checkpoint-validation/summary.json",
+      "description": "Executable fixed-row projection of the six candidates recomputed from the two formal selection receipts.",
+      "query": {
+        "engine": "SQLite",
+        "id": "e012-repeat1-candidates-v1",
+        "language": "sql",
+        "executed_at": "2026-08-31T05:23:49Z",
+        "description": "Projects candidate paired net wins, guardrail failures, mean completed skills, issue deltas and validation loss.",
+        "sql": "WITH candidates(candidate_order, candidate, arm, epoch, eligible, failed_checks, full_reach_net, full_grasp_net, full_lift_net, atomic_place_net, mean_skills, mean_skills_delta, grasp_successes, lift_successes, full_successes, validation_total_loss, new_anomaly_episodes, anomaly_replans_delta, new_tracking_episodes, tracking_saturation_delta) AS (\n  VALUES\n    (1, 'replay e10', 'pi_replay', 10, 'false', 'atomic_place_not_regressed; full_chain_reach_delta_at_least_minus_1', -2, -2, -2, -2, 0.5, -0.3, 3, 0, 0, 0.015049984900425414, 0, 0, 0, 0),\n    (2, 'replay e20', 'pi_replay', 20, 'false', 'atomic_place_not_regressed', 8, 9, 6, -3, 2.05, 1.25, 14, 8, 0, 0.017626467794123586, 0, 0, 0, 0),\n    (3, 'replay e30', 'pi_replay', 30, 'false', 'full_chain_reach_delta_at_least_minus_1', -6, -2, -2, 0, 0.3, -0.5, 3, 0, 0, 0.01882744381638927, 0, 0, 0, 0),\n    (4, 'Dagger e10', 'pi_dagger', 10, 'false', 'anomaly_not_regressed; full_chain_reach_delta_at_least_minus_1', -7, -3, -2, 0, 0.2, -0.6, 2, 0, 0, 0.014515381253600466, 3, 7, 0, 0),\n    (5, 'Dagger e20', 'pi_dagger', 20, 'false', 'atomic_place_not_regressed', 1, 1, 0, -4, 0.9, 0.1, 6, 2, 0, 0.01443981167798366, 0, 0, 0, 0),\n    (6, 'Dagger e30', 'pi_dagger', 30, 'false', 'anomaly_not_regressed; atomic_place_not_regressed; tracking_not_regressed', 2, 3, 4, -2, 1.25, 0.45, 8, 6, 0, 0.023852475846069865, 1, 1, 1, 1)\n)\nSELECT * FROM candidates ORDER BY candidate_order;"
+      }
+    },
+    {
+      "id": "e012_training_projection",
+      "label": "E012 repeat-1 paired-training projection",
+      "path": "docs/results/e012/checkpoint-validation/summary.json",
+      "description": "Executable two-row projection of the formal paired training verifier and aggregate sampler exposure.",
+      "query": {
+        "engine": "SQLite",
+        "id": "e012-repeat1-training-v1",
+        "language": "sql",
+        "executed_at": "2026-08-31T05:23:49Z",
+        "description": "Projects equal training volume and exact per-source exposure for pi_replay and pi_dagger.",
+        "sql": "WITH training(arm, epochs, examples, optimizer_steps, base_d0_exposure, rg_exposure, gl_exposure, verifier) AS (\n  VALUES\n    ('pi_replay', 30, 122880, 1920, 122880, 0, 0, 'passed'),\n    ('pi_dagger', 30, 122880, 1920, 98310, 12290, 12280, 'passed')\n)\nSELECT * FROM training ORDER BY arm DESC;"
+      }
+    },
+    {
+      "id": "e012_replay_selection",
+      "label": "E012 replay formal checkpoint selection receipt",
+      "path": "docs/results/e012/checkpoint-validation/pi-replay-selection.json",
+      "description": "Formal select_e012_checkpoint output for replay epochs 10, 20 and 30; SHA-256 0fdc195552e742b017d71da57974a98ff626c018d289a1f5ffa891f74e1ee838."
+    },
+    {
+      "id": "e012_dagger_selection",
+      "label": "E012 Dagger formal checkpoint selection receipt",
+      "path": "docs/results/e012/checkpoint-validation/pi-dagger-selection.json",
+      "description": "Formal select_e012_checkpoint output for Dagger epochs 10, 20 and 30; SHA-256 84ba2e7435438d65ebd1fb926cda21fbf69f92093021cf68cc4f0abc579586f6."
+    }
+  ]
+}

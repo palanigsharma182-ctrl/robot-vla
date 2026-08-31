@@ -27,6 +27,8 @@ def test_first_chunk_passes_through_without_modification() -> None:
     assert output.trace.buffer_size == 1
     assert output.trace.proposal_counts == (1,) * spec.action_horizon
     assert output.trace.newest_normalized_weights == (1.0,) * spec.action_horizon
+    assert output.trace.arm_mean_pairwise_disagreement == (0.0,) * spec.action_horizon
+    assert output.trace.gripper_mean_pairwise_disagreement == (0.0,) * spec.action_horizon
 
 
 def test_overlapping_chunks_are_aligned_by_global_step_and_newest_dominates() -> None:
@@ -48,6 +50,16 @@ def test_overlapping_chunks_are_aligned_by_global_step_and_newest_dominates() ->
     assert output.trace.proposal_counts[12:] == (1,) * 4
     assert output.trace.newest_normalized_weights[0] == pytest.approx(2.0 / 3.0)
     assert output.normalized_action[0, 0] > old[4, 0]
+    expected_arm_disagreement = (0.75 + 6.0) / 7.0
+    assert output.trace.arm_mean_pairwise_disagreement[0] == pytest.approx(
+        expected_arm_disagreement
+    )
+    assert output.trace.gripper_mean_pairwise_disagreement[0] == pytest.approx(1.0)
+    assert output.trace.arm_newest_vs_oldest[0] == pytest.approx(
+        expected_arm_disagreement
+    )
+    assert output.trace.gripper_newest_vs_weighted_history[0] == pytest.approx(1.0)
+    assert output.trace.arm_mean_pairwise_disagreement[12:] == (0.0,) * 4
 
 
 def test_four_overlapping_chunks_give_newest_more_weight_than_all_old_chunks() -> None:

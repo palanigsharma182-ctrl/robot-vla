@@ -142,6 +142,12 @@ def test_rollout_summary_separates_seed_groups_and_reports_skill_rates() -> None
     assert summary["overall"]["failure_counts"] == {"lift_failed": 1}
     assert summary["overall"]["tracking_correction_saturation_count"] == 0
     assert summary["overall"]["grasp_given_reach"]["rate"] == pytest.approx(1.0)
+    assert summary["overall"]["lift_given_grasp"] == {
+        "numerator": 2,
+        "denominator": 3,
+        "rate": pytest.approx(2 / 3),
+        "wilson_95": pytest.approx([0.2076596, 0.9385081]),
+    }
     assert summary["overall"]["transport_given_lift"]["rate"] == pytest.approx(1.0)
     assert summary["overall"]["mean_steps_to_reach"] == pytest.approx(20.0)
     assert summary["overall"]["mean_steps_reach_to_grasp"] == pytest.approx(10.0)

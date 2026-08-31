@@ -10,7 +10,7 @@ __pycache__/
 build/
 dist/
 *.egg-info/
-data/
+/data/
 artifacts/
 checkpoints/
 runs/

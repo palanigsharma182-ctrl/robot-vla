@@ -1,0 +1,481 @@
+{
+  "surface": "report",
+  "manifest": {
+    "version": 1,
+    "surface": "report",
+    "title": "E012a Grasp→Lift 失败分解",
+    "description": "基于 100 条正式 Grasp→Lift 候选与 87 条逐 seed 对齐诊断重放的技术报告；用于支持 protocol amendment 决策，不改写正式结果，也不识别因果效应。",
+    "generatedAt": "2026-08-29T15:56:28Z",
+    "cards": [],
+    "charts": [
+      {
+        "id": "stage_progression_chart",
+        "title": "正式 GL 候选的有序阶段计数",
+        "subtitle": "n=100 个正式 candidate；stable-Grasp boundary reach 为可证下界，所有柱从零起算。",
+        "type": "bar",
+        "dataset": "stage_progression",
+        "sourceId": "e012_gl_stage_projection",
+        "valueFormat": "number",
+        "intent": "funnel",
+        "question": "100 条正式 GL candidate 中，至少多少到达 stable-Grasp boundary，最终多少 eligible？",
+        "rationale": "三个阶段有明确先后关系；使用零基线 stage bar 保留真实计数，并避免 funnel 面积对比例的视觉夸大。",
+        "comparisonContext": {
+          "denominator": "100 formal Grasp→Lift candidates",
+          "grain": "environment seed / episode",
+          "unit": "trajectories",
+          "semanticFamily": "ordered stage progression"
+        },
+        "palette": {
+          "kind": "sequential",
+          "name": "blue"
+        },
+        "labels": {
+          "values": "all"
+        },
+        "encodings": {
+          "x": {
+            "field": "stage",
+            "type": "nominal",
+            "label": "有序阶段"
+          },
+          "y": {
+            "field": "count",
+            "type": "quantitative",
+            "label": "Trajectories"
+          },
+          "tooltip": [
+            {
+              "field": "stage",
+              "type": "nominal",
+              "label": "阶段"
+            },
+            {
+              "field": "count",
+              "type": "quantitative",
+              "label": "Count"
+            },
+            {
+              "field": "rate_of_formal",
+              "type": "quantitative",
+              "label": "占 formal pool",
+              "format": "percent"
+            },
+            {
+              "field": "qualifier",
+              "type": "nominal",
+              "label": "计数口径"
+            },
+            {
+              "field": "evidence_basis",
+              "type": "nominal",
+              "label": "Evidence basis"
+            }
+          ]
+        }
+      },
+      {
+        "id": "policy_progress_chart",
+        "title": "Policy boundary-before failures 的进度分解",
+        "subtitle": "n=71 条互斥 failure；全部在 300-step Policy time-limit 结束，横轴从零起算。",
+        "type": "horizontalBar",
+        "dataset": "policy_progress",
+        "sourceId": "e012_gl_policy_projection",
+        "valueFormat": "number",
+        "intent": "decomposition",
+        "question": "71 条未形成 stable-Grasp boundary 的 Policy failure，在失败前最多推进到哪里？",
+        "rationale": "互斥进度桶需要比较绝对数量；横向柱为较长类别标签保留空间，并按技能进度而非任意颜色表达顺序。",
+        "comparisonContext": {
+          "denominator": "71 policy-before-stable-Grasp-boundary failures",
+          "grain": "environment seed / episode",
+          "unit": "episodes",
+          "semanticFamily": "mutually exclusive progress decomposition"
+        },
+        "palette": {
+          "kind": "sequential",
+          "name": "blue"
+        },
+        "labels": {
+          "values": "all"
+        },
+        "encodings": {
+          "x": {
+            "field": "progress_label",
+            "type": "nominal",
+            "label": "失败前最大可观测进度"
+          },
+          "y": {
+            "field": "count",
+            "type": "quantitative",
+            "label": "Episodes"
+          },
+          "tooltip": [
+            {
+              "field": "progress_label",
+              "type": "nominal",
+              "label": "Progress bucket"
+            },
+            {
+              "field": "count",
+              "type": "quantitative",
+              "label": "Count"
+            },
+            {
+              "field": "share_of_71",
+              "type": "quantitative",
+              "label": "占 71 条",
+              "format": "percent"
+            },
+            {
+              "field": "share_of_formal",
+              "type": "quantitative",
+              "label": "占 formal pool",
+              "format": "percent"
+            },
+            {
+              "field": "terminal_bucket",
+              "type": "nominal",
+              "label": "Terminal bucket"
+            }
+          ]
+        }
+      },
+      {
+        "id": "expert_phase_chart",
+        "title": "Expert post-takeover time-limit 的 commanded phase",
+        "subtitle": "n=16 条互斥 failure；phase 是失败 action 的 Expert callsite，不表示对应 Predicate 已完成。",
+        "type": "horizontalBar",
+        "dataset": "expert_commanded_phase",
+        "sourceId": "e012_gl_expert_projection",
+        "valueFormat": "number",
+        "intent": "decomposition",
+        "question": "16 条 takeover 后达到时间上限的 failure，结束时 collector 正在调用哪个 Expert phase？",
+        "rationale": "四个互斥 callsite 类别适合用零基线横向柱比较绝对数量；类别标签同时承担非颜色识别。",
+        "comparisonContext": {
+          "denominator": "16 Expert time-limit failures after takeover",
+          "grain": "environment seed / episode",
+          "unit": "episodes",
+          "semanticFamily": "mutually exclusive commanded-phase decomposition"
+        },
+        "palette": {
+          "kind": "sequential",
+          "name": "orange"
+        },
+        "labels": {
+          "values": "all"
+        },
+        "encodings": {
+          "x": {
+            "field": "phase_label",
+            "type": "nominal",
+            "label": "失败时 commanded Expert phase"
+          },
+          "y": {
+            "field": "count",
+            "type": "quantitative",
+            "label": "Episodes"
+          },
+          "tooltip": [
+            {
+              "field": "phase_label",
+              "type": "nominal",
+              "label": "Commanded phase"
+            },
+            {
+              "field": "count",
+              "type": "quantitative",
+              "label": "Count"
+            },
+            {
+              "field": "share_of_16",
+              "type": "quantitative",
+              "label": "占 16 条",
+              "format": "percent"
+            },
+            {
+              "field": "phase_semantics",
+              "type": "nominal",
+              "label": "语义限制"
+            }
+          ]
+        }
+      }
+    ],
+    "tables": [],
+    "sources": [
+      {
+        "id": "e012_gl_failure_decomposition",
+        "label": "E012a GL canonical failure decomposition",
+        "path": "docs/results/e012/gl_failure_decomposition.json"
+      },
+      {
+        "id": "e012_gl_stage_projection",
+        "label": "E012a GL ordered-stage reviewed rows",
+        "path": "docs/results/e012/gl_failure_decomposition.json"
+      },
+      {
+        "id": "e012_gl_policy_projection",
+        "label": "E012a GL Policy-progress reviewed rows",
+        "path": "docs/results/e012/gl_failure_decomposition.json"
+      },
+      {
+        "id": "e012_gl_expert_projection",
+        "label": "E012a GL Expert-phase reviewed rows",
+        "path": "docs/results/e012/gl_failure_decomposition.json"
+      }
+    ],
+    "blocks": [
+      {
+        "id": "title",
+        "type": "markdown",
+        "body": "# E012a Grasp→Lift 失败分解"
+      },
+      {
+        "id": "technical_summary",
+        "type": "markdown",
+        "sourceId": "e012_gl_failure_decomposition",
+        "body": "## Technical summary｜技术摘要\n\n**正式 GL gate 仍是 10/100 eligible，结论不变；新增诊断改变的是失败位置的理解，而不是正式结果。** 在 100 条正式 candidate 中，可证至少 29 条已经形成 stable-Grasp boundary，最终 10 条通过既有完整成功与 audit 契约。其余重点分解为：71 条 boundary-before failure 中，57 条未完成 Reach、12 条完成 Reach 但未出现 raw Grasp、2 条出现 transient Grasp 后在稳定前丢失；16 条 takeover 后 time-limit 则分布在 Lift / Transport / Lower / Release-settle commanded phase 的 3 / 8 / 3 / 2 条。\n\n87 条目标 failure 的逐 seed diagnostic replay 在 status、failure reason、config 与 checkpoint 上 87/87 对齐，并且 diagnostics 全部有效，因此这些互斥桶可用于评估 protocol amendment。它们仍是观测性分解：不能证明 Action Chunk 新旧预测冲突、rollout budget 或任一控制参数是失败原因，也不能解释为训练收益。"
+      },
+      {
+        "id": "key_findings",
+        "type": "markdown",
+        "body": "## Key findings｜关键发现"
+      },
+      {
+        "id": "stage_finding",
+        "type": "markdown",
+        "sourceId": "e012_gl_failure_decomposition",
+        "body": "### 至少 29/100 到达 boundary，但只有 10/100 最终 eligible\n\n100 条正式 GL candidate 中，10 条 accepted、16 条为 takeover 后 Expert time-limit，另有 3 条按 collector 控制流只能发生在 boundary 后，因此 stable-Grasp boundary reach 的**可证下界**是 29。图中的 29 不是新的成功率，也不是 boundary reach 的精确总数；它只纠正了把 10% eligible 率误读成 10% boundary reach 率的口径。由于真实 boundary reach 可能高于 29，不能把 10/29 当作精确的 post-boundary 转化率。"
+      },
+      {
+        "id": "stage_evidence",
+        "type": "chart",
+        "chartId": "stage_progression_chart"
+      },
+      {
+        "id": "policy_finding",
+        "type": "markdown",
+        "sourceId": "e012_gl_failure_decomposition",
+        "body": "### 71 条 boundary-before failure 主要停在 Reach 之前\n\n在这 71 条互斥 failure 中，57 条（80.3%）从未完成 Reach；12 条（16.9%）完成 Reach 但没有出现 raw Grasp；2 条（2.8%）曾出现 transient Grasp，但在形成 stable-Grasp boundary 前丢失。三类合计 71，且 terminal bucket 均为 Policy time-limit。该分布说明后续 amendment 首先需要保留对 Reach、raw Grasp 与稳定化过程的分层观测；它不识别这些阶段为何失败。"
+      },
+      {
+        "id": "policy_evidence",
+        "type": "chart",
+        "chartId": "policy_progress_chart"
+      },
+      {
+        "id": "expert_finding",
+        "type": "markdown",
+        "sourceId": "e012_gl_failure_decomposition",
+        "body": "### 16 条 post-takeover time-limit 最常结束于 Transport callsite\n\n16 条 failure 在 boundary 后由 Expert 接管，但在完整成功前达到时间上限；结束时 commanded phase 为 Lift 3 条、Transport 8 条、Lower 3 条、Release / settle 2 条。Transport 的 8/16 只是失败 action 所在的 collector callsite，**不等价于 Transport Predicate 已完成，也不能据此归因于 Transport 控制本身。** 这组计数适合用于设计受控 budget counterfactual，不足以直接冻结修复方案。"
+      },
+      {
+        "id": "expert_evidence",
+        "type": "chart",
+        "chartId": "expert_phase_chart"
+      },
+      {
+        "id": "scope_definitions",
+        "type": "markdown",
+        "sourceId": "e012_gl_failure_decomposition",
+        "body": "## Scope, data, and metric definitions｜范围、数据与指标定义\n\n- **分析单位：**一个 environment seed / episode；本报告只覆盖 E012a 的 Grasp→Lift boundary。\n- **Formal denominator：**100 条正式 candidate。10 条 accepted / eligible、71 条 Policy 在 stable-Grasp boundary 前结束、16 条 takeover 后 Expert time-limit，另有 Expert incomplete、MPlib path 与 snapshot gate 各 1 条；六类互斥且合计 100。\n- **Policy progress denominator：**71 条 formal boundary-before failure；其同 seed、同冻结配置 diagnostic replay 用于构造 57 / 12 / 2 三个互斥 progress bucket。\n- **Expert phase denominator：**16 条 formal post-takeover time-limit；commanded phase 表示失败 action 时 collector 正在调用的 Expert 阶段，而不是 Predicate completion。\n- **Boundary reach lower bound：**10 条 accepted + 16 条 replay-confirmed Expert time-limit + 3 条依 collector 控制流只能发生在 boundary 后的 rejection，共至少 29/100。\n- **用途边界：**diagnostic replay 不是训练数据，不修改历史 formal result，也不能用来声称 DAgger 或任何训练带来收益。"
+      },
+      {
+        "id": "methodology",
+        "type": "markdown",
+        "sourceId": "e012_gl_failure_decomposition",
+        "body": "## Methodology｜方法与核验\n\n1. 以 canonical formal population 为准，复核六个 status / reason 类别互斥并加总为 100。\n2. 只对 71 条 boundary-before failure 与 16 条 post-takeover time-limit 做 deterministic diagnostic replay，共 87 条；其余 3 条非目标 rejection 不做更细分类。\n3. 逐 seed 对齐 environment seed、冻结 config、checkpoint、status 与 failure reason；87/87 全部匹配，87/87 diagnostics 有效。formal source identity 保持历史冻结值，replay source revision 只新增无干预 diagnostic observer。\n4. 对 71 条 replay 按最大可观测技能进度构造互斥 bucket，并同时核对 terminal marginal；对 16 条 replay 读取失败 action 的 Expert callsite。两个分解的 additivity check 均通过。\n5. accepted survivor timing 仅作为范围检查：10 条 survivor 的 takeover step 为 82–179，takeover 到完整成功为 119–151 steps；这些值不用于估计 rejected population。"
+      },
+      {
+        "id": "limitations",
+        "type": "markdown",
+        "sourceId": "e012_gl_failure_decomposition",
+        "body": "## Limitations, uncertainty, and robustness｜限制、不确定性与稳健性\n\n- **Observational, not causal：**互斥 progress / terminal / phase 计数只描述失败发生在哪里，不识别 Action Chunk 冲突、budget 或任一控制参数的因果效应。\n- **Replay 不是历史轨迹解析：**formal rejected record 没有逐步 telemetry；细分类别来自同 seed、同配置的 deterministic replay。87/87 reconciliation 支持可重复性，但不会把 replay 变成原历史 trajectory。\n- **29 是下界：**它不是新的 boundary success rate；71 条 boundary-before replay 只用于分解未到达过程。\n- **Commanded phase ≠ Predicate completion：**phase 只标识失败 action 的 Expert callsite，不能证明 Lift、Transport 或 Place 已经完成。\n- **Survivorship caveat：**takeover timing 和 119–151 step recovery 范围仅由 10 条完整成功 survivor 估计，不可外推到 90 条 rejected episode，也不可据此断言某个 Expert budget 足够。\n- **未细分的 3 条 rejection：**Expert incomplete、MPlib 与 snapshot 各 1 条未进入 87-seed replay，只能依 collector 控制流证明它们发生在 boundary 后。"
+      },
+      {
+        "id": "artifact_integrity_caveat",
+        "type": "markdown",
+        "body": "### Artifact integrity caveat｜产物完整性警告\n\n工程审计发现 `seed 30124` 的 formal record 为 `rejected`，但候选目录残留 orphan NPZ / manifest artifact。后续 D1 必须从 canonical accepted / selected record manifest **fail-closed** 构建，只接纳显式列入 manifest 且状态、identity 与 audit 均通过的 trajectory；禁止通过目录扫描 NPZ 推断训练样本，否则 rejected artifact 可能被误纳入数据集。"
+      },
+      {
+        "id": "recommended_next_steps",
+        "type": "markdown",
+        "body": "## Recommended next steps｜建议的下一步\n\n1. 冻结 E012a formal identity 与 10/100 eligible 结论；后续诊断或 amendment 不回写历史结果。\n2. 实现 opt-in 的 segmented-budget 能力，默认保持旧行为；先把 16 条 post-takeover time-limit 作为 exploratory counterfactual 重放对象，明确预注册 Policy 与 Expert 各自预算后再运行。\n3. counterfactual 的主要读数应是完整 Pick-and-Place success、五技能 audit 与每个 commanded phase 的剩余失败数；不得用 callsite 计数替代 Predicate audit。\n4. 只有在 counterfactual 证据、独立新 seed 范围和不变/变更 gate 全部冻结后，才启动新的正式 GL pool。旧 diagnostic replay 继续禁止进入 D1。\n5. D1 builder 必须只消费 canonical accepted / selected record manifest，并对 status、identity、audit 或 artifact 缺失 fail-closed；不得扫描目录中的 NPZ 文件。\n6. 将 Action Chunk 冲突作为独立受控假设检验；本报告只能帮助分层取样和设定观测点，不能把该假设预先写成结论。"
+      },
+      {
+        "id": "further_questions",
+        "type": "markdown",
+        "body": "## Further questions｜仍需回答的问题\n\n- 对 57 条未完成 Reach 的 episode，失败前 replan、最小 TCP 距离与动作不确定性是否形成可重复子群？\n- 对 16 条 takeover 后 time-limit，在预注册独立 Expert budget 下有多少能完成完整五技能 audit；恢复是否仍集中在某个 callsite？\n- stable-Grasp boundary 的可证真实到达数是否高于 29；还需要什么非干预 telemetry 才能把下界收紧？\n- 在 matched-state、相同 observation 与相同 Expert target 下，Action Chunk 新旧预测冲突是否对 boundary recovery 有独立预测力或干预效应？\n- 新正式 GL pool 能否在不混入旧 survivor 和 diagnostic replay 的前提下达到固定 gate？"
+      }
+    ]
+  },
+  "snapshot": {
+    "version": 1,
+    "generatedAt": "2026-08-29T15:56:28Z",
+    "status": "ready",
+    "datasets": {
+      "stage_progression": [
+        {
+          "stage_order": 1,
+          "stage": "Formal pool",
+          "count": 100,
+          "denominator": 100,
+          "rate_of_formal": 1.0,
+          "qualifier": "exact",
+          "evidence_basis": "canonical formal population",
+          "boundary": "Grasp→Lift"
+        },
+        {
+          "stage_order": 2,
+          "stage": "至少到达 stable-Grasp boundary",
+          "count": 29,
+          "denominator": 100,
+          "rate_of_formal": 0.29,
+          "qualifier": "at least / lower bound",
+          "evidence_basis": "10 accepted + 16 replay-confirmed Expert time-limit + 3 control-flow post-boundary rejection",
+          "boundary": "Grasp→Lift"
+        },
+        {
+          "stage_order": 3,
+          "stage": "Eligible",
+          "count": 10,
+          "denominator": 100,
+          "rate_of_formal": 0.1,
+          "qualifier": "exact formal accepted count",
+          "evidence_basis": "formal accepted trajectories under the existing audit contract",
+          "boundary": "Grasp→Lift"
+        }
+      ],
+      "policy_progress": [
+        {
+          "progress_order": 1,
+          "progress_label": "从未完成 Reach",
+          "progress_bucket": "never_completed_reach",
+          "count": 57,
+          "denominator": 71,
+          "share_of_71": 0.8028169014084507,
+          "share_of_formal": 0.57,
+          "terminal_bucket": "policy_time_limit",
+          "mutually_exclusive": true,
+          "evidence_basis": "same-seed deterministic diagnostic replay"
+        },
+        {
+          "progress_order": 2,
+          "progress_label": "完成 Reach，未出现 raw Grasp",
+          "progress_bucket": "reached_never_raw_grasped",
+          "count": 12,
+          "denominator": 71,
+          "share_of_71": 0.16901408450704225,
+          "share_of_formal": 0.12,
+          "terminal_bucket": "policy_time_limit",
+          "mutually_exclusive": true,
+          "evidence_basis": "same-seed deterministic diagnostic replay"
+        },
+        {
+          "progress_order": 3,
+          "progress_label": "transient Grasp 后在稳定前丢失",
+          "progress_bucket": "transient_grasp_then_lost_before_stable",
+          "count": 2,
+          "denominator": 71,
+          "share_of_71": 0.028169014084507043,
+          "share_of_formal": 0.02,
+          "terminal_bucket": "policy_time_limit",
+          "mutually_exclusive": true,
+          "evidence_basis": "same-seed deterministic diagnostic replay"
+        }
+      ],
+      "expert_commanded_phase": [
+        {
+          "phase_order": 1,
+          "phase_label": "Lift motion",
+          "commanded_phase": "expert_lift_motion",
+          "count": 3,
+          "denominator": 16,
+          "share_of_16": 0.1875,
+          "failure_class": "episode_time_limit_after_takeover",
+          "phase_semantics": "collector callsite at failure; not Predicate completion"
+        },
+        {
+          "phase_order": 2,
+          "phase_label": "Transport motion",
+          "commanded_phase": "expert_transport_motion",
+          "count": 8,
+          "denominator": 16,
+          "share_of_16": 0.5,
+          "failure_class": "episode_time_limit_after_takeover",
+          "phase_semantics": "collector callsite at failure; not Predicate completion"
+        },
+        {
+          "phase_order": 3,
+          "phase_label": "Lower motion",
+          "commanded_phase": "expert_lower_motion",
+          "count": 3,
+          "denominator": 16,
+          "share_of_16": 0.1875,
+          "failure_class": "episode_time_limit_after_takeover",
+          "phase_semantics": "collector callsite at failure; not Predicate completion"
+        },
+        {
+          "phase_order": 4,
+          "phase_label": "Release / settle",
+          "commanded_phase": "expert_release_settle",
+          "count": 2,
+          "denominator": 16,
+          "share_of_16": 0.125,
+          "failure_class": "episode_time_limit_after_takeover",
+          "phase_semantics": "collector callsite at failure; not Predicate completion"
+        }
+      ]
+    },
+    "accessIssues": []
+  },
+  "sources": [
+    {
+      "id": "e012_gl_failure_decomposition",
+      "label": "E012a GL canonical failure decomposition",
+      "path": "docs/results/e012/gl_failure_decomposition.json",
+      "description": "Canonical 100-candidate GL formal population, 87-seed reconciliation, mutually exclusive Policy progress and Expert commanded-phase decompositions, boundary-reach lower bound, accepted-survivor timing, frozen identities, and explicit unidentifiable items. The three report charts map respectively to ordered progression, Policy progress decomposition, and Expert callsite decomposition."
+    },
+    {
+      "id": "e012_gl_stage_projection",
+      "label": "E012a GL ordered-stage reviewed rows",
+      "path": "docs/results/e012/gl_failure_decomposition.json",
+      "description": "Executable fixed-row projection of the canonical formal population, boundary-reach lower bound, and accepted count used by the ordered-stage chart.",
+      "query": {
+        "engine": "SQLite",
+        "id": "e012-gl-stage-projection-v1",
+        "language": "sql",
+        "executed_at": "2026-08-29T15:56:28Z",
+        "description": "Projects the three reviewed ordered-stage rows from the canonical E012a GL decomposition; stage order is semantic and the 29 count remains explicitly qualified as a lower bound.",
+        "sql": "WITH stage_progression(stage_order, stage, count, denominator, rate_of_formal, qualifier, evidence_basis, boundary) AS (\n  VALUES\n    (1, 'Formal pool', 100, 100, 1.0, 'exact', 'canonical formal population', 'Grasp→Lift'),\n    (2, '至少到达 stable-Grasp boundary', 29, 100, 0.29, 'at least / lower bound', '10 accepted + 16 replay-confirmed Expert time-limit + 3 control-flow post-boundary rejection', 'Grasp→Lift'),\n    (3, 'Eligible', 10, 100, 0.10, 'exact formal accepted count', 'formal accepted trajectories under the existing audit contract', 'Grasp→Lift')\n)\nSELECT stage_order, stage, count, denominator, rate_of_formal, qualifier, evidence_basis, boundary\nFROM stage_progression\nORDER BY stage_order;"
+      }
+    },
+    {
+      "id": "e012_gl_policy_projection",
+      "label": "E012a GL Policy-progress reviewed rows",
+      "path": "docs/results/e012/gl_failure_decomposition.json",
+      "description": "Executable fixed-row projection of the canonical 57/12/2 mutually exclusive Policy progress decomposition used by the horizontal bar chart.",
+      "query": {
+        "engine": "SQLite",
+        "id": "e012-gl-policy-progress-projection-v1",
+        "language": "sql",
+        "executed_at": "2026-08-29T15:56:28Z",
+        "description": "Projects the three reviewed mutually exclusive progress buckets for the 71 same-seed diagnostic replays; every row has terminal bucket policy_time_limit.",
+        "sql": "WITH policy_progress(progress_order, progress_label, progress_bucket, count, denominator, share_of_71, share_of_formal, terminal_bucket, mutually_exclusive, evidence_basis) AS (\n  VALUES\n    (1, '从未完成 Reach', 'never_completed_reach', 57, 71, 57.0 / 71.0, 0.57, 'policy_time_limit', TRUE, 'same-seed deterministic diagnostic replay'),\n    (2, '完成 Reach，未出现 raw Grasp', 'reached_never_raw_grasped', 12, 71, 12.0 / 71.0, 0.12, 'policy_time_limit', TRUE, 'same-seed deterministic diagnostic replay'),\n    (3, 'transient Grasp 后在稳定前丢失', 'transient_grasp_then_lost_before_stable', 2, 71, 2.0 / 71.0, 0.02, 'policy_time_limit', TRUE, 'same-seed deterministic diagnostic replay')\n)\nSELECT progress_order, progress_label, progress_bucket, count, denominator, share_of_71, share_of_formal, terminal_bucket, mutually_exclusive, evidence_basis\nFROM policy_progress\nORDER BY progress_order;"
+      }
+    },
+    {
+      "id": "e012_gl_expert_projection",
+      "label": "E012a GL Expert-phase reviewed rows",
+      "path": "docs/results/e012/gl_failure_decomposition.json",
+      "description": "Executable fixed-row projection of the canonical 3/8/3/2 Expert commanded-phase decomposition used by the horizontal bar chart.",
+      "query": {
+        "engine": "SQLite",
+        "id": "e012-gl-expert-phase-projection-v1",
+        "language": "sql",
+        "executed_at": "2026-08-29T15:56:28Z",
+        "description": "Projects the four reviewed mutually exclusive callsite buckets for 16 post-takeover time-limit failures; callsite phase is not Predicate completion.",
+        "sql": "WITH expert_commanded_phase(phase_order, phase_label, commanded_phase, count, denominator, share_of_16, failure_class, phase_semantics) AS (\n  VALUES\n    (1, 'Lift motion', 'expert_lift_motion', 3, 16, 3.0 / 16.0, 'episode_time_limit_after_takeover', 'collector callsite at failure; not Predicate completion'),\n    (2, 'Transport motion', 'expert_transport_motion', 8, 16, 8.0 / 16.0, 'episode_time_limit_after_takeover', 'collector callsite at failure; not Predicate completion'),\n    (3, 'Lower motion', 'expert_lower_motion', 3, 16, 3.0 / 16.0, 'episode_time_limit_after_takeover', 'collector callsite at failure; not Predicate completion'),\n    (4, 'Release / settle', 'expert_release_settle', 2, 16, 2.0 / 16.0, 'episode_time_limit_after_takeover', 'collector callsite at failure; not Predicate completion')\n)\nSELECT phase_order, phase_label, commanded_phase, count, denominator, share_of_16, failure_class, phase_semantics\nFROM expert_commanded_phase\nORDER BY phase_order;"
+      }
+    }
+  ]
+}

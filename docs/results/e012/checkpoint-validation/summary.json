@@ -1,0 +1,305 @@
+{
+  "format": "robot-vla-e012-repeat-1-checkpoint-validation-summary/v1",
+  "completed_at": "2026-08-31T13:23:49+08:00",
+  "status": "stopped_at_checkpoint_selection",
+  "paired_training": {
+    "verifier_passed": true,
+    "verifier_sha256": "1fa9b11c184e06618bf573a984572276d0d72d83cd910e88a5f022fc47f589ff",
+    "shared_identity": {
+      "source_tree_sha256": "6c24665a20be14b791ca3e52223b9a8baa526743338b76008cf3d9fe06e9825d",
+      "initial_checkpoint_sha256": "a542076f291e29b68e3d28930b15c40396d511a44eb358c2eaeb4e113c041ad6",
+      "initial_policy_state_sha256": "4b22947df48ace25b11cc36776d443916e3a457a7a84e05d855da7e73544903a",
+      "proprio_stats_sha256": "fdad9119e3c86a26cc8c63ac2d38d6575a3f79dba475daff6bd290a0967ef64d",
+      "initialization_mode": "init_checkpoint",
+      "restored_state": "adapter_expert_weights_only",
+      "trainer_state_reset": true,
+      "rng_restored": false
+    },
+    "pi_replay": {
+      "exit_code": 0,
+      "epochs": 30,
+      "samples": 122880,
+      "optimizer_steps": 1920,
+      "samples_per_epoch": 4096,
+      "aggregate_source_exposure": {
+        "base_d0": 122880
+      },
+      "experiment_sha256": "b4423e399cda9685fdbf3c603535e99d8b0c4a0d6164be80f4aba118a5a349a6",
+      "metrics_sha256": "cc0694b331bcef6725410423cc19f7dd860e453cf455e7e22971837535a57c73",
+      "sampler_exposure_sha256": "238f6f4f56868513b42550ad8e42dfa97b13ce5e1b4c0bf7feec5d80677f0c31"
+    },
+    "pi_dagger": {
+      "exit_code": 0,
+      "epochs": 30,
+      "samples": 122880,
+      "optimizer_steps": 1920,
+      "samples_per_epoch": 4096,
+      "aggregate_source_exposure": {
+        "base_d0": 98310,
+        "dagger_reach_grasp": 12290,
+        "dagger_grasp_lift": 12280
+      },
+      "experiment_sha256": "42ee382a49b9701b8f6419d366761a104dc6a556efa5d7421431558ee13fedb0",
+      "metrics_sha256": "913803633457a2e7a5e183e67e4fff27cc57c1684e9e47c87a189f635bfdbb0a",
+      "sampler_exposure_sha256": "2dd4b3507290c56555460ed66edbf046c4f0c975cfbbd35a600d9e29d55da9e8"
+    },
+    "expert_only_supervision_audit": {
+      "passed": true,
+      "d0_boundary_offset": null,
+      "d1_sources": [
+        "dagger_reach_grasp",
+        "dagger_grasp_lift"
+      ],
+      "d1_boundary_offset_min": 0,
+      "d1_boundary_offset_max": 48
+    }
+  },
+  "checkpoint_validation": {
+    "baseline": "pi0",
+    "candidate_epochs": [
+      10,
+      20,
+      30
+    ],
+    "outputs": 14,
+    "episodes": 315,
+    "full_chain": {
+      "episodes_per_model": 20,
+      "seeds": {
+        "start": 31000,
+        "end_inclusive": 31019
+      }
+    },
+    "atomic": {
+      "episodes_per_model": 25,
+      "seeds": {
+        "start": 31020,
+        "end_inclusive": 31024
+      },
+      "skills": [
+        "reach",
+        "grasp",
+        "lift",
+        "transport",
+        "place"
+      ],
+      "episodes_per_skill": 5
+    },
+    "identity_and_seed_audit_passed": true,
+    "error_scan_count": 0,
+    "system_error_count": 0,
+    "action_safety_rejection_count": 0,
+    "selection_receipts": {
+      "pi_replay": {
+        "path": "docs/results/e012/checkpoint-validation/pi-replay-selection.json",
+        "sha256": "0fdc195552e742b017d71da57974a98ff626c018d289a1f5ffa891f74e1ee838"
+      },
+      "pi_dagger": {
+        "path": "docs/results/e012/checkpoint-validation/pi-dagger-selection.json",
+        "sha256": "84ba2e7435438d65ebd1fb926cda21fbf69f92093021cf68cc4f0abc579586f6"
+      }
+    }
+  },
+  "candidate_results": [
+    {
+      "arm": "pi_replay",
+      "label": "replay-e010",
+      "epoch": 10,
+      "eligible": false,
+      "failed_checks": [
+        "atomic_place_not_regressed",
+        "full_chain_reach_delta_at_least_minus_1"
+      ],
+      "full_chain_paired_net_wins": {
+        "reach": -2,
+        "grasp": -2,
+        "lift": -2
+      },
+      "atomic_place_paired_net_wins": -2,
+      "mean_completed_skills": 0.5,
+      "mean_completed_skills_delta": -0.3,
+      "unconditional_grasp_successes": 3,
+      "unconditional_lift_successes": 0,
+      "full_successes": 0,
+      "full_chain_episodes": 20,
+      "validation_total_loss": 0.015049984900425414,
+      "new_anomaly_episodes": 0,
+      "anomaly_replan_count_delta": 0,
+      "new_tracking_episodes": 0,
+      "tracking_correction_saturation_count_delta": 0
+    },
+    {
+      "arm": "pi_replay",
+      "label": "replay-e020",
+      "epoch": 20,
+      "eligible": false,
+      "failed_checks": [
+        "atomic_place_not_regressed"
+      ],
+      "full_chain_paired_net_wins": {
+        "reach": 8,
+        "grasp": 9,
+        "lift": 6
+      },
+      "atomic_place_paired_net_wins": -3,
+      "mean_completed_skills": 2.05,
+      "mean_completed_skills_delta": 1.25,
+      "unconditional_grasp_successes": 14,
+      "unconditional_lift_successes": 8,
+      "full_successes": 0,
+      "full_chain_episodes": 20,
+      "validation_total_loss": 0.017626467794123586,
+      "new_anomaly_episodes": 0,
+      "anomaly_replan_count_delta": 0,
+      "new_tracking_episodes": 0,
+      "tracking_correction_saturation_count_delta": 0
+    },
+    {
+      "arm": "pi_replay",
+      "label": "replay-e030",
+      "epoch": 30,
+      "eligible": false,
+      "failed_checks": [
+        "full_chain_reach_delta_at_least_minus_1"
+      ],
+      "full_chain_paired_net_wins": {
+        "reach": -6,
+        "grasp": -2,
+        "lift": -2
+      },
+      "atomic_place_paired_net_wins": 0,
+      "mean_completed_skills": 0.3,
+      "mean_completed_skills_delta": -0.5,
+      "unconditional_grasp_successes": 3,
+      "unconditional_lift_successes": 0,
+      "full_successes": 0,
+      "full_chain_episodes": 20,
+      "validation_total_loss": 0.01882744381638927,
+      "new_anomaly_episodes": 0,
+      "anomaly_replan_count_delta": 0,
+      "new_tracking_episodes": 0,
+      "tracking_correction_saturation_count_delta": 0
+    },
+    {
+      "arm": "pi_dagger",
+      "label": "dagger-e010",
+      "epoch": 10,
+      "eligible": false,
+      "failed_checks": [
+        "anomaly_not_regressed",
+        "full_chain_reach_delta_at_least_minus_1"
+      ],
+      "full_chain_paired_net_wins": {
+        "reach": -7,
+        "grasp": -3,
+        "lift": -2
+      },
+      "atomic_place_paired_net_wins": 0,
+      "mean_completed_skills": 0.2,
+      "mean_completed_skills_delta": -0.6,
+      "unconditional_grasp_successes": 2,
+      "unconditional_lift_successes": 0,
+      "full_successes": 0,
+      "full_chain_episodes": 20,
+      "validation_total_loss": 0.014515381253600466,
+      "new_anomaly_episodes": 3,
+      "anomaly_replan_count_delta": 7,
+      "new_tracking_episodes": 0,
+      "tracking_correction_saturation_count_delta": 0
+    },
+    {
+      "arm": "pi_dagger",
+      "label": "dagger-e020",
+      "epoch": 20,
+      "eligible": false,
+      "failed_checks": [
+        "atomic_place_not_regressed"
+      ],
+      "full_chain_paired_net_wins": {
+        "reach": 1,
+        "grasp": 1,
+        "lift": 0
+      },
+      "atomic_place_paired_net_wins": -4,
+      "mean_completed_skills": 0.9,
+      "mean_completed_skills_delta": 0.1,
+      "unconditional_grasp_successes": 6,
+      "unconditional_lift_successes": 2,
+      "full_successes": 0,
+      "full_chain_episodes": 20,
+      "validation_total_loss": 0.01443981167798366,
+      "new_anomaly_episodes": 0,
+      "anomaly_replan_count_delta": 0,
+      "new_tracking_episodes": 0,
+      "tracking_correction_saturation_count_delta": 0
+    },
+    {
+      "arm": "pi_dagger",
+      "label": "dagger-e030",
+      "epoch": 30,
+      "eligible": false,
+      "failed_checks": [
+        "anomaly_not_regressed",
+        "atomic_place_not_regressed",
+        "tracking_not_regressed"
+      ],
+      "full_chain_paired_net_wins": {
+        "reach": 2,
+        "grasp": 3,
+        "lift": 4
+      },
+      "atomic_place_paired_net_wins": -2,
+      "mean_completed_skills": 1.25,
+      "mean_completed_skills_delta": 0.45,
+      "unconditional_grasp_successes": 8,
+      "unconditional_lift_successes": 6,
+      "full_successes": 0,
+      "full_chain_episodes": 20,
+      "validation_total_loss": 0.023852475846069865,
+      "new_anomaly_episodes": 1,
+      "anomaly_replan_count_delta": 1,
+      "new_tracking_episodes": 1,
+      "tracking_correction_saturation_count_delta": 1
+    }
+  ],
+  "selection": {
+    "pi_replay": {
+      "selection_gate_passed": false,
+      "selected": null,
+      "eligible_ranking": []
+    },
+    "pi_dagger": {
+      "selection_gate_passed": false,
+      "selected": null,
+      "eligible_ranking": []
+    }
+  },
+  "promotion": {
+    "stage_a": {
+      "status": "not_run",
+      "reason": "checkpoint_selection_gate_failed"
+    },
+    "repeat_2": {
+      "status": "not_run",
+      "reason": "checkpoint_selection_gate_failed"
+    },
+    "stage_b": {
+      "status": "not_run",
+      "reason": "checkpoint_selection_gate_failed"
+    },
+    "matched_state_diagnostics": {
+      "status": "not_run",
+      "reason": "no_preregistered_selected_pair"
+    }
+  },
+  "interpretation": {
+    "supported": "All preregistered epoch-10/20/30 candidates failed at least one checkpoint-selection guardrail, so promotion stopped before Stage A.",
+    "not_supported": [
+      "Local DAgger improved held-out behavior",
+      "positive checkpoint-validation signals are Stage A effects",
+      "matched-state uncertainty or disagreement decreased"
+    ],
+    "failure_pattern": "Positive closed-loop Grasp/Lift signals coexisted with Place, Reach, tracking, or anomaly regressions."
+  },
+  "reproducibility_limitation": "After strict resume from the immutable epoch-24 full-state checkpoint, trainer structure, examples, optimizer steps, source exposure, boundary offsets, and frozen identities matched, but the CUDA loss/gradient trajectory was not bitwise reproducible."
+}

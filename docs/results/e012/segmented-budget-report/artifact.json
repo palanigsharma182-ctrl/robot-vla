@@ -1,0 +1,729 @@
+{
+  "surface": "report",
+  "manifest": {
+    "version": 1,
+    "surface": "report",
+    "title": "E012 segmented-budget counterfactual",
+    "description": "对 16 条旧 Grasp→Lift post-takeover TimeLimit seed 的 segmented-300-180-480 受控重放、证据审计与正式 pool 容量规划技术报告。",
+    "generatedAt": "2026-08-29T17:35:15Z",
+    "cards": [
+      {
+        "id": "recovered_card",
+        "description": "仅在 16 条 canonical legacy TimeLimit 子群中的完整 eligible 恢复数；不是新正式 pool 成功率。",
+        "dataset": "headline",
+        "sourceId": "e012_headline_projection",
+        "metrics": [
+          {
+            "label": "完整 eligible",
+            "field": "recovered_full_eligible",
+            "format": "number"
+          },
+          {
+            "label": "Counterfactual seeds",
+            "field": "counterfactual_seeds",
+            "format": "number"
+          },
+          {
+            "label": "条件恢复率",
+            "field": "conditional_recovery_rate",
+            "format": "percent"
+          }
+        ]
+      },
+      {
+        "id": "integrity_card",
+        "description": "16 条重放的前缀元数据与工程错误门禁；prefix metadata 对齐不等于 state/action bitwise identity。",
+        "dataset": "headline",
+        "sourceId": "e012_headline_projection",
+        "metrics": [
+          {
+            "label": "Prefix aligned",
+            "field": "prefix_aligned",
+            "format": "number"
+          },
+          {
+            "label": "Engineering errors",
+            "field": "engineering_errors",
+            "format": "number"
+          },
+          {
+            "label": "480 hard deadline",
+            "field": "hard_deadline_count",
+            "format": "number"
+          }
+        ]
+      },
+      {
+        "id": "planning_card",
+        "description": "容量规划使用 legacy 10 + recovered 5、分母仍为原 100 个 seed；这是 planning estimate，不是新 formal measurement。",
+        "dataset": "headline",
+        "sourceId": "e012_headline_projection",
+        "metrics": [
+          {
+            "label": "Planning rate",
+            "field": "planning_rate",
+            "format": "percent"
+          },
+          {
+            "label": "Eligible gate",
+            "field": "eligible_gate",
+            "format": "number"
+          },
+          {
+            "label": "Jeffreys 95% threshold",
+            "field": "jeffreys_95_threshold",
+            "format": "number"
+          }
+        ]
+      }
+    ],
+    "charts": [
+      {
+        "id": "outcome_chart",
+        "title": "16 条 legacy TimeLimit 的 amended outcome",
+        "subtitle": "互斥分类，exact count；样本是旧 TimeLimit 子群，不代表新 seed 总体。",
+        "type": "horizontalBar",
+        "dataset": "counterfactual_outcomes",
+        "sourceId": "e012_outcome_projection",
+        "valueFormat": "number",
+        "intent": "decomposition",
+        "question": "分段预算后，16 条旧 post-takeover TimeLimit 分别落入什么结果？",
+        "rationale": "六个互斥分类标签较长，使用零基线横向柱展示 exact count，并保留两个零计数工程门禁。",
+        "comparisonContext": {
+          "denominator": "16 canonical legacy GL post-takeover TimeLimit seeds",
+          "grain": "environment seed / episode",
+          "unit": "episodes",
+          "semanticFamily": "mutually exclusive counterfactual outcomes"
+        },
+        "palette": {
+          "kind": "categorical",
+          "name": "tableau"
+        },
+        "labels": {
+          "values": "all"
+        },
+        "encodings": {
+          "x": {
+            "field": "outcome_label",
+            "type": "nominal",
+            "label": "Outcome"
+          },
+          "y": {
+            "field": "count",
+            "type": "quantitative",
+            "label": "Seeds"
+          },
+          "tooltip": [
+            {
+              "field": "outcome_label",
+              "type": "nominal",
+              "label": "Outcome"
+            },
+            {
+              "field": "count",
+              "type": "quantitative",
+              "label": "Count"
+            },
+            {
+              "field": "share_of_16",
+              "type": "quantitative",
+              "label": "Share of 16",
+              "format": "percent"
+            },
+            {
+              "field": "interpretation",
+              "type": "nominal",
+              "label": "Interpretation"
+            }
+          ]
+        }
+      },
+      {
+        "id": "capacity_chart",
+        "title": "达到 eligible gate=20 的规划概率",
+        "subtitle": "固定 p=0.15 与 Jeffreys Beta-binomial；均依赖 seed 可交换性等假设，不是成功保证。",
+        "type": "bar",
+        "dataset": "capacity_probabilities",
+        "sourceId": "e012_capacity_projection",
+        "valueFormat": "percent",
+        "intent": "comparison",
+        "question": "不同固定 pool size 下，两个规划模型估计达到 20 条 eligible 的概率是多少？",
+        "rationale": "每个 pool size 同时显示固定率和纳入率不确定性的模型结果；纵轴从零起算，表格保留精确值。",
+        "comparisonContext": {
+          "denominator": "one future amended GL formal pool",
+          "grain": "pool-size and planning-model pair",
+          "unit": "probability of at least 20 eligible trajectories",
+          "semanticFamily": "capacity planning model comparison"
+        },
+        "palette": {
+          "kind": "categorical",
+          "name": "tableau"
+        },
+        "labels": {
+          "values": "all"
+        },
+        "encodings": {
+          "x": {
+            "field": "comparison",
+            "type": "nominal",
+            "label": "Pool size · model"
+          },
+          "y": {
+            "field": "pass_probability",
+            "type": "quantitative",
+            "label": "P(eligible ≥ 20)"
+          },
+          "tooltip": [
+            {
+              "field": "pool_size",
+              "type": "quantitative",
+              "label": "Pool size"
+            },
+            {
+              "field": "model",
+              "type": "nominal",
+              "label": "Planning model"
+            },
+            {
+              "field": "pass_probability",
+              "type": "quantitative",
+              "label": "Pass probability",
+              "format": "percent"
+            },
+            {
+              "field": "expected_eligible",
+              "type": "quantitative",
+              "label": "Point-rate expected eligible"
+            }
+          ]
+        }
+      }
+    ],
+    "tables": [
+      {
+        "id": "capacity_table",
+        "title": "正式 pool 容量选项",
+        "subtitle": "planning rate=15/100；Jeffreys 模型包含总体率估计不确定性，仍不能识别 pool-to-pool heterogeneity。",
+        "dataset": "capacity_options",
+        "sourceId": "e012_capacity_projection",
+        "defaultSort": {
+          "field": "pool_size",
+          "direction": "asc"
+        },
+        "columns": [
+          {
+            "field": "pool_size",
+            "label": "Pool size",
+            "format": "number"
+          },
+          {
+            "field": "expected_eligible",
+            "label": "Point-rate expected eligible",
+            "format": "number"
+          },
+          {
+            "field": "fixed_p_pass",
+            "label": "Fixed-p P(pass)",
+            "format": "percent"
+          },
+          {
+            "field": "jeffreys_pass",
+            "label": "Jeffreys predictive P(pass)",
+            "format": "percent"
+          },
+          {
+            "field": "planning_note",
+            "label": "Planning interpretation",
+            "type": "text"
+          }
+        ]
+      },
+      {
+        "id": "expert_action_table",
+        "title": "恢复成功轨迹的 Expert action 使用量",
+        "subtitle": "只描述 recovered survivor；不能据此向下修改 Expert=180 预算。",
+        "dataset": "recovered_expert_actions",
+        "sourceId": "e012_recovered_actions_projection",
+        "defaultSort": {
+          "field": "expert_actions",
+          "direction": "asc"
+        },
+        "columns": [
+          {
+            "field": "environment_seed",
+            "label": "Seed",
+            "format": "number"
+          },
+          {
+            "field": "policy_actions",
+            "label": "Policy actions",
+            "format": "number"
+          },
+          {
+            "field": "expert_actions",
+            "label": "Expert actions",
+            "format": "number"
+          },
+          {
+            "field": "total_actions",
+            "label": "Total actions",
+            "format": "number"
+          }
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "id": "e012_segmented_analysis",
+        "label": "E012 segmented-budget canonical analysis",
+        "path": "docs/results/e012/segmented-budget-counterfactual/analysis.json"
+      },
+      {
+        "id": "e012_outcome_projection",
+        "label": "16-seed mutually exclusive outcome projection",
+        "path": "docs/results/e012/segmented-budget-counterfactual/analysis.json"
+      },
+      {
+        "id": "e012_headline_projection",
+        "label": "Segmented-budget headline projection",
+        "path": "docs/results/e012/segmented-budget-counterfactual/analysis.json"
+      },
+      {
+        "id": "e012_recovered_actions_projection",
+        "label": "Recovered Expert-action projection",
+        "path": "docs/results/e012/segmented-budget-counterfactual/analysis.json"
+      },
+      {
+        "id": "e012_capacity_projection",
+        "label": "Formal pool capacity planning projection",
+        "path": "docs/results/e012/segmented-budget-counterfactual/analysis.json"
+      },
+      {
+        "id": "e012_counterfactual_summary",
+        "label": "E012 segmented-budget counterfactual summary",
+        "path": "docs/results/e012/segmented-budget-counterfactual/summary.json"
+      },
+      {
+        "id": "e012_smoke_summary",
+        "label": "E012 segmented-budget three-seed smoke summary",
+        "path": "docs/results/e012/segmented-budget-smoke/summary.json"
+      },
+      {
+        "id": "e012_legacy_collection_summary",
+        "label": "E012a legacy formal collection summary",
+        "path": "docs/results/e012/collection_summary.json"
+      }
+    ],
+    "blocks": [
+      {
+        "id": "title",
+        "type": "markdown",
+        "body": "# E012 segmented-budget counterfactual"
+      },
+      {
+        "id": "technical_summary",
+        "type": "markdown",
+        "sourceId": "e012_segmented_analysis",
+        "body": "## Technical summary｜技术摘要\n\n**`segmented-300-180-480` 确实恢复了部分旧 TimeLimit，但正式 GL 容量问题仍未被可靠解决。** 对 16 条 canonical legacy post-takeover TimeLimit seed 的受控重放中，5 条恢复为完整 eligible，另 1 条完成五技能和 environment success、却因 snapshot gate 失败而仍不可进入训练。16/16 prefix metadata 对齐，engineering error、prefix mismatch 和 480-action hard deadline 均为 0。\n\n这项结果只支持 protocol amendment 与容量规划：5/16 是旧 TimeLimit 子群内的条件恢复率，不是新 seed 总体成功率。正式 planning rate 应按旧 100-seed pool 的 10 条 eligible 加上 5 条 recovered 计算为 15/100。在该点估计下，固定 120 seeds 达到 gate=20 的 posterior-predictive 概率约 40.1%；200、220、240 分别约为 90.9%、94.7%、96.9%。这些是依赖可交换性和 counterfactual-invariance 假设的规划概率，不是 formal outcome，也不证明 DAgger 训练收益。"
+      },
+      {
+        "id": "key_findings",
+        "type": "markdown",
+        "body": "## Key findings｜关键发现"
+      },
+      {
+        "id": "outcome_finding",
+        "type": "markdown",
+        "sourceId": "e012_segmented_analysis",
+        "body": "### 5 条完整恢复，1 条行为完成后被 snapshot gate 拦下\n\n16 条互斥分类为：5 条完整 eligible、1 条行为完成但后续 gate 失败、4 条 Expert=180 action budget exhausted、6 条其他行为 rejection。Seed `30181` 已完成五技能、environment success 和 terminated，但 snapshot immediate RGB 的 mean absolute error 为 `0.0051167806`，高于 `0.002` 门槛，因此不能计入 eligible，也不能进入 D1。"
+      },
+      {
+        "id": "outcome_evidence",
+        "type": "chart",
+        "chartId": "outcome_chart"
+      },
+      {
+        "id": "budget_finding",
+        "type": "markdown",
+        "sourceId": "e012_segmented_analysis",
+        "body": "### 480 hard limit 已退出瓶颈，但剩余失败不只是‘缺时间’\n\n所有候选的最大 total actions 为 426，没有一条触发 480 hard deadline。4 条失败精确命中 Expert=180 action cap，因此预算对它们直接生效；另外 6 条行为失败在 157–178 个 Expert actions 内已结束 nominal recovery sequence，却仍没有完成 Lift/Transport predicate。所有 rejected 的 `phase_at_failure=expert_release_settle` 只表示 commanded callsite，不能解释为 Place 已完成。"
+      },
+      {
+        "id": "capacity_finding",
+        "type": "markdown",
+        "sourceId": "e012_segmented_analysis",
+        "body": "### 120 seeds 不满足低风险容量目标\n\n容量模型的总体点估计是 `(10 legacy eligible + 5 recovered timeout) / 100 = 15%`；16 条 counterfactual 不是额外 seed，因此分母不能写成 116，也不能直接把 5/16 当总体率。在 Jeffreys Beta-binomial posterior predictive 下，120 条 pool 达到 20 条 eligible 的概率约 40.1%，期望值约 18，本身低于 gate。200 是约 90.9% 的务实折中，220 约 94.7%，240 约 96.9%；精确 95% threshold 为 223，工程上若采用严格低风险目标可向上按批量取整。正式 pool size 当前仍待 owner 冻结。"
+      },
+      {
+        "id": "capacity_evidence",
+        "type": "chart",
+        "chartId": "capacity_chart"
+      },
+      {
+        "id": "capacity_table_block",
+        "type": "table",
+        "tableId": "capacity_table"
+      },
+      {
+        "id": "expert_action_block",
+        "type": "table",
+        "tableId": "expert_action_table"
+      },
+      {
+        "id": "scope_definitions",
+        "type": "markdown",
+        "sourceId": "e012_segmented_analysis",
+        "body": "## Scope, data, and metric definitions｜范围、数据与指标\n\n- **Counterfactual cohort：**旧正式 100-seed GL pool 中 16 条 post-takeover `TimeLimit`；不是随机抽取的新总体样本。\n- **Action unit：**actual environment action。Policy roll-in 最多 300、Expert recovery 最多 180、environment hard limit 为 480，完整 success 必须严格早于 truncation。\n- **Full eligible：**完整五技能、environment success、trajectory audit、paired clean Expert 与 snapshot gate 均通过。\n- **Behavior completed：**完成五技能/environment success，但尚未应用或未通过后续 artifact gate；不能与 eligible 合并。\n- **Planning rate：**15/100，仅用于估计新正式 pool 容量；不是新的 formal measured acceptance rate。\n- **Training use：**smoke/counterfactual wrapper 明确 `trajectory_usage=forbidden as training data` 且 `successful_npz_may_enter_d1=false`。"
+      },
+      {
+        "id": "methodology",
+        "type": "markdown",
+        "sourceId": "e012_segmented_analysis",
+        "body": "## Methodology｜方法与核验\n\n1. 在同一 checkpoint、D0 和 deterministic seed 身份下，只将 legacy 命令增加 `--action-budget-protocol segmented-300-180-480`。\n2. 先以固定三条 smoke 验证 accepted control、early timeout 与 late timeout；随后按冻结顺序执行 16 条 counterfactual。\n3. 每条候选核验六类 prefix metadata、分段 action accounting、hard-deadline 三信号、immutable receipt、record/subprocess/result SHA；5 条 accepted 重新加载 manifest/NPZ 并运行完整 trajectory audit。\n4. 从机器可读 summary 重算互斥分类、Expert action 分布和 hard-deadline 计数。\n5. 容量规划以 15/100 为 evidence，分别计算固定率 Binomial 与 Jeffreys `Beta(15.5,85.5)` posterior predictive 的 `P(K_n≥20)`；两者都要求新 seed 与旧 pool 可交换。"
+      },
+      {
+        "id": "limitations",
+        "type": "markdown",
+        "sourceId": "e012_segmented_analysis",
+        "body": "## Limitations, uncertainty, and robustness｜限制与不确定性\n\n- **Counterfactual, not causal：**结果不证明 Action Chunk 新旧预测冲突是失败原因，也不证明 Local DAgger 训练会改善策略。\n- **Selected subgroup：**5/16 是旧 TimeLimit 子群条件恢复率，不能外推成总体 31.25%。\n- **Prefix limitation：**metadata equality 不证明 Policy action tensor 或 simulator state bitwise identical。\n- **Planning assumptions：**15/100 假设旧 10 条 accepted 在 amended protocol 下保持 eligible，目前只由 seed 30111 直接复现一条；也假设新 seed range 可交换。\n- **Unidentified heterogeneity：**当前只有一个可比 formal pool，Beta-binomial 纳入率估计不确定性，但无法从数据识别额外的 batch/seed-range overdispersion。\n- **Survivor bias：**recovered Expert actions 为 117–161；不能根据成功 survivor 反向缩短 180 action cap。\n- **Artifact isolation：**通用 trajectory manifest/NPZ 本身没有自描述禁训练字段；D1 builder 必须只消费正式 canonical `accepted + selected` record，严禁扫描 counterfactual NPZ 目录。"
+      },
+      {
+        "id": "recommended_next_steps",
+        "type": "markdown",
+        "body": "## Recommended next steps｜建议的下一步\n\n1. 保留旧 E012a 10/100 formal 结论，不回写历史结果；把本轮 16-seed 结果作为 protocol counterfactual。\n2. 正式 rollout 前先关闭 staged-publish/orphan artifact 与 formal runner exact-config/resume 两个 P1。\n3. 在 owner 冻结 pool size 后，使用独立 seed range 一次性运行 amended GL，eligible gate 仍为 20，selection 仍为 14 high + 6 low。\n4. D1 只能由 RG selected 20 与 amended GL selected 20 的 canonical record manifest 构建；先做 union audit，再运行 paired training smoke。\n5. 正式比较 `pi_replay[1]` 与 `pi_dagger[1]` 时冻结初始化 checkpoint、D0 sampling exposure 和 paired evaluation seeds；本报告不能替代训练实验。"
+      },
+      {
+        "id": "further_questions",
+        "type": "markdown",
+        "body": "## Further questions｜仍需回答的问题\n\n- 独立新 seed pool 的真实 amended eligible rate 是否支持 15% planning estimate？\n- 4 条 Expert-cap failure 若增加预算会恢复，还是同样因 grasp 丢失无法完成 predicate？\n- 对 6 条 nominal recovery 已结束但行为失败的 episode，grasp retention、object motion 和 action chunk conflict 哪个信号最早分叉？\n- 新 D1 的 boundary-local Expert-only supervision 能否在 paired seeds 上改善 recovery，而不降低完整五技能 success 或其它 guardrail？"
+      }
+    ]
+  },
+  "snapshot": {
+    "version": 1,
+    "generatedAt": "2026-08-29T17:35:15Z",
+    "status": "ready",
+    "datasets": {
+      "headline": [
+        {
+          "counterfactual_seeds": 16,
+          "recovered_full_eligible": 5,
+          "conditional_recovery_rate": 0.3125,
+          "prefix_aligned": 16,
+          "engineering_errors": 0,
+          "hard_deadline_count": 0,
+          "planning_rate": 0.15,
+          "eligible_gate": 20,
+          "jeffreys_95_threshold": 223
+        }
+      ],
+      "counterfactual_outcomes": [
+        {
+          "outcome_order": 1,
+          "outcome_label": "完整 eligible",
+          "classification": "recovered_full_eligible",
+          "count": 5,
+          "share_of_16": 0.3125,
+          "interpretation": "完整五技能、paired/snapshot/audit 全部通过"
+        },
+        {
+          "outcome_order": 2,
+          "outcome_label": "行为完成但 gate 失败",
+          "classification": "expert_completed_but_snapshot_or_paired_gate_failed",
+          "count": 1,
+          "share_of_16": 0.0625,
+          "interpretation": "seed 30181 完成行为但 snapshot gate 失败"
+        },
+        {
+          "outcome_order": 3,
+          "outcome_label": "Expert=180 预算耗尽",
+          "classification": "expert_recovery_budget_exhausted",
+          "count": 4,
+          "share_of_16": 0.25,
+          "interpretation": "Expert segment 的直接停止条件"
+        },
+        {
+          "outcome_order": 4,
+          "outcome_label": "其他行为 rejection",
+          "classification": "other_behavioral_rejection",
+          "count": 6,
+          "share_of_16": 0.375,
+          "interpretation": "在 cap 前结束 nominal recovery，但行为未完成"
+        },
+        {
+          "outcome_order": 5,
+          "outcome_label": "Prefix mismatch",
+          "classification": "prefix_mismatch",
+          "count": 0,
+          "share_of_16": 0.0,
+          "interpretation": "工程完整性门禁"
+        },
+        {
+          "outcome_order": 6,
+          "outcome_label": "Engineering error",
+          "classification": "engineering_error",
+          "count": 0,
+          "share_of_16": 0.0,
+          "interpretation": "工程完整性门禁"
+        }
+      ],
+      "capacity_probabilities": [
+        {
+          "comparison_order": 1,
+          "comparison": "120 · fixed-p",
+          "pool_size": 120,
+          "model": "fixed p=0.15",
+          "pass_probability": 0.34138331745061534,
+          "expected_eligible": 18.0
+        },
+        {
+          "comparison_order": 2,
+          "comparison": "120 · Jeffreys",
+          "pool_size": 120,
+          "model": "Jeffreys predictive",
+          "pass_probability": 0.40138673143805925,
+          "expected_eligible": 18.0
+        },
+        {
+          "comparison_order": 3,
+          "comparison": "160 · fixed-p",
+          "pool_size": 160,
+          "model": "fixed p=0.15",
+          "pass_probability": 0.8406349221123074,
+          "expected_eligible": 24.0
+        },
+        {
+          "comparison_order": 4,
+          "comparison": "160 · Jeffreys",
+          "pool_size": 160,
+          "model": "Jeffreys predictive",
+          "pass_probability": 0.7440502598003148,
+          "expected_eligible": 24.0
+        },
+        {
+          "comparison_order": 5,
+          "comparison": "180 · fixed-p",
+          "pool_size": 180,
+          "model": "fixed p=0.15",
+          "pass_probability": 0.9460490517417455,
+          "expected_eligible": 27.0
+        },
+        {
+          "comparison_order": 6,
+          "comparison": "180 · Jeffreys",
+          "pool_size": 180,
+          "model": "Jeffreys predictive",
+          "pass_probability": 0.8452636407661477,
+          "expected_eligible": 27.0
+        },
+        {
+          "comparison_order": 7,
+          "comparison": "200 · fixed-p",
+          "pool_size": 200,
+          "model": "fixed p=0.15",
+          "pass_probability": 0.9851197019379515,
+          "expected_eligible": 30.0
+        },
+        {
+          "comparison_order": 8,
+          "comparison": "200 · Jeffreys",
+          "pool_size": 200,
+          "model": "Jeffreys predictive",
+          "pass_probability": 0.9088171530677761,
+          "expected_eligible": 30.0
+        },
+        {
+          "comparison_order": 9,
+          "comparison": "220 · fixed-p",
+          "pool_size": 220,
+          "model": "fixed p=0.15",
+          "pass_probability": 0.996550818319629,
+          "expected_eligible": 33.0
+        },
+        {
+          "comparison_order": 10,
+          "comparison": "220 · Jeffreys",
+          "pool_size": 220,
+          "model": "Jeffreys predictive",
+          "pass_probability": 0.946960987083204,
+          "expected_eligible": 33.0
+        },
+        {
+          "comparison_order": 11,
+          "comparison": "240 · fixed-p",
+          "pool_size": 240,
+          "model": "fixed p=0.15",
+          "pass_probability": 0.9993103698930452,
+          "expected_eligible": 36.0
+        },
+        {
+          "comparison_order": 12,
+          "comparison": "240 · Jeffreys",
+          "pool_size": 240,
+          "model": "Jeffreys predictive",
+          "pass_probability": 0.9692842025483585,
+          "expected_eligible": 36.0
+        }
+      ],
+      "capacity_options": [
+        {
+          "pool_size": 120,
+          "expected_eligible": 18.0,
+          "fixed_p_pass": 0.34138331745061534,
+          "jeffreys_pass": 0.40138673143805925,
+          "planning_note": "期望值低于 gate；高风险"
+        },
+        {
+          "pool_size": 160,
+          "expected_eligible": 24.0,
+          "fixed_p_pass": 0.8406349221123074,
+          "jeffreys_pass": 0.7440502598003148,
+          "planning_note": "纳入率不确定性后仍有约 25.6% failure risk"
+        },
+        {
+          "pool_size": 180,
+          "expected_eligible": 27.0,
+          "fixed_p_pass": 0.9460490517417455,
+          "jeffreys_pass": 0.8452636407661477,
+          "planning_note": "Jeffreys predictive failure risk 约 15.5%"
+        },
+        {
+          "pool_size": 200,
+          "expected_eligible": 30.0,
+          "fixed_p_pass": 0.9851197019379515,
+          "jeffreys_pass": 0.9088171530677761,
+          "planning_note": "务实折中；仍约 9.1% predictive failure risk"
+        },
+        {
+          "pool_size": 220,
+          "expected_eligible": 33.0,
+          "fixed_p_pass": 0.996550818319629,
+          "jeffreys_pass": 0.946960987083204,
+          "planning_note": "接近 95%，但未达到精确 223 threshold"
+        },
+        {
+          "pool_size": 240,
+          "expected_eligible": 36.0,
+          "fixed_p_pass": 0.9993103698930452,
+          "jeffreys_pass": 0.9692842025483585,
+          "planning_note": "按 20 条批量向上越过 223 threshold"
+        }
+      ],
+      "recovered_expert_actions": [
+        {
+          "environment_seed": 30105,
+          "policy_actions": 225,
+          "expert_actions": 117,
+          "total_actions": 342
+        },
+        {
+          "environment_seed": 30106,
+          "policy_actions": 216,
+          "expert_actions": 121,
+          "total_actions": 337
+        },
+        {
+          "environment_seed": 30145,
+          "policy_actions": 231,
+          "expert_actions": 122,
+          "total_actions": 353
+        },
+        {
+          "environment_seed": 30171,
+          "policy_actions": 290,
+          "expert_actions": 136,
+          "total_actions": 426
+        },
+        {
+          "environment_seed": 30103,
+          "policy_actions": 176,
+          "expert_actions": 161,
+          "total_actions": 337
+        }
+      ]
+    },
+    "accessIssues": []
+  },
+  "sources": [
+    {
+      "id": "e012_segmented_analysis",
+      "label": "E012 segmented-budget canonical analysis",
+      "path": "docs/results/e012/segmented-budget-counterfactual/analysis.json",
+      "description": "Authoritative reproducible analysis generated by scripts/analyze_e012_budget_counterfactual.py. It validates the smoke and 16-seed counterfactual, recomputes classifications and action distributions, and calculates formal-pool capacity models."
+    },
+    {
+      "id": "e012_outcome_projection",
+      "label": "16-seed mutually exclusive outcome projection",
+      "path": "docs/results/e012/segmented-budget-counterfactual/analysis.json",
+      "description": "Executable fixed-row projection of the six mutually exclusive classifications in the canonical analysis.",
+      "query": {
+        "engine": "SQLite",
+        "id": "e012-segmented-outcomes-v1",
+        "language": "sql",
+        "executed_at": "2026-08-29T17:35:15Z",
+        "description": "Projects reviewed exact counts for the 16 canonical legacy TimeLimit seeds; two zero-count engineering classes remain visible.",
+        "sql": "WITH outcomes(outcome_order, outcome_label, classification, count, share_of_16, interpretation) AS (\n  VALUES\n    (1, '完整 eligible', 'recovered_full_eligible', 5, 5.0 / 16.0, '完整五技能、paired/snapshot/audit 全部通过'),\n    (2, '行为完成但 gate 失败', 'expert_completed_but_snapshot_or_paired_gate_failed', 1, 1.0 / 16.0, 'seed 30181 完成行为但 snapshot gate 失败'),\n    (3, 'Expert=180 预算耗尽', 'expert_recovery_budget_exhausted', 4, 4.0 / 16.0, 'Expert segment 的直接停止条件'),\n    (4, '其他行为 rejection', 'other_behavioral_rejection', 6, 6.0 / 16.0, '在 cap 前结束 nominal recovery，但行为未完成'),\n    (5, 'Prefix mismatch', 'prefix_mismatch', 0, 0.0, '工程完整性门禁'),\n    (6, 'Engineering error', 'engineering_error', 0, 0.0, '工程完整性门禁')\n)\nSELECT outcome_order, outcome_label, classification, count, share_of_16, interpretation\nFROM outcomes\nORDER BY outcome_order;"
+      }
+    },
+    {
+      "id": "e012_headline_projection",
+      "label": "Segmented-budget headline projection",
+      "path": "docs/results/e012/segmented-budget-counterfactual/analysis.json",
+      "description": "Executable fixed-row projection of report headline values from the canonical analysis.",
+      "query": {
+        "engine": "SQLite",
+        "id": "e012-segmented-headline-v1",
+        "language": "sql",
+        "executed_at": "2026-08-29T17:35:15Z",
+        "description": "Projects the 16-seed counterfactual count, recovery count, integrity gates, planning rate, eligible gate and Jeffreys 95% threshold.",
+        "sql": "SELECT 16 AS counterfactual_seeds, 5 AS recovered_full_eligible, 5.0 / 16.0 AS conditional_recovery_rate, 16 AS prefix_aligned, 0 AS engineering_errors, 0 AS hard_deadline_count, 0.15 AS planning_rate, 20 AS eligible_gate, 223 AS jeffreys_95_threshold;"
+      }
+    },
+    {
+      "id": "e012_recovered_actions_projection",
+      "label": "Recovered Expert-action projection",
+      "path": "docs/results/e012/segmented-budget-counterfactual/analysis.json",
+      "description": "Executable fixed-row projection of Policy, Expert and total action counts for the five full-eligible recoveries.",
+      "query": {
+        "engine": "SQLite",
+        "id": "e012-recovered-actions-v1",
+        "language": "sql",
+        "executed_at": "2026-08-29T17:35:15Z",
+        "description": "Projects action-accounting rows for the five accepted counterfactual artifacts; survivor values are descriptive and must not be used to shorten the Expert budget.",
+        "sql": "WITH recovered(environment_seed, policy_actions, expert_actions, total_actions) AS (\n  VALUES\n    (30105, 225, 117, 342),\n    (30106, 216, 121, 337),\n    (30145, 231, 122, 353),\n    (30171, 290, 136, 426),\n    (30103, 176, 161, 337)\n)\nSELECT environment_seed, policy_actions, expert_actions, total_actions\nFROM recovered\nORDER BY expert_actions, environment_seed;"
+      }
+    },
+    {
+      "id": "e012_capacity_projection",
+      "label": "Formal pool capacity planning projection",
+      "path": "docs/results/e012/segmented-budget-counterfactual/analysis.json",
+      "description": "Executable fixed-row projection of the canonical fixed-p and Jeffreys Beta-binomial gate probabilities for candidate pool sizes.",
+      "query": {
+        "engine": "SQLite",
+        "id": "e012-segmented-capacity-v1",
+        "language": "sql",
+        "executed_at": "2026-08-29T17:35:15Z",
+        "description": "Projects point-rate expected eligible counts and two planning-model P(K>=20) values from the canonical analysis; these are planning estimates, not formal outcomes.",
+        "sql": "WITH capacity(pool_size, expected_eligible, fixed_p_pass, jeffreys_pass) AS (\n  VALUES\n    (120, 18.0, 0.34138331745061534, 0.40138673143805925),\n    (160, 24.0, 0.8406349221123074, 0.7440502598003148),\n    (180, 27.0, 0.9460490517417455, 0.8452636407661477),\n    (200, 30.0, 0.9851197019379515, 0.9088171530677761),\n    (220, 33.0, 0.996550818319629, 0.946960987083204),\n    (240, 36.0, 0.9993103698930452, 0.9692842025483585)\n)\nSELECT pool_size, expected_eligible, fixed_p_pass, jeffreys_pass\nFROM capacity\nORDER BY pool_size;"
+      }
+    },
+    {
+      "id": "e012_counterfactual_summary",
+      "label": "E012 segmented-budget counterfactual summary",
+      "path": "docs/results/e012/segmented-budget-counterfactual/summary.json",
+      "description": "Compact canonical 16-seed completion, classification, prefix-alignment, engineering-error, artifact-use and source-identity summary."
+    },
+    {
+      "id": "e012_smoke_summary",
+      "label": "E012 segmented-budget three-seed smoke summary",
+      "path": "docs/results/e012/segmented-budget-smoke/summary.json",
+      "description": "Three-seed control/early/late smoke gate used before the formal counterfactual."
+    },
+    {
+      "id": "e012_legacy_collection_summary",
+      "label": "E012a legacy formal collection summary",
+      "path": "docs/results/e012/collection_summary.json",
+      "description": "Legacy 100-seed GL denominator and 10 eligible count used by the capacity-planning model."
+    }
+  ]
+}

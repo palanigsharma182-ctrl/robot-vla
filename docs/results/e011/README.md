@@ -162,7 +162,7 @@ step 平均约 newest `0.103 s`、temporal `0.107 s`、RTC `0.171 s`。当前 RT
 - Qwen revision：`15852e8c16360a2fea060d615a32b45270f8a8fc`。
 - GPU：NVIDIA GeForce RTX 4090 24 GB；PyTorch 2.11.0+cu128；BF16。
 - 非正式 smoke：seed `19999`；三组均无 system/safety/NaN/tracking 问题，不进入效果统计。
-- 正式原始结果根目录：`/home/ubuntu/robot-vla-runs/e011-rtc/`。
+- 正式原始结果根目录：`run://e011-rtc/`。
 
 正式文件 SHA256：
 

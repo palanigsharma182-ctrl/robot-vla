@@ -37,6 +37,7 @@ Action 安全拒绝诊断、事件损失、temporal ensemble，以及固定低�
 | E009 | 2026-08-29 | Layer 12 periodic checkpoint 的 Reach/Transport sweep | completed | epoch 100 将 Reach 从 0/10 提到 3/10，却使 Transport 从 7/10 降到 2/10；无单一 promotion 候选，确认技能/checkpoint 冲突而非只选错 best.pt |
 | E010 | 2026-08-29 | Layer 12 五技能梯度冲突与 base/event 归因 probe | completed | e098-best/e100 均未通过两阶段负冲突门槛；五技能 train median 全为正，Reach/Transport event gradient 为零不可识别，不支持直接多头或 PCGrad |
 | E011 | 2026-08-29 | RTC Action Chunk Transition 受控评估 | completed | RTC 在共同 Reach seed 上推进到 Transport，但把完整闭环 Reach 从 temporal 的 6/10 降到 2/10，未通过 promotion；默认继续 temporal ensemble，不进入 Stage B |
+| E012 | 2026-08-29 | Local DAgger Boundary Recovery | failed | E012a 正式 RG pool 通过 20 条 gate；GL 为 10/100 eligible，低于固定 gate 20；按预注册停止，未创建 D1、未启动 E012b |
 
 ## E001 — 30 条数据 Stage 1 与首轮闭环
 
@@ -63,7 +64,7 @@ Action 安全拒绝诊断、事件损失、temporal ensemble，以及固定低�
 - Train: 100 epochs，4096 samples/epoch，batch 64，AdamW `1e-4`，warmup 1000，cosine 30000
 - Evaluation: 10-step Flow Euler，执行 Chunk 前 4 步；3 test + 20 unseen，sampling seed 42424
 - Hardware: NVIDIA GeForce RTX 4090 24GB
-- Artifacts: `/home/ubuntu/robot-vla-runs/stage1-v0.1`、`/home/ubuntu/robot-vla-runs/stage1-v0.1-rollout`
+- Artifacts: `run://stage1-v0.1`、`run://stage1-v0.1-rollout`
 
 **Result:**
 
@@ -109,7 +110,7 @@ unseen seed 上复评，以隔离数据覆盖增加的影响。
 - Manifest SHA256: `7802f13a3d14b2eedee088fee02e8a14547e6fca768e3ed361fed2ed17141e32`
 - Train / model / hardware: 与 E001 相同；periodic 每 10 epochs / 640 steps，任何 val 改善都更新 best
 - Evaluation: 10-step Flow Euler，执行 Chunk 前 4 步；10 test + 与 E001 相同的 20 unseen，sampling seed 42424
-- Artifacts: `/home/ubuntu/robot-vla-runs/stage1-v0.2-data100`、`/home/ubuntu/robot-vla-runs/stage1-v0.2-data100-rollout`
+- Artifacts: `run://stage1-v0.2-data100`、`run://stage1-v0.2-data100-rollout`
 
 **Result:**
 
@@ -157,8 +158,8 @@ Checkpoint、采样 seed 和环境 seed 逐步复现；随后仅对执行器内�
 - Dataset / Checkpoint: E002 `trusted-v0.2-100` / epoch 90 `best.pt`
 - Evaluation seeds: `10006、10008、10009、10016`
 - Action limit: 每关节有效上限不超过 `0.05 rad/control-step`
-- Artifacts: `/home/ubuntu/robot-vla-runs/stage1-v0.2-data100-safety-diagnostics`、
-  `/home/ubuntu/robot-vla-runs/stage1-v0.2-data100-saturated-control`
+- Artifacts: `run://stage1-v0.2-data100-safety-diagnostics`、
+  `run://stage1-v0.2-data100-saturated-control`
 
 **Result:**
 
@@ -197,7 +198,7 @@ reach、grasp、lift、transport、place，每个技能最多 100 个策略环�
 - Dataset / Checkpoint: E002 `trusted-v0.2-100` / epoch 90 `best.pt`
 - Preparation: `trusted-mplib-prerequisites/v1`，由 `PickPlaceTaskTracker` 精确验证前置阶段
 - Evaluation: 5 seeds × 5 skills = 25 Episodes，10-step Flow，sampling seed 42424
-- Artifacts: `/home/ubuntu/robot-vla-runs/stage1-v0.2-data100-atomic-seeds5-v3`
+- Artifacts: `run://stage1-v0.2-data100-atomic-seeds5-v3`
 
 **Result:**
 
@@ -245,8 +246,8 @@ grasp/lift 在可信前置状态下已经稳定，完整 Rollout 中的部分 gr
 - Train: 两组各 30 epochs、4096 samples/epoch、batch 64、seed 42；其余与 E002 相同
 - Evaluation: seeds `10000–10004` 的 25 原子 Episodes，以及 seeds `10000–10019` 的 20 unseen
   完整闭环；10-step Flow，sampling seed 42424
-- Control artifacts: `/home/ubuntu/robot-vla-runs/ablation-v0.3-control-data100-e30*`
-- Treatment artifacts: `/home/ubuntu/robot-vla-runs/ablation-v0.3-recovery-data120-e30*`
+- Control artifacts: `run://ablation-v0.3-control-data100-e30*`
+- Treatment artifacts: `run://ablation-v0.3-recovery-data120-e30*`
 
 **Result:**
 
@@ -324,8 +325,8 @@ base-only 或固定低权重出现改善。单独降低离线 loss 不能通过�
 - Atomic evaluation: seeds `10000–10004`，5 skills × 5 seeds，100 policy steps，sampling seed
   42424，10-step Flow，temporal ensemble `rho=0.5`，max anomaly replans 3
 - Full evaluation: test episodes 0，unseen seeds `10000–10019`，其余协议与原子评估相同
-- A–C artifacts: `/home/ubuntu/robot-vla-runs/ablation-v0.4-*` 与
-  `/home/ubuntu/robot-vla-runs/e006-*`
+- A–C artifacts: `run://ablation-v0.4-*` 与
+  `run://e006-*`
 - D–F RAM artifacts: `/dev/shm/robot-vla-runs/ablation-v0.4-*` 与
   `/dev/shm/robot-vla-runs/e006-*`；均在每阶段结束后用 `rsync -aH` 持久化到
   `<local-artifact-root>/server-runs/` 并校验 SHA256
@@ -728,7 +729,7 @@ Grasp/Lift/Place，共 `2 × 3 × 5 = 30` Episode。候选最多允许每个 gua
 
 **Execution and artifacts:**
 
-- Remote root: `/home/ubuntu/robot-vla-runs/e009-layer12-checkpoint-sweep/`
+- Remote root: `run://e009-layer12-checkpoint-sweep/`
 - Layout: `screen/<candidate>/`、`confirm/<candidate>/`、可选 `guardrail/<candidate-or-best>/`
 - 每个输出目录沿用 `evaluate_atomic_maniskill` 的 `experiment.json`、增量 `episodes.jsonl`、
   `summary.json` 和 `--resume` 身份校验
@@ -900,7 +901,7 @@ cosine 当作闭环成功率，也不在本实验中直接实现多动作头。
 
 **Artifacts and recovery:**
 
-- Remote root: `/home/ubuntu/robot-vla-runs/e010-skill-gradient-conflict/`
+- Remote root: `run://e010-skill-gradient-conflict/`
 - `probe-manifest.json`: checkpoint SHA256、dataset identity、源码 revision、样本计划、Flow seed 和冻结配置
 - `measurements.jsonl`: 每完成一个 checkpoint/stage/repeat 原子追加一行；身份重复或缺失时拒绝汇总
 - `probe-summary.json`: 由 raw Gram 聚合的 per-pair/per-group median、IQR、负比例和 Wilson 区间
@@ -1005,7 +1006,7 @@ reactivity，以及 RTC 是否能在保持 Chunk continuity 的同时提高条�
 - Atomic guardrail seeds: `20010..20014`；每组对 Reach/Grasp/Lift/Transport/Place 各运行 5 个 Episode，
   只用于检查 RTC 是否破坏既有原子能力，不替代 30 个完整 Stage A Episode 的 handoff 判断
 - RTC: `execution_horizon=4`、`max_guidance_weight=10.0`、`rtc-eq5-soft-mask`
-- Remote output root: `/home/ubuntu/robot-vla-runs/e011-rtc/`
+- Remote output root: `run://e011-rtc/`
 
 **Diagnostics:**
 
@@ -1042,7 +1043,7 @@ Episode 和 75 个 atomic guardrail Episode；正式 JSONL 没有 NaN/Inf。
 
 完整配对表、阶段耗时、前 80 步普通运动、边界 disagreement/correction、atomic 和正式文件 SHA256
 见 [E011 results](results/e011/README.md)。正式原始资产保留在
-`/home/ubuntu/robot-vla-runs/e011-rtc/`；evaluation source revision 为
+`run://e011-rtc/`；evaluation source revision 为
 `source-tree-sha256:adfce370c438d460eb4178be9af38ee5741554741a3c99f6acd8485847244dec`。
 
 **Conclusion:**
@@ -1065,6 +1066,651 @@ weight、Flow、Layer 或控制速度，也不能排除所有其它 RTC 配置�
 guidance 后复用为确认集。按预案把主要精力转向 Reach→Grasp、Grasp→Lift 失败附近的 handoff 状态分布
 与 Local DAgger recovery；RTC 保留为显式实验/诊断策略。如未来重开 RTC，先在新 smoke seed 上确定数值
 范围，再使用全新的 paired seeds，并单独记录 free-tail slots `12..15` 和同 slot raw/post disagreement。
+
+## E012 — Local DAgger Boundary Recovery
+
+**Date:** 2026-08-29
+
+**Status:** stopped
+
+**Result:**
+
+E012a 已在冻结的 source revision、E011 Layer 12 checkpoint、D0 与正式 temporal-ensemble 配置下完整扫描
+两个预注册 100-seed pool。Reach→Grasp 得到 `31 accepted / 69 rejected / 0 error`，并按固定 mid-rank
+risk rule 选出 `14 high + 6 low`；Grasp→Lift 只有 `10 accepted / 90 rejected / 0 error`，低于每个
+boundary 固定要求的 20 条 eligible trajectory。GL 的 90 条拒绝中，71 条在目标 boundary 前终止或
+截断、16 条达到时间上限，其余 3 条分别来自 Expert 未完成完整任务、MPlib 路径失败和 snapshot gate。
+
+独立核验确认 200 个 candidate record 的 seed/source/checkpoint/status 一致；所有 accepted trajectory 均
+通过 paired clean Expert、snapshot、完整五技能 trajectory audit 与 Expert-only supervision 检查，每条
+具有 49 个完整 16-step anchors。由于 GL 容量 gate 失败，未创建 D1、未运行 D0+D1 union audit，也未
+启动 replay/DAgger 训练。该结果只证明采集链路可运行且当前 GL 候选容量不足，不构成行为收益或 Chunk
+uncertainty 机制证据。完整技术报告见
+[E012a portable report](results/e012/report.html)，机器可读证据见
+[collection summary](results/e012/collection_summary.json)、
+[boundary distribution](results/e012/boundary_distribution.json) 与
+[independent validation](results/e012/independent_validation.json)。
+
+### E012a Grasp→Lift failure postmortem
+
+在不改写上述 formal 结果的前提下，后续对 71 条 boundary-before rejection 和 16 条 takeover 后
+time-limit rejection 做了同 environment seed、checkpoint、D0、sampling seed 与 temporal 配置的无干预
+diagnostic replay。`87/87` 条重放均与 formal status/reason 完全一致，未出现 outcome mismatch 或
+engineering error。由此需要修正一个重要解释口径：`10/100` 是最终 eligible trajectory 比例，不是 Policy
+到达 stable-Grasp boundary 的比例；formal 数据能够证明至少 `29/100` 条到达了该 boundary，其中包括
+10 条 accepted、16 条 takeover 后 time-limit 和 3 条只能在 boundary 后发生的其他 rejection。
+
+71 条未形成 stable-Grasp boundary 的 Policy rejection 可以互斥分解为：57 条从未完成 Reach、12 条完成
+Reach 但从未出现 raw grasp、2 条出现 transient raw grasp 后在形成两步稳定 Grasp 前丢失；三类全部在
+Policy 的 300-step time limit 结束。16 条 takeover 后 time-limit 按失败 Action 当时的 Expert commanded
+phase 分为 Lift motion `3`、Transport motion `8`、Lower motion `3`、Release/settle `2`。commanded phase
+只表示 collector 正在调用的控制阶段，不证明对应 Predicate 已完成。
+
+该分解说明候选容量不足主要表现为 Policy roll-in 在完成 Reach 前耗尽 300-step 预算，同时还有一个可
+单独检验的 Expert recovery budget 截断现象；它本身不识别 Action Chunk 冲突或任何控制参数的
+因果效应。10 条 accepted
+survivor 的 takeover→完整成功为 `119 / 134 / 151` steps（min/median/max），只能用于设计有限预算的
+探索性 counterfactual，不能外推到 90 条 rejected episode。完整报告见
+[GL failure diagnostic report](results/e012/gl-failure-report/report.html)，canonical 机器可读证据见
+[GL failure decomposition](results/e012/gl_failure_decomposition.json)。在新的 fixed-budget counterfactual
+通过前，不重开 formal GL pool、不创建 D1，也不启动 E012b。
+
+### E012a segmented-budget counterfactual
+
+随后在不回写旧 formal record、且禁止任何新 trajectory 进入训练的前提下，冻结并验证了
+`segmented-300-180-480`：Policy roll-in 最多执行 300 个真实 environment actions，Expert takeover 后最多
+执行 180 个 actions，episode 的 environment hard limit 为 480；完整成功必须严格早于 environment
+truncation。paired clean Expert 继续使用历史 `legacy-300`，trajectory 仍来自同一个
+`CollectionSession`，正式五技能 success/audit 契约不变。Counterfactual source identity 为
+`source-tree-sha256:e73675abed4b0d14117c98df0c790f358a13b2eb8429db034826a9e2fe3ca5d9`，checkpoint 与
+D0 继续使用上述冻结 SHA。
+
+固定三条 diagnostic smoke（历史 seed `30111 / 30193 / 30171`，禁止用于训练）先验证 accepted
+control、early timeout 与 late timeout，结果 `3/3` prefix metadata aligned、`0` engineering error；
+accepted control seed `30111` 精确复现 legacy 的 takeover step 154、
+39 次 Policy replan 和总计 294 actions。之后对 16 条 canonical legacy post-takeover TimeLimit seed 做
+受控重放，`16/16 candidate executions finalized`、`16/16` prefix metadata aligned、`0` prefix
+mismatch、`0` engineering error、`0` 条命中 480-action hard deadline。互斥结果为：
+
+```text
+recovered full eligible:                              5
+Expert completed but snapshot/paired gate failed:     1
+Expert recovery budget exhausted at 180 actions:      4
+other behavioral rejection:                           6
+```
+
+5 条完整 eligible 的 Expert action 使用量为 `117 / 121 / 122 / 136 / 161`，median 122、mean 131.4。
+Seed `30181` 完成五技能、environment success 与 terminated，但 snapshot immediate RGB mean absolute
+error 为 `0.0051167806`，高于 `0.002` 门槛，因而不能计入 eligible 或 D1。其余 10 条行为未完成轨迹
+均只达到 `max_completed_skill_count=2`，从未形成 Lift/Transport predicate；其中 4 条精确命中 Expert
+180-action cap，另 6 条在 157–178 Expert actions 内已结束 nominal recovery sequence。所有 rejected 的
+`phase_at_failure=expert_release_settle` 只表示 commanded callsite，不能解释为 Place 已完成。
+
+该 counterfactual 证明分段预算能恢复部分旧 TimeLimit，并说明 480 hard limit 已不再是当前直接瓶颈；
+它不证明 Local DAgger 训练收益，也不识别 Action Chunk 冲突的因果作用。`5/16` 只是旧 TimeLimit 子群的
+条件恢复率。正式 pool 的容量规划点估计必须使用原 100-seed 分母：`(10 legacy eligible + 5 recovered) /
+100 = 15%`。在该 evidence 下，达到固定 gate `eligible >= 20` 的规划概率为：
+
+| Fixed pool | Fixed-p Binomial | Jeffreys Beta-binomial predictive |
+|---:|---:|---:|
+| 120 | 34.1% | 40.1% |
+| 160 | 84.1% | 74.4% |
+| 180 | 94.6% | 84.5% |
+| 200 | 98.5% | 90.9% |
+| 220 | 99.7% | 94.7% |
+| 240 | 99.9% | 96.9% |
+
+Jeffreys posterior-predictive 达到 95% 的最小 pool size 为 223；因此原计划 120 条不再满足低风险容量
+目标，200 是明确接受约 9.1% predictive gate-failure risk 的折中，240 是按 20 条批量向上越过 223 的
+严格低风险候选。该概率仍依赖新旧 seed 可交换、旧 10 条 accepted 在 amended protocol 下保持 eligible
+等假设，不是成功保证；正式 pool size 必须在 rollout 前一次性冻结，禁止根据中途 eligible 数量自适应
+续采。staged publish、canonical record manifest、`30200..<31000` seed registry guard、Qwen/runtime identity
+与 exact-prefix resume 已实现并通过当时针对性测试。以上“等待 owner 冻结 pool / 尚未创建 D1”是
+2026-08-29 capacity-planning artifact 的 point-in-time 状态；后续 owner-frozen amended formal pool、D1 与
+repeat-1 训练的结果见下方独立小节，不能反向改写本段 counterfactual 的条件恢复率或用途边界。
+
+### E012a frozen D0 compatibility preflight
+
+在恢复新源码 smoke 前，当前 audit code 对同一 frozen D0 重算出 `bb066…`，与历史正式 identity
+`bc024…` 不一致，因此 smoke 在任何 rollout/output 写入前受控停止。逐文件取证排除了数据漂移：raw
+manifest 仍为 `43f131…`，220 个 NPZ 全部存在且逐字节 receipt 匹配，audit report 为 `b7ab50…`，
+proprio stats raw/semantic hash 分别为 `fdad911… / e0638a…`，checkpoint 内嵌 stats 与其解析语义 exact
+equal。两个 dataset hash 的 payload 大小只差 `4,400 = 220 × 20` bytes，恰好对应每行新增的
+`,"local_dagger":null`。
+
+因此 amended runner 增加了 E012-specific、只读、版本化的双 projection verifier，而没有修改 D0 或全局
+audit contract。真实 3.24GB D0 的实现验证结果为：历史 projection 精确恢复 `bc024…`，当前 projection
+精确得到 `bb066…`，220 个 NPZ 的 sorted file/SHA aggregate 为 `b6ea7f…`，trajectory/step/split/stats
+全部匹配。verifier 同时拒绝 raw `local_dagger`、NPZ byte drift、missing/extra/duplicate、path escape、
+symlink/hardlink、manifest/count/step/stats 漂移，并把 receipt 纳入 exact-resume experiment identity；失败
+发生在 CUDA 初始化和 formal output 创建前。Compact 机器可读证据见
+[D0 compatibility audit](results/e012/d0_compatibility_audit.json)。该 preflight 只解决 D0 身份解释与内容
+完整性，不构成 amended GL 效果证据，也不授权把任何 smoke/counterfactual trajectory 用于训练。
+
+完整技术报告见
+[segmented-budget report](results/e012/segmented-budget-report/report.html)，可执行 notebook 见
+[reproduce.ipynb](results/e012/segmented-budget-report/reproduce.ipynb)，canonical compact analysis 见
+[analysis.json](results/e012/segmented-budget-counterfactual/analysis.json)。Smoke/counterfactual wrapper 均冻结
+`trajectory_usage=forbidden as training data` 与 `successful_npz_may_enter_d1=false`；后续 D1 builder 只允许
+消费正式 canonical `accepted + selected` record，禁止扫描这些诊断目录中的 NPZ。发布包的时间线、证据
+范围与历史 artifact 字段说明见 [E012 results index](results/e012/README.md)。
+
+### E012 repeat-1 formal training 与 checkpoint selection
+
+后续 amended collection、D1 build、D0+D1 union audit 和训练前身份门禁均通过；这些新 formal 产物没有
+回写 legacy `10/100` GL 结论，也没有消费 smoke / counterfactual trajectory。`pi_replay[1]` 与
+`pi_dagger[1]` 都从同一 pi0 权重独立初始化，各完成 30 epochs、122,880 examples、1,920 optimizer steps。
+正式 paired verifier 通过，SHA-256 为
+`1fa9b11c184e06618bf573a984572276d0d72d83cd910e88a5f022fc47f589ff`。Replay exposure 仅为
+`base_d0=122880`；Dagger exposure 精确为 `base_d0=98310`、`dagger_reach_grasp=12290`、
+`dagger_grasp_lift=12280`。D1 只来自 Expert-only boundary-local anchors，D0 offset 为 null，D1 offset
+为整数 `0..48`。
+
+Checkpoint validation 在单 GPU 上严格顺序评估 pi0、replay epoch 10/20/30 和 Dagger epoch 10/20/30；
+每个模型使用 full-chain seeds `31000..31019` 的 20 条 Episode，以及 atomic seeds `31020..31024 ×`
+Reach/Grasp/Lift/Transport/Place 的 25 条 Episode，共 14 组输出、315 Episodes。Checkpoint、D0、evaluation
+code、执行配置、environment/Flow seed pairing 和 seed registry 均通过独立 identity audit；错误扫描、
+system error 与 Action safety rejection 都为 0。
+
+预注册 checkpoint-selection 结果如下；`net` 是 candidate wins 减 pi0 wins：
+
+| Arm / epoch | Full Reach / Grasp / Lift net | Atomic Place net | Mean completed skills Δ | 排除原因 |
+|---|---:|---:|---:|---|
+| replay e10 | `-2 / -2 / -2` | `-2` | `-0.30` | Reach、atomic Place |
+| replay e20 | `+8 / +9 / +6` | `-3` | `+1.25` | atomic Place |
+| replay e30 | `-6 / -2 / -2` | `0` | `-0.50` | Reach |
+| Dagger e10 | `-7 / -3 / -2` | `0` | `-0.60` | Reach；新增 3 anomaly episodes / 7 replans |
+| Dagger e20 | `+1 / +1 / 0` | `-4` | `+0.10` | atomic Place |
+| Dagger e30 | `+2 / +3 / +4` | `-2` | `+0.45` | atomic Place；新增 anomaly 与 tracking saturation |
+
+两臂的正式 `select_e012_checkpoint` 均返回 `selection_gate_passed=false`、`selected=null`、
+`eligible_ranking=[]`；selection receipt SHA-256 分别为 replay
+`0fdc195552e742b017d71da57974a98ff626c018d289a1f5ffa891f74e1ee838`、Dagger
+`84ba2e7435438d65ebd1fb926cda21fbf69f92093021cf68cc4f0abc579586f6`。因此不存在合法 Stage A pair：不运行
+Stage A，不消费 `32000..` seeds，不训练 repeat 2，不运行 Stage B 或消费 `32100..` seeds；需要 selected
+pair 的 matched-state diagnostics 同样记为 not run。不得用 replay e20 / Dagger e30 的正向 validation 信号
+绕过 guardrail，也不得临时加入 epoch 24、Dagger epoch 9 或 `best.pt`。六个候选的 full success 都为
+`0/20`，当前证据不支持 Local DAgger 改善或 Chunk uncertainty 下降。
+
+Replay 曾从不可变 epoch-24 full-state checkpoint 严格恢复。恢复后的 trainer 结构、examples、optimizer
+steps、source exposure、boundary offsets 与冻结 identity 一致，但 CUDA loss/gradient 数值轨迹不再 bitwise
+reproducible；最终可重复性声明必须保留该限制。脱敏 compact evidence 与独立 verifier 见
+[checkpoint-validation summary](results/e012/checkpoint-validation/summary.json)，人类可读结果见
+[repeat-1 technical report](results/e012/training-repeat-1-report/report.html)。
+
+**Experiment:**
+
+冻结 E011 的 Layer 12 模型、Observation/Action、Flow/Event loss、Controller、Predicate 与正式
+`temporal-ensemble` 执行协议，只改变训练状态分布：从 frozen policy 自己到达的 Reach→Grasp、
+Grasp→Lift 边界开始，由同一 CollectionSession 内的可信 Expert 接管并完成整条 Pick-and-Place；训练只
+监督 takeover 后的 boundary-local Expert Action Chunk。主因果比较不是历史模型与新模型，而是从同一
+checkpoint 初始化、使用相同额外 optimizer steps 的 `pi_dagger` 与 `pi_replay`。
+
+**Goal:**
+
+回答两个分开的主问题：
+
+1. policy-induced boundary state 与相同 environment seed 的 clean Expert boundary state 是否存在
+   可测量的分布差异，Local DAgger 是否提高无条件 Grasp/Lift 完成数和平均完成技能数；
+2. 若闭环 handoff 改善，同一 held-out boundary state 上的 Action Chunk disagreement / Flow-seed
+   prediction variance 是否同时下降。
+
+成功率提高而 matched-state disagreement 不下降时，只能结论为 recovery supervision 有效，不能写成
+“Local DAgger 消除了 Chunk mode uncertainty”。本实验也不试图证明完整的
+`representation error -> covariate shift -> uncertainty -> disagreement -> temporal pathology` 因果链。
+
+### 冻结资产与非变量
+
+- Collection policy / historical reference `pi_0`：E011 正式 Layer 12 checkpoint，SHA256
+  `a542076f291e29b68e3d28930b15c40396d511a44eb358c2eaeb4e113c041ad6`
+- Base Dataset `D0`：SHA256
+  `bc024b6b9c566ca9500945fb6ac262bf657bee713d8a5816229bdc8478139407`
+- Qwen：`Qwen/Qwen3.5-2B` revision
+  `15852e8c16360a2fea060d615a32b45270f8a8fc`
+- Context hidden state：Layer 12；Qwen 继续完全冻结
+- Action：`[16,8] = delta_q[7] + gripper_target[1]`
+- 20 Hz control、每 4 步 Replan、10-step Flow Euler
+- 正式执行：`temporal-ensemble`、`recency_decay=0.5`；`newest-only` 只作诊断
+- 保持 Adapter、Action Expert、Flow Matching objective、`lambda_event=0.25`、skill weights、
+  Action normalization、Controller、Safety、Predicate 和 language instruction 不变
+- 不加入 skill/recovery/boundary token，不把 simulator oracle state 输入 VLA，不使用 runtime Predicate
+  切 checkpoint，不加入 RTC、Critic、RL 或任务语义状态机
+- 训练和推理固定使用 `D0/proprio_stats.json`；`D1` 上重算的 stats 只作为 distribution diagnostic，
+  不改变输入归一化或 checkpoint metadata
+- E012 实现完成时，必须在第一次 smoke 前把 source revision、ManiSkill/MPlib/CUDA 版本和远端输出根目录
+  写入 run manifest；此后不可在同一实验身份下静默改变
+
+### 两阶段结构
+
+E012 拆成两个有独立停止条件的阶段：
+
+```text
+E012a: boundary diagnosis + live takeover collection feasibility
+E012b: pi_replay vs pi_dagger controlled training/evaluation
+```
+
+E012a 没有通过数据 provenance、连续性和 audit gate 时，不启动 E012b。工程测试、snapshot round-trip
+或 smoke 通过只证明采集链路可运行，不是行为收益。
+
+### Legacy formal E012a 预注册 seed 分区
+
+Environment seeds 固定为：
+
+```text
+legacy E012a smoke only:        29990..29999
+E012a Reach->Grasp collection: 30000..30099
+E012a Grasp->Lift collection: 30100..30199
+checkpoint closed-loop val:   31000..31019
+checkpoint atomic val:        31020..31024
+Stage A paired full-chain:     32000..32019
+Stage A atomic guardrail:      32020..32024
+Stage B paired full-chain:     32100..32129
+```
+
+两个 boundary 使用 disjoint roll-in seed pool；不能从一次 Reach takeover 后的 Expert trajectory 再抽取
+“policy-induced Grasp boundary”。若任一 collection pool 不能产生足够数据，E012a 记录失败并在新增 seed
+前修订 manifest；不能临时挑 seed、重复 reset 到满意状态或挪用 validation/test seeds。
+
+后续 amendment diagnostic smoke 复用了历史 GL records 的 `30111 / 30193 / 30171` 做无训练用途的确定性
+重放；这三条不属于新增 formal collection、validation 或 training exposure。amended formal pool 必须另用
+一次性冻结、与本表及 D0 全部零重叠的新连续 seed range。
+
+训练 repeat 使用 paired seeds：
+
+```text
+repeat 1: pi_replay=12012, pi_dagger=12012
+repeat 2: pi_replay=22012, pi_dagger=22012
+```
+
+同一 repeat 两组使用相同初始化权重、optimizer/scheduler 配置、batch 数和随机 seed。Rollout 的 Flow
+sampling seed 在同一 environment seed、同一策略比较中严格配对；具体 derivation 写入 manifest，并与
+environment seed 分开记录。Collection、训练、checkpoint validation、Stage A 和 Stage B 身份不得重叠。
+
+### E012a：paired boundary diagnosis
+
+Collection policy 固定为 `pi_0 + temporal-ensemble`，采集期间不更新。对每个出现目标 boundary 的
+collection seed，运行相同随机化的 clean Expert rollout，按 environment seed 配对比较；不能把既有
+Dataset seeds 的 Expert boundary 与 `30000+` policy boundary 直接作为主比较。
+
+每个 boundary 的预注册 oracle diagnostics 为：
+
+- TCP-object relative XYZ、XY error、Z error、TCP linear speed
+- 7D joint velocity 的 RMS/max
+- gripper opening、command target
+- object linear/angular velocity
+- object-TCP relative pose、contact/grasp stability
+- arm 与 gripper 分开的 newest-vs-history / pairwise proposal disagreement
+
+这些 feature 只用于采集分层和离线分析，不进入 VLA Observation。统计单位是
+`episode/environment-seed/boundary`：先在单个 boundary window 内聚合，再跨 Episode 做 paired effect
+size/bootstrap；不得把每个 control step 或 Replan 当作独立样本伪增大样本量。
+
+### E012a：候选池和确定性选样
+
+两个 seed pool 都必须完整扫描后再选择训练轨迹，不能达到 20 条后提前停止。每个发生指定 boundary 的
+rollout 都记录 candidate、takeover attempted、Expert plan、full recovery、正式 audit 和拒绝原因。
+
+Near-failure 不再按“最终失败/成功”人工分类，而使用以下确定性 boundary risk score。对每个 policy
+boundary 与相同 seed 的 clean Expert boundary，先计算 state deviation；速度/不稳定性使用越大越危险的
+标量，Chunk disagreement 使用 policy boundary 原值：
+
+```text
+Reach->Grasp components:
+  TCP-object XY error
+  abs(relative-Z_policy - relative-Z_expert)
+  TCP speed
+  joint velocity RMS
+  gripper-opening deviation from paired Expert
+  arm mean-pairwise disagreement
+  gripper mean-pairwise disagreement
+
+Grasp->Lift components:
+  object-TCP relative-position deviation from paired Expert
+  object linear speed
+  object angular speed
+  joint velocity RMS
+  gripper-opening deviation from paired Expert
+  contact/grasp instability (stable=0, unstable=1)
+  arm mean-pairwise disagreement
+  gripper mean-pairwise disagreement
+```
+
+每个 component 在同 boundary、完整恢复且 audit 通过的 candidate pool 内转成 mid-rank empirical
+percentile `[0,1]`，risk score 是所有必需 component percentile 的算术平均。缺失、NaN/Inf 或无法与
+clean Expert 配对的 candidate 不参与选择并记录拒绝原因；不做运行后插值或人工补分。同分按
+`environment_seed` 升序。该公式和 feature 单位还必须逐字段写入正式 manifest 和单元测试。完整候选池
+结束后，每个 boundary 确定性选择：
+
+```text
+14 条最高 risk 且完整恢复/audit 通过的 trajectory
+ 6 条最低 risk 且完整恢复/audit 通过的 trajectory
+```
+
+得到 20 Reach→Grasp + 20 Grasp→Lift。Expert 无法恢复或 full success audit 失败的轨迹不进入训练，
+但必须保留诊断记录；正式结论限于 Expert 可恢复状态。Risk score 只决定 exposure 分层，不作为 VLA
+输入或训练权重。
+
+### E012a：同一 CollectionSession 的 live takeover 契约
+
+正式 Local DAgger trajectory 必须从 episode reset 起完整记录 Policy roll-in。第一次检测到指定
+Predicate `False -> True` 后，不 reset、不恢复到标准原子技能起点、不重建 env，也不拼接第二条轨迹；
+只把下一条 Action 的 producer 从 Policy 切为 Expert。Expert 随后一直执行到完整五技能
+Pick-and-Place 成功。
+
+时间索引冻结为：若 `action[t-1]` 执行后得到 `observation[t]`，并在该 observation 检测到 boundary，
+则：
+
+```text
+boundary_detection_step = t
+expert_takeover_step     = t
+action[t]                = first Expert action
+```
+
+因此 `action[0:t]` 是 Policy roll-in，`action[t:T]` 是 Expert；前者保留为状态生成和诊断 provenance，
+但永远不能成为 BC/Flow target。当前 `ActionChunkDataset` 是单时刻双图+proprio 输入，并不读取历史帧；
+真正进入 takeover 首个训练样本的是 policy roll-in 产生的 `observation[t]`，更早的 RGB/proprio 只保留
+在完整轨迹中供审计和离线诊断。
+
+takeover 只能切换 Action producer，必须保持 episode id、elapsed step、q/dq、object pose/velocity、
+controller state/target、当前 commanded q、camera、RNG 和 tracker 连续。禁止像 reset-only collector 那样
+把 `previous_command_q` 重置为 actual q，否则第一个 Expert label 会包含人工 controller correction。
+
+Collector 同时维护 Replan snapshot ring，至少保存 crossing 前一个 Replan 和 crossing Replan。Snapshot
+bundle 包含 actors/articulations、controller state/target、主/episode RNG、wrapper elapsed step、q/dq、
+object pose/velocity、progress tracker、policy control step、current commanded q、observation hashes、camera
+calibration 和 collection policy identity。它用于 round-trip 验证与诊断；第一版 accepted trajectory 仍以
+同一 live session 为准，不从 restored branch 拼接数据。
+
+ManiSkill 3.0.1 的 `get_state_dict()` 只保存 actor/articulation state，当前
+`pd_joint_delta_pos` controller 的公开 `get_state()` 还是空字典。因此 E012a snapshot 额外冻结每个子
+controller 的 `_step/_start_qpos/_target_qpos`；round-trip 在完整 live trajectory 已封存后才在同一个 env
+执行，不让 restored branch 产生任何 accepted training transition。PhysX contact impulse cache 不在该
+state dict 中，刚 restore 后读取的 raw contact force 以及依赖该 cache 的 `is_grasped` 只作诊断、不作为
+瞬时 pass 条件；contact gate 固定为两次 restore 后执行同一个下一步 hold Action，所得 pairwise contact
+force 最大绝对差不超过 `1e-3 N`，且两次 replay 的 `is_grasped` 都必须重新等于 source boundary 的值。
+source boundary contact 仍原样保存在 snapshot evidence。其余 round-trip 阈值在正式 seed 前冻结为：
+
+```text
+external/wrist segmentation: exact
+external/wrist RGB:          max uint8 error <= 1, all-pixel mean abs error <= 0.002
+physical proprio:            exact
+Predicate numeric fields:    restore max abs error <= 1e-7
+is_grasped:                  same-next-hold 后与 source bool exact
+camera calibration numeric:  max abs error <= 1e-6; version exact
+controller target:           max abs error <= 1e-7
+same-next-Action sim state:   max abs error <= 2e-4
+same-next-Action contact:     max abs error <= 1e-3 N
+main/episode RNG probe:       exact
+```
+
+snapshot summary 仍报告 source-vs-restored raw contact 差和完整 observation hash 是否逐字节相等，禁止因其
+不参与上述 PhysX-aware pass rule 而隐藏。
+
+### Local DAgger trajectory 与监督契约
+
+第一版不修改正式 audit 对“最终 Transition 成功、五技能完整且连续覆盖”的要求。新 trajectory 增加：
+
+```text
+source = dagger_reach_grasp | dagger_grasp_lift
+rollin_seed
+rollin_policy_checkpoint_sha256
+boundary_type
+boundary_detection_step
+expert_takeover_step
+training_window_start
+training_window_end
+expert_supervision_mask[T]
+action_source[T] = policy | expert
+expert_recovery_success
+```
+
+`expert_takeover_step` 是第一条由 Expert 生成并执行的 Action 索引；`training_window_end` 为 exclusive。
+第一版冻结：
+
+```text
+training_window_start = expert_takeover_step
+training_window_end   = min(expert_takeover_step + 64, num_steps)
+```
+
+64 个 control steps 等于 3.2 秒、16 个 Replan、4 个 Action Horizon。Expert 仍继续到完整任务成功，但
+window 后的普通 Expert Transport/Place 不进入 Local DAgger exposure。若窗口内不足一个完整 16-step
+Expert Chunk，该 candidate 拒绝进入训练并记录原因。
+
+一致性规则为：
+
+```text
+first_true(expert_supervision_mask) == expert_takeover_step
+expert_supervision_mask[t] == (action_source[t] == expert)
+expert_supervision_mask[expert_takeover_step:T].all()
+```
+
+Local DAgger 缺少任一监督/provenance 字段时 fail closed；不得默认为整条轨迹可监督。Clean Expert
+trajectory 依据显式 `source=clean_expert` 保持全部有效 Action 可监督。
+
+当前 `sample_flow_training_target` 会把 `action_mask=False` 的 noisy Action/target 置零，理论上可以支持
+slot-level supervision；但第一版不依赖这一实现细节，仍禁止 mixed-source 或 partial-window Chunk，以
+保持采样契约简单、可审计并给 Policy target 留下零进入路径。对长度 `H=16` 的 Local DAgger sample
+anchor `u`，必须同时满足：
+
+```text
+training_window_start <= u
+u + H <= training_window_end
+expert_supervision_mask[u:u+H].all()
+```
+
+takeover 时刻的 policy-induced RGB/proprio 可以成为样本 Observation；更早 roll-in 帧不属于当前模型
+输入。Policy action 不得直接参与 loss，也不作为同一 noisy Chunk 中仅被 mask 掉的 slot。Dataset/Collator
+仍显式传递 supervision mask，训练 loss 使用
+`valid_action_mask & expert_supervision_mask & training_window_mask`，并按实际监督元素归一化。Sampler 和
+loss 两层都必须断言 Local DAgger target 是 Expert-only。
+
+### E012a 进入训练的 gate
+
+只有以下条件全部满足才创建 `D1` 并进入 E012b：
+
+- 两个 boundary 各有 20 条按固定 risk rule 选择的完整成功轨迹
+- 正式 audit 在不放宽 success/五技能契约的前提下通过
+- takeover 前后 controller/state/timestamp 连续性测试通过
+- Local DAgger provenance validator 和 fail-closed 测试通过
+- 所有可采样 Action Chunk 均完整位于 Expert mask 和 `[training_window_start, training_window_end)`
+- 改写 takeover 前 Policy action 后，采样 target 与训练 loss 完全不变
+- snapshot smoke 的 RGB、proprio、Predicate/contact、controller target、next-step dynamics 和 RNG
+  round-trip 通过；snapshot 不用于掩盖 live takeover 失败
+- collection summary 完整报告 candidate/attempt/recovery/audit/accepted 数量和所有拒绝原因
+- collection、D0、validation、Stage A/B seeds 零重叠
+
+没有检测到大的 paired boundary effect 不自动使数据无效，但必须在 E012b 前报告；此时 E012b 是对弱
+covariate-shift 假设的否证性测试，不能预写正向机制结论。
+
+### E012b：replay-controlled 训练
+
+三类模型定义为：
+
+```text
+pi_0:
+  冻结历史 checkpoint，不训练，只作历史参考
+
+pi_replay[r]:
+  从 pi_0 只初始化 Adapter/Expert 权重
+  optimizer/scheduler/scaler/RNG 全部重置
+  在 D0 上继续固定 K steps
+
+pi_dagger[r]:
+  从同一 pi_0 只初始化 Adapter/Expert 权重
+  optimizer/scheduler/scaler/RNG 全部重置
+  在 D0 + Dagger-RG + Dagger-GL 上继续相同 K steps
+```
+
+主因果比较是 `pi_dagger[r] vs pi_replay[r]`；`pi_dagger vs pi_0` 只能作为历史效果描述，不能隔离额外
+训练步数。训练入口必须新增独立 `--init-checkpoint` 语义；现有 `--resume` 会恢复 optimizer、scheduler、
+trainer step 和 RNG，只用于中断续训，禁止用作 E012 warm start。
+
+第一轮固定：
+
+```text
+K = 1920 optimizer steps
+effective batch size = 64
+4096 samples/epoch-equivalent
+30 epoch-equivalents
+source exposure for pi_dagger = base-D0 0.80 / RG 0.10 / GL 0.10
+source exposure for pi_replay = base-D0 1.00
+```
+
+两组保持相同 learning rate、1000-step warmup、cosine schedule、event loss、skill weights、gradient
+accumulation 和 checkpoint cadence。`D1` 是逻辑训练混合，不重新拟合 ProprioStats；D0 validation split
+保持不变，40 条 Local DAgger 只进入训练 source。Sampler 先选 source，再选 task/episode/timestep；实际
+每 epoch 输出 `source x skill x boundary-offset` exposure，不能只记录配置概率。RG/GL 使用 disjoint
+roll-in seeds，防止相关 trajectory 被双重加权。
+
+### Checkpoint 预选择
+
+每组固定保存 10/20/30 epoch-equivalent checkpoint。`31000..31019` full-chain validation 和
+`31020..31024` atomic validation 只用于 checkpoint 选择，永远不进入 Stage A/B 或 DAgger collection。
+同一模型按以下 lexicographic rule 选一个 checkpoint：
+
+1. 排除新增 system error、Action safety rejection 或 tracking/anomaly regression 的候选；
+2. 排除 atomic Grasp/Lift/Place 相对同 seed `pi_0` 出现净成功数回归的候选；
+3. 排除 full-chain Reach 相对 `pi_0` 下降超过 1/20 的候选；
+4. 最大化无条件 `Lift/20`；
+5. 最大化无条件 `Grasp/20`；
+6. 最大化 mean completed skills；
+7. 再以固定 D0 validation total loss、较早 checkpoint 依次 tie-break。
+
+不得用 Stage A/B seeds 选 checkpoint。Checkpoint validation 是模型选择数据，不能合并进最终效果样本。
+
+### 正式评估与统计
+
+所有模型在同一 environment/Flow seeds 上 paired 运行，主协议为 temporal ensemble。每个模型/repeat
+同时报告：
+
+- `Reach/N、Grasp/N、Lift/N、Transport/N、Place/N、Full/N`
+- `P(Grasp|Reach)、P(Lift|Grasp)、P(Transport|Lift)` 与 Wilson interval
+- mean completed skills 和阶段耗时
+- 共同 predecessor seeds 上的 handoff、paired wins/losses 和 exact paired test
+- system error、Action safety rejection、tracking saturation、anomaly replan
+- atomic Reach/Grasp/Lift/Transport/Place guardrail
+
+条件率不能单独作为 promotion 证据。E011 的 RTC `2/2` 已证明 predecessor 选择效应会制造虚高条件率；
+因此必须并列给出无条件分子、共同支持集和 predecessor 本身的 paired 变化。两个 training repeat 分开
+报告；跨 repeat 汇总只作分层 bootstrap/辅助描述，不把同一 environment seed 的两次训练结果当完全独立。
+
+Stage 流程为：
+
+1. 训练 repeat 1 的 replay/DAgger pair，按 validation rule 选择 checkpoint；
+2. 在 Stage A 20 个 full-chain paired seeds 和 5 个 atomic seeds 上评估；
+3. 仅当 Stage A gate 通过，训练 repeat 2，并在同一 Stage A seeds 检查训练方向一致性；
+4. 两个 repeat 均满足方向 gate 后，在全新 Stage B 30 seeds 上同时确认；
+5. 任一 gate 失败即保留结果并停止 promotion，不调参后复用同一 seeds。
+
+Stage A 方向 gate：
+
+- `pi_dagger` 相对 paired `pi_replay` 无新增 system/safety/tracking failure；
+- atomic Grasp/Lift/Place 各自净成功数不下降；
+- full-chain Reach 下降不超过 1/20；
+- 无条件 Grasp、Lift 均不下降，且至少一个提高不少于 2/20；
+- mean completed skills 提高。
+
+最终 promotion 要求两个 training repeat 在各自 Stage A+Stage B 的 50 个 seeds 上方向一致：Reach 下降
+不超过 2/50，Grasp/Lift 均不下降且至少一个存在正 paired net wins，mean completed skills 均提高，
+atomic Grasp/Lift/Place 不回归，并且没有新增 system/safety/tracking failure。只有一个 repeat 改善时可写
+“存在候选信号”，不能 promotion。Full success 提高是强证据，但不作为首次 E012 的必要条件。
+
+### Boundary Chunk 与 matched-state diagnostics
+
+在 Reach 和 Grasp crossing 周围固定记录：
+
+```text
+前一个 Replan / crossing Replan / 后第 1 个 Replan / 后第 2 个 Replan
+```
+
+每个位置分别报告 proposal count、per-slot mean pairwise disagreement、max disagreement、
+newest-vs-oldest、newest-vs-weighted-history；arm 7D 与 gripper 1D 必须分开，不能让 gripper `0<->1`
+切换支配一个 8D max spread。先在 Episode/boundary 内聚合，再跨 Episode bootstrap。
+
+Newest-only 只作为 behavioral diagnostic。即使 `pi_dagger + newest-only` 提高并缩小与 temporal 的差距，
+也不能单独写成 policy prediction variance 下降。真正的 variance test 使用 checkpoint validation 的
+held-out `pi_0` boundary observation sequence：在相同逐帧 RGB/proprio 上，`pi_replay` 与 `pi_dagger`
+使用相同的一组 per-frame Flow seeds，分别比较 across-seed Action variance 和 absolute-time-aligned Chunk
+disagreement。当前模型没有 observation-history 输入；这里固定的是同一录制 observation sequence，各模型
+的 proposal history 只由它在该序列上的预测确定。这样区分：
+
+```text
+新 policy 到达了更容易的 state
+vs
+同一个 state 上新 policy 本身更稳定
+```
+
+这些 disagreement 指标是机制证据和解释变量，不替代无条件闭环成功数与 atomic guardrail。
+
+### 允许的结论边界
+
+若 `pi_dagger` 在两个 training repeat 上均优于 `pi_replay`，且 matched-state disagreement 同时下降，
+允许结论为：
+
+> 在当前模型、Expert、Dataset mixer 和 temporal execution 配置下，补充 policy-induced boundary state
+> 上的 Expert supervision 提高了后续技能闭环成功率，并支持 boundary coverage 不足是部分预测不稳定的
+> 原因。
+
+若 handoff 提高但 matched-state disagreement 不变，只能结论为 Local DAgger 提高 recovery；若二者都
+不变，则当前 40 条、固定窗口和 sampler 下没有支持 boundary coverage 是主要瓶颈。由于监督从 Predicate
+crossing 后才开始，第一版不会直接纠正 crossing 前几个 Replan 产生的旧 Chunk；任何关于“修复了
+pre-boundary Chunk generation”的表述都被禁止。
+
+### 计划实现顺序与现有接口映射
+
+按以下顺序渐进实现，每一步先做针对性测试，不在 schema/collection 未稳定时同时修改训练器：
+
+1. **Versioned Local DAgger provenance：**在保持 clean `trajectory/v2` 可读的前提下增加版本化、
+   all-or-none 的 Local DAgger metadata 与逐 Action `action_source/expert_supervision_mask`；Writer、Reader、
+   `validate_trajectory` 和专用 validator 先完成 round-trip/fail-closed 测试。第一版采用 additive optional
+   contract，不因新增字段直接让固定 `pi_0` checkpoint 的 `dataset_schema` 身份失效。
+2. **Live takeover collector：**复用现有双相机/Predicate/Outcome evidence 和 MPLib Expert，只新增
+   frozen policy roll-in、指定 boundary 切换 Action producer、controller target 连续性与完整成功写入；
+   不重构普通 clean Expert collector。
+3. **Snapshot diagnostics：**单独封装 snapshot bundle 和 ring buffer，先验证 save/restore round-trip；
+   accepted trajectory 继续来自 live session，避免把 snapshot 功能与数据拼接耦合。
+4. **Dataset 与 audit：**`ActionChunkDataset` 只为 Local DAgger entry 构造完整 Expert/window anchors；
+   clean entry 保持原索引。正式 success audit 规则不改，另加 provenance audit。D1 observed stats 单独落盘，
+   训练 CLI 显式选择冻结的 D0 ProprioStats。
+5. **Source sampler 与 loss 防线：**在现有 Task→Episode→timestep 逻辑外增加 source-first quota 和 exposure
+   ledger；Collator/Trainer 显式验证 supervision mask，最终 effective mask 才传给 Flow/Event loss。
+6. **独立 warm start：**新增与 `--resume` 互斥的 `--init-checkpoint`，复用严格 checkpoint metadata/权重
+   loader，但不恢复 optimizer/scheduler/scaler/trainer/RNG；测试两组初始参数 SHA 相同、训练状态为零。
+7. **Evaluation metrics：**扩展 rollout 聚合器，正式增加 `P(Lift|Grasp)`、无条件阶段分子、共同
+   predecessor paired table，以及 arm/gripper 分开的固定 boundary-window disagreement。
+8. **E012a smoke：**只用非正式 smoke seeds 验证一次 RG 和一次 GL live takeover、完整 audit、无 Policy
+   target leakage、snapshot 和产物恢复；smoke 不进入 40 条 Dataset、risk percentile 或效果统计。
+9. **正式执行：**E012a gate 通过后才完整扫描 `30000..30199`；40 条和 D1 身份冻结后才训练 repeat 1。
+
+上述实现不得顺手改变普通 clean Dataset、默认 temporal ensemble 或历史 `--resume` 语义。任何不得不修改
+核心 trajectory schema version、Predicate 或 Controller 的发现都视为 protocol amendment，在正式
+collection 前单独记录并重新检查 checkpoint/Dataset 兼容性。
+
+### 计划产物
+
+E012a/E012b 运行后在 `docs/results/e012/` 保留人类可读报告及以下小型、可审计文件；权重、RGB 和大
+trajectory 不提交 Git：
+
+```text
+preregistration.json
+collection_manifest.json
+collection_candidates.jsonl
+collection_summary.json
+boundary_distribution.json
+train_repeat_1.json
+train_repeat_2.json
+sampler_exposure.jsonl
+checkpoint_selection.json
+stage_a_episodes.jsonl
+stage_a_summary.json
+stage_b_episodes.jsonl
+stage_b_summary.json
+matched_state_diagnostics.json
+```
+
+每个文件记录 checkpoint/Dataset/source SHA256、seed、配置、环境版本和上游文件哈希。正式结果发布前
+独立从 raw JSONL 复算汇总；GitHub 只发布源码、manifest、聚合与必要 raw measurement，不上传模型、
+Dataset 或含图像的 trajectory。
 
 ## 实验模板
 

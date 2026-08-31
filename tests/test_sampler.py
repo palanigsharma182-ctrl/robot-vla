@@ -15,16 +15,27 @@ class FakeStore:
 
 
 class FakeDataset:
-    def __init__(self, episode_specs: list[tuple[str, int, np.ndarray]]) -> None:
+    def __init__(
+        self,
+        episode_specs: list[tuple[str, int, np.ndarray]],
+        *,
+        sources: list[str] | None = None,
+    ) -> None:
         self.entries = []
         self.index = []
         skills_by_entry = {}
         for entry_index, (task_id, sample_count, skills) in enumerate(episode_specs):
             assert sample_count == len(skills)
+            source = None if sources is None else sources[entry_index]
             self.entries.append(
                 SimpleNamespace(
                     entry_index=entry_index,
                     task=SimpleNamespace(task_id=task_id),
+                    local_dagger=(
+                        None
+                        if source is None or source == "base_d0"
+                        else SimpleNamespace(source=source, training_window_start=0)
+                    ),
                 )
             )
             skills_by_entry[entry_index] = skills
@@ -91,3 +102,119 @@ def test_sampler_rejects_unknown_or_non_positive_skill_weight() -> None:
         TaskEpisodeBalancedSampler(dataset, skill_weights=((99, 1.0),))
     with pytest.raises(ValueError, match="有限正数"):
         TaskEpisodeBalancedSampler(dataset, skill_weights=((0, 0.0),))
+
+
+def test_sampler_applies_exact_source_first_quota_and_records_exposure() -> None:
+    dataset = FakeDataset(
+        [
+            ("task-a", 12, np.zeros(12, dtype=np.int16)),
+            ("task-a", 12, np.ones(12, dtype=np.int16)),
+            ("task-a", 12, np.full(12, 2, dtype=np.int16)),
+        ],
+        sources=["base_d0", "dagger_reach_grasp", "dagger_grasp_lift"],
+    )
+    sampler = TaskEpisodeBalancedSampler(
+        dataset,
+        num_samples=100,
+        seed=17,
+        source_weights=(
+            ("base_d0", 0.8),
+            ("dagger_reach_grasp", 0.1),
+            ("dagger_grasp_lift", 0.1),
+        ),
+    )
+
+    sampled = list(sampler)
+    sampled_sources = [
+        "base_d0"
+        if dataset.entries[dataset.index[index][0]].local_dagger is None
+        else dataset.entries[dataset.index[index][0]].local_dagger.source
+        for index in sampled
+    ]
+
+    assert sampled_sources.count("base_d0") == 80
+    assert sampled_sources.count("dagger_reach_grasp") == 10
+    assert sampled_sources.count("dagger_grasp_lift") == 10
+    rows = sampler.exposure_rows()
+    assert sum(int(row["samples"]) for row in rows) == 100
+    for row in rows:
+        if row["source"] == "base_d0":
+            assert row["skill_id"] == 0
+            assert row["boundary_offset"] is None
+        elif row["source"] == "dagger_reach_grasp":
+            assert row["skill_id"] == 1
+            assert 0 <= int(row["boundary_offset"]) < 12
+        else:
+            assert row["source"] == "dagger_grasp_lift"
+            assert row["skill_id"] == 2
+            assert 0 <= int(row["boundary_offset"]) < 12
+
+
+def test_sampler_source_quota_must_exactly_cover_observed_sources() -> None:
+    dataset = FakeDataset(
+        [
+            ("task-a", 2, np.zeros(2, dtype=np.int16)),
+            ("task-a", 2, np.ones(2, dtype=np.int16)),
+        ],
+        sources=["base_d0", "dagger_reach_grasp"],
+    )
+
+    with pytest.raises(ValueError, match="精确覆盖"):
+        TaskEpisodeBalancedSampler(
+            dataset,
+            source_weights=(("base_d0", 1.0),),
+        )
+    with pytest.raises(ValueError, match="必须显式配置"):
+        TaskEpisodeBalancedSampler(dataset)
+
+
+def test_sampler_rotates_unavoidable_fractional_source_tie_between_epochs() -> None:
+    dataset = FakeDataset(
+        [
+            ("task-a", 4, np.zeros(4, dtype=np.int16)),
+            ("task-a", 4, np.ones(4, dtype=np.int16)),
+            ("task-a", 4, np.full(4, 2, dtype=np.int16)),
+        ],
+        sources=["base_d0", "dagger_reach_grasp", "dagger_grasp_lift"],
+    )
+    sampler = TaskEpisodeBalancedSampler(
+        dataset,
+        num_samples=4_096,
+        seed=19,
+        source_weights=(
+            ("base_d0", 0.8),
+            ("dagger_reach_grasp", 0.1),
+            ("dagger_grasp_lift", 0.1),
+        ),
+    )
+
+    list(sampler)
+    first = {
+        source: sum(
+            int(row["samples"])
+            for row in sampler.exposure_rows()
+            if row["source"] == source
+        )
+        for source in ("base_d0", "dagger_reach_grasp", "dagger_grasp_lift")
+    }
+    sampler.set_epoch(1)
+    list(sampler)
+    second = {
+        source: sum(
+            int(row["samples"])
+            for row in sampler.exposure_rows()
+            if row["source"] == source
+        )
+        for source in ("base_d0", "dagger_reach_grasp", "dagger_grasp_lift")
+    }
+
+    assert first == {
+        "base_d0": 3_277,
+        "dagger_reach_grasp": 410,
+        "dagger_grasp_lift": 409,
+    }
+    assert second == {
+        "base_d0": 3_277,
+        "dagger_reach_grasp": 409,
+        "dagger_grasp_lift": 410,
+    }
