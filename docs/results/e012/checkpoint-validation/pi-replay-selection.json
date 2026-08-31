@@ -1,0 +1,5763 @@
+{
+  "candidates": [
+    {
+      "eligible": false,
+      "epoch": 10,
+      "exclusion_checks": {
+        "anomaly_not_regressed": true,
+        "atomic_grasp_not_regressed": true,
+        "atomic_lift_not_regressed": true,
+        "atomic_place_not_regressed": false,
+        "full_chain_reach_delta_at_least_minus_1": false,
+        "no_new_action_safety_rejection": true,
+        "no_new_system_failure": true,
+        "tracking_not_regressed": true
+      },
+      "label": "replay-e010",
+      "paired_evidence": {
+        "atomic_guardrail": {
+          "by_skill": {
+            "grasp": {
+              "dagger_wins": 0,
+              "exact_paired_test": {
+                "discordant_pairs": 0,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 1.0
+              },
+              "failure_ties": 0,
+              "net_dagger_wins": 0,
+              "pairs": 5,
+              "replay_wins": 0,
+              "success_ties": 5
+            },
+            "lift": {
+              "dagger_wins": 0,
+              "exact_paired_test": {
+                "discordant_pairs": 0,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 1.0
+              },
+              "failure_ties": 0,
+              "net_dagger_wins": 0,
+              "pairs": 5,
+              "replay_wins": 0,
+              "success_ties": 5
+            },
+            "place": {
+              "dagger_wins": 0,
+              "exact_paired_test": {
+                "discordant_pairs": 2,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 0.5
+              },
+              "failure_ties": 0,
+              "net_dagger_wins": -2,
+              "pairs": 5,
+              "replay_wins": 2,
+              "success_ties": 3
+            },
+            "reach": {
+              "dagger_wins": 0,
+              "exact_paired_test": {
+                "discordant_pairs": 0,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 1.0
+              },
+              "failure_ties": 5,
+              "net_dagger_wins": 0,
+              "pairs": 5,
+              "replay_wins": 0,
+              "success_ties": 0
+            },
+            "transport": {
+              "dagger_wins": 3,
+              "exact_paired_test": {
+                "discordant_pairs": 3,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 0.25
+              },
+              "failure_ties": 0,
+              "net_dagger_wins": 3,
+              "pairs": 5,
+              "replay_wins": 0,
+              "success_ties": 2
+            }
+          },
+          "issue_deltas": {
+            "anomaly_replan_count_delta": 0,
+            "episodes_with_anomaly": 0,
+            "episodes_with_safety": 0,
+            "episodes_with_system": 0,
+            "episodes_with_tracking": 0,
+            "new_anomaly_episodes": 0,
+            "new_safety_episodes": 0,
+            "new_system_episodes": 0,
+            "new_tracking_episodes": 0,
+            "tracking_correction_saturation_count_delta": 0
+          },
+          "per_seed": [
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31020,
+              "skill": "grasp"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31021,
+              "skill": "grasp"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31022,
+              "skill": "grasp"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31023,
+              "skill": "grasp"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31024,
+              "skill": "grasp"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31020,
+              "skill": "lift"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31021,
+              "skill": "lift"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31022,
+              "skill": "lift"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31023,
+              "skill": "lift"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31024,
+              "skill": "lift"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31020,
+              "skill": "place"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31021,
+              "skill": "place"
+            },
+            {
+              "dagger_failure_category": "place_failed",
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": false,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31022,
+              "skill": "place"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31023,
+              "skill": "place"
+            },
+            {
+              "dagger_failure_category": "place_failed",
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": false,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31024,
+              "skill": "place"
+            },
+            {
+              "dagger_failure_category": "reach_failed",
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": false,
+              "replay_failure_category": "reach_failed",
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": false,
+              "seed": 31020,
+              "skill": "reach"
+            },
+            {
+              "dagger_failure_category": "reach_failed",
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": false,
+              "replay_failure_category": "reach_failed",
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": false,
+              "seed": 31021,
+              "skill": "reach"
+            },
+            {
+              "dagger_failure_category": "reach_failed",
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": false,
+              "replay_failure_category": "reach_failed",
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": false,
+              "seed": 31022,
+              "skill": "reach"
+            },
+            {
+              "dagger_failure_category": "reach_failed",
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": false,
+              "replay_failure_category": "reach_failed",
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": false,
+              "seed": 31023,
+              "skill": "reach"
+            },
+            {
+              "dagger_failure_category": "reach_failed",
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": false,
+              "replay_failure_category": "reach_failed",
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": false,
+              "seed": 31024,
+              "skill": "reach"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31020,
+              "skill": "transport"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": "transport_failed",
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": false,
+              "seed": 31021,
+              "skill": "transport"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": "transport_failed",
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": false,
+              "seed": 31022,
+              "skill": "transport"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": "transport_failed",
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": false,
+              "seed": 31023,
+              "skill": "transport"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31024,
+              "skill": "transport"
+            }
+          ]
+        },
+        "format": "robot-vla-e012-paired-evaluation/v1",
+        "full_chain": {
+          "completed_skill_count_paired": {
+            "dagger_wins": 3,
+            "replay_wins": 6,
+            "ties": 11
+          },
+          "dagger": {
+            "conditionals": {
+              "grasp_given_reach": {
+                "denominator": 7,
+                "numerator": 3,
+                "rate": 0.42857142857142855,
+                "wilson_95": [
+                  0.15821985525146975,
+                  0.7495416354723428
+                ]
+              },
+              "lift_given_grasp": {
+                "denominator": 3,
+                "numerator": 0,
+                "rate": 0.0,
+                "wilson_95": [
+                  5.551115123125783e-17,
+                  0.5614970317550454
+                ]
+              },
+              "transport_given_lift": {
+                "denominator": 0,
+                "numerator": 0,
+                "rate": null,
+                "wilson_95": null
+              }
+            },
+            "episodes": 20,
+            "failure_counts": {
+              "grasp_failed": 4,
+              "lift_failed": 3,
+              "reach_failed": 13
+            },
+            "issues": {
+              "anomaly_replan_count": 0,
+              "episodes_with_anomaly": 0,
+              "episodes_with_safety": 0,
+              "episodes_with_system": 0,
+              "episodes_with_tracking": 0,
+              "tracking_correction_saturation_count": 0
+            },
+            "mean_completed_skill_count": 0.5,
+            "stage_timing": {
+              "mean_steps_lift_to_transport": null,
+              "mean_steps_reach_to_grasp": 28.333333333333332,
+              "mean_steps_to_reach": 107.28571428571429
+            },
+            "unconditional": {
+              "full": {
+                "denominator": 20,
+                "numerator": 0,
+                "rate": 0.0,
+                "wilson_95": [
+                  0.0,
+                  0.16112515805281938
+                ]
+              },
+              "grasp": {
+                "denominator": 20,
+                "numerator": 3,
+                "rate": 0.15,
+                "wilson_95": [
+                  0.052368745896216595,
+                  0.36041886474075696
+                ]
+              },
+              "lift": {
+                "denominator": 20,
+                "numerator": 0,
+                "rate": 0.0,
+                "wilson_95": [
+                  0.0,
+                  0.16112515805281938
+                ]
+              },
+              "place": {
+                "denominator": 20,
+                "numerator": 0,
+                "rate": 0.0,
+                "wilson_95": [
+                  0.0,
+                  0.16112515805281938
+                ]
+              },
+              "reach": {
+                "denominator": 20,
+                "numerator": 7,
+                "rate": 0.35,
+                "wilson_95": [
+                  0.18119182410108206,
+                  0.5671457233147638
+                ]
+              },
+              "transport": {
+                "denominator": 20,
+                "numerator": 0,
+                "rate": 0.0,
+                "wilson_95": [
+                  0.0,
+                  0.16112515805281938
+                ]
+              }
+            }
+          },
+          "handoffs": {
+            "grasp": {
+              "common_predecessor_seeds": [
+                {
+                  "seed": 31000,
+                  "seed_group": "unseen"
+                },
+                {
+                  "seed": 31001,
+                  "seed_group": "unseen"
+                },
+                {
+                  "seed": 31003,
+                  "seed_group": "unseen"
+                },
+                {
+                  "seed": 31004,
+                  "seed_group": "unseen"
+                },
+                {
+                  "seed": 31007,
+                  "seed_group": "unseen"
+                },
+                {
+                  "seed": 31013,
+                  "seed_group": "unseen"
+                }
+              ],
+              "common_predecessor_support": 6,
+              "handoff_on_common_support": {
+                "dagger_wins": 2,
+                "exact_paired_test": {
+                  "discordant_pairs": 5,
+                  "method": "two-sided-exact-mcnemar-binomial",
+                  "p_value": 1.0
+                },
+                "failure_ties": 0,
+                "net_dagger_wins": -1,
+                "pairs": 6,
+                "replay_wins": 3,
+                "success_ties": 1
+              },
+              "predecessor": "reach",
+              "predecessor_paired_on_all_seeds": {
+                "dagger_wins": 1,
+                "exact_paired_test": {
+                  "discordant_pairs": 4,
+                  "method": "two-sided-exact-mcnemar-binomial",
+                  "p_value": 0.625
+                },
+                "failure_ties": 10,
+                "net_dagger_wins": -2,
+                "pairs": 20,
+                "replay_wins": 3,
+                "success_ties": 6
+              }
+            },
+            "lift": {
+              "common_predecessor_seeds": [
+                {
+                  "seed": 31013,
+                  "seed_group": "unseen"
+                }
+              ],
+              "common_predecessor_support": 1,
+              "handoff_on_common_support": {
+                "dagger_wins": 0,
+                "exact_paired_test": {
+                  "discordant_pairs": 0,
+                  "method": "two-sided-exact-mcnemar-binomial",
+                  "p_value": 1.0
+                },
+                "failure_ties": 1,
+                "net_dagger_wins": 0,
+                "pairs": 1,
+                "replay_wins": 0,
+                "success_ties": 0
+              },
+              "predecessor": "grasp",
+              "predecessor_paired_on_all_seeds": {
+                "dagger_wins": 2,
+                "exact_paired_test": {
+                  "discordant_pairs": 6,
+                  "method": "two-sided-exact-mcnemar-binomial",
+                  "p_value": 0.6875
+                },
+                "failure_ties": 13,
+                "net_dagger_wins": -2,
+                "pairs": 20,
+                "replay_wins": 4,
+                "success_ties": 1
+              }
+            },
+            "transport": {
+              "common_predecessor_seeds": [],
+              "common_predecessor_support": 0,
+              "handoff_on_common_support": {
+                "dagger_wins": 0,
+                "exact_paired_test": {
+                  "discordant_pairs": 0,
+                  "method": "two-sided-exact-mcnemar-binomial",
+                  "p_value": 1.0
+                },
+                "failure_ties": 0,
+                "net_dagger_wins": 0,
+                "pairs": 0,
+                "replay_wins": 0,
+                "success_ties": 0
+              },
+              "predecessor": "lift",
+              "predecessor_paired_on_all_seeds": {
+                "dagger_wins": 0,
+                "exact_paired_test": {
+                  "discordant_pairs": 2,
+                  "method": "two-sided-exact-mcnemar-binomial",
+                  "p_value": 0.5
+                },
+                "failure_ties": 18,
+                "net_dagger_wins": -2,
+                "pairs": 20,
+                "replay_wins": 2,
+                "success_ties": 0
+              }
+            }
+          },
+          "issue_deltas": {
+            "anomaly_replan_count_delta": 0,
+            "episodes_with_anomaly": 0,
+            "episodes_with_safety": 0,
+            "episodes_with_system": 0,
+            "episodes_with_tracking": 0,
+            "new_anomaly_episodes": 0,
+            "new_safety_episodes": 0,
+            "new_system_episodes": 0,
+            "new_tracking_episodes": 0,
+            "tracking_correction_saturation_count_delta": 0
+          },
+          "mean_completed_skill_count_delta": -0.30000000000000004,
+          "per_seed": [
+            {
+              "completed_skill_delta": 1,
+              "dagger": {
+                "completed_skill_count": 2,
+                "failure_category": "lift_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 1,
+                "failure_category": "grasp_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31000,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": -1,
+              "dagger": {
+                "completed_skill_count": 1,
+                "failure_category": "grasp_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 2,
+                "failure_category": "lift_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31001,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 0,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31002,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": -1,
+              "dagger": {
+                "completed_skill_count": 1,
+                "failure_category": "grasp_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 2,
+                "failure_category": "lift_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31003,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": -2,
+              "dagger": {
+                "completed_skill_count": 1,
+                "failure_category": "grasp_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 3,
+                "failure_category": "transport_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": true,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31004,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": -1,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 1,
+                "failure_category": "grasp_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31005,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 0,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31006,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 1,
+              "dagger": {
+                "completed_skill_count": 2,
+                "failure_category": "lift_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 1,
+                "failure_category": "grasp_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31007,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 0,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31008,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 0,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31009,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 0,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31010,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 1,
+              "dagger": {
+                "completed_skill_count": 1,
+                "failure_category": "grasp_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31011,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": -3,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 3,
+                "failure_category": "transport_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": true,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31012,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 0,
+              "dagger": {
+                "completed_skill_count": 2,
+                "failure_category": "lift_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 2,
+                "failure_category": "lift_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31013,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 0,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31014,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 0,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31015,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 0,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31016,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": -1,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 1,
+                "failure_category": "grasp_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31017,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 0,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31018,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 0,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31019,
+              "seed_group": "unseen"
+            }
+          ],
+          "replay": {
+            "conditionals": {
+              "grasp_given_reach": {
+                "denominator": 9,
+                "numerator": 5,
+                "rate": 0.5555555555555556,
+                "wilson_95": [
+                  0.26665129349549305,
+                  0.8112214789023355
+                ]
+              },
+              "lift_given_grasp": {
+                "denominator": 5,
+                "numerator": 2,
+                "rate": 0.4,
+                "wilson_95": [
+                  0.11762077423264783,
+                  0.769275718723987
+                ]
+              },
+              "transport_given_lift": {
+                "denominator": 2,
+                "numerator": 0,
+                "rate": 0.0,
+                "wilson_95": [
+                  0.0,
+                  0.6576197724933469
+                ]
+              }
+            },
+            "episodes": 20,
+            "failure_counts": {
+              "grasp_failed": 4,
+              "lift_failed": 3,
+              "reach_failed": 11,
+              "transport_failed": 2
+            },
+            "issues": {
+              "anomaly_replan_count": 0,
+              "episodes_with_anomaly": 0,
+              "episodes_with_safety": 0,
+              "episodes_with_system": 0,
+              "episodes_with_tracking": 0,
+              "tracking_correction_saturation_count": 0
+            },
+            "mean_completed_skill_count": 0.8,
+            "stage_timing": {
+              "mean_steps_lift_to_transport": null,
+              "mean_steps_reach_to_grasp": 37.4,
+              "mean_steps_to_reach": 112.55555555555556
+            },
+            "unconditional": {
+              "full": {
+                "denominator": 20,
+                "numerator": 0,
+                "rate": 0.0,
+                "wilson_95": [
+                  0.0,
+                  0.16112515805281938
+                ]
+              },
+              "grasp": {
+                "denominator": 20,
+                "numerator": 5,
+                "rate": 0.25,
+                "wilson_95": [
+                  0.11186170140766569,
+                  0.468700877618744
+                ]
+              },
+              "lift": {
+                "denominator": 20,
+                "numerator": 2,
+                "rate": 0.1,
+                "wilson_95": [
+                  0.027866481213768224,
+                  0.3010336452284873
+                ]
+              },
+              "place": {
+                "denominator": 20,
+                "numerator": 0,
+                "rate": 0.0,
+                "wilson_95": [
+                  0.0,
+                  0.16112515805281938
+                ]
+              },
+              "reach": {
+                "denominator": 20,
+                "numerator": 9,
+                "rate": 0.45,
+                "wilson_95": [
+                  0.2581978582556243,
+                  0.6579146575496577
+                ]
+              },
+              "transport": {
+                "denominator": 20,
+                "numerator": 0,
+                "rate": 0.0,
+                "wilson_95": [
+                  0.0,
+                  0.16112515805281938
+                ]
+              }
+            }
+          },
+          "unconditional_paired": {
+            "full": {
+              "dagger_wins": 0,
+              "exact_paired_test": {
+                "discordant_pairs": 0,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 1.0
+              },
+              "failure_ties": 20,
+              "net_dagger_wins": 0,
+              "pairs": 20,
+              "replay_wins": 0,
+              "success_ties": 0
+            },
+            "grasp": {
+              "dagger_wins": 2,
+              "exact_paired_test": {
+                "discordant_pairs": 6,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 0.6875
+              },
+              "failure_ties": 13,
+              "net_dagger_wins": -2,
+              "pairs": 20,
+              "replay_wins": 4,
+              "success_ties": 1
+            },
+            "lift": {
+              "dagger_wins": 0,
+              "exact_paired_test": {
+                "discordant_pairs": 2,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 0.5
+              },
+              "failure_ties": 18,
+              "net_dagger_wins": -2,
+              "pairs": 20,
+              "replay_wins": 2,
+              "success_ties": 0
+            },
+            "place": {
+              "dagger_wins": 0,
+              "exact_paired_test": {
+                "discordant_pairs": 0,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 1.0
+              },
+              "failure_ties": 20,
+              "net_dagger_wins": 0,
+              "pairs": 20,
+              "replay_wins": 0,
+              "success_ties": 0
+            },
+            "reach": {
+              "dagger_wins": 1,
+              "exact_paired_test": {
+                "discordant_pairs": 4,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 0.625
+              },
+              "failure_ties": 10,
+              "net_dagger_wins": -2,
+              "pairs": 20,
+              "replay_wins": 3,
+              "success_ties": 6
+            },
+            "transport": {
+              "dagger_wins": 0,
+              "exact_paired_test": {
+                "discordant_pairs": 0,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 1.0
+              },
+              "failure_ties": 20,
+              "net_dagger_wins": 0,
+              "pairs": 20,
+              "replay_wins": 0,
+              "success_ties": 0
+            }
+          }
+        },
+        "gate": null,
+        "protocol": "checkpoint-validation"
+      },
+      "ranking_metrics": {
+        "epoch": 10,
+        "mean_completed_skill_count": 0.5,
+        "unconditional_grasp_successes": 3,
+        "unconditional_lift_successes": 0,
+        "validation_total_loss": 0.015049984900425414
+      }
+    },
+    {
+      "eligible": false,
+      "epoch": 20,
+      "exclusion_checks": {
+        "anomaly_not_regressed": true,
+        "atomic_grasp_not_regressed": true,
+        "atomic_lift_not_regressed": true,
+        "atomic_place_not_regressed": false,
+        "full_chain_reach_delta_at_least_minus_1": true,
+        "no_new_action_safety_rejection": true,
+        "no_new_system_failure": true,
+        "tracking_not_regressed": true
+      },
+      "label": "replay-e020",
+      "paired_evidence": {
+        "atomic_guardrail": {
+          "by_skill": {
+            "grasp": {
+              "dagger_wins": 0,
+              "exact_paired_test": {
+                "discordant_pairs": 0,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 1.0
+              },
+              "failure_ties": 0,
+              "net_dagger_wins": 0,
+              "pairs": 5,
+              "replay_wins": 0,
+              "success_ties": 5
+            },
+            "lift": {
+              "dagger_wins": 0,
+              "exact_paired_test": {
+                "discordant_pairs": 0,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 1.0
+              },
+              "failure_ties": 0,
+              "net_dagger_wins": 0,
+              "pairs": 5,
+              "replay_wins": 0,
+              "success_ties": 5
+            },
+            "place": {
+              "dagger_wins": 0,
+              "exact_paired_test": {
+                "discordant_pairs": 3,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 0.25
+              },
+              "failure_ties": 0,
+              "net_dagger_wins": -3,
+              "pairs": 5,
+              "replay_wins": 3,
+              "success_ties": 2
+            },
+            "reach": {
+              "dagger_wins": 2,
+              "exact_paired_test": {
+                "discordant_pairs": 2,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 0.5
+              },
+              "failure_ties": 3,
+              "net_dagger_wins": 2,
+              "pairs": 5,
+              "replay_wins": 0,
+              "success_ties": 0
+            },
+            "transport": {
+              "dagger_wins": 2,
+              "exact_paired_test": {
+                "discordant_pairs": 4,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 1.0
+              },
+              "failure_ties": 1,
+              "net_dagger_wins": 0,
+              "pairs": 5,
+              "replay_wins": 2,
+              "success_ties": 0
+            }
+          },
+          "issue_deltas": {
+            "anomaly_replan_count_delta": 0,
+            "episodes_with_anomaly": 0,
+            "episodes_with_safety": 0,
+            "episodes_with_system": 0,
+            "episodes_with_tracking": 0,
+            "new_anomaly_episodes": 0,
+            "new_safety_episodes": 0,
+            "new_system_episodes": 0,
+            "new_tracking_episodes": 0,
+            "tracking_correction_saturation_count_delta": 0
+          },
+          "per_seed": [
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31020,
+              "skill": "grasp"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31021,
+              "skill": "grasp"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31022,
+              "skill": "grasp"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31023,
+              "skill": "grasp"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31024,
+              "skill": "grasp"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31020,
+              "skill": "lift"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31021,
+              "skill": "lift"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31022,
+              "skill": "lift"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31023,
+              "skill": "lift"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31024,
+              "skill": "lift"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31020,
+              "skill": "place"
+            },
+            {
+              "dagger_failure_category": "place_failed",
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": false,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31021,
+              "skill": "place"
+            },
+            {
+              "dagger_failure_category": "place_failed",
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": false,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31022,
+              "skill": "place"
+            },
+            {
+              "dagger_failure_category": "place_failed",
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": false,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31023,
+              "skill": "place"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31024,
+              "skill": "place"
+            },
+            {
+              "dagger_failure_category": "reach_failed",
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": false,
+              "replay_failure_category": "reach_failed",
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": false,
+              "seed": 31020,
+              "skill": "reach"
+            },
+            {
+              "dagger_failure_category": "reach_failed",
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": false,
+              "replay_failure_category": "reach_failed",
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": false,
+              "seed": 31021,
+              "skill": "reach"
+            },
+            {
+              "dagger_failure_category": "reach_failed",
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": false,
+              "replay_failure_category": "reach_failed",
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": false,
+              "seed": 31022,
+              "skill": "reach"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": "reach_failed",
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": false,
+              "seed": 31023,
+              "skill": "reach"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": "reach_failed",
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": false,
+              "seed": 31024,
+              "skill": "reach"
+            },
+            {
+              "dagger_failure_category": "transport_failed",
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": false,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31020,
+              "skill": "transport"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": "transport_failed",
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": false,
+              "seed": 31021,
+              "skill": "transport"
+            },
+            {
+              "dagger_failure_category": "transport_failed",
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": false,
+              "replay_failure_category": "transport_failed",
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": false,
+              "seed": 31022,
+              "skill": "transport"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": "transport_failed",
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": false,
+              "seed": 31023,
+              "skill": "transport"
+            },
+            {
+              "dagger_failure_category": "transport_failed",
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": false,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31024,
+              "skill": "transport"
+            }
+          ]
+        },
+        "format": "robot-vla-e012-paired-evaluation/v1",
+        "full_chain": {
+          "completed_skill_count_paired": {
+            "dagger_wins": 14,
+            "replay_wins": 2,
+            "ties": 4
+          },
+          "dagger": {
+            "conditionals": {
+              "grasp_given_reach": {
+                "denominator": 17,
+                "numerator": 14,
+                "rate": 0.8235294117647058,
+                "wilson_95": [
+                  0.5897054143116588,
+                  0.9380887336237901
+                ]
+              },
+              "lift_given_grasp": {
+                "denominator": 14,
+                "numerator": 8,
+                "rate": 0.5714285714285714,
+                "wilson_95": [
+                  0.3259064457965074,
+                  0.7861920109552588
+                ]
+              },
+              "transport_given_lift": {
+                "denominator": 8,
+                "numerator": 2,
+                "rate": 0.25,
+                "wilson_95": [
+                  0.071479212752109,
+                  0.5907245696898311
+                ]
+              }
+            },
+            "episodes": 20,
+            "failure_counts": {
+              "grasp_failed": 3,
+              "lift_failed": 6,
+              "reach_failed": 3,
+              "release_failed": 2,
+              "transport_failed": 6
+            },
+            "issues": {
+              "anomaly_replan_count": 0,
+              "episodes_with_anomaly": 0,
+              "episodes_with_safety": 0,
+              "episodes_with_system": 0,
+              "episodes_with_tracking": 0,
+              "tracking_correction_saturation_count": 0
+            },
+            "mean_completed_skill_count": 2.05,
+            "stage_timing": {
+              "mean_steps_lift_to_transport": 140.0,
+              "mean_steps_reach_to_grasp": 36.5,
+              "mean_steps_to_reach": 93.29411764705883
+            },
+            "unconditional": {
+              "full": {
+                "denominator": 20,
+                "numerator": 0,
+                "rate": 0.0,
+                "wilson_95": [
+                  0.0,
+                  0.16112515805281938
+                ]
+              },
+              "grasp": {
+                "denominator": 20,
+                "numerator": 14,
+                "rate": 0.7,
+                "wilson_95": [
+                  0.4810271816464765,
+                  0.8545227551323956
+                ]
+              },
+              "lift": {
+                "denominator": 20,
+                "numerator": 8,
+                "rate": 0.4,
+                "wilson_95": [
+                  0.21880653237281705,
+                  0.6134184992377469
+                ]
+              },
+              "place": {
+                "denominator": 20,
+                "numerator": 0,
+                "rate": 0.0,
+                "wilson_95": [
+                  0.0,
+                  0.16112515805281938
+                ]
+              },
+              "reach": {
+                "denominator": 20,
+                "numerator": 17,
+                "rate": 0.85,
+                "wilson_95": [
+                  0.6395811352592431,
+                  0.9476312541037835
+                ]
+              },
+              "transport": {
+                "denominator": 20,
+                "numerator": 2,
+                "rate": 0.1,
+                "wilson_95": [
+                  0.027866481213768224,
+                  0.3010336452284873
+                ]
+              }
+            }
+          },
+          "handoffs": {
+            "grasp": {
+              "common_predecessor_seeds": [
+                {
+                  "seed": 31000,
+                  "seed_group": "unseen"
+                },
+                {
+                  "seed": 31001,
+                  "seed_group": "unseen"
+                },
+                {
+                  "seed": 31003,
+                  "seed_group": "unseen"
+                },
+                {
+                  "seed": 31004,
+                  "seed_group": "unseen"
+                },
+                {
+                  "seed": 31005,
+                  "seed_group": "unseen"
+                },
+                {
+                  "seed": 31007,
+                  "seed_group": "unseen"
+                },
+                {
+                  "seed": 31012,
+                  "seed_group": "unseen"
+                },
+                {
+                  "seed": 31013,
+                  "seed_group": "unseen"
+                },
+                {
+                  "seed": 31017,
+                  "seed_group": "unseen"
+                }
+              ],
+              "common_predecessor_support": 9,
+              "handoff_on_common_support": {
+                "dagger_wins": 3,
+                "exact_paired_test": {
+                  "discordant_pairs": 3,
+                  "method": "two-sided-exact-mcnemar-binomial",
+                  "p_value": 0.25
+                },
+                "failure_ties": 1,
+                "net_dagger_wins": 3,
+                "pairs": 9,
+                "replay_wins": 0,
+                "success_ties": 5
+              },
+              "predecessor": "reach",
+              "predecessor_paired_on_all_seeds": {
+                "dagger_wins": 8,
+                "exact_paired_test": {
+                  "discordant_pairs": 8,
+                  "method": "two-sided-exact-mcnemar-binomial",
+                  "p_value": 0.0078125
+                },
+                "failure_ties": 3,
+                "net_dagger_wins": 8,
+                "pairs": 20,
+                "replay_wins": 0,
+                "success_ties": 9
+              }
+            },
+            "lift": {
+              "common_predecessor_seeds": [
+                {
+                  "seed": 31001,
+                  "seed_group": "unseen"
+                },
+                {
+                  "seed": 31003,
+                  "seed_group": "unseen"
+                },
+                {
+                  "seed": 31004,
+                  "seed_group": "unseen"
+                },
+                {
+                  "seed": 31012,
+                  "seed_group": "unseen"
+                },
+                {
+                  "seed": 31013,
+                  "seed_group": "unseen"
+                }
+              ],
+              "common_predecessor_support": 5,
+              "handoff_on_common_support": {
+                "dagger_wins": 3,
+                "exact_paired_test": {
+                  "discordant_pairs": 5,
+                  "method": "two-sided-exact-mcnemar-binomial",
+                  "p_value": 1.0
+                },
+                "failure_ties": 0,
+                "net_dagger_wins": 1,
+                "pairs": 5,
+                "replay_wins": 2,
+                "success_ties": 0
+              },
+              "predecessor": "grasp",
+              "predecessor_paired_on_all_seeds": {
+                "dagger_wins": 9,
+                "exact_paired_test": {
+                  "discordant_pairs": 9,
+                  "method": "two-sided-exact-mcnemar-binomial",
+                  "p_value": 0.00390625
+                },
+                "failure_ties": 6,
+                "net_dagger_wins": 9,
+                "pairs": 20,
+                "replay_wins": 0,
+                "success_ties": 5
+              }
+            },
+            "transport": {
+              "common_predecessor_seeds": [],
+              "common_predecessor_support": 0,
+              "handoff_on_common_support": {
+                "dagger_wins": 0,
+                "exact_paired_test": {
+                  "discordant_pairs": 0,
+                  "method": "two-sided-exact-mcnemar-binomial",
+                  "p_value": 1.0
+                },
+                "failure_ties": 0,
+                "net_dagger_wins": 0,
+                "pairs": 0,
+                "replay_wins": 0,
+                "success_ties": 0
+              },
+              "predecessor": "lift",
+              "predecessor_paired_on_all_seeds": {
+                "dagger_wins": 8,
+                "exact_paired_test": {
+                  "discordant_pairs": 10,
+                  "method": "two-sided-exact-mcnemar-binomial",
+                  "p_value": 0.109375
+                },
+                "failure_ties": 10,
+                "net_dagger_wins": 6,
+                "pairs": 20,
+                "replay_wins": 2,
+                "success_ties": 0
+              }
+            }
+          },
+          "issue_deltas": {
+            "anomaly_replan_count_delta": 0,
+            "episodes_with_anomaly": 0,
+            "episodes_with_safety": 0,
+            "episodes_with_system": 0,
+            "episodes_with_tracking": 0,
+            "new_anomaly_episodes": 0,
+            "new_safety_episodes": 0,
+            "new_system_episodes": 0,
+            "new_tracking_episodes": 0,
+            "tracking_correction_saturation_count_delta": 0
+          },
+          "mean_completed_skill_count_delta": 1.2499999999999998,
+          "per_seed": [
+            {
+              "completed_skill_delta": 1,
+              "dagger": {
+                "completed_skill_count": 2,
+                "failure_category": "lift_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 1,
+                "failure_category": "grasp_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31000,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 2,
+              "dagger": {
+                "completed_skill_count": 4,
+                "failure_category": "release_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": true,
+                  "place": false,
+                  "reach": true,
+                  "transport": true
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 2,
+                "failure_category": "lift_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31001,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 1,
+              "dagger": {
+                "completed_skill_count": 1,
+                "failure_category": "grasp_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31002,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 1,
+              "dagger": {
+                "completed_skill_count": 3,
+                "failure_category": "transport_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": true,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 2,
+                "failure_category": "lift_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31003,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": -1,
+              "dagger": {
+                "completed_skill_count": 2,
+                "failure_category": "lift_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 3,
+                "failure_category": "transport_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": true,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31004,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 2,
+              "dagger": {
+                "completed_skill_count": 3,
+                "failure_category": "transport_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": true,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 1,
+                "failure_category": "grasp_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31005,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 3,
+              "dagger": {
+                "completed_skill_count": 3,
+                "failure_category": "transport_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": true,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31006,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 3,
+              "dagger": {
+                "completed_skill_count": 4,
+                "failure_category": "release_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": true,
+                  "place": false,
+                  "reach": true,
+                  "transport": true
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 1,
+                "failure_category": "grasp_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31007,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 2,
+              "dagger": {
+                "completed_skill_count": 2,
+                "failure_category": "lift_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31008,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 1,
+              "dagger": {
+                "completed_skill_count": 1,
+                "failure_category": "grasp_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31009,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 0,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31010,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 0,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31011,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": -1,
+              "dagger": {
+                "completed_skill_count": 2,
+                "failure_category": "lift_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 3,
+                "failure_category": "transport_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": true,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31012,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 1,
+              "dagger": {
+                "completed_skill_count": 3,
+                "failure_category": "transport_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": true,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 2,
+                "failure_category": "lift_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31013,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 2,
+              "dagger": {
+                "completed_skill_count": 2,
+                "failure_category": "lift_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31014,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 0,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31015,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 3,
+              "dagger": {
+                "completed_skill_count": 3,
+                "failure_category": "transport_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": true,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31016,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 0,
+              "dagger": {
+                "completed_skill_count": 1,
+                "failure_category": "grasp_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 1,
+                "failure_category": "grasp_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31017,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 3,
+              "dagger": {
+                "completed_skill_count": 3,
+                "failure_category": "transport_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": true,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31018,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 2,
+              "dagger": {
+                "completed_skill_count": 2,
+                "failure_category": "lift_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31019,
+              "seed_group": "unseen"
+            }
+          ],
+          "replay": {
+            "conditionals": {
+              "grasp_given_reach": {
+                "denominator": 9,
+                "numerator": 5,
+                "rate": 0.5555555555555556,
+                "wilson_95": [
+                  0.26665129349549305,
+                  0.8112214789023355
+                ]
+              },
+              "lift_given_grasp": {
+                "denominator": 5,
+                "numerator": 2,
+                "rate": 0.4,
+                "wilson_95": [
+                  0.11762077423264783,
+                  0.769275718723987
+                ]
+              },
+              "transport_given_lift": {
+                "denominator": 2,
+                "numerator": 0,
+                "rate": 0.0,
+                "wilson_95": [
+                  0.0,
+                  0.6576197724933469
+                ]
+              }
+            },
+            "episodes": 20,
+            "failure_counts": {
+              "grasp_failed": 4,
+              "lift_failed": 3,
+              "reach_failed": 11,
+              "transport_failed": 2
+            },
+            "issues": {
+              "anomaly_replan_count": 0,
+              "episodes_with_anomaly": 0,
+              "episodes_with_safety": 0,
+              "episodes_with_system": 0,
+              "episodes_with_tracking": 0,
+              "tracking_correction_saturation_count": 0
+            },
+            "mean_completed_skill_count": 0.8,
+            "stage_timing": {
+              "mean_steps_lift_to_transport": null,
+              "mean_steps_reach_to_grasp": 37.4,
+              "mean_steps_to_reach": 112.55555555555556
+            },
+            "unconditional": {
+              "full": {
+                "denominator": 20,
+                "numerator": 0,
+                "rate": 0.0,
+                "wilson_95": [
+                  0.0,
+                  0.16112515805281938
+                ]
+              },
+              "grasp": {
+                "denominator": 20,
+                "numerator": 5,
+                "rate": 0.25,
+                "wilson_95": [
+                  0.11186170140766569,
+                  0.468700877618744
+                ]
+              },
+              "lift": {
+                "denominator": 20,
+                "numerator": 2,
+                "rate": 0.1,
+                "wilson_95": [
+                  0.027866481213768224,
+                  0.3010336452284873
+                ]
+              },
+              "place": {
+                "denominator": 20,
+                "numerator": 0,
+                "rate": 0.0,
+                "wilson_95": [
+                  0.0,
+                  0.16112515805281938
+                ]
+              },
+              "reach": {
+                "denominator": 20,
+                "numerator": 9,
+                "rate": 0.45,
+                "wilson_95": [
+                  0.2581978582556243,
+                  0.6579146575496577
+                ]
+              },
+              "transport": {
+                "denominator": 20,
+                "numerator": 0,
+                "rate": 0.0,
+                "wilson_95": [
+                  0.0,
+                  0.16112515805281938
+                ]
+              }
+            }
+          },
+          "unconditional_paired": {
+            "full": {
+              "dagger_wins": 0,
+              "exact_paired_test": {
+                "discordant_pairs": 0,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 1.0
+              },
+              "failure_ties": 20,
+              "net_dagger_wins": 0,
+              "pairs": 20,
+              "replay_wins": 0,
+              "success_ties": 0
+            },
+            "grasp": {
+              "dagger_wins": 9,
+              "exact_paired_test": {
+                "discordant_pairs": 9,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 0.00390625
+              },
+              "failure_ties": 6,
+              "net_dagger_wins": 9,
+              "pairs": 20,
+              "replay_wins": 0,
+              "success_ties": 5
+            },
+            "lift": {
+              "dagger_wins": 8,
+              "exact_paired_test": {
+                "discordant_pairs": 10,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 0.109375
+              },
+              "failure_ties": 10,
+              "net_dagger_wins": 6,
+              "pairs": 20,
+              "replay_wins": 2,
+              "success_ties": 0
+            },
+            "place": {
+              "dagger_wins": 0,
+              "exact_paired_test": {
+                "discordant_pairs": 0,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 1.0
+              },
+              "failure_ties": 20,
+              "net_dagger_wins": 0,
+              "pairs": 20,
+              "replay_wins": 0,
+              "success_ties": 0
+            },
+            "reach": {
+              "dagger_wins": 8,
+              "exact_paired_test": {
+                "discordant_pairs": 8,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 0.0078125
+              },
+              "failure_ties": 3,
+              "net_dagger_wins": 8,
+              "pairs": 20,
+              "replay_wins": 0,
+              "success_ties": 9
+            },
+            "transport": {
+              "dagger_wins": 2,
+              "exact_paired_test": {
+                "discordant_pairs": 2,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 0.5
+              },
+              "failure_ties": 18,
+              "net_dagger_wins": 2,
+              "pairs": 20,
+              "replay_wins": 0,
+              "success_ties": 0
+            }
+          }
+        },
+        "gate": null,
+        "protocol": "checkpoint-validation"
+      },
+      "ranking_metrics": {
+        "epoch": 20,
+        "mean_completed_skill_count": 2.05,
+        "unconditional_grasp_successes": 14,
+        "unconditional_lift_successes": 8,
+        "validation_total_loss": 0.017626467794123586
+      }
+    },
+    {
+      "eligible": false,
+      "epoch": 30,
+      "exclusion_checks": {
+        "anomaly_not_regressed": true,
+        "atomic_grasp_not_regressed": true,
+        "atomic_lift_not_regressed": true,
+        "atomic_place_not_regressed": true,
+        "full_chain_reach_delta_at_least_minus_1": false,
+        "no_new_action_safety_rejection": true,
+        "no_new_system_failure": true,
+        "tracking_not_regressed": true
+      },
+      "label": "replay-e030",
+      "paired_evidence": {
+        "atomic_guardrail": {
+          "by_skill": {
+            "grasp": {
+              "dagger_wins": 0,
+              "exact_paired_test": {
+                "discordant_pairs": 0,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 1.0
+              },
+              "failure_ties": 0,
+              "net_dagger_wins": 0,
+              "pairs": 5,
+              "replay_wins": 0,
+              "success_ties": 5
+            },
+            "lift": {
+              "dagger_wins": 0,
+              "exact_paired_test": {
+                "discordant_pairs": 0,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 1.0
+              },
+              "failure_ties": 0,
+              "net_dagger_wins": 0,
+              "pairs": 5,
+              "replay_wins": 0,
+              "success_ties": 5
+            },
+            "place": {
+              "dagger_wins": 0,
+              "exact_paired_test": {
+                "discordant_pairs": 0,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 1.0
+              },
+              "failure_ties": 0,
+              "net_dagger_wins": 0,
+              "pairs": 5,
+              "replay_wins": 0,
+              "success_ties": 5
+            },
+            "reach": {
+              "dagger_wins": 0,
+              "exact_paired_test": {
+                "discordant_pairs": 0,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 1.0
+              },
+              "failure_ties": 5,
+              "net_dagger_wins": 0,
+              "pairs": 5,
+              "replay_wins": 0,
+              "success_ties": 0
+            },
+            "transport": {
+              "dagger_wins": 0,
+              "exact_paired_test": {
+                "discordant_pairs": 2,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 0.5
+              },
+              "failure_ties": 3,
+              "net_dagger_wins": -2,
+              "pairs": 5,
+              "replay_wins": 2,
+              "success_ties": 0
+            }
+          },
+          "issue_deltas": {
+            "anomaly_replan_count_delta": 0,
+            "episodes_with_anomaly": 0,
+            "episodes_with_safety": 0,
+            "episodes_with_system": 0,
+            "episodes_with_tracking": 0,
+            "new_anomaly_episodes": 0,
+            "new_safety_episodes": 0,
+            "new_system_episodes": 0,
+            "new_tracking_episodes": 0,
+            "tracking_correction_saturation_count_delta": 0
+          },
+          "per_seed": [
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31020,
+              "skill": "grasp"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31021,
+              "skill": "grasp"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31022,
+              "skill": "grasp"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31023,
+              "skill": "grasp"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31024,
+              "skill": "grasp"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31020,
+              "skill": "lift"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31021,
+              "skill": "lift"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31022,
+              "skill": "lift"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31023,
+              "skill": "lift"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31024,
+              "skill": "lift"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31020,
+              "skill": "place"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31021,
+              "skill": "place"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31022,
+              "skill": "place"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31023,
+              "skill": "place"
+            },
+            {
+              "dagger_failure_category": null,
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": true,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31024,
+              "skill": "place"
+            },
+            {
+              "dagger_failure_category": "reach_failed",
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": false,
+              "replay_failure_category": "reach_failed",
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": false,
+              "seed": 31020,
+              "skill": "reach"
+            },
+            {
+              "dagger_failure_category": "reach_failed",
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": false,
+              "replay_failure_category": "reach_failed",
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": false,
+              "seed": 31021,
+              "skill": "reach"
+            },
+            {
+              "dagger_failure_category": "reach_failed",
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": false,
+              "replay_failure_category": "reach_failed",
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": false,
+              "seed": 31022,
+              "skill": "reach"
+            },
+            {
+              "dagger_failure_category": "reach_failed",
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": false,
+              "replay_failure_category": "reach_failed",
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": false,
+              "seed": 31023,
+              "skill": "reach"
+            },
+            {
+              "dagger_failure_category": "reach_failed",
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": false,
+              "replay_failure_category": "reach_failed",
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": false,
+              "seed": 31024,
+              "skill": "reach"
+            },
+            {
+              "dagger_failure_category": "transport_failed",
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": false,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31020,
+              "skill": "transport"
+            },
+            {
+              "dagger_failure_category": "transport_failed",
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": false,
+              "replay_failure_category": "transport_failed",
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": false,
+              "seed": 31021,
+              "skill": "transport"
+            },
+            {
+              "dagger_failure_category": "transport_failed",
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": false,
+              "replay_failure_category": "transport_failed",
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": false,
+              "seed": 31022,
+              "skill": "transport"
+            },
+            {
+              "dagger_failure_category": "transport_failed",
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": false,
+              "replay_failure_category": "transport_failed",
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": false,
+              "seed": 31023,
+              "skill": "transport"
+            },
+            {
+              "dagger_failure_category": "transport_failed",
+              "dagger_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "dagger_success": false,
+              "replay_failure_category": null,
+              "replay_issues": {
+                "anomaly": false,
+                "safety": false,
+                "system": false,
+                "tracking": false
+              },
+              "replay_success": true,
+              "seed": 31024,
+              "skill": "transport"
+            }
+          ]
+        },
+        "format": "robot-vla-e012-paired-evaluation/v1",
+        "full_chain": {
+          "completed_skill_count_paired": {
+            "dagger_wins": 0,
+            "replay_wins": 7,
+            "ties": 13
+          },
+          "dagger": {
+            "conditionals": {
+              "grasp_given_reach": {
+                "denominator": 3,
+                "numerator": 3,
+                "rate": 1.0,
+                "wilson_95": [
+                  0.4385029682449546,
+                  1.0
+                ]
+              },
+              "lift_given_grasp": {
+                "denominator": 3,
+                "numerator": 0,
+                "rate": 0.0,
+                "wilson_95": [
+                  5.551115123125783e-17,
+                  0.5614970317550454
+                ]
+              },
+              "transport_given_lift": {
+                "denominator": 0,
+                "numerator": 0,
+                "rate": null,
+                "wilson_95": null
+              }
+            },
+            "episodes": 20,
+            "failure_counts": {
+              "lift_failed": 3,
+              "reach_failed": 17
+            },
+            "issues": {
+              "anomaly_replan_count": 0,
+              "episodes_with_anomaly": 0,
+              "episodes_with_safety": 0,
+              "episodes_with_system": 0,
+              "episodes_with_tracking": 0,
+              "tracking_correction_saturation_count": 0
+            },
+            "mean_completed_skill_count": 0.3,
+            "stage_timing": {
+              "mean_steps_lift_to_transport": null,
+              "mean_steps_reach_to_grasp": 98.0,
+              "mean_steps_to_reach": 143.0
+            },
+            "unconditional": {
+              "full": {
+                "denominator": 20,
+                "numerator": 0,
+                "rate": 0.0,
+                "wilson_95": [
+                  0.0,
+                  0.16112515805281938
+                ]
+              },
+              "grasp": {
+                "denominator": 20,
+                "numerator": 3,
+                "rate": 0.15,
+                "wilson_95": [
+                  0.052368745896216595,
+                  0.36041886474075696
+                ]
+              },
+              "lift": {
+                "denominator": 20,
+                "numerator": 0,
+                "rate": 0.0,
+                "wilson_95": [
+                  0.0,
+                  0.16112515805281938
+                ]
+              },
+              "place": {
+                "denominator": 20,
+                "numerator": 0,
+                "rate": 0.0,
+                "wilson_95": [
+                  0.0,
+                  0.16112515805281938
+                ]
+              },
+              "reach": {
+                "denominator": 20,
+                "numerator": 3,
+                "rate": 0.15,
+                "wilson_95": [
+                  0.052368745896216595,
+                  0.36041886474075696
+                ]
+              },
+              "transport": {
+                "denominator": 20,
+                "numerator": 0,
+                "rate": 0.0,
+                "wilson_95": [
+                  0.0,
+                  0.16112515805281938
+                ]
+              }
+            }
+          },
+          "handoffs": {
+            "grasp": {
+              "common_predecessor_seeds": [
+                {
+                  "seed": 31001,
+                  "seed_group": "unseen"
+                },
+                {
+                  "seed": 31004,
+                  "seed_group": "unseen"
+                },
+                {
+                  "seed": 31013,
+                  "seed_group": "unseen"
+                }
+              ],
+              "common_predecessor_support": 3,
+              "handoff_on_common_support": {
+                "dagger_wins": 0,
+                "exact_paired_test": {
+                  "discordant_pairs": 0,
+                  "method": "two-sided-exact-mcnemar-binomial",
+                  "p_value": 1.0
+                },
+                "failure_ties": 0,
+                "net_dagger_wins": 0,
+                "pairs": 3,
+                "replay_wins": 0,
+                "success_ties": 3
+              },
+              "predecessor": "reach",
+              "predecessor_paired_on_all_seeds": {
+                "dagger_wins": 0,
+                "exact_paired_test": {
+                  "discordant_pairs": 6,
+                  "method": "two-sided-exact-mcnemar-binomial",
+                  "p_value": 0.03125
+                },
+                "failure_ties": 11,
+                "net_dagger_wins": -6,
+                "pairs": 20,
+                "replay_wins": 6,
+                "success_ties": 3
+              }
+            },
+            "lift": {
+              "common_predecessor_seeds": [
+                {
+                  "seed": 31001,
+                  "seed_group": "unseen"
+                },
+                {
+                  "seed": 31004,
+                  "seed_group": "unseen"
+                },
+                {
+                  "seed": 31013,
+                  "seed_group": "unseen"
+                }
+              ],
+              "common_predecessor_support": 3,
+              "handoff_on_common_support": {
+                "dagger_wins": 0,
+                "exact_paired_test": {
+                  "discordant_pairs": 1,
+                  "method": "two-sided-exact-mcnemar-binomial",
+                  "p_value": 1.0
+                },
+                "failure_ties": 2,
+                "net_dagger_wins": -1,
+                "pairs": 3,
+                "replay_wins": 1,
+                "success_ties": 0
+              },
+              "predecessor": "grasp",
+              "predecessor_paired_on_all_seeds": {
+                "dagger_wins": 0,
+                "exact_paired_test": {
+                  "discordant_pairs": 2,
+                  "method": "two-sided-exact-mcnemar-binomial",
+                  "p_value": 0.5
+                },
+                "failure_ties": 15,
+                "net_dagger_wins": -2,
+                "pairs": 20,
+                "replay_wins": 2,
+                "success_ties": 3
+              }
+            },
+            "transport": {
+              "common_predecessor_seeds": [],
+              "common_predecessor_support": 0,
+              "handoff_on_common_support": {
+                "dagger_wins": 0,
+                "exact_paired_test": {
+                  "discordant_pairs": 0,
+                  "method": "two-sided-exact-mcnemar-binomial",
+                  "p_value": 1.0
+                },
+                "failure_ties": 0,
+                "net_dagger_wins": 0,
+                "pairs": 0,
+                "replay_wins": 0,
+                "success_ties": 0
+              },
+              "predecessor": "lift",
+              "predecessor_paired_on_all_seeds": {
+                "dagger_wins": 0,
+                "exact_paired_test": {
+                  "discordant_pairs": 2,
+                  "method": "two-sided-exact-mcnemar-binomial",
+                  "p_value": 0.5
+                },
+                "failure_ties": 18,
+                "net_dagger_wins": -2,
+                "pairs": 20,
+                "replay_wins": 2,
+                "success_ties": 0
+              }
+            }
+          },
+          "issue_deltas": {
+            "anomaly_replan_count_delta": 0,
+            "episodes_with_anomaly": 0,
+            "episodes_with_safety": 0,
+            "episodes_with_system": 0,
+            "episodes_with_tracking": 0,
+            "new_anomaly_episodes": 0,
+            "new_safety_episodes": 0,
+            "new_system_episodes": 0,
+            "new_tracking_episodes": 0,
+            "tracking_correction_saturation_count_delta": 0
+          },
+          "mean_completed_skill_count_delta": -0.5,
+          "per_seed": [
+            {
+              "completed_skill_delta": -1,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 1,
+                "failure_category": "grasp_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31000,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 0,
+              "dagger": {
+                "completed_skill_count": 2,
+                "failure_category": "lift_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 2,
+                "failure_category": "lift_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31001,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 0,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31002,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": -2,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 2,
+                "failure_category": "lift_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31003,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": -1,
+              "dagger": {
+                "completed_skill_count": 2,
+                "failure_category": "lift_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 3,
+                "failure_category": "transport_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": true,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31004,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": -1,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 1,
+                "failure_category": "grasp_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31005,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 0,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31006,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": -1,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 1,
+                "failure_category": "grasp_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31007,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 0,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31008,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 0,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31009,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 0,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31010,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 0,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31011,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": -3,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 3,
+                "failure_category": "transport_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": true,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31012,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 0,
+              "dagger": {
+                "completed_skill_count": 2,
+                "failure_category": "lift_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 2,
+                "failure_category": "lift_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": true,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31013,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 0,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31014,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 0,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31015,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 0,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31016,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": -1,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 1,
+                "failure_category": "grasp_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": true,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31017,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 0,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31018,
+              "seed_group": "unseen"
+            },
+            {
+              "completed_skill_delta": 0,
+              "dagger": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "replay": {
+                "completed_skill_count": 0,
+                "failure_category": "reach_failed",
+                "issues": {
+                  "anomaly": false,
+                  "safety": false,
+                  "system": false,
+                  "tracking": false
+                },
+                "skill_completed": {
+                  "grasp": false,
+                  "lift": false,
+                  "place": false,
+                  "reach": false,
+                  "transport": false
+                },
+                "success": false
+              },
+              "seed": 31019,
+              "seed_group": "unseen"
+            }
+          ],
+          "replay": {
+            "conditionals": {
+              "grasp_given_reach": {
+                "denominator": 9,
+                "numerator": 5,
+                "rate": 0.5555555555555556,
+                "wilson_95": [
+                  0.26665129349549305,
+                  0.8112214789023355
+                ]
+              },
+              "lift_given_grasp": {
+                "denominator": 5,
+                "numerator": 2,
+                "rate": 0.4,
+                "wilson_95": [
+                  0.11762077423264783,
+                  0.769275718723987
+                ]
+              },
+              "transport_given_lift": {
+                "denominator": 2,
+                "numerator": 0,
+                "rate": 0.0,
+                "wilson_95": [
+                  0.0,
+                  0.6576197724933469
+                ]
+              }
+            },
+            "episodes": 20,
+            "failure_counts": {
+              "grasp_failed": 4,
+              "lift_failed": 3,
+              "reach_failed": 11,
+              "transport_failed": 2
+            },
+            "issues": {
+              "anomaly_replan_count": 0,
+              "episodes_with_anomaly": 0,
+              "episodes_with_safety": 0,
+              "episodes_with_system": 0,
+              "episodes_with_tracking": 0,
+              "tracking_correction_saturation_count": 0
+            },
+            "mean_completed_skill_count": 0.8,
+            "stage_timing": {
+              "mean_steps_lift_to_transport": null,
+              "mean_steps_reach_to_grasp": 37.4,
+              "mean_steps_to_reach": 112.55555555555556
+            },
+            "unconditional": {
+              "full": {
+                "denominator": 20,
+                "numerator": 0,
+                "rate": 0.0,
+                "wilson_95": [
+                  0.0,
+                  0.16112515805281938
+                ]
+              },
+              "grasp": {
+                "denominator": 20,
+                "numerator": 5,
+                "rate": 0.25,
+                "wilson_95": [
+                  0.11186170140766569,
+                  0.468700877618744
+                ]
+              },
+              "lift": {
+                "denominator": 20,
+                "numerator": 2,
+                "rate": 0.1,
+                "wilson_95": [
+                  0.027866481213768224,
+                  0.3010336452284873
+                ]
+              },
+              "place": {
+                "denominator": 20,
+                "numerator": 0,
+                "rate": 0.0,
+                "wilson_95": [
+                  0.0,
+                  0.16112515805281938
+                ]
+              },
+              "reach": {
+                "denominator": 20,
+                "numerator": 9,
+                "rate": 0.45,
+                "wilson_95": [
+                  0.2581978582556243,
+                  0.6579146575496577
+                ]
+              },
+              "transport": {
+                "denominator": 20,
+                "numerator": 0,
+                "rate": 0.0,
+                "wilson_95": [
+                  0.0,
+                  0.16112515805281938
+                ]
+              }
+            }
+          },
+          "unconditional_paired": {
+            "full": {
+              "dagger_wins": 0,
+              "exact_paired_test": {
+                "discordant_pairs": 0,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 1.0
+              },
+              "failure_ties": 20,
+              "net_dagger_wins": 0,
+              "pairs": 20,
+              "replay_wins": 0,
+              "success_ties": 0
+            },
+            "grasp": {
+              "dagger_wins": 0,
+              "exact_paired_test": {
+                "discordant_pairs": 2,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 0.5
+              },
+              "failure_ties": 15,
+              "net_dagger_wins": -2,
+              "pairs": 20,
+              "replay_wins": 2,
+              "success_ties": 3
+            },
+            "lift": {
+              "dagger_wins": 0,
+              "exact_paired_test": {
+                "discordant_pairs": 2,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 0.5
+              },
+              "failure_ties": 18,
+              "net_dagger_wins": -2,
+              "pairs": 20,
+              "replay_wins": 2,
+              "success_ties": 0
+            },
+            "place": {
+              "dagger_wins": 0,
+              "exact_paired_test": {
+                "discordant_pairs": 0,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 1.0
+              },
+              "failure_ties": 20,
+              "net_dagger_wins": 0,
+              "pairs": 20,
+              "replay_wins": 0,
+              "success_ties": 0
+            },
+            "reach": {
+              "dagger_wins": 0,
+              "exact_paired_test": {
+                "discordant_pairs": 6,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 0.03125
+              },
+              "failure_ties": 11,
+              "net_dagger_wins": -6,
+              "pairs": 20,
+              "replay_wins": 6,
+              "success_ties": 3
+            },
+            "transport": {
+              "dagger_wins": 0,
+              "exact_paired_test": {
+                "discordant_pairs": 0,
+                "method": "two-sided-exact-mcnemar-binomial",
+                "p_value": 1.0
+              },
+              "failure_ties": 20,
+              "net_dagger_wins": 0,
+              "pairs": 20,
+              "replay_wins": 0,
+              "success_ties": 0
+            }
+          }
+        },
+        "gate": null,
+        "protocol": "checkpoint-validation"
+      },
+      "ranking_metrics": {
+        "epoch": 30,
+        "mean_completed_skill_count": 0.3,
+        "unconditional_grasp_successes": 3,
+        "unconditional_lift_successes": 0,
+        "validation_total_loss": 0.01882744381638927
+      }
+    }
+  ],
+  "eligible_ranking": [],
+  "format": "robot-vla-e012-checkpoint-selection/v1",
+  "input_receipts": {
+    "baseline": {
+      "atomic": {
+        "checkpoint_sha256": "a542076f291e29b68e3d28930b15c40396d511a44eb358c2eaeb4e113c041ad6",
+        "dataset_sha256": "bc024b6b9c566ca9500945fb6ac262bf657bee713d8a5816229bdc8478139407",
+        "directory_name": "atomic",
+        "episodes": 25,
+        "episodes_sha256": "60a52306847ce8b5e897a668e9fd0b56b1b0b6c0b2237f6e79d7928b7f89c130",
+        "experiment_sha256": "e96fa01e989393f3413b62ac84dbad75fb2a66a133a99c61ea54610be2951a98",
+        "summary_sha256": "8d634d4b1abce3613cb718291b8347b1c7ccb40defda3d2815afed242cde13f0"
+      },
+      "full_chain": {
+        "checkpoint_sha256": "a542076f291e29b68e3d28930b15c40396d511a44eb358c2eaeb4e113c041ad6",
+        "dataset_sha256": "bc024b6b9c566ca9500945fb6ac262bf657bee713d8a5816229bdc8478139407",
+        "directory_name": "full-chain",
+        "episodes": 20,
+        "episodes_sha256": "90565d481c4776912d007b1f8ba1e065b16ffb67cf889cf2f95dc442e3e148a0",
+        "experiment_sha256": "262f3cafd1ee06c1f324d870fbc62623e9f45fa08ed03e369687b441898f7cf1",
+        "summary_sha256": "8cacb16f70a452996bc4d6b3ee3843bf2c90f34ba965aaa01f6926f626fb4eb9"
+      }
+    },
+    "candidates": [
+      {
+        "checkpoint": {
+          "file_name": "step-00000640.pt",
+          "optimizer_steps": 640,
+          "sha256": "8bf9869f783be2a855c5d53aafd27487672bbc28f9ee281bc340c5523d24ca2e",
+          "size_bytes": 1290603631
+        },
+        "epoch": 10,
+        "evaluation": {
+          "atomic": {
+            "checkpoint_sha256": "8bf9869f783be2a855c5d53aafd27487672bbc28f9ee281bc340c5523d24ca2e",
+            "dataset_sha256": "bc024b6b9c566ca9500945fb6ac262bf657bee713d8a5816229bdc8478139407",
+            "directory_name": "atomic",
+            "episodes": 25,
+            "episodes_sha256": "7106ceb9f299599045b9c48b598888f92382c46949128200a7a29c8e82c9db3a",
+            "experiment_sha256": "1397118624923ab1693cc1e8d4d79f96309f22350922e32b089cb45b0fa89bcf",
+            "summary_sha256": "cca3a081b130cebfc119243e1cd76ceb68129770017d080c8353e85c5efab007"
+          },
+          "full_chain": {
+            "checkpoint_sha256": "8bf9869f783be2a855c5d53aafd27487672bbc28f9ee281bc340c5523d24ca2e",
+            "dataset_sha256": "bc024b6b9c566ca9500945fb6ac262bf657bee713d8a5816229bdc8478139407",
+            "directory_name": "full-chain",
+            "episodes": 20,
+            "episodes_sha256": "eb53d34c3cfe6f9b58394c9b74433a58d25e90e3c29f9cf3a9307731a1a13073",
+            "experiment_sha256": "82a829178926a13cc674b4da230748b1e49acac390ef8177928efe9e89109d6d",
+            "summary_sha256": "39e48f078be1704e60f92230b63719b07178ec8a06df47102ca2d700f679fbb2"
+          }
+        },
+        "label": "replay-e010"
+      },
+      {
+        "checkpoint": {
+          "file_name": "step-00001280.pt",
+          "optimizer_steps": 1280,
+          "sha256": "43fd97c59af8c6183ec622c307b1cfe738bc9cd0ec097f81dddef4865bd7aafe",
+          "size_bytes": 1290603695
+        },
+        "epoch": 20,
+        "evaluation": {
+          "atomic": {
+            "checkpoint_sha256": "43fd97c59af8c6183ec622c307b1cfe738bc9cd0ec097f81dddef4865bd7aafe",
+            "dataset_sha256": "bc024b6b9c566ca9500945fb6ac262bf657bee713d8a5816229bdc8478139407",
+            "directory_name": "atomic",
+            "episodes": 25,
+            "episodes_sha256": "402c1ed4f014e0412fe1231f973be9807e91a5e162e87541f935afb161553cae",
+            "experiment_sha256": "56cd7d1a3c94fcb697ab031e065587eb8b8d8c49ed3f74795677dd6374dab8ee",
+            "summary_sha256": "6c05cd4f26ce49f8993a46140dcdbc96ae312dab802fbf05341d634972225aec"
+          },
+          "full_chain": {
+            "checkpoint_sha256": "43fd97c59af8c6183ec622c307b1cfe738bc9cd0ec097f81dddef4865bd7aafe",
+            "dataset_sha256": "bc024b6b9c566ca9500945fb6ac262bf657bee713d8a5816229bdc8478139407",
+            "directory_name": "full-chain",
+            "episodes": 20,
+            "episodes_sha256": "db438b91a47552366b5ac80efeede823bfbd81024310bfc452f2164ff16edc60",
+            "experiment_sha256": "13961e057edcf0c3205bd74032dfaa8b5b32abf43fbc17c04f973e839e725b9b",
+            "summary_sha256": "e8e1da8a779509a3e636eae701b77775a9cda5c5140da39cb5156ec7e1321ec3"
+          }
+        },
+        "label": "replay-e020"
+      },
+      {
+        "checkpoint": {
+          "file_name": "step-00001920.pt",
+          "optimizer_steps": 1920,
+          "sha256": "4c29b82c1828e3dc29649ab9507d64676a3362675b3b9ec38dca07ff8001db00",
+          "size_bytes": 1290603695
+        },
+        "epoch": 30,
+        "evaluation": {
+          "atomic": {
+            "checkpoint_sha256": "4c29b82c1828e3dc29649ab9507d64676a3362675b3b9ec38dca07ff8001db00",
+            "dataset_sha256": "bc024b6b9c566ca9500945fb6ac262bf657bee713d8a5816229bdc8478139407",
+            "directory_name": "atomic",
+            "episodes": 25,
+            "episodes_sha256": "c8450605b547b3dd69f98f800b470cea8e545b6adb5ba778a431e9a973beb10a",
+            "experiment_sha256": "3ba4a687e4b644e0bda44289840b4ce71d88dd8e449840d552d2091e2e65026e",
+            "summary_sha256": "694532edeea519e18d264a40ac7b5c467b8836680eb4d11e6433a38726ef1453"
+          },
+          "full_chain": {
+            "checkpoint_sha256": "4c29b82c1828e3dc29649ab9507d64676a3362675b3b9ec38dca07ff8001db00",
+            "dataset_sha256": "bc024b6b9c566ca9500945fb6ac262bf657bee713d8a5816229bdc8478139407",
+            "directory_name": "full-chain",
+            "episodes": 20,
+            "episodes_sha256": "17b7c89a1ca89014538226b0ac5064514cdc274703a701947bfceeb1a80d1e05",
+            "experiment_sha256": "0e466114ba433fae821f7987dded31d61409d26f3413ee6a64d3d3c80530ab0f",
+            "summary_sha256": "b84a7c3aadb66b0a674e5a150e0ba96e49f8f632ef7224c5496573eda95d8fdd"
+          }
+        },
+        "label": "replay-e030"
+      }
+    ],
+    "training": {
+      "directory_name": "pi-replay-repeat-1",
+      "experiment_sha256": "b4423e399cda9685fdbf3c603535e99d8b0c4a0d6164be80f4aba118a5a349a6",
+      "initial_checkpoint_sha256": "a542076f291e29b68e3d28930b15c40396d511a44eb358c2eaeb4e113c041ad6",
+      "metrics_sha256": "cc0694b331bcef6725410423cc19f7dd860e453cf455e7e22971837535a57c73"
+    }
+  },
+  "selected": null,
+  "selection_gate_passed": false
+}

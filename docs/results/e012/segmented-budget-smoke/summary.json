@@ -1,0 +1,63 @@
+{
+  "blocked": false,
+  "classification_additivity": {
+    "classified_candidates": 3,
+    "completed_candidates": 3,
+    "holds": true
+  },
+  "classification_counts": {
+    "expert_recovery_budget_exhausted": 1,
+    "recovered_full_eligible": 2
+  },
+  "complete": true,
+  "completed_candidates": 3,
+  "expected_candidates": 3,
+  "expected_order": [
+    "accepted_control",
+    "timeout_early",
+    "timeout_late"
+  ],
+  "format": "robot-vla-local-dagger-budget-counterfactual-smoke/v1",
+  "observed_order": [
+    "accepted_control",
+    "timeout_early",
+    "timeout_late"
+  ],
+  "passed": true,
+  "purpose": "segmented-budget counterfactual implementation smoke",
+  "role_results": [
+    {
+      "counterfactual_classification": "recovered_full_eligible",
+      "environment_seed": 30111,
+      "passed": true,
+      "prefix_aligned": true,
+      "role": "accepted_control",
+      "successful_npz_may_enter_d1": false,
+      "trajectory_usage": "forbidden as training data",
+      "violations": []
+    },
+    {
+      "counterfactual_classification": "expert_recovery_budget_exhausted",
+      "environment_seed": 30193,
+      "passed": true,
+      "prefix_aligned": true,
+      "role": "timeout_early",
+      "successful_npz_may_enter_d1": false,
+      "trajectory_usage": "forbidden as training data",
+      "violations": []
+    },
+    {
+      "counterfactual_classification": "recovered_full_eligible",
+      "environment_seed": 30171,
+      "passed": true,
+      "prefix_aligned": true,
+      "role": "timeout_late",
+      "successful_npz_may_enter_d1": false,
+      "trajectory_usage": "forbidden as training data",
+      "violations": []
+    }
+  ],
+  "scan_complete": true,
+  "successful_npz_may_enter_d1": false,
+  "trajectory_usage": "forbidden as training data"
+}

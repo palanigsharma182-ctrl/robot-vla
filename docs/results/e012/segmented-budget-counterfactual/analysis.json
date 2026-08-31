@@ -1,0 +1,705 @@
+{
+  "capacity_planning": {
+    "assumptions": [
+      "10 条 legacy accepted 在 segmented 协议下保持 eligible；当前只由 smoke control 30111 直接验证一条。",
+      "5 条 recovered timeout 可与旧 10 条 accepted 合并为容量规划点估计；这不是新的 100-seed formal run。",
+      "新 seed 对 eligible 近似独立、同分布；固定 p 与 Beta-binomial 只是规划模型，不是成功保证。"
+    ],
+    "balanced_option": {
+      "pool_size": 200,
+      "seed_end_exclusive": 30400,
+      "seed_start": 30200
+    },
+    "counterfactual_timeout_recovered_full_eligible": 5,
+    "gate_required_eligible": 20,
+    "legacy_gl_eligible": 10,
+    "minimum_pool_sizes_by_model": [
+      {
+        "beta_binomial_jeffreys": 170,
+        "beta_binomial_uniform": 166,
+        "fixed_p": 156,
+        "target_probability": 0.8
+      },
+      {
+        "beta_binomial_jeffreys": 197,
+        "beta_binomial_uniform": 192,
+        "fixed_p": 170,
+        "target_probability": 0.9
+      },
+      {
+        "beta_binomial_jeffreys": 223,
+        "beta_binomial_uniform": 216,
+        "fixed_p": 182,
+        "target_probability": 0.95
+      }
+    ],
+    "planning_point_rate": 0.15,
+    "planning_rate_wilson_95": [
+      0.0930598528365663,
+      0.23283559590832364
+    ],
+    "pool_options": [
+      {
+        "expected_eligible_at_point_rate": 18.0,
+        "pool_size": 120,
+        "probability_at_least_20_beta_binomial_jeffreys": 0.40138673143805925,
+        "probability_at_least_20_beta_binomial_uniform": 0.4288172035899165,
+        "probability_at_least_20_fixed_p": 0.34138331745061534
+      },
+      {
+        "expected_eligible_at_point_rate": 24.0,
+        "pool_size": 160,
+        "probability_at_least_20_beta_binomial_jeffreys": 0.7440502598003148,
+        "probability_at_least_20_beta_binomial_uniform": 0.7684501504200912,
+        "probability_at_least_20_fixed_p": 0.8406349221123074
+      },
+      {
+        "expected_eligible_at_point_rate": 27.0,
+        "pool_size": 180,
+        "probability_at_least_20_beta_binomial_jeffreys": 0.8452636407661477,
+        "probability_at_least_20_beta_binomial_uniform": 0.8637580507969101,
+        "probability_at_least_20_fixed_p": 0.9460490517417455
+      },
+      {
+        "expected_eligible_at_point_rate": 30.0,
+        "pool_size": 200,
+        "probability_at_least_20_beta_binomial_jeffreys": 0.9088171530677761,
+        "probability_at_least_20_beta_binomial_uniform": 0.9218174207338421,
+        "probability_at_least_20_fixed_p": 0.9851197019379515
+      },
+      {
+        "expected_eligible_at_point_rate": 33.0,
+        "pool_size": 220,
+        "probability_at_least_20_beta_binomial_jeffreys": 0.946960987083204,
+        "probability_at_least_20_beta_binomial_uniform": 0.9556775200167175,
+        "probability_at_least_20_fixed_p": 0.996550818319629
+      },
+      {
+        "expected_eligible_at_point_rate": 36.0,
+        "pool_size": 240,
+        "probability_at_least_20_beta_binomial_jeffreys": 0.9692842025483585,
+        "probability_at_least_20_beta_binomial_uniform": 0.9749610026105364,
+        "probability_at_least_20_fixed_p": 0.9993103698930452
+      }
+    ],
+    "retrospective_planning_denominator": 100,
+    "retrospective_planning_eligible": 15,
+    "strict_low_risk_option": {
+      "pool_size": 240,
+      "reason": "rounded above the Jeffreys Beta-binomial 95% threshold of 223",
+      "seed_end_exclusive": 30440,
+      "seed_start": 30200
+    }
+  },
+  "decision_status": "formal pool size requires owner confirmation",
+  "format": "robot-vla-e012-segmented-budget-analysis/v1",
+  "integrity": {
+    "all_prefix_aligned": true,
+    "candidate_record_audit": {
+      "accepted_manifest_npz_hashes_verified": 5,
+      "attempt_directory_empty": true,
+      "available": true,
+      "finalized_receipts_verified": 16
+    },
+    "classification_additivity": {
+      "classified_candidates": 16,
+      "completed_candidates": 16,
+      "holds": true
+    },
+    "counterfactual_blocked": false,
+    "counterfactual_complete": true,
+    "engineering_error_count": 0,
+    "prefix_mismatch_count": 0,
+    "smoke_passed": true,
+    "successful_npz_may_enter_d1": false
+  },
+  "interpretation": {
+    "not_established": [
+      "该 counterfactual 不证明 Local DAgger 训练会提高策略行为。",
+      "metadata prefix equality 不证明 action tensor 或 simulator state bitwise identity。",
+      "容量规划概率不保证新 seed pool 的实际 eligible 数。"
+    ],
+    "verified": [
+      "segmented 预算从 16 条旧 TimeLimit 中恢复 5 条完整 eligible，并使另 1 条完成行为但未过 snapshot gate。",
+      "16 条均 prefix aligned，且没有 engineering error；没有一条触发 480 Action hard deadline。",
+      "180 Action Expert cap 对 4 条是直接停止条件；其余 6 条行为失败在 cap 前已结束 nominal recovery。"
+    ]
+  },
+  "observed_counterfactual": {
+    "behavior_completed_before_gate_rate": 0.375,
+    "behavior_completed_expert_actions": {
+      "count": 6,
+      "max": 161,
+      "mean": 131.83333333333334,
+      "median": 128.0,
+      "min": 117,
+      "values": [
+        117,
+        121,
+        122,
+        134,
+        136,
+        161
+      ]
+    },
+    "candidate_evidence": [
+      {
+        "classification": "recovered_full_eligible",
+        "environment_seed": 30103,
+        "ever_lifted": true,
+        "ever_transported": true,
+        "expert_actions": 161,
+        "expert_takeover_step": 176,
+        "failure_reason": null,
+        "max_completed_skill_count": 5,
+        "phase_at_failure": null,
+        "policy_actions": 176,
+        "record_sha256": "ed8408faea78aa1ae17fd4461316264fa446a39da7968dc75217c7693107c71d",
+        "task_completed": true,
+        "total_actions": 337,
+        "training_window_end": 240,
+        "training_window_start": 176
+      },
+      {
+        "classification": "recovered_full_eligible",
+        "environment_seed": 30105,
+        "ever_lifted": true,
+        "ever_transported": true,
+        "expert_actions": 117,
+        "expert_takeover_step": 225,
+        "failure_reason": null,
+        "max_completed_skill_count": 5,
+        "phase_at_failure": null,
+        "policy_actions": 225,
+        "record_sha256": "ef80dd74a033229db0df8c88e1b88b935f338d7475f9d527103139620fc27a38",
+        "task_completed": true,
+        "total_actions": 342,
+        "training_window_end": 289,
+        "training_window_start": 225
+      },
+      {
+        "classification": "recovered_full_eligible",
+        "environment_seed": 30106,
+        "ever_lifted": true,
+        "ever_transported": true,
+        "expert_actions": 121,
+        "expert_takeover_step": 216,
+        "failure_reason": null,
+        "max_completed_skill_count": 5,
+        "phase_at_failure": null,
+        "policy_actions": 216,
+        "record_sha256": "9e7855ad70e2021b9a014a6bfbe3e84cf4444e1744853e7682d286afafe4ac79",
+        "task_completed": true,
+        "total_actions": 337,
+        "training_window_end": 280,
+        "training_window_start": 216
+      },
+      {
+        "budget_exhaustion_phase": null,
+        "classification": "other_behavioral_rejection",
+        "environment_seed": 30129,
+        "ever_lifted": false,
+        "ever_transported": false,
+        "expert_actions": 178,
+        "expert_takeover_step": 231,
+        "failure_reason": "Local DAgger Expert 未完成完整 Pick-and-Place",
+        "final_transition_phase": "expert_release_settle",
+        "final_transition_terminated": false,
+        "final_transition_truncated": false,
+        "max_completed_skill_count": 2,
+        "phase_action_counts": {
+          "expert_grasp_stabilization": 8,
+          "expert_lift_motion": 59,
+          "expert_lower_motion": 29,
+          "expert_release_settle": 30,
+          "expert_transport_motion": 52,
+          "policy_rollin": 231
+        },
+        "phase_at_failure": "expert_release_settle",
+        "policy_actions": 231,
+        "record_sha256": "e3250931659c3ce9105a074b2e796929c1594fd78ce9408f631784254e23ea25",
+        "skill_completion_steps": {
+          "grasp": 231,
+          "lift": null,
+          "place": null,
+          "reach": 146,
+          "transport": null
+        },
+        "task_completed": false,
+        "total_actions": 409,
+        "training_window_end": null,
+        "training_window_start": null
+      },
+      {
+        "budget_exhaustion_phase": "expert",
+        "classification": "expert_recovery_budget_exhausted",
+        "environment_seed": 30137,
+        "ever_lifted": false,
+        "ever_transported": false,
+        "expert_actions": 180,
+        "expert_takeover_step": 177,
+        "failure_reason": "Expert takeover 后达到 180 Action 恢复预算但任务未成功",
+        "final_transition_phase": "expert_release_settle",
+        "final_transition_terminated": false,
+        "final_transition_truncated": false,
+        "max_completed_skill_count": 2,
+        "phase_action_counts": {
+          "expert_grasp_stabilization": 8,
+          "expert_lift_motion": 57,
+          "expert_lower_motion": 34,
+          "expert_release_settle": 22,
+          "expert_transport_motion": 59,
+          "policy_rollin": 177
+        },
+        "phase_at_failure": "expert_release_settle",
+        "policy_actions": 177,
+        "record_sha256": "94aad0d6a097689b969b196e768b9a047fc71c5337496ef023a4c0828f0cb5a7",
+        "skill_completion_steps": {
+          "grasp": 177,
+          "lift": null,
+          "place": null,
+          "reach": 95,
+          "transport": null
+        },
+        "task_completed": false,
+        "total_actions": 357,
+        "training_window_end": null,
+        "training_window_start": null
+      },
+      {
+        "budget_exhaustion_phase": null,
+        "classification": "other_behavioral_rejection",
+        "environment_seed": 30143,
+        "ever_lifted": false,
+        "ever_transported": false,
+        "expert_actions": 175,
+        "expert_takeover_step": 161,
+        "failure_reason": "Local DAgger Expert 未完成完整 Pick-and-Place",
+        "final_transition_phase": "expert_release_settle",
+        "final_transition_terminated": false,
+        "final_transition_truncated": false,
+        "max_completed_skill_count": 2,
+        "phase_action_counts": {
+          "expert_grasp_stabilization": 8,
+          "expert_lift_motion": 60,
+          "expert_lower_motion": 34,
+          "expert_release_settle": 30,
+          "expert_transport_motion": 43,
+          "policy_rollin": 161
+        },
+        "phase_at_failure": "expert_release_settle",
+        "policy_actions": 161,
+        "record_sha256": "2f5da45eafe75973ace2c2fe08025cf73501c0087ecf20a7e474073c34774f85",
+        "skill_completion_steps": {
+          "grasp": 161,
+          "lift": null,
+          "place": null,
+          "reach": 96,
+          "transport": null
+        },
+        "task_completed": false,
+        "total_actions": 336,
+        "training_window_end": null,
+        "training_window_start": null
+      },
+      {
+        "classification": "recovered_full_eligible",
+        "environment_seed": 30145,
+        "ever_lifted": true,
+        "ever_transported": true,
+        "expert_actions": 122,
+        "expert_takeover_step": 231,
+        "failure_reason": null,
+        "max_completed_skill_count": 5,
+        "phase_at_failure": null,
+        "policy_actions": 231,
+        "record_sha256": "7b6bcffb8ee5279475e2ac019a7578083eae0d4bd1b33a9942743e2a5261cceb",
+        "task_completed": true,
+        "total_actions": 353,
+        "training_window_end": 295,
+        "training_window_start": 231
+      },
+      {
+        "budget_exhaustion_phase": null,
+        "classification": "other_behavioral_rejection",
+        "environment_seed": 30156,
+        "ever_lifted": false,
+        "ever_transported": false,
+        "expert_actions": 157,
+        "expert_takeover_step": 162,
+        "failure_reason": "Local DAgger Expert 未完成完整 Pick-and-Place",
+        "final_transition_phase": "expert_release_settle",
+        "final_transition_terminated": false,
+        "final_transition_truncated": false,
+        "max_completed_skill_count": 2,
+        "phase_action_counts": {
+          "expert_grasp_stabilization": 8,
+          "expert_lift_motion": 44,
+          "expert_lower_motion": 29,
+          "expert_release_settle": 30,
+          "expert_transport_motion": 46,
+          "policy_rollin": 162
+        },
+        "phase_at_failure": "expert_release_settle",
+        "policy_actions": 162,
+        "record_sha256": "eacbe7e17c435529763dbee3ad6123aab2e1bc0d1d117a4179ef592df6efc002",
+        "skill_completion_steps": {
+          "grasp": 162,
+          "lift": null,
+          "place": null,
+          "reach": 113,
+          "transport": null
+        },
+        "task_completed": false,
+        "total_actions": 319,
+        "training_window_end": null,
+        "training_window_start": null
+      },
+      {
+        "budget_exhaustion_phase": null,
+        "classification": "other_behavioral_rejection",
+        "environment_seed": 30162,
+        "ever_lifted": false,
+        "ever_transported": false,
+        "expert_actions": 166,
+        "expert_takeover_step": 186,
+        "failure_reason": "Local DAgger Expert 未完成完整 Pick-and-Place",
+        "final_transition_phase": "expert_release_settle",
+        "final_transition_terminated": false,
+        "final_transition_truncated": false,
+        "max_completed_skill_count": 2,
+        "phase_action_counts": {
+          "expert_grasp_stabilization": 8,
+          "expert_lift_motion": 56,
+          "expert_lower_motion": 29,
+          "expert_release_settle": 30,
+          "expert_transport_motion": 43,
+          "policy_rollin": 186
+        },
+        "phase_at_failure": "expert_release_settle",
+        "policy_actions": 186,
+        "record_sha256": "0490ca06359bbb1b696f52ce9642cabefb2f8c2bfc1852d87cfc9efd11d81d50",
+        "skill_completion_steps": {
+          "grasp": 186,
+          "lift": null,
+          "place": null,
+          "reach": 156,
+          "transport": null
+        },
+        "task_completed": false,
+        "total_actions": 352,
+        "training_window_end": null,
+        "training_window_start": null
+      },
+      {
+        "budget_exhaustion_phase": null,
+        "classification": "other_behavioral_rejection",
+        "environment_seed": 30165,
+        "ever_lifted": false,
+        "ever_transported": false,
+        "expert_actions": 170,
+        "expert_takeover_step": 222,
+        "failure_reason": "Local DAgger Expert 未完成完整 Pick-and-Place",
+        "final_transition_phase": "expert_release_settle",
+        "final_transition_terminated": false,
+        "final_transition_truncated": false,
+        "max_completed_skill_count": 2,
+        "phase_action_counts": {
+          "expert_grasp_stabilization": 8,
+          "expert_lift_motion": 58,
+          "expert_lower_motion": 33,
+          "expert_release_settle": 30,
+          "expert_transport_motion": 41,
+          "policy_rollin": 222
+        },
+        "phase_at_failure": "expert_release_settle",
+        "policy_actions": 222,
+        "record_sha256": "ff5b7e8d9144eb959c34d598cfcef83f6ad43112331e22c2437d1f5e1bc8f63c",
+        "skill_completion_steps": {
+          "grasp": 222,
+          "lift": null,
+          "place": null,
+          "reach": 157,
+          "transport": null
+        },
+        "task_completed": false,
+        "total_actions": 392,
+        "training_window_end": null,
+        "training_window_start": null
+      },
+      {
+        "classification": "recovered_full_eligible",
+        "environment_seed": 30171,
+        "ever_lifted": true,
+        "ever_transported": true,
+        "expert_actions": 136,
+        "expert_takeover_step": 290,
+        "failure_reason": null,
+        "max_completed_skill_count": 5,
+        "phase_at_failure": null,
+        "policy_actions": 290,
+        "record_sha256": "f08c7da3949224826e48ff7d4a0607555ad2c5b30a1541341525c61549d6af90",
+        "task_completed": true,
+        "total_actions": 426,
+        "training_window_end": 354,
+        "training_window_start": 290
+      },
+      {
+        "budget_exhaustion_phase": null,
+        "classification": "expert_completed_but_snapshot_or_paired_gate_failed",
+        "environment_seed": 30181,
+        "ever_lifted": true,
+        "ever_transported": true,
+        "expert_actions": 134,
+        "expert_takeover_step": 259,
+        "failure_reason": "Boundary snapshot round-trip 未通过：{'passed': False, 'immediate_observation_hashes_equal': False, 'immediate_camera_calibration_equal': False, 'immediate_camera_max_abs_error': 2.653832780197263e-07, 'immediate_controller_targets_equal': True, 'immediate_segmentation_equal': True, 'immediate_rgb_max_abs_error': 169.0, 'immediate_rgb_mean_abs_error': 0.005116780598958333, 'immediate_proprio_max_abs_error': 0.0, 'immediate_predicate_max_abs_error': 0.0, 'immediate_is_grasped_equal': False, 'immediate_contact_force_max_abs_error_n': 23.451261520385742, 'main_rng_equal': True, 'episode_rng_equal': True, 'repeated_restore_observation_hashes_equal': True, 'next_state_max_abs_error': 0.0, 'next_controller_target_max_abs_error': 0.0, 'next_predicate_max_abs_error': 0.0, 'next_is_grasped_matches_source': True, 'next_contact_force_max_abs_error_n': 0.0, 'next_outcome_equal': True, 'tolerances': {'immediate_proprio_atol': 0.0, 'immediate_predicate_atol': 1e-07, 'immediate_camera_atol': 1e-06, 'immediate_rgb_max_abs_error': 1.0, 'immediate_rgb_mean_abs_error': 0.002, 'next_state_atol': 0.0002, 'next_controller_target_atol': 1e-07, 'next_predicate_atol': 1e-07, 'next_contact_force_atol_n': 0.001}}",
+        "final_transition_phase": "expert_release_settle",
+        "final_transition_terminated": true,
+        "final_transition_truncated": false,
+        "max_completed_skill_count": 5,
+        "phase_action_counts": {
+          "expert_grasp_stabilization": 8,
+          "expert_lift_motion": 38,
+          "expert_lower_motion": 29,
+          "expert_release_settle": 5,
+          "expert_transport_motion": 54,
+          "policy_rollin": 259
+        },
+        "phase_at_failure": "expert_release_settle",
+        "policy_actions": 259,
+        "record_sha256": "79ec5054fe7ac6d1adda3fdb42bfc3a230ac2f0d73a46a501b0fb50c4ea0f5ec",
+        "skill_completion_steps": {
+          "grasp": 259,
+          "lift": 286,
+          "place": 393,
+          "reach": 207,
+          "transport": 344
+        },
+        "task_completed": true,
+        "total_actions": 393,
+        "training_window_end": null,
+        "training_window_start": null
+      },
+      {
+        "budget_exhaustion_phase": "expert",
+        "classification": "expert_recovery_budget_exhausted",
+        "environment_seed": 30187,
+        "ever_lifted": false,
+        "ever_transported": false,
+        "expert_actions": 180,
+        "expert_takeover_step": 243,
+        "failure_reason": "Expert takeover 后达到 180 Action 恢复预算但任务未成功",
+        "final_transition_phase": "expert_release_settle",
+        "final_transition_terminated": false,
+        "final_transition_truncated": false,
+        "max_completed_skill_count": 2,
+        "phase_action_counts": {
+          "expert_grasp_stabilization": 8,
+          "expert_lift_motion": 60,
+          "expert_lower_motion": 29,
+          "expert_release_settle": 25,
+          "expert_transport_motion": 58,
+          "policy_rollin": 243
+        },
+        "phase_at_failure": "expert_release_settle",
+        "policy_actions": 243,
+        "record_sha256": "359e80bcdb88472b9428c4406a64b05f4dff7627de8c747e5aac2b5da810b7c2",
+        "skill_completion_steps": {
+          "grasp": 243,
+          "lift": null,
+          "place": null,
+          "reach": 203,
+          "transport": null
+        },
+        "task_completed": false,
+        "total_actions": 423,
+        "training_window_end": null,
+        "training_window_start": null
+      },
+      {
+        "budget_exhaustion_phase": "expert",
+        "classification": "expert_recovery_budget_exhausted",
+        "environment_seed": 30193,
+        "ever_lifted": false,
+        "ever_transported": false,
+        "expert_actions": 180,
+        "expert_takeover_step": 123,
+        "failure_reason": "Expert takeover 后达到 180 Action 恢复预算但任务未成功",
+        "final_transition_phase": "expert_release_settle",
+        "final_transition_terminated": false,
+        "final_transition_truncated": false,
+        "max_completed_skill_count": 2,
+        "phase_action_counts": {
+          "expert_grasp_stabilization": 8,
+          "expert_lift_motion": 54,
+          "expert_lower_motion": 33,
+          "expert_release_settle": 25,
+          "expert_transport_motion": 60,
+          "policy_rollin": 123
+        },
+        "phase_at_failure": "expert_release_settle",
+        "policy_actions": 123,
+        "record_sha256": "bde2beb7666652989c628f9dfc4bfa496d1c1a0913b103d1379cef85d66c0869",
+        "skill_completion_steps": {
+          "grasp": 123,
+          "lift": null,
+          "place": null,
+          "reach": 114,
+          "transport": null
+        },
+        "task_completed": false,
+        "total_actions": 303,
+        "training_window_end": null,
+        "training_window_start": null
+      },
+      {
+        "budget_exhaustion_phase": null,
+        "classification": "other_behavioral_rejection",
+        "environment_seed": 30195,
+        "ever_lifted": false,
+        "ever_transported": false,
+        "expert_actions": 163,
+        "expert_takeover_step": 227,
+        "failure_reason": "Local DAgger Expert 未完成完整 Pick-and-Place",
+        "final_transition_phase": "expert_release_settle",
+        "final_transition_terminated": false,
+        "final_transition_truncated": false,
+        "max_completed_skill_count": 2,
+        "phase_action_counts": {
+          "expert_grasp_stabilization": 8,
+          "expert_lift_motion": 44,
+          "expert_lower_motion": 29,
+          "expert_release_settle": 30,
+          "expert_transport_motion": 52,
+          "policy_rollin": 227
+        },
+        "phase_at_failure": "expert_release_settle",
+        "policy_actions": 227,
+        "record_sha256": "28d5e6c2b7410c5a31ad0fba0400072e6409b4ba318096776577a90eec985bd5",
+        "skill_completion_steps": {
+          "grasp": 227,
+          "lift": null,
+          "place": null,
+          "reach": 107,
+          "transport": null
+        },
+        "task_completed": false,
+        "total_actions": 390,
+        "training_window_end": null,
+        "training_window_start": null
+      },
+      {
+        "budget_exhaustion_phase": "expert",
+        "classification": "expert_recovery_budget_exhausted",
+        "environment_seed": 30196,
+        "ever_lifted": false,
+        "ever_transported": false,
+        "expert_actions": 180,
+        "expert_takeover_step": 146,
+        "failure_reason": "Expert takeover 后达到 180 Action 恢复预算但任务未成功",
+        "final_transition_phase": "expert_release_settle",
+        "final_transition_terminated": false,
+        "final_transition_truncated": false,
+        "max_completed_skill_count": 2,
+        "phase_action_counts": {
+          "expert_grasp_stabilization": 8,
+          "expert_lift_motion": 73,
+          "expert_lower_motion": 29,
+          "expert_release_settle": 8,
+          "expert_transport_motion": 62,
+          "policy_rollin": 146
+        },
+        "phase_at_failure": "expert_release_settle",
+        "policy_actions": 146,
+        "record_sha256": "8a3ef67c6d56fe52c7f556c0dd1a25d00372be3bd030974350474af0b1060a60",
+        "skill_completion_steps": {
+          "grasp": 146,
+          "lift": null,
+          "place": null,
+          "reach": 78,
+          "transport": null
+        },
+        "task_completed": false,
+        "total_actions": 326,
+        "training_window_end": null,
+        "training_window_start": null
+      }
+    ],
+    "classification_counts": {
+      "engineering_error": 0,
+      "expert_completed_but_snapshot_or_paired_gate_failed": 1,
+      "expert_recovery_budget_exhausted": 4,
+      "other_behavioral_rejection": 6,
+      "prefix_mismatch": 0,
+      "recovered_full_eligible": 5
+    },
+    "cohort": "16 canonical legacy GL takeover-after-boundary TimeLimit seeds",
+    "count": 16,
+    "expert_budget_exhausted_rate": 0.25,
+    "hard_deadline_count": 0,
+    "hard_deadline_seeds": [],
+    "noncompleted_without_lift_predicate": 10,
+    "other_behavioral_rejection_rate": 0.375,
+    "recovered_expert_actions": {
+      "count": 5,
+      "max": 161,
+      "mean": 131.4,
+      "median": 122,
+      "min": 117,
+      "values": [
+        117,
+        121,
+        122,
+        136,
+        161
+      ]
+    },
+    "recovered_full_eligible_rate": 0.3125,
+    "rejected_phase_counts": {
+      "expert_release_settle": 11
+    },
+    "seeds_by_classification": {
+      "engineering_error": [],
+      "expert_completed_but_snapshot_or_paired_gate_failed": [
+        30181
+      ],
+      "expert_recovery_budget_exhausted": [
+        30137,
+        30187,
+        30193,
+        30196
+      ],
+      "other_behavioral_rejection": [
+        30129,
+        30143,
+        30156,
+        30162,
+        30165,
+        30195
+      ],
+      "prefix_mismatch": [],
+      "recovered_full_eligible": [
+        30103,
+        30105,
+        30106,
+        30145,
+        30171
+      ]
+    }
+  },
+  "protocol": "segmented-300-180-480",
+  "source_sha256": {
+    "collection_summary": "4c838dd9baa722d4500e17fb9de79c4ba9af0edfe12369cf3e8fb22feff8bda6",
+    "counterfactual": {
+      "candidates": "dad39177e8c848b73487beee0732d8a6493b74e5e82932fc8d6c39d940739fed",
+      "experiment": "29933a73d09fe0ea1549efaedb12653a1806d341f69c26c054bfab6bd6a518a4",
+      "summary": "3754786fc2516d7f96c9d2ebe80043e3c09773745e96b837f698de8eabf61e37"
+    },
+    "smoke": {
+      "candidates": "9849343397e5a7d5048a7357830d47bac1b3941bcf262144845f44b319375099",
+      "experiment": "75a4ba8133fe8642bcebb3db2c245407abad1f3095037dac0560002b6f100cd3",
+      "summary": "34641ec31a3e620ee14d3a59fb2e30de54157d7591c22a43ba4a803e3a0529b8"
+    }
+  },
+  "trajectory_usage": "forbidden as training data"
+}

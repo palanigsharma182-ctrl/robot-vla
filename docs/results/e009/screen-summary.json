@@ -2,7 +2,7 @@
   "candidate_summaries": [
     {
       "candidate": {
-        "checkpoint": "runs/stage1-layer12-data220-event025-e100/checkpoints/step-00000640.pt",
+        "checkpoint": "run://stage1-layer12-data220-event025-e100/checkpoints/step-00000640.pt",
         "epoch": 10,
         "is_validation_best": false,
         "label": "e010",
@@ -92,7 +92,7 @@
     },
     {
       "candidate": {
-        "checkpoint": "runs/stage1-layer12-data220-event025-e100/checkpoints/step-00001280.pt",
+        "checkpoint": "run://stage1-layer12-data220-event025-e100/checkpoints/step-00001280.pt",
         "epoch": 20,
         "is_validation_best": false,
         "label": "e020",
@@ -182,7 +182,7 @@
     },
     {
       "candidate": {
-        "checkpoint": "runs/stage1-layer12-data220-event025-e100/checkpoints/step-00001920.pt",
+        "checkpoint": "run://stage1-layer12-data220-event025-e100/checkpoints/step-00001920.pt",
         "epoch": 30,
         "is_validation_best": false,
         "label": "e030",
@@ -272,7 +272,7 @@
     },
     {
       "candidate": {
-        "checkpoint": "runs/stage1-layer12-data220-event025-e100/checkpoints/step-00002560.pt",
+        "checkpoint": "run://stage1-layer12-data220-event025-e100/checkpoints/step-00002560.pt",
         "epoch": 40,
         "is_validation_best": false,
         "label": "e040",
@@ -362,7 +362,7 @@
     },
     {
       "candidate": {
-        "checkpoint": "runs/stage1-layer12-data220-event025-e100/checkpoints/step-00003200.pt",
+        "checkpoint": "run://stage1-layer12-data220-event025-e100/checkpoints/step-00003200.pt",
         "epoch": 50,
         "is_validation_best": false,
         "label": "e050",
@@ -452,7 +452,7 @@
     },
     {
       "candidate": {
-        "checkpoint": "runs/stage1-layer12-data220-event025-e100/checkpoints/step-00003840.pt",
+        "checkpoint": "run://stage1-layer12-data220-event025-e100/checkpoints/step-00003840.pt",
         "epoch": 60,
         "is_validation_best": false,
         "label": "e060",
@@ -542,7 +542,7 @@
     },
     {
       "candidate": {
-        "checkpoint": "runs/stage1-layer12-data220-event025-e100/checkpoints/step-00004480.pt",
+        "checkpoint": "run://stage1-layer12-data220-event025-e100/checkpoints/step-00004480.pt",
         "epoch": 70,
         "is_validation_best": false,
         "label": "e070",
@@ -632,7 +632,7 @@
     },
     {
       "candidate": {
-        "checkpoint": "runs/stage1-layer12-data220-event025-e100/checkpoints/step-00005120.pt",
+        "checkpoint": "run://stage1-layer12-data220-event025-e100/checkpoints/step-00005120.pt",
         "epoch": 80,
         "is_validation_best": false,
         "label": "e080",
@@ -722,7 +722,7 @@
     },
     {
       "candidate": {
-        "checkpoint": "runs/stage1-layer12-data220-event025-e100/checkpoints/step-00005760.pt",
+        "checkpoint": "run://stage1-layer12-data220-event025-e100/checkpoints/step-00005760.pt",
         "epoch": 90,
         "is_validation_best": false,
         "label": "e090",
@@ -812,7 +812,7 @@
     },
     {
       "candidate": {
-        "checkpoint": "runs/stage1-layer12-data220-event025-e100/checkpoints/best.pt",
+        "checkpoint": "run://stage1-layer12-data220-event025-e100/checkpoints/best.pt",
         "epoch": 98,
         "is_validation_best": true,
         "label": "e098-best",
@@ -902,7 +902,7 @@
     },
     {
       "candidate": {
-        "checkpoint": "runs/stage1-layer12-data220-event025-e100/checkpoints/step-00006400.pt",
+        "checkpoint": "run://stage1-layer12-data220-event025-e100/checkpoints/step-00006400.pt",
         "epoch": 100,
         "is_validation_best": false,
         "label": "e100",

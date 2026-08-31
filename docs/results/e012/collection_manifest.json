@@ -7,11 +7,11 @@
   "source_revision": "source-tree-sha256:a847e9f90fb255405714351379b1530691f4224f6a29a8e21daad76a5ef8ee00",
   "frozen_assets": {
     "checkpoint": {
-      "path": "checkpoints/e011-layer12-best.pt",
+      "path": "checkpoint://e011-layer12-best.pt",
       "sha256": "a542076f291e29b68e3d28930b15c40396d511a44eb358c2eaeb4e113c041ad6"
     },
     "base_dataset": {
-      "path": "datasets/trusted-v0.4-event-recovery-220",
+      "path": "dataset://trusted-v0.4-event-recovery-220",
       "sha256": "bc024b6b9c566ca9500945fb6ac262bf657bee713d8a5816229bdc8478139407",
       "trajectory_count": 220,
       "step_count": 48922
@@ -55,9 +55,9 @@
     "numpy": "1.26.4"
   },
   "remote_outputs": {
-    "root": "runs/e012-local-dagger/formal",
-    "reach_grasp": "runs/e012-local-dagger/formal/reach-grasp",
-    "grasp_lift": "runs/e012-local-dagger/formal/grasp-lift"
+    "root": "run://e012-local-dagger/formal",
+    "reach_grasp": "run://e012-local-dagger/formal/reach-grasp",
+    "grasp_lift": "run://e012-local-dagger/formal/grasp-lift"
   },
   "remote_artifact_sha256": {
     "reach-grasp/experiment.json": "2e3986a9d1a350acce6b9aafdc352f41eb4d4f2ba5d7e69d6ae9d21b89c179ef",

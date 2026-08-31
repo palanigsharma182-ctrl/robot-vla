@@ -126,7 +126,7 @@ Checkpoint 或闭环产物。Qwen、ManiSkill、SAPIEN 及其他第三方组件�
 大陆 RTX 4090 完整虚拟机使用 `infra/gpu_vm` 的 CUDA 12.8 profile。服务器上执行：
 
 ```bash
-cd /home/ubuntu/robot-vla
+cd /path/to/robot-vla
 
 /opt/robot-vla/env/bin/python \
   infra/gpu_container/verify_runtime.py \

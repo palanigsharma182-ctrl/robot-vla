@@ -2,7 +2,7 @@
   "anchor_label": "e098-best",
   "candidates": [
     {
-      "checkpoint": "runs/stage1-layer12-data220-event025-e100/checkpoints/step-00000640.pt",
+      "checkpoint": "run://stage1-layer12-data220-event025-e100/checkpoints/step-00000640.pt",
       "epoch": 10,
       "is_validation_best": false,
       "label": "e010",
@@ -12,7 +12,7 @@
       "validation_loss": 0.13543263608749107
     },
     {
-      "checkpoint": "runs/stage1-layer12-data220-event025-e100/checkpoints/step-00001280.pt",
+      "checkpoint": "run://stage1-layer12-data220-event025-e100/checkpoints/step-00001280.pt",
       "epoch": 20,
       "is_validation_best": false,
       "label": "e020",
@@ -22,7 +22,7 @@
       "validation_loss": 0.08993089289621778
     },
     {
-      "checkpoint": "runs/stage1-layer12-data220-event025-e100/checkpoints/step-00001920.pt",
+      "checkpoint": "run://stage1-layer12-data220-event025-e100/checkpoints/step-00001920.pt",
       "epoch": 30,
       "is_validation_best": false,
       "label": "e030",
@@ -32,7 +32,7 @@
       "validation_loss": 0.0781395911700336
     },
     {
-      "checkpoint": "runs/stage1-layer12-data220-event025-e100/checkpoints/step-00002560.pt",
+      "checkpoint": "run://stage1-layer12-data220-event025-e100/checkpoints/step-00002560.pt",
       "epoch": 40,
       "is_validation_best": false,
       "label": "e040",
@@ -42,7 +42,7 @@
       "validation_loss": 0.07266169774393381
     },
     {
-      "checkpoint": "runs/stage1-layer12-data220-event025-e100/checkpoints/step-00003200.pt",
+      "checkpoint": "run://stage1-layer12-data220-event025-e100/checkpoints/step-00003200.pt",
       "epoch": 50,
       "is_validation_best": false,
       "label": "e050",
@@ -52,7 +52,7 @@
       "validation_loss": 0.05021783858035377
     },
     {
-      "checkpoint": "runs/stage1-layer12-data220-event025-e100/checkpoints/step-00003840.pt",
+      "checkpoint": "run://stage1-layer12-data220-event025-e100/checkpoints/step-00003840.pt",
       "epoch": 60,
       "is_validation_best": false,
       "label": "e060",
@@ -62,7 +62,7 @@
       "validation_loss": 0.04184920967036528
     },
     {
-      "checkpoint": "runs/stage1-layer12-data220-event025-e100/checkpoints/step-00004480.pt",
+      "checkpoint": "run://stage1-layer12-data220-event025-e100/checkpoints/step-00004480.pt",
       "epoch": 70,
       "is_validation_best": false,
       "label": "e070",
@@ -72,7 +72,7 @@
       "validation_loss": 0.03932093391136299
     },
     {
-      "checkpoint": "runs/stage1-layer12-data220-event025-e100/checkpoints/step-00005120.pt",
+      "checkpoint": "run://stage1-layer12-data220-event025-e100/checkpoints/step-00005120.pt",
       "epoch": 80,
       "is_validation_best": false,
       "label": "e080",
@@ -82,7 +82,7 @@
       "validation_loss": 0.03712900796662186
     },
     {
-      "checkpoint": "runs/stage1-layer12-data220-event025-e100/checkpoints/step-00005760.pt",
+      "checkpoint": "run://stage1-layer12-data220-event025-e100/checkpoints/step-00005760.pt",
       "epoch": 90,
       "is_validation_best": false,
       "label": "e090",
@@ -92,7 +92,7 @@
       "validation_loss": 0.03552238503106733
     },
     {
-      "checkpoint": "runs/stage1-layer12-data220-event025-e100/checkpoints/best.pt",
+      "checkpoint": "run://stage1-layer12-data220-event025-e100/checkpoints/best.pt",
       "epoch": 98,
       "is_validation_best": true,
       "label": "e098-best",
@@ -102,7 +102,7 @@
       "validation_loss": 0.027531999974882777
     },
     {
-      "checkpoint": "runs/stage1-layer12-data220-event025-e100/checkpoints/step-00006400.pt",
+      "checkpoint": "run://stage1-layer12-data220-event025-e100/checkpoints/step-00006400.pt",
       "epoch": 100,
       "is_validation_best": false,
       "label": "e100",
@@ -129,7 +129,7 @@
     ],
     "top_k_per_skill": 2
   },
-  "data": "datasets/trusted-v0.4-event-recovery-220",
+  "data": "dataset://trusted-v0.4-event-recovery-220",
   "evaluation": {
     "max_anomaly_replans": 3,
     "max_policy_steps": 100,
@@ -140,8 +140,8 @@
     "temporal_ensemble_enabled": true
   },
   "format": "robot-vla-checkpoint-sweep/v1",
-  "model_cache": "model-cache/qwen",
-  "run": "runs/stage1-layer12-data220-event025-e100",
+  "model_cache": "model-cache://qwen",
+  "run": "run://stage1-layer12-data220-event025-e100",
   "screen": {
     "episodes_per_skill": 3,
     "seed_start": 10020,

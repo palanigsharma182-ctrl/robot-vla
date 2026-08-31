@@ -21,6 +21,15 @@ from robot_vla.data.trajectory import (
     TrajectoryMeta,
 )
 from robot_vla.execution import ManiSkillFrankaController, RecedingHorizonChunkExecutor
+from robot_vla.local_dagger_protocol import (
+    EXPERT_ACTION_BUDGET_EXHAUSTED_REASON,
+    LOCAL_DAGGER_ACTION_BUDGET_PROTOCOL_FIELD,
+    LOCAL_DAGGER_ACTION_BUDGET_USAGE_FIELD,
+    POLICY_ACTION_BUDGET_EXHAUSTED_REASON,
+    LocalDaggerActionBudgetPlan,
+    LocalDaggerActionBudgetProtocol,
+    resolve_local_dagger_action_budget,
+)
 from robot_vla.runtime import OnlineObservation, QwenVLAReplanLoop, QwenVLARuntime
 from robot_vla.sim import PICK_CUBE_TO_REGION_ENV_ID
 from robot_vla.sim.collector import (
@@ -29,6 +38,15 @@ from robot_vla.sim.collector import (
     _CollectionSession,
     _numpy,
     _single_bool,
+)
+from robot_vla.sim.local_dagger_diagnostics import (
+    EXPERT_GRASP_APPROACH_PHASE,
+    EXPERT_GRASP_STABILIZATION_PHASE,
+    EXPERT_LIFT_MOTION_PHASE,
+    EXPERT_LOWER_MOTION_PHASE,
+    EXPERT_RELEASE_SETTLE_PHASE,
+    EXPERT_TRANSPORT_MOTION_PHASE,
+    LocalDaggerFailureDiagnostics,
 )
 from robot_vla.sim.snapshot import (
     CollectionSnapshotBundle,
@@ -82,9 +100,10 @@ class LocalDaggerCollectionResult:
     snapshot_summaries: tuple[dict[str, Any], ...]
     snapshot_round_trip: SnapshotRoundTripReport | None
     boundary_snapshot: CollectionSnapshotBundle = field(repr=False, compare=False)
+    action_budget_usage: dict[str, int] | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        result = {
             "trajectory": self.meta.to_dict(),
             "boundary": self.boundary.to_dict(),
             "policy_replans": self.policy_replans,
@@ -97,6 +116,11 @@ class LocalDaggerCollectionResult:
                 else self.snapshot_round_trip.to_dict()
             ),
         }
+        if self.action_budget_usage is not None:
+            result[LOCAL_DAGGER_ACTION_BUDGET_USAGE_FIELD] = dict(
+                self.action_budget_usage
+            )
+        return result
 
 
 @dataclass(frozen=True)
@@ -122,13 +146,16 @@ class _LocalDaggerPolicyController(ManiSkillFrankaController):
         session: _CollectionSession,
         *,
         target_completed_skill_count: int,
+        action_budget: LocalDaggerActionBudgetPlan,
     ) -> None:
         super().__init__(collector.env, collector.spec)
         self.collector = collector
         self.session = session
         self.target_completed_skill_count = target_completed_skill_count
+        self.action_budget = action_budget
         self.chunk_stop_requested = False
         self.terminal_before_boundary = False
+        self.policy_budget_exhausted = False
         initial = collector._read_predicate_state()
         self._last_tcp_position = np.asarray(initial.tcp_position, dtype=np.float64)
         self.last_tcp_linear_speed_m_s = 0.0
@@ -172,6 +199,8 @@ class _LocalDaggerPolicyController(ManiSkillFrankaController):
         )
         self._last_tcp_position = tcp_position
         self.session.previous_command_q = target_q.astype(np.float32, copy=True)
+        if self.session.after_action_hook is not None:
+            self.session.after_action_hook(self.session, float(physical[-1]))
 
         reached_boundary = (
             previous_completed < self.target_completed_skill_count
@@ -185,6 +214,12 @@ class _LocalDaggerPolicyController(ManiSkillFrankaController):
                 self.terminal_before_boundary = True
         if reached_boundary or was_terminated or was_truncated:
             self.chunk_stop_requested = True
+        elif self.action_budget.policy_budget_exhausted_after_action(
+            policy_actions=len(self.session.recorder.action),
+            boundary_reached=False,
+        ):
+            self.policy_budget_exhausted = True
+            self.chunk_stop_requested = True
 
 
 class LocalDaggerPickPlaceCollector(TrustedPickPlaceCollector):
@@ -192,10 +227,26 @@ class LocalDaggerPickPlaceCollector(TrustedPickPlaceCollector):
 
     def __init__(
         self,
-        dataset_root: str | Path,
+        dataset_root: str | Path | None,
         spec: RobotSpec | None = None,
+        *,
+        action_budget_protocol: LocalDaggerActionBudgetProtocol | str = (
+            LocalDaggerActionBudgetProtocol.LEGACY
+        ),
     ) -> None:
-        super().__init__(dataset_root, spec)
+        self.action_budget = resolve_local_dagger_action_budget(
+            action_budget_protocol
+        )
+        if self.action_budget.amended:
+            if self.action_budget.environment_action_limit is None:
+                raise RuntimeError("amended action-budget protocol 缺少环境上限")
+            super().__init__(
+                dataset_root,
+                spec,
+                max_episode_steps=self.action_budget.environment_action_limit,
+            )
+        else:
+            super().__init__(dataset_root, spec)
 
     def _online_observation(
         self,
@@ -468,6 +519,35 @@ class LocalDaggerPickPlaceCollector(TrustedPickPlaceCollector):
             task_completed=session.progress.task_completed,
         )
 
+    def _enforce_expert_action_budget_after_action(
+        self,
+        session: _CollectionSession,
+        *,
+        expert_takeover_step: int | None,
+        failure_diagnostics: LocalDaggerFailureDiagnostics | None,
+    ) -> None:
+        """在已记录的真实 Expert transition 后执行 segmented budget gate。"""
+
+        if expert_takeover_step is None:
+            return
+        recorder = session.recorder
+        expert_actions = len(recorder.action) - expert_takeover_step
+        # 现有可信成功要求 terminated + env success + project Predicate；所有
+        # terminated transition 均交还原 collector 做 success/一致性校验。
+        if recorder.terminated[-1]:
+            return
+        if self.action_budget.expert_budget_exhausted_after_action(
+            expert_actions=expert_actions,
+            task_completed=False,
+            truncated=recorder.truncated[-1],
+        ):
+            if failure_diagnostics is not None:
+                failure_diagnostics.record_budget_exhaustion(
+                    "expert",
+                    action_step=len(recorder.action),
+                )
+            raise EpisodeRejected(EXPERT_ACTION_BUDGET_EXHAUSTED_REASON)
+
     def collect_local_dagger(
         self,
         runtime: QwenVLARuntime,
@@ -480,6 +560,7 @@ class LocalDaggerPickPlaceCollector(TrustedPickPlaceCollector):
         recency_decay: float = 0.5,
         max_anomaly_replans: int = 3,
         verify_snapshot_round_trip: bool = True,
+        failure_diagnostics: LocalDaggerFailureDiagnostics | None = None,
     ) -> LocalDaggerCollectionResult:
         if boundary_type not in LOCAL_DAGGER_BOUNDARIES:
             raise ValueError(f"未知 boundary_type: {boundary_type}")
@@ -492,6 +573,40 @@ class LocalDaggerPickPlaceCollector(TrustedPickPlaceCollector):
             seed % 3 if instruction_index is None else instruction_index
         )
         session = self._start_session(seed, record_action_provenance=True)
+        expert_takeover_step_for_budget: int | None = None
+
+        def capture_after_action(
+            current_session: _CollectionSession,
+            gripper_target: float,
+        ) -> None:
+            recorder = current_session.recorder
+            if failure_diagnostics is not None:
+                failure_diagnostics.observe(
+                    action_step=len(recorder.action),
+                    progress=current_session.progress,
+                    terminated=recorder.terminated[-1],
+                    truncated=recorder.truncated[-1],
+                    environment_success=recorder.success[-1],
+                    action_source=recorder.action_source[-1],
+                    gripper_opening=gripper_target,
+                )
+            self._enforce_expert_action_budget_after_action(
+                current_session,
+                expert_takeover_step=expert_takeover_step_for_budget,
+                failure_diagnostics=failure_diagnostics,
+            )
+
+        if failure_diagnostics is not None:
+            if failure_diagnostics.environment_seed != seed:
+                raise ValueError("failure diagnostics 的 environment_seed 与采集不一致")
+            if failure_diagnostics.boundary_type != boundary_type:
+                raise ValueError("failure diagnostics 的 boundary_type 与采集不一致")
+            if failure_diagnostics.action_count != 0:
+                raise ValueError("failure diagnostics 必须从空 Session 开始")
+            if failure_diagnostics.action_budget.protocol is not self.action_budget.protocol:
+                raise ValueError("failure diagnostics 的 action-budget protocol 与采集不一致")
+        if failure_diagnostics is not None or self.action_budget.amended:
+            session.after_action_hook = capture_after_action
         calibration = self._camera_calibration(session.observation)
         cube_initial = _numpy(self.base_env.cube.pose.p)[0].copy()
         goal_position = _numpy(self.base_env.goal_site.pose.p)[0].copy()
@@ -500,6 +615,7 @@ class LocalDaggerPickPlaceCollector(TrustedPickPlaceCollector):
             self,
             session,
             target_completed_skill_count=target_completed,
+            action_budget=self.action_budget,
         )
         loop = QwenVLAReplanLoop(
             runtime,
@@ -527,6 +643,22 @@ class LocalDaggerPickPlaceCollector(TrustedPickPlaceCollector):
             "recency_decay": recency_decay,
             "max_anomaly_replans": max_anomaly_replans,
         }
+        action_budget_plan_metadata = self.action_budget.planned_metadata()
+
+        def snapshot_policy_identity() -> dict[str, Any]:
+            identity = dict(policy_identity)
+            if action_budget_plan_metadata is not None:
+                identity[LOCAL_DAGGER_ACTION_BUDGET_PROTOCOL_FIELD] = dict(
+                    action_budget_plan_metadata
+                )
+                usage = self.action_budget.usage_metadata(
+                    total_actions=len(session.recorder.action),
+                    expert_takeover_step=None,
+                )
+                if usage is None:
+                    raise RuntimeError("amended action-budget protocol 缺少 usage")
+                identity[LOCAL_DAGGER_ACTION_BUDGET_USAGE_FIELD] = usage
+            return identity
 
         while not controller.chunk_stop_requested and replans < max_replans:
             replan_index = replans
@@ -543,7 +675,7 @@ class LocalDaggerPickPlaceCollector(TrustedPickPlaceCollector):
                     predicate_state=self._read_predicate_state(),
                     contact_forces_n=self._read_contact_forces(),
                     camera_calibration=calibration,
-                    collection_policy_identity=policy_identity,
+                    collection_policy_identity=snapshot_policy_identity(),
                 )
             )
             replans += 1
@@ -573,6 +705,8 @@ class LocalDaggerPickPlaceCollector(TrustedPickPlaceCollector):
                 "replan_required": result.execution.replan_required,
             }
             replan_traces.append(trace)
+            if failure_diagnostics is not None:
+                failure_diagnostics.record_policy_replan(trace)
             if not result.execution.success:
                 raise EpisodeRejected(
                     "Policy roll-in 执行失败："
@@ -580,6 +714,13 @@ class LocalDaggerPickPlaceCollector(TrustedPickPlaceCollector):
                 )
             if controller.terminal_before_boundary:
                 raise EpisodeRejected("Policy 在目标 boundary 前终止或截断")
+            if controller.policy_budget_exhausted:
+                if failure_diagnostics is not None:
+                    failure_diagnostics.record_budget_exhaustion(
+                        "policy",
+                        action_step=len(session.recorder.action),
+                    )
+                raise EpisodeRejected(POLICY_ACTION_BUDGET_EXHAUSTED_REASON)
             if session.progress.completed_skill_count >= target_completed:
                 boundary_online_observation = self._online_observation(
                     session,
@@ -596,7 +737,7 @@ class LocalDaggerPickPlaceCollector(TrustedPickPlaceCollector):
                     predicate_state=self._read_predicate_state(),
                     contact_forces_n=self._read_contact_forces(),
                     camera_calibration=calibration,
-                    collection_policy_identity=policy_identity,
+                    collection_policy_identity=snapshot_policy_identity(),
                 )
                 snapshot_ring.append(boundary_snapshot)
                 boundary_diagnostics = self._boundary_diagnostics(
@@ -618,18 +759,54 @@ class LocalDaggerPickPlaceCollector(TrustedPickPlaceCollector):
         expert_takeover_step = len(session.recorder.action)
         if expert_takeover_step != boundary_diagnostics.control_step:
             raise RuntimeError("Boundary 与 takeover Action 索引不一致")
+        expert_takeover_step_for_budget = expert_takeover_step
 
         grasp_pose, _, lift_pose, transport_pose, lower_pose = self._phase_poses()
         if boundary_type == "reach_grasp":
+            if failure_diagnostics is not None:
+                failure_diagnostics.set_phase(
+                    EXPERT_GRASP_APPROACH_PHASE,
+                    action_step=len(session.recorder.action),
+                )
             self._move_to_pose(session, grasp_pose, gripper_opening=1.0)
+            if failure_diagnostics is not None:
+                failure_diagnostics.set_phase(
+                    EXPERT_GRASP_STABILIZATION_PHASE,
+                    action_step=len(session.recorder.action),
+                )
             self._hold(session, gripper_opening=0.0, steps=8)
         else:
+            if failure_diagnostics is not None:
+                failure_diagnostics.set_phase(
+                    EXPERT_GRASP_STABILIZATION_PHASE,
+                    action_step=len(session.recorder.action),
+                )
             self._hold(session, gripper_opening=0.0, steps=8)
         if session.progress.completed_skill_count < 2:
             raise EpisodeRejected("Expert takeover 后未形成稳定 Grasp")
+        if failure_diagnostics is not None:
+            failure_diagnostics.set_phase(
+                EXPERT_LIFT_MOTION_PHASE,
+                action_step=len(session.recorder.action),
+            )
         self._move_to_pose(session, lift_pose, gripper_opening=0.0)
+        if failure_diagnostics is not None:
+            failure_diagnostics.set_phase(
+                EXPERT_TRANSPORT_MOTION_PHASE,
+                action_step=len(session.recorder.action),
+            )
         self._move_to_pose(session, transport_pose, gripper_opening=0.0)
+        if failure_diagnostics is not None:
+            failure_diagnostics.set_phase(
+                EXPERT_LOWER_MOTION_PHASE,
+                action_step=len(session.recorder.action),
+            )
         self._move_to_pose(session, lower_pose, gripper_opening=0.0)
+        if failure_diagnostics is not None:
+            failure_diagnostics.set_phase(
+                EXPERT_RELEASE_SETTLE_PHASE,
+                action_step=len(session.recorder.action),
+            )
         self._hold(session, gripper_opening=1.0, steps=30, stop_on_success=True)
         if not session.done or not session.progress.task_completed:
             raise EpisodeRejected("Local DAgger Expert 未完成完整 Pick-and-Place")
@@ -653,6 +830,30 @@ class LocalDaggerPickPlaceCollector(TrustedPickPlaceCollector):
         )
         if training_window_end - expert_takeover_step < self.spec.action_horizon:
             raise EpisodeRejected("Local DAgger Expert 窗口不足一个完整 Action Chunk")
+        action_budget_usage = self.action_budget.usage_metadata(
+            total_actions=arrays.num_steps,
+            expert_takeover_step=expert_takeover_step,
+        )
+        randomization = {
+            "seed": seed,
+            "environment_id": PICK_CUBE_TO_REGION_ENV_ID,
+            "control_mode": "pd_joint_delta_pos",
+            "event_state_contract_version": EVENT_STATE_CONTRACT_VERSION,
+            "cube_initial_position_m": cube_initial.tolist(),
+            "goal_position_m": goal_position.tolist(),
+            "collection_inference_strategy": "temporal-ensemble",
+            "collection_recency_decay": recency_decay,
+            "collection_max_anomaly_replans": max_anomaly_replans,
+        }
+        if action_budget_plan_metadata is not None:
+            if action_budget_usage is None:
+                raise RuntimeError("amended action-budget protocol 缺少最终 usage")
+            randomization[LOCAL_DAGGER_ACTION_BUDGET_PROTOCOL_FIELD] = dict(
+                action_budget_plan_metadata
+            )
+            randomization[LOCAL_DAGGER_ACTION_BUDGET_USAGE_FIELD] = dict(
+                action_budget_usage
+            )
         source = f"dagger_{boundary_type}"
         resolved_trajectory_id = trajectory_id or (
             f"local-dagger-{boundary_type}-seed-{seed:06d}"
@@ -666,17 +867,7 @@ class LocalDaggerPickPlaceCollector(TrustedPickPlaceCollector):
             task=task,
             num_steps=arrays.num_steps,
             camera_calibration=calibration,
-            randomization={
-                "seed": seed,
-                "environment_id": PICK_CUBE_TO_REGION_ENV_ID,
-                "control_mode": "pd_joint_delta_pos",
-                "event_state_contract_version": EVENT_STATE_CONTRACT_VERSION,
-                "cube_initial_position_m": cube_initial.tolist(),
-                "goal_position_m": goal_position.tolist(),
-                "collection_inference_strategy": "temporal-ensemble",
-                "collection_recency_decay": recency_decay,
-                "collection_max_anomaly_replans": max_anomaly_replans,
-            },
+            randomization=randomization,
             outcome_evidence=OutcomeEvidence(
                 predicate_version=session.tracker.config.version,
                 task_completed=session.progress.task_completed,
@@ -711,12 +902,14 @@ class LocalDaggerPickPlaceCollector(TrustedPickPlaceCollector):
             snapshot_summaries=snapshot_ring.summaries(),
             snapshot_round_trip=snapshot_round_trip,
             boundary_snapshot=boundary_snapshot,
+            action_budget_usage=action_budget_usage,
         )
 
 
 __all__ = [
     "BoundaryDiagnostics",
     "CleanExpertBoundaryResult",
+    "LocalDaggerActionBudgetProtocol",
     "LocalDaggerCollectionResult",
     "LocalDaggerPickPlaceCollector",
 ]

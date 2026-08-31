@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import bisect
 from collections.abc import Sequence
 from typing import Any
 
@@ -76,6 +77,25 @@ class ActionChunkDataset:
     def __len__(self) -> int:
         return len(self.index)
 
+    def sampling_metadata(self, index: int) -> dict[str, Any]:
+        """暴露 sampler 所需的最小身份，不泄漏 Dataset 内部存储结构。"""
+
+        entry_index, timestep = self.index[index]
+        meta = self.entries[entry_index]
+        arrays = self.store.get(meta)
+        provenance = meta.local_dagger
+        return {
+            "episode_key": meta.trajectory_id,
+            "task_id": meta.task.task_id,
+            "source": "base_d0" if provenance is None else provenance.source,
+            "skill_id": int(arrays.skill_id[timestep]),
+            "boundary_offset": (
+                None
+                if provenance is None
+                else timestep - provenance.training_window_start
+            ),
+        }
+
     def __getitem__(self, index: int) -> dict[str, Any]:
         entry_index, timestep = self.index[index]
         meta = self.entries[entry_index]
@@ -128,3 +148,43 @@ class ActionChunkDataset:
             "source": source,
             "boundary_offset": boundary_offset,
         }
+
+
+class CompositeActionChunkDataset:
+    """把多个已审计数据根组合为一个逻辑 Dataset，不复制或别名化 NPZ。"""
+
+    def __init__(self, components: Sequence[ActionChunkDataset]) -> None:
+        if not components:
+            raise ValueError("Composite Dataset 需要至少一个 component")
+        self.components = tuple(components)
+        self.offsets = [0]
+        for component in self.components:
+            self.offsets.append(self.offsets[-1] + len(component))
+        if self.offsets[-1] <= 0:
+            raise ValueError("Composite Dataset 不能是空 Dataset")
+
+    def __len__(self) -> int:
+        return self.offsets[-1]
+
+    def _locate(self, index: int) -> tuple[int, int]:
+        if index < 0:
+            index += len(self)
+        if index < 0 or index >= len(self):
+            raise IndexError("Composite Dataset index 超出范围")
+        component_index = bisect.bisect_right(self.offsets, index) - 1
+        return component_index, index - self.offsets[component_index]
+
+    def __getitem__(self, index: int) -> dict[str, Any]:
+        component_index, local_index = self._locate(index)
+        return self.components[component_index][local_index]
+
+    def sampling_metadata(self, index: int) -> dict[str, Any]:
+        component_index, local_index = self._locate(index)
+        metadata = dict(
+            self.components[component_index].sampling_metadata(local_index)
+        )
+        metadata["episode_key"] = (
+            component_index,
+            str(metadata["episode_key"]),
+        )
+        return metadata

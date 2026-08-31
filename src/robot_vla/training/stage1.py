@@ -35,6 +35,7 @@ class Stage1TrainingConfig:
     checkpoint_interval_steps: int = 1_000
     samples_per_epoch: int | None = None
     skill_sampling_weights: tuple[tuple[int, float], ...] = ()
+    source_sampling_weights: tuple[tuple[str, float], ...] = ()
     event_loss_weight: float = 2.0
     event_loss_warmup_steps: int = 0
     executed_action_steps: int = 4
@@ -79,6 +80,16 @@ class Stage1TrainingConfig:
             if not math.isfinite(float(weight)) or float(weight) <= 0:
                 raise ValueError("skill_sampling_weights 的权重必须是有限正数")
             skill_ids.add(resolved_skill_id)
+        source_ids: set[str] = set()
+        for source, weight in self.source_sampling_weights:
+            resolved_source = str(source)
+            if not resolved_source or resolved_source.strip() != resolved_source:
+                raise ValueError("source_sampling_weights 的 source 名称无效")
+            if resolved_source in source_ids:
+                raise ValueError("source_sampling_weights 不能重复定义 source")
+            if not math.isfinite(float(weight)) or float(weight) <= 0:
+                raise ValueError("source_sampling_weights 的权重必须是有限正数")
+            source_ids.add(resolved_source)
 
     @property
     def effective_batch_size(self) -> int:
@@ -98,6 +109,11 @@ class Stage1TrainingConfig:
             data["skill_sampling_weights"] = tuple(
                 (int(skill_id), float(weight))
                 for skill_id, weight in data["skill_sampling_weights"]
+            )
+        if "source_sampling_weights" in data:
+            data["source_sampling_weights"] = tuple(
+                (str(source), float(weight))
+                for source, weight in data["source_sampling_weights"]
             )
         return cls(**data)
 

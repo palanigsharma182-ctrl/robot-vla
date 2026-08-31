@@ -11,6 +11,7 @@ from robot_vla.contracts import MODEL_ARCH, QWEN_REVISION, RobotSpec
 from robot_vla.model.expert import ExpertConfig
 from robot_vla.model.qwen_processor import QwenProcessorConfig
 from robot_vla.training.checkpoint import (
+    initialize_stage1_policy_checkpoint,
     load_stage1_checkpoint,
     load_stage1_policy_checkpoint,
     save_stage1_checkpoint_set,
@@ -261,6 +262,64 @@ def test_inference_checkpoint_loads_only_policy_without_restoring_rng(tmp_path) 
     assert policy.adapter.weight.item() == pytest.approx(2.0)
     assert policy.expert.weight.item() == pytest.approx(3.0)
     torch.testing.assert_close(torch.rand(1), expected_next)
+
+
+def test_policy_only_checkpoint_load_keeps_new_training_state_reset(tmp_path) -> None:
+    spec = RobotSpec()
+    processor_config = QwenProcessorConfig()
+    source_policy = CheckpointPolicy()
+    source_trainer = Stage1Trainer(
+        source_policy,
+        Stage1TrainingConfig(use_bf16=False),
+        "cpu",
+    )
+    with torch.no_grad():
+        source_policy.adapter.weight.fill_(2.0)
+        source_policy.expert.weight.fill_(3.0)
+    paths = save_stage1_checkpoint_set(
+        tmp_path,
+        source_policy,
+        source_trainer,
+        spec,
+        processor_config,
+        _stats(spec),
+        code_revision="source-digest-001",
+    )
+
+    target_policy = CheckpointPolicy()
+    target_trainer = Stage1Trainer(
+        target_policy,
+        Stage1TrainingConfig(use_bf16=False),
+        "cpu",
+    )
+    expected_flow_state = target_trainer.flow_generator.get_state().clone()
+
+    first_receipt = initialize_stage1_policy_checkpoint(
+        paths.latest,
+        target_policy,
+        spec,
+        processor_config,
+        _stats(spec),
+    )
+
+    second_policy = CheckpointPolicy()
+    second_receipt = initialize_stage1_policy_checkpoint(
+        paths.latest,
+        second_policy,
+        spec,
+        processor_config,
+        _stats(spec),
+    )
+
+    assert target_policy.adapter.weight.item() == pytest.approx(2.0)
+    assert target_policy.expert.weight.item() == pytest.approx(3.0)
+    assert target_trainer.state.optimizer_steps == 0
+    assert target_trainer.scheduler.completed_steps == 0
+    assert target_trainer.optimizer.state == {}
+    torch.testing.assert_close(target_trainer.flow_generator.get_state(), expected_flow_state)
+    assert first_receipt["policy_state_sha256"] == second_receipt["policy_state_sha256"]
+    assert len(first_receipt["policy_state_sha256"]) == 64
+    assert first_receipt["metadata"] == second_receipt["metadata"]
 
 
 def test_inference_checkpoint_rejects_contract_mismatch_before_loading_weights(tmp_path) -> None:

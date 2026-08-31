@@ -6,7 +6,9 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import random
+import stat
 from dataclasses import asdict
 from pathlib import Path
 
@@ -17,20 +19,34 @@ from torch.utils.data import DataLoader, Subset
 from robot_vla.adapters import ProprioNormalizer, ProprioStats
 from robot_vla.contracts import PICK_AND_PLACE_SKILLS, RobotSpec
 from robot_vla.data.collator import QwenVLACollator
-from robot_vla.data.dataset import ActionChunkDataset
+from robot_vla.data.dataset import ActionChunkDataset, CompositeActionChunkDataset
 from robot_vla.data.sampler import TaskEpisodeBalancedSampler
 from robot_vla.data.trajectory import load_manifest
 from robot_vla.model.factory import load_qwen_vla_policy
 from robot_vla.model.qwen_processor import QwenVLAProcessorAdapter
-from robot_vla.training.checkpoint import load_stage1_checkpoint, save_stage1_checkpoint_set
+from robot_vla.training.checkpoint import (
+    initialize_stage1_policy_checkpoint,
+    load_stage1_checkpoint,
+    save_stage1_checkpoint_set,
+)
 from robot_vla.training.stage1 import Stage1Trainer, Stage1TrainingConfig
 
 DEFAULT_SKILL_WEIGHTS = (1.0, 3.0, 1.5, 1.0, 1.5)
+E012_TRAINING_SOURCES = {
+    "base_d0",
+    "dagger_reach_grasp",
+    "dagger_grasp_lift",
+}
 
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data", type=Path, required=True)
+    parser.add_argument(
+        "--dagger-data",
+        type=Path,
+        help="只含 Local DAgger train trajectory 的已审计 additions 数据根",
+    )
     parser.add_argument("--model-cache", type=Path, required=True)
     parser.add_argument(
         "--qwen-context-layer",
@@ -72,13 +88,31 @@ def _parse_args() -> argparse.Namespace:
         help="按 reach grasp lift transport place 顺序设置 Episode 内阶段采样权重",
     )
     parser.add_argument(
+        "--source-weight",
+        action="append",
+        default=[],
+        metavar="SOURCE=WEIGHT",
+        help="启用 source-first 确定性配额；可重复，例如 base_d0=0.8",
+    )
+    parser.add_argument(
+        "--proprio-stats-data",
+        type=Path,
+        help="显式指定冻结 ProprioStats 的数据根；E012 D1 必须指向 D0",
+    )
+    parser.add_argument(
         "--overfit-samples",
         type=int,
         default=0,
         help="大于 0 时固定选择少量样本，并在相同样本上验证过拟合",
     )
     parser.add_argument("--measure-only", action="store_true")
-    parser.add_argument("--resume", type=Path)
+    checkpoint_group = parser.add_mutually_exclusive_group()
+    checkpoint_group.add_argument("--resume", type=Path)
+    checkpoint_group.add_argument(
+        "--init-checkpoint",
+        type=Path,
+        help="只初始化 Adapter/Expert；optimizer/scheduler/scaler/trainer/RNG 全部重置",
+    )
     return parser.parse_args()
 
 
@@ -131,6 +165,38 @@ def _resolve_skill_sampling_weights(
     return tuple(enumerate(resolved))
 
 
+def _resolve_source_sampling_weights(
+    values: list[str] | tuple[str, ...],
+) -> tuple[tuple[str, float], ...]:
+    resolved: list[tuple[str, float]] = []
+    seen: set[str] = set()
+    for raw in values:
+        source, separator, raw_weight = str(raw).partition("=")
+        if separator != "=" or not source or not raw_weight:
+            raise ValueError("source-weight 必须使用 SOURCE=WEIGHT 格式")
+        if source not in E012_TRAINING_SOURCES:
+            raise ValueError(f"source-weight 包含未知 source: {source}")
+        if source in seen:
+            raise ValueError(f"source-weight 重复定义 source: {source}")
+        try:
+            weight = float(raw_weight)
+        except ValueError as exc:
+            raise ValueError(f"source-weight 不是数值: {raw}") from exc
+        if not math.isfinite(weight) or weight <= 0:
+            raise ValueError("source-weight 必须是有限正数")
+        seen.add(source)
+        resolved.append((source, weight))
+    return tuple(resolved)
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def _load_audit_identity(data_root: Path) -> dict[str, object]:
     path = data_root / "audit_report.json"
     if not path.is_file():
@@ -162,6 +228,89 @@ def _append_metric(path: Path, payload: dict[str, object]) -> None:
         handle.write(json.dumps(payload, sort_keys=True, allow_nan=False) + "\n")
 
 
+def _validate_output_path(output: Path, *, resume: bool) -> None:
+    if not os.path.lexists(output):
+        if resume:
+            raise FileNotFoundError("恢复训练要求输出目录已存在")
+        return
+    output_stat = output.lstat()
+    if stat.S_ISLNK(output_stat.st_mode) or not stat.S_ISDIR(output_stat.st_mode):
+        raise ValueError("训练输出必须是普通目录，禁止 symlink")
+    if output_stat.st_uid != os.getuid():
+        raise PermissionError("训练输出目录 owner 与当前进程不一致")
+    if resume:
+        if stat.S_IMODE(output_stat.st_mode) != 0o700:
+            raise PermissionError("恢复训练要求输出目录 mode=0700")
+    elif any(output.iterdir()):
+        raise FileExistsError("新训练输出目录必须为空")
+
+
+def _read_jsonl_rows(path: Path) -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    for line_number, line in enumerate(
+        path.read_text(encoding="utf-8").splitlines(),
+        start=1,
+    ):
+        if not line.strip():
+            raise ValueError(f"{path.name} 第 {line_number} 行为空")
+        value = json.loads(line)
+        if not isinstance(value, dict):
+            raise TypeError(f"{path.name} 第 {line_number} 行必须是 object")
+        rows.append(value)
+    return rows
+
+
+def _validate_resume_artifacts(
+    *,
+    experiment_path: Path,
+    metrics_path: Path,
+    exposure_path: Path,
+    expected_experiment: dict[str, object],
+    completed_epochs: int,
+    overfit: bool,
+) -> None:
+    observed_experiment = json.loads(experiment_path.read_text(encoding="utf-8"))
+    normalized_expected = json.loads(
+        json.dumps(expected_experiment, sort_keys=True, allow_nan=False)
+    )
+    for key in (
+        "training_config",
+        "dataset",
+        "proprio_stats",
+        "code_revision",
+        "trainable_parameters",
+        "frozen_parameters",
+        "gpu",
+    ):
+        if observed_experiment.get(key) != normalized_expected.get(key):
+            raise ValueError(f"恢复训练 experiment {key} 漂移")
+    ignored_arguments = {"resume", "init_checkpoint"}
+    observed_arguments = {
+        key: value
+        for key, value in observed_experiment.get("arguments", {}).items()
+        if key not in ignored_arguments
+    }
+    expected_arguments = {
+        key: value
+        for key, value in normalized_expected.get("arguments", {}).items()
+        if key not in ignored_arguments
+    }
+    if observed_arguments != expected_arguments:
+        raise ValueError("恢复训练 experiment arguments 漂移")
+    metrics = _read_jsonl_rows(metrics_path)
+    epoch_rows = [row for row in metrics if row.get("event") == "epoch"]
+    if [row.get("epoch") for row in epoch_rows] != list(
+        range(1, completed_epochs + 1)
+    ):
+        raise ValueError("恢复训练 metrics epoch 与 checkpoint 不一致")
+    if not overfit:
+        exposure_rows = _read_jsonl_rows(exposure_path)
+        if [row.get("epoch") for row in exposure_rows] != list(
+            range(1, completed_epochs + 1)
+        ):
+            raise ValueError("恢复训练 exposure epoch 与 checkpoint 不一致")
+
+
 def _should_save_checkpoint(
     *,
     completed_epoch: int,
@@ -190,6 +339,11 @@ def run(args: argparse.Namespace) -> None:
         raise ValueError("event-loss-weight 必须是有限非负数")
     if args.event_loss_warmup_steps < 0:
         raise ValueError("event-loss-warmup-steps 不能为负数")
+    if args.resume is not None and args.init_checkpoint is not None:
+        raise ValueError("--resume 与 --init-checkpoint 互斥")
+    if args.dagger_data is not None and args.proprio_stats_data is None:
+        raise ValueError("使用 --dagger-data 时必须用 --proprio-stats-data 显式冻结 D0 stats")
+    _validate_output_path(args.output, resume=args.resume is not None)
     if not torch.cuda.is_available():
         raise RuntimeError("Stage 1 正式入口需要 CUDA")
     random.seed(args.seed)
@@ -197,9 +351,16 @@ def run(args: argparse.Namespace) -> None:
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
     skill_sampling_weights = _resolve_skill_sampling_weights(args.skill_weights)
+    source_sampling_weights = _resolve_source_sampling_weights(args.source_weight)
+    if args.overfit_samples > 0 and source_sampling_weights:
+        raise ValueError("小数据过拟合模式不支持 source-first quota")
 
     spec = RobotSpec()
-    stats = ProprioStats.from_json(args.data / "proprio_stats.json")
+    stats_root = args.proprio_stats_data or args.data
+    if args.dagger_data is not None and stats_root.resolve() != args.data.resolve():
+        raise ValueError("E012 dagger training 的 ProprioStats 必须来自 --data 指定的 D0")
+    stats_path = stats_root / "proprio_stats.json"
+    stats = ProprioStats.from_json(stats_path)
     stats.validate(spec)
     normalizer = ProprioNormalizer(stats, spec)
     processor = QwenVLAProcessorAdapter.from_pretrained(
@@ -209,13 +370,32 @@ def run(args: argparse.Namespace) -> None:
     collator = QwenVLACollator(processor, spec)
     train_entries = load_manifest(args.data, split="train")
     val_entries = load_manifest(args.data, split="val")
-    train_dataset = ActionChunkDataset(
+    base_train_dataset = ActionChunkDataset(
         str(args.data),
         train_entries,
         spec,
         normalizer,
         cache_size=len(train_entries),
     )
+    train_dataset: ActionChunkDataset | CompositeActionChunkDataset
+    dagger_dataset_identity = None
+    if args.dagger_data is None:
+        train_dataset = base_train_dataset
+    else:
+        dagger_entries = load_manifest(args.dagger_data, split="train")
+        if any(entry.local_dagger is None for entry in dagger_entries):
+            raise ValueError("--dagger-data 禁止包含 clean/base trajectory")
+        dagger_dataset = ActionChunkDataset(
+            str(args.dagger_data),
+            dagger_entries,
+            spec,
+            normalizer,
+            cache_size=len(dagger_entries),
+        )
+        train_dataset = CompositeActionChunkDataset(
+            (base_train_dataset, dagger_dataset)
+        )
+        dagger_dataset_identity = _load_audit_identity(args.dagger_data)
     val_dataset = ActionChunkDataset(
         str(args.data),
         val_entries,
@@ -242,6 +422,7 @@ def run(args: argparse.Namespace) -> None:
             num_samples=args.samples_per_epoch,
             seed=args.seed,
             skill_weights=skill_sampling_weights,
+            source_weights=source_sampling_weights,
         )
         val_sampler = TaskEpisodeBalancedSampler(
             val_dataset,
@@ -279,6 +460,9 @@ def run(args: argparse.Namespace) -> None:
         skill_sampling_weights=(
             () if args.overfit_samples > 0 else skill_sampling_weights
         ),
+        source_sampling_weights=(
+            () if args.overfit_samples > 0 else source_sampling_weights
+        ),
         event_loss_weight=args.event_loss_weight,
         event_loss_warmup_steps=args.event_loss_warmup_steps,
         executed_action_steps=spec.execute_steps,
@@ -293,8 +477,10 @@ def run(args: argparse.Namespace) -> None:
     trainer = Stage1Trainer(policy, config, "cuda")
     project_root = Path(__file__).resolve().parents[3]
     code_revision = compute_source_revision(project_root)
+    checkpoint_metadata = None
+    initialization: dict[str, object] = {"mode": "fresh"}
     if args.resume is not None:
-        load_stage1_checkpoint(
+        checkpoint_metadata = load_stage1_checkpoint(
             args.resume,
             policy,
             trainer,
@@ -303,6 +489,43 @@ def run(args: argparse.Namespace) -> None:
             stats,
             expected_code_revision=code_revision,
         )
+        initialization = {
+            "mode": "resume",
+            "checkpoint": {
+                "path": str(args.resume.resolve()),
+                "sha256": _sha256_file(args.resume),
+                "metadata": checkpoint_metadata,
+            },
+        }
+    elif args.init_checkpoint is not None:
+        initialization_receipt = initialize_stage1_policy_checkpoint(
+            args.init_checkpoint,
+            policy,
+            spec,
+            processor.config,
+            stats,
+        )
+        checkpoint_metadata = initialization_receipt["metadata"]
+        if (
+            trainer.state.optimizer_steps != 0
+            or trainer.scheduler.completed_steps != 0
+            or trainer.optimizer.state
+        ):
+            raise RuntimeError("init-checkpoint 污染了新训练器状态")
+        initialization = {
+            "mode": "init_checkpoint",
+            "checkpoint": {
+                "path": str(args.init_checkpoint.resolve()),
+                "sha256": _sha256_file(args.init_checkpoint),
+                "metadata": checkpoint_metadata,
+                "policy_state_sha256": initialization_receipt[
+                    "policy_state_sha256"
+                ],
+            },
+            "restored_state": "adapter_expert_weights_only",
+            "trainer_state_reset": True,
+            "rng_restored": False,
+        }
     trainable_parameters = sum(
         parameter.numel() for parameter in policy.parameters() if parameter.requires_grad
     )
@@ -312,12 +535,20 @@ def run(args: argparse.Namespace) -> None:
     baseline_allocated = torch.cuda.memory_allocated()
     torch.cuda.reset_peak_memory_stats()
 
-    args.output.mkdir(parents=True, exist_ok=True)
+    _validate_output_path(args.output, resume=args.resume is not None)
+    args.output.mkdir(mode=0o700, parents=True, exist_ok=True)
+    os.chmod(args.output, 0o700)
     metrics_path = args.output / "metrics.jsonl"
+    exposure_path = args.output / "sampler_exposure.jsonl"
     if metrics_path.exists() and args.resume is None:
         raise FileExistsError("输出目录已有 metrics.jsonl，拒绝覆盖或混合实验")
     if args.resume is not None and not metrics_path.is_file():
         raise FileNotFoundError("恢复训练时输出目录必须包含已有 metrics.jsonl")
+    if args.overfit_samples == 0:
+        if exposure_path.exists() and args.resume is None:
+            raise FileExistsError("输出目录已有 sampler_exposure.jsonl，拒绝混合实验")
+        if args.resume is not None and not exposure_path.is_file():
+            raise FileNotFoundError("恢复训练时输出目录必须包含 sampler_exposure.jsonl")
     arguments = {
         key: str(value) if isinstance(value, Path) else value
         for key, value in vars(args).items()
@@ -325,7 +556,16 @@ def run(args: argparse.Namespace) -> None:
     experiment = {
         "arguments": arguments,
         "training_config": config.to_dict(),
-        "dataset": _load_audit_identity(args.data),
+        "dataset": {
+            "base_d0": _load_audit_identity(args.data),
+            "dagger_additions": dagger_dataset_identity,
+        },
+        "proprio_stats": {
+            "path": str(stats_path.resolve()),
+            "sha256": _sha256_file(stats_path),
+            "frozen_from_data": str(stats_root.resolve()),
+        },
+        "initialization": initialization,
         "code_revision": code_revision,
         "trainable_parameters": trainable_parameters,
         "frozen_parameters": frozen_parameters,
@@ -339,6 +579,15 @@ def run(args: argparse.Namespace) -> None:
         )
     elif not experiment_path.is_file():
         raise FileNotFoundError("恢复训练时缺少 experiment.json")
+    else:
+        _validate_resume_artifacts(
+            experiment_path=experiment_path,
+            metrics_path=metrics_path,
+            exposure_path=exposure_path,
+            expected_experiment=experiment,
+            completed_epochs=trainer.state.completed_epochs,
+            overfit=args.overfit_samples > 0,
+        )
 
     initial_validation = None
     if args.overfit_samples > 0 and not args.measure_only:
@@ -367,6 +616,23 @@ def run(args: argparse.Namespace) -> None:
             "train": asdict(train_metrics),
             "memory": memory,
         }
+        exposure_record = None
+        if args.overfit_samples == 0:
+            exposure_rows = train_sampler.exposure_rows()
+            exposure_total = sum(int(row["samples"]) for row in exposure_rows)
+            if exposure_total != train_metrics.examples:
+                raise RuntimeError(
+                    "sampler exposure 与 Trainer examples 不一致: "
+                    f"{exposure_total} != {train_metrics.examples}"
+                )
+            exposure_record = {
+                "format": "robot-vla-stage1-sampler-exposure/v1",
+                "epoch": epoch + 1,
+                "configured_source_weights": [list(item) for item in source_sampling_weights],
+                "samples": exposure_total,
+                "source_skill_boundary_offset": exposure_rows,
+            }
+            payload["source_exposure"] = exposure_record
         if not args.measure_only:
             validation = trainer.validate(val_loader)
             payload["validation"] = asdict(validation)
@@ -388,6 +654,8 @@ def run(args: argparse.Namespace) -> None:
                     is_best=validation.improved,
                 )
         _append_metric(metrics_path, payload)
+        if exposure_record is not None:
+            _append_metric(exposure_path, exposure_record)
         print(json.dumps(payload, sort_keys=True), flush=True)
 
     if initial_validation is not None:

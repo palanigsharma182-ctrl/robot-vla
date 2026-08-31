@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import random
 import shutil
@@ -334,6 +335,73 @@ def load_stage1_policy_checkpoint(
     policy.adapter.load_state_dict(payload["model"]["adapter"], strict=True)
     policy.expert.load_state_dict(payload["model"]["expert"], strict=True)
     return metadata
+
+
+def _policy_state_sha256(model_state: dict[str, Any]) -> str:
+    """对 Adapter/Expert tensor state 做与容器序列化无关的 canonical SHA256。"""
+
+    digest = hashlib.sha256()
+    for module_name in ("adapter", "expert"):
+        module_state = model_state[module_name]
+        if not isinstance(module_state, dict):
+            raise TypeError(f"Checkpoint {module_name} state 必须是字典")
+        for parameter_name in sorted(module_state):
+            tensor = module_state[parameter_name]
+            if not isinstance(tensor, torch.Tensor):
+                raise TypeError(
+                    f"Checkpoint {module_name}.{parameter_name} 必须是 Tensor"
+                )
+            identity = f"{module_name}.{parameter_name}".encode()
+            digest.update(len(identity).to_bytes(4, "big"))
+            digest.update(identity)
+            dtype = str(tensor.dtype).encode("ascii")
+            digest.update(len(dtype).to_bytes(2, "big"))
+            digest.update(dtype)
+            shape = tuple(int(value) for value in tensor.shape)
+            digest.update(len(shape).to_bytes(2, "big"))
+            for dimension in shape:
+                digest.update(dimension.to_bytes(8, "big", signed=False))
+            raw = tensor.detach().cpu().contiguous().view(torch.uint8).numpy().tobytes()
+            digest.update(len(raw).to_bytes(8, "big"))
+            digest.update(raw)
+    return digest.hexdigest()
+
+
+def initialize_stage1_policy_checkpoint(
+    path: str | Path,
+    policy: QwenVLAPolicy,
+    robot_spec: RobotSpec,
+    processor_config: QwenProcessorConfig,
+    proprio_stats: ProprioStats,
+) -> dict[str, Any]:
+    """训练 warm start：只加载权重，并返回可比较的实际 tensor state receipt。"""
+
+    payload = _load_checkpoint_payload(path)
+    metadata = payload["metadata"]
+    if not isinstance(metadata, dict):
+        raise TypeError("Checkpoint metadata 必须为字典")
+    _validate_inference_metadata(
+        metadata,
+        policy,
+        robot_spec,
+        processor_config,
+        proprio_stats,
+    )
+    restored_trainer_state = TrainerState.from_dict(payload["trainer"])
+    scheduler_state = payload["scheduler"]
+    if not isinstance(scheduler_state, dict) or set(scheduler_state) != {
+        "completed_steps"
+    }:
+        raise ValueError("Checkpoint Scheduler state 字段不兼容")
+    if int(scheduler_state["completed_steps"]) != restored_trainer_state.optimizer_steps:
+        raise ValueError("Checkpoint 的 Trainer/Scheduler step 不一致")
+    policy_state_sha256 = _policy_state_sha256(payload["model"])
+    policy.adapter.load_state_dict(payload["model"]["adapter"], strict=True)
+    policy.expert.load_state_dict(payload["model"]["expert"], strict=True)
+    return {
+        "metadata": metadata,
+        "policy_state_sha256": policy_state_sha256,
+    }
 
 
 def load_stage1_checkpoint(
