@@ -32,7 +32,7 @@ VLA
 | 模块 | 主要职责 | 实现边界 |
 | --- | --- | --- |
 | Task Definition | 定义任务、成功、失败和进度语义 | TaskSpec、五技能状态机和逐控制步 Outcome Predicate 已实现 |
-| Observation Adapter | 将仿真器或数据集的原始观测转换为模型使用的统一表示 | Franka 15 维状态、双图 Processor 与 Runtime 已实现 |
+| Observation Adapter | 将仿真器或数据集的原始观测转换为模型使用的统一表示 | V1 Franka 15 维状态；V2 TCP/腕部相机位姿、四步双图、F_L/F_R、时间/validity 与 controller state 已实现 |
 | VLA | 根据任务和观测生成动作或 Action Chunk 候选 | Frozen Qwen Late Fusion + Flow Expert 已实现 |
 | Action Adapter | 将模型动作表示转换为控制器或仿真器动作 | 物理/模型/ManiSkill 映射与 D017 Executor 已实现 |
 | World Model | 根据当前状态和动作预测未来状态或结果 | 项目核心，Dynamics 需要自行实现和验证 |
@@ -99,7 +99,7 @@ Simulator / Rollout
 
 ## Tensor 与数据的主要流向
 
-`qwen-vla-v0.1` 已实现的直接策略流向如下：
+V1 已实现的直接策略流向如下：
 
 ```text
 External RGB + Wrist RGB + Language
@@ -126,6 +126,22 @@ Proprio 顺序为 `7 q + 7 dq + gripper opening ratio`。物理 Action 顺序为
 `7 delta_q(rad/control-step) + normalized gripper target`，关节增量上限默认每步 0.05 rad，
 并受更严格的机器人速度和位置限制约束。控制频率为 20 Hz，Action Horizon 为 16，默认
 5 Hz 重规划。这些属于 `robot-vla-trajectory/v2` 受控契约。
+
+Observation V2 在同一 Action/Flow 输出契约上增加四步同步输入：八张图像由 Qwen 一次编码，四个
+temporal state token 包含归一化 proprio、`base_from_tcp`、`base_from_wrist_camera_cv`、归一化
+`F_L/F_R`、frame age 与 modality validity；单独的 controller token 包含 previous commanded q、
+tracking error、previous physical action 和 valid bits。V2 的坐标、时间、force stats、checkpoint 身份和
+旧数据迁移边界见 [minimum_deployable_state.md](minimum_deployable_state.md)。
+
+Action 的 `delta_q` 明确指相邻 commanded target 的差：
+
+```text
+label = commanded_target_t - commanded_target_(t-1)
+controller_correction = commanded_target_t - actual_q_t
+```
+
+Runtime 跨 Replan 保存最后一次成功发送的 commanded target；两式不得合并。轨迹额外保存 target、
+correction 与 previous command，并逐步审计等式。
 
 Stage 1 的训练目标保留全部 16 个有效 Action step 的 masked Rectified Flow/BC loss，并只对
 实际执行前 4 步中由 GT 专家轨迹检测到的关键事件增加损失：

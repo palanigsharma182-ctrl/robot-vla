@@ -6,8 +6,9 @@
 
 项目已经完成 30 条可信轨迹的首轮 Stage 1、扩充到 100/120/220 条后的独立重训和受控消融、
 Action 安全拒绝诊断、事件损失、temporal ensemble，以及固定低事件权重的 100-epoch 正式训练和
-最终闭环评估。随后完成 Qwen Layer 12/24 空间 probe、Oracle/Layer 12 Reach 诊断，以及 Layer 12
-五技能联合训练和统一闭环评估；Layer 12 改善了部分 Reach 表现，但没有提高完整任务成功率。
+最终闭环评估。随后完成 Qwen Layer 12/24 空间 probe、Oracle/Layer 12 Reach 诊断、Layer 12
+五技能联合训练、RTC 和 Local DAgger repeat-1；后两项都按预注册 promotion gate 停止，没有提高完整
+任务成功率。当前已完成最小可部署状态的工程 amendment，但 E013 正式 GPU/闭环实验尚未启动。
 单元测试和模型 smoke test 只证明接口与计算链路可运行，不记作任务效果实验；
 下列任务效果结论只来自完整 test/unseen seed Rollout。
 
@@ -37,7 +38,8 @@ Action 安全拒绝诊断、事件损失、temporal ensemble，以及固定低�
 | E009 | 2026-08-29 | Layer 12 periodic checkpoint 的 Reach/Transport sweep | completed | epoch 100 将 Reach 从 0/10 提到 3/10，却使 Transport 从 7/10 降到 2/10；无单一 promotion 候选，确认技能/checkpoint 冲突而非只选错 best.pt |
 | E010 | 2026-08-29 | Layer 12 五技能梯度冲突与 base/event 归因 probe | completed | e098-best/e100 均未通过两阶段负冲突门槛；五技能 train median 全为正，Reach/Transport event gradient 为零不可识别，不支持直接多头或 PCGrad |
 | E011 | 2026-08-29 | RTC Action Chunk Transition 受控评估 | completed | RTC 在共同 Reach seed 上推进到 Transport，但把完整闭环 Reach 从 temporal 的 6/10 降到 2/10，未通过 promotion；默认继续 temporal ensemble，不进入 Stage B |
-| E012 | 2026-08-29 | Local DAgger Boundary Recovery | failed | E012a 正式 RG pool 通过 20 条 gate；GL 为 10/100 eligible，低于固定 gate 20；按预注册停止，未创建 D1、未启动 E012b |
+| E012 | 2026-08-29 | Local DAgger Boundary Recovery | stopped | amended D1、repeat-1 训练与 315-Episode checkpoint validation 完成；replay/Dagger 均无 eligible checkpoint，promotion 按 gate 停止，不支持声称 Local DAgger 改善 |
+| E013 | 2026-09-01 | 最小可部署状态 paired attribution | planned | Action correctness amendment 已实现；正式 GPU/ManiSkill 门禁、新 V2 数据采集、训练与闭环比较均未开始 |
 
 ## E001 — 30 条数据 Stage 1 与首轮闭环
 
@@ -1711,6 +1713,165 @@ matched_state_diagnostics.json
 每个文件记录 checkpoint/Dataset/source SHA256、seed、配置、环境版本和上游文件哈希。正式结果发布前
 独立从 raw JSONL 复算汇总；GitHub 只发布源码、manifest、聚合与必要 raw measurement，不上传模型、
 Dataset 或含图像的 trajectory。
+
+## E013 — 最小可部署状态 paired attribution
+
+**Date:** 2026-09-01
+
+**Status:** planned
+
+**Experiment:**
+
+在所有实验臂共同使用修正后的 commanded-target Action executor 的前提下，用同一批新采集、通过
+Observation V2 audit 的 Expert 轨迹构造两个视图：control 只读取当前控制步的双相机 RGB 与
+`q/dq/gripper`，treatment 读取最近四个连续控制步的双相机 RGB、TCP pose、动态 wrist-camera pose、
+左右指接触力、proprio、controller command/tracking state、时间戳和 validity。两臂预测完全相同的
+commanded-target Action label，训练预算和闭环执行协议保持相同。
+
+Action label—execution parity 是 correctness gate，不是 treatment。任何 arm 都不得恢复为“每次 Replan
+从 actual `q` 重新积分 Action”的旧执行语义。完整 Observation、坐标和 Action 等式见
+[minimum deployable state](minimum_deployable_state.md)，长期契约见 [D028](decisions.md#d028--最小可部署状态使用显式-observation-v2action-以-commanded-target-为唯一标签语义)。
+
+**Goal:**
+
+估计“完整最小可部署状态包及其必要 temporal-fusion 实现”相对当前帧 V1 projection 的净闭环作用。
+主问题不是分别证明 TCP、camera pose、history 或 force 中哪一个有效，而是先判断缺失状态这个整体瓶颈
+在当前 220-trajectory 小数据范式下是否具有可测量影响。
+
+Primary estimand 是同一 environment seed、同一 Flow sampling seed 上 treatment 减 control 的 paired
+full-chain 完整成功和 mean completed skills。五技能无条件完成数是阶段定位指标；
+`P(Grasp|Reach)`、`P(Lift|Grasp)` 与 `P(Transport|Lift)` 只作条件诊断，不能在无条件分母下降时单独用于
+promotion。
+
+本实验不回答“220 条单任务轨迹能否从头训练机器人基础模型”这一更宏观的问题。若两臂都失败，只能
+说明补状态在当前训练范式下不足以越过瓶颈，不能推出这些状态无用；若 treatment 改善，也不能推出已经
+解决机器人预训练、任务多样性或数据规模不足。
+
+### 冻结 correctness 与 schema gate
+
+正式采集前必须同时满足：
+
+1. Expert、trajectory validator 与 Runtime 对 joint Action 使用同一个等式：
+   `commanded_target[t] = previous_command_target[t] + action[t, :7]`；
+2. Runtime 跨 Replan 保存最后一次成功发送的 command reference，controller correction 单独由
+   `commanded_target - actual_q` 计算；reset、hold、发送失败、安全拒绝、tracking saturation 和 anomaly
+   清空 reference；
+3. 每个 V2 控制 Tick 的 TCP、wrist-camera pose、双图、proprio、`F_L/F_R`、command/tracking state 和
+   timestamps 来自同一 Simulator Tick；current step 六个模型模态完整有效；
+4. 四帧窗口只能是 `t-3,t-2,t-1,t`、stride 1、oldest-to-newest；Episode 前缀用零 padding 和
+   `history_valid=false`，不得复制首帧、跨 Episode 或读取未来帧；
+5. camera pose 使用 `base_from_camera_cv = inverse(world_from_base) @ world_from_camera_gl @
+   diag(1,-1,-1,1)`，TCP 使用 `base_from_tcp = inverse(world_from_base) @ world_from_tcp`；
+6. `F_L/F_R` 只来自 target cube 与左右 finger link 的 pairwise contact-force magnitude。旧 aggregate
+   不得复制到两侧；train-only `finger_force_stats.json` 必须有左右正接触样本并进入 checkpoint identity；
+7. V1 projection 和 V2 view 必须来自同一 trajectory/time index；Dataset audit 逐样本核验 Action target
+   与 split identity，且 control loader 无法读取任何被屏蔽的 V2 字段。
+
+任一 gate 失败均保留产物并停止，不通过默认值、复制旧字段、删除失败 Episode 或放宽 validator 继续。
+
+### 新数据与 paired views
+
+- Dataset identity：`D0-V2`，只接受本 amendment 后重新采集的完整成功 Expert trajectories；旧 E012
+  D0/D1 不升级、不混入。
+- Candidate environment seeds：按升序固定扫描 `40000..42199`，最多 2,200 个 candidate；不在结果后
+  跳过困难 seed。达到 220 条合格完整成功轨迹后停止。
+- Split：按 accepted candidate 的升序固定为 train 176、validation 22、test 22。仅 train split 拟合
+  `proprio_stats.json` 与 `finger_force_stats.json`。
+- `D0-V2-full`：完整 V2 treatment view。
+- `D0-V2-projection-v1`：同一 trajectory、split、time index 和 Action target，只暴露当前双图以及
+  `q/dq/gripper`；不得用旧 Dataset 或另一轮采集替代 control。
+- 两个 manifest 必须记录相同 ordered trajectory IDs、trajectory SHA、split、Action semantic version、
+  environment/source revision；projection manifest 另记录被屏蔽字段清单和其上游 V2 manifest SHA。
+
+若 2,200 个 candidate 内不足 220 条合格完整成功轨迹，E013 记为 data-gate failed 并停止；不得减少样本
+目标或用失败轨迹填充。220 条规模是对当前小数据范式的受控复现，并不宣称它足以训练通用机器人策略。
+
+### 训练配对
+
+每个训练 repeat 同时包含一个 control 和一个 treatment，冻结以下配对变量：
+
+- repeat seeds：repeat 1 为 `13013`，repeat 2 为 `23013`；
+- Frozen Qwen：`Qwen/Qwen3.5-2B`，固定 revision 与 Layer 12 hidden state；
+- 相同 ordered trajectory IDs、split、Action target、Task→Episode→timestep sampler schedule；
+- 30 epochs、每 epoch 4,096 samples，共 122,880 examples；micro batch 1、gradient accumulation 64，
+  共 1,920 optimizer steps；
+- AdamW `1e-4`、warmup 1,000、cosine horizon 30,000、event loss `0.25` 且 event warmup 0；
+- 相同 Action normalization、Flow objective、skill weights、validation sample IDs、checkpoint write interval
+  和数值精度；
+- 随机初始化的非 Qwen 参数按 repeat seed 生成；两臂共享形状/语义相同的初始 tensor 必须逐 tensor
+  记录 SHA，相异的 temporal-fusion 参数明确列入 architecture diff；
+- formal primary checkpoint 固定为 epoch 30。epoch 10/20 可保存作训练诊断，但不得根据 validation loss
+  或闭环结果替换 primary checkpoint，也不得临时加入 runtime `best.pt`。
+
+Control 和 treatment 的参数量、显存与 latency 必须分别报告。因为完整 V2 需要 temporal state fusion 和
+八图 Qwen 输入，E013 的 first estimand 是 deployable state **bundle**，包含其必要计算结构；它不是严格的
+单模态或等参数量消融。
+
+### GPU 与仿真工程门禁
+
+正式训练前先在冻结的正式 Python/CUDA/ManiSkill 环境运行非正式 smoke seeds，且 smoke 不进入 Dataset、
+训练或效果统计：
+
+1. Temporal Expert 单次 forward/backward、V2 checkpoint save/load/resume/init round-trip；
+2. 真实 Qwen Processor 八图输入、Episode padding attention mask、单次 Replan 只运行一次 Qwen；
+3. ManiSkill TCP/camera SE(3)、左右 force 的 shape/dtype/单位与同-Tick timestamp；
+4. plain Flow、temporal ensemble、RTC 各一条 full-chain 和 atomic smoke；
+5. batch 1 的峰值显存、单次 Replan latency 和闭环 p95 latency。
+
+若 24 GB GPU OOM 或 p95 latency 超出 20 Hz/既定 Replan 预算，记为 engineering-gate failed。不得在同一
+实验身份下静默降低分辨率、历史长度、Qwen 图像数或模型宽度；任何资源 amendment 必须先更新预注册并
+使用新实验 ID。
+
+### 正式闭环评估
+
+- 执行：20 Hz、每 4 步 Replan、10-step Flow Euler、`temporal-ensemble`、
+  `recency_decay=0.5`、`max_anomaly_replans=3`；
+- Flow sampling seed base：`42424`，每个 environment seed 在 control/treatment 间严格配对；
+- repeat 1 full-chain seeds：`43000..43029`，共 30；atomic seeds `43030..43039`，
+  Reach/Grasp/Lift/Transport/Place 各 10，共 50；
+- repeat 2 full-chain seeds：`43100..43129`，共 30；atomic seeds `43130..43139`，五技能各 10，共 50；
+- 所有 evaluation seeds 与 `40000..42199` collection registry、E012 的 `31000..32129` seeds 不重叠；
+- 每个正式目录必须恰有预注册行数和 seed/skill 集合；实验完成后由独立 analyzer 从 episodes JSONL 复算
+  summary，并记录 code、Dataset、stats、checkpoint、config、episodes 和 summary SHA。
+
+每个 repeat 先逐 seed 报告 paired full success、completed-skill difference 和五技能无条件 completion；再
+报告 aggregate count、Wilson interval 与 exact paired McNemar/sign test。两个 repeat 分开报告，并用
+environment seed 为配对单位给出 pooled descriptive effect；不得把 60 个 Episode 当成独立训练 repeat。
+
+### Promotion rule 与结论边界
+
+先应用 guardrail，后看收益：
+
+1. treatment 不得新增 system error、安全拒绝、tracking saturation 或 anomaly Episode；
+2. treatment 的 atomic Grasp、Lift、Place 任一技能不得在任一 repeat 净回归超过 `1/10`；
+3. treatment full-chain Reach 不得在任一 repeat 净回归超过 `1/30`；
+4. guardrail 通过后，两个 repeat 的 mean completed skills paired difference 都必须大于 0，且合计
+   full success 不得下降；
+5. “支持继续拆分归因”的最小正向证据为：两个 repeat 的无条件 Lift completion 都不下降，并且至少一个
+   repeat 增加 `>=3/30`，另一个 repeat 增加 `>=1/30`；full success 增加是更强证据但不是必要条件。
+
+任一 guardrail 失败即保留结果并停止 promotion，不调参复用 seeds。若只看到 conditional probability
+提高而共同 predecessor 或无条件 numerator 下降，结论仍为 gate failed。
+
+只有 bundled V2 通过上述规则，才创建新的预注册实验对 TCP pose、camera pose、四帧 history 和
+`F_L/F_R` 做 component masking ablation；不得在看到 E013 结果后从本实验删模态并把该分析写成预注册
+结论。若 E013 未通过，下一步优先比较机器人预训练/更小动作模型或扩大多任务数据，而不是继续堆叠状态。
+
+**Result:**
+
+尚无正式结果。截至 2026-09-01，只完成本地工程实现与在缺少 PyTorch、Transformers、ManiSkill 的环境
+中可执行的回归测试；真实 GPU/Qwen/ManiSkill smoke、新 D0-V2 采集、两组训练 repeat 和正式闭环评估均
+未运行。静态/单元测试不得写作策略效果证据。
+
+**Conclusion:**
+
+待实验完成。当前只允许结论为：Action 语义和 Observation V2 已形成可审计工程契约，尚无证据证明补足
+状态会提高闭环表现。
+
+**Next step:**
+
+在冻结正式环境中依次运行 lint/Torch targeted tests、Qwen/ManiSkill smoke 和资源门禁；全部通过后才按
+本条目采集 `D0-V2`，不得直接用旧 D0 启动 V2 正式训练。
 
 ## 实验模板
 
