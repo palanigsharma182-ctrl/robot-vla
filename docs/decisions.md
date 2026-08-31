@@ -1163,10 +1163,149 @@ ProprioStats 则避免把输入标准化变化混入数据 exposure intervention
 - 在 `D1` 上重新拟合 ProprioStats：同时改变输入归一化，不能识别纯数据 exposure 效果，拒绝。
 
 **Implementation status:** additive Local DAgger provenance、live takeover collector、snapshot ring/round-trip、
-trajectory/writer validator、Expert-only Dataset/Collator/loss 防线、boundary risk selection、正式 pool runner、
-rejection record 与 E012a smoke 已实现并通过针对性测试。正式 E012a 完整扫描后 Reach→Grasp 通过容量 gate，
-但 Grasp→Lift 仅有 10 条 eligible trajectory，低于预注册的 20 条，因此按本决策的 stop rule 未创建 D1、
-未实现或运行 source-first sampler、独立 `--init-checkpoint`、checkpoint selection 与 E012b 训练/评估。
+trajectory/writer validator、Expert-only Dataset/Collator/loss 防线、source-first sampler、独立
+`--init-checkpoint`、paired training verifier、checkpoint selection 与 paired evaluation analyzer 均已实现并通过
+针对性测试。Legacy E012a 的 GL 容量 gate 失败按当时 stop rule 保留；后续 D026 amended protocol 独立通过
+collection / D1 / union audit，repeat-1 replay/DAgger 训练和 checkpoint validation 已完成。两臂均无 eligible
+checkpoint，因此按 D027 在 selection gate 停止，未运行 Stage A/B。
+
+**Status:** active
+
+## D026 — Amended GL 使用分段 Action 预算，并在 rollout 前冻结完整候选池
+
+**Decision:**
+
+E012 的 amended Grasp→Lift collection 保持 D025 的同一 `CollectionSession`、完整五技能 success/audit、
+takeover 后 Expert-only boundary-local supervision 与 paired clean Expert 契约，只把主 trajectory 的 Action
+预算改为：
+
+```text
+protocol:                 segmented-300-180-480
+Policy roll-in budget:    300 actual environment actions
+Expert recovery budget:   180 actual environment actions
+environment hard limit:   480 actual environment actions
+success deadline:         strictly before environment truncation
+paired clean Expert:      legacy-300
+eligible gate:            20
+selection:                14 high-risk + 6 low-risk
+```
+
+正式 candidate 必须先写入同父目录的隐藏 staging dataset；只有 snapshot、paired clean Expert、risk、
+`TrajectoryStore` 重新加载与完整 audit 全部通过后，才能原子发布到 canonical dataset。正常 rejection、
+Python exception 或 record 写入失败必须回滚未提交的 staging/canonical 产物。`SIGKILL`、断电或文件系统
+故障若发生在 dataset rename、staging marker 删除与 record 原子写之间，可能留下 partial canonical
+dataset；此时 resume 必须因缺 record、残留 marker 或 partial candidate fail closed，禁止进入 selection / D1，
+并要求人工审计清理。D1 builder 只消费 formal runner 显式发布的 canonical `accepted + selected` record
+manifest，对 status/config/source/checkpoint/D0/audit/selection 任一漂移 fail closed；禁止扫描任意 NPZ 目录
+推断训练输入。
+
+正式 pool 必须在第一次 rollout 前一次性冻结连续 seed range、总 candidate 数和完整 config identity，
+resume 只能接受 exact-equal identity；已有 `status=error`、partial candidate、receipt/record 漂移或不同
+config 都必须阻断。不得根据中途观察到的 eligible 数量临时续采，否则会改变预注册 population 与
+capacity interpretation。runner 固定要求从 amended formal 预留起点 `30200` 开始，并禁止 seed end 越过
+checkpoint validation 起点 `31000`；experiment identity 还必须冻结 Qwen model/revision、关键 Python
+package、CUDA 与 GPU runtime 信息，不能只记录 model cache 路径。
+
+冻结 D0 的历史 dataset identity 使用加入 Local DAgger metadata 之前的 canonical projection。当前
+`TrajectoryMeta.to_dict()` 会给 220 条 clean trajectory 自动补入 `local_dagger: null`，因此同一批未改写
+文件在当前 projection 下得到不同 hash。Amended formal runner 不得把新的 hash 回写为 D0 身份，也不得
+全局删除 D1 所需的 Local DAgger provenance；它必须在 CUDA 初始化和任何 formal artifact 写入前，以只读
+方式同时验证：历史 projection `bc024…`、当前 projection `bb066…`、raw manifest/audit/proprio stats、
+220 个 manifest-referenced NPZ 的实际 SHA、split/count/step 和无 symlink/path escape。只有两个 projection
+及所有 leaf receipt 同时精确匹配，才能把带版本号的 compatibility receipt 写入 `experiment.json`。
+Candidate record 还必须绑定其实际读取的 proprio-stats raw/semantic SHA 与 checkpoint 内嵌 stats，避免只在
+pool 启动时验证一次路径内容。
+
+Pool size 尚未冻结。现有规划 evidence 明确排除原来的固定 120 条作为低风险方案：planning point rate
+为 `(10 legacy eligible + 5 recovered legacy TimeLimit) / 100 = 15%`，120 条在 Jeffreys Beta-binomial
+posterior predictive 下达到 20 条 gate 的概率约 40.1%。200 条约 90.9%，220 条约 94.7%；严格达到 95%
+的最小值为 223，因此当前严格低风险候选是按 20 条批量向上取整为 240 条。Owner 确认前不冻结 seed
+end、不启动正式 amended rollout。
+
+**Reason:**
+
+旧 `legacy-300` 将 Policy roll-in 与 Expert recovery 共用同一 episode time limit，16 条 formal GL
+trajectory 已到达 takeover，却在完整成功前被统一 TimeLimit 截断。固定 16-seed counterfactual 显示，
+`segmented-300-180-480` 能恢复其中 5 条完整 eligible，并使另 1 条完成行为但被 snapshot gate 正确拒绝；
+16/16 prefix metadata aligned、0 engineering error、0 hard deadline。它支持把 Policy 与 Expert 的预算
+语义分开，但不支持放宽 audit 或把 counterfactual artifact 作为训练数据。
+
+同一 counterfactual 也说明容量才是下一项主要执行风险：5/16 是旧 TimeLimit 条件恢复率，不能作为新
+seed 总体率。使用 15/100 的 planning estimate 时，120 条 pool 的期望 eligible 仅为 18，本身低于 gate。
+固定较大的完整 pool 可以在不事后选样或续采的情况下提高 gate assurance；保留 staged publish 和
+canonical record manifest 则关闭历史 rejected record 旁残留 orphan NPZ 被误纳入 D1 的污染路径。
+
+**Alternatives considered:**
+
+- 继续使用 `legacy-300`：会把 Policy roll-in 长度和 Expert recovery 可用预算混为同一变量，已由 16 条
+  post-takeover TimeLimit 证据否决。
+- 只提高 environment hard limit，不设置独立 Expert cap：无法区分 Policy rollout 与 Expert recovery
+  成本，也不能形成可审计的阶段性停止原因，拒绝。
+- 放宽完整成功或 snapshot/paired gate 来增加 eligible：会改变可信 trajectory 契约，并让 seed 30181
+  等 artifact 绕过已冻结审计，拒绝。
+- 让 runner 扫描目录中的 NPZ：通用 trajectory artifact 不含自描述禁训练标记，且历史已有 rejected
+  record 旁 orphan artifact，拒绝。
+- 先跑 120 条、不足再续采：使总 pool size 依赖中途 outcome，破坏固定 population 与容量模型，拒绝。
+- 依据 5/16 条件恢复率把正式总体率估成 31.25%：counterfactual 只选择旧 TimeLimit 子群，存在明确
+  selection bias，拒绝。
+
+**Implementation status:** segmented action accounting、hard-deadline 三信号、三条 smoke、16-seed
+counterfactual、staged publish、canonical selected-record manifest、seed registry guard、exact-prefix resume、
+Qwen/runtime identity、immutable receipt、D0 双 projection content verifier 和独立 artifact/statistics audit 已
+实现。真实 frozen D0 的只读 verifier 已精确匹配 `220` 条、`48,922` steps 及全部 leaf/root identity；随后
+owner-frozen amended formal pool、D1 build、D0+D1 union audit 与 repeat-1 训练均通过各自门禁。该进展不
+回写 legacy formal，也不改变 smoke/counterfactual 禁止训练的用途。最终 promotion 在 D027 的 checkpoint
+selection guardrail 停止。
+
+**Status:** active
+
+## D027 — Checkpoint selection 无 eligible 候选时停止 E012 promotion
+
+**Decision:**
+
+E012 repeat-1 只允许对每个训练臂的 epoch 10、20、30 运行预注册 lexicographic selection。先执行 system、
+safety、tracking、anomaly、atomic Grasp/Lift/Place 与 full Reach guardrail；只有通过全部排除检查的候选才可
+进入无条件 Lift、Grasp、mean completed skills、固定 D0 validation loss 与较早 epoch 的 ranking。若任一臂
+`selected=null`，则不存在合法 Stage A pair，必须保留结果并停止：
+
+```text
+Stage A:                  not run
+repeat 2:                 not trained
+Stage B:                  not run
+matched-state selected-pair diagnostics: not run
+```
+
+不得因为观察到 replay e20 或 Dagger e30 的正向 Grasp/Lift validation 信号而手工选模；不得加入 epoch 24、
+Dagger epoch 9、`best.pt` 或 validation-loss 临时候选；不得调参后复用 `31000..31024`、`32000..` 或
+`32100..` seeds。Checkpoint validation 只能作为 model-selection evidence，不能写成 Stage A/B 效果。
+
+**Reason:**
+
+正式 315-Episode validation 中，两臂的六个候选全部违反至少一个 guardrail。Replay e20 的 full
+Reach/Grasp/Lift net wins 为 `+8/+9/+6`，但 atomic Place 为 `-3`；Dagger e30 为 `+2/+3/+4`，但 atomic
+Place 为 `-2`，并新增 anomaly 和 tracking saturation。两臂的正式 receipt 均为
+`selection_gate_passed=false`、`selected=null`、eligible ranking 为空。允许正向中间技能信号覆盖预注册
+guardrail，会把已观察的 model-selection 数据用于事后改写 estimand，并失去 replay-controlled promotion
+协议的可解释性。
+
+这项 stop 不把 training audit 判为失败：两臂各完成 30 epochs、122,880 examples、1,920 optimizer steps，
+paired verifier 和 Expert-only exposure audit 均通过。它只说明当前预注册 checkpoint 集合没有能同时保住
+Reach/Place/运行 guardrail 的可 promotion 候选。因此合法结论是“promotion 在 checkpoint selection
+停止”，不是“Local DAgger 改善”或“Local DAgger 必然无效”。
+
+**Alternatives considered:**
+
+- 选择 replay e20 或 Dagger e30：会忽略 atomic Place、anomaly/tracking 的显式排除规则，拒绝。
+- 依据 epoch-24 validation loss 或运行时 `best.pt` 增加候选：候选集已在结果前冻结，拒绝。
+- 直接进入 Stage A 再决定是否保留：Stage A 的输入本身要求合法 selected pair，不能用后续 gate 修补前置
+  selection 失败，拒绝。
+- 仅做 matched-state diagnostics：当前预注册 diagnostics 比较 selected replay/DAgger pair；自行挑模型会
+  改变机制问题和样本选择，记为 not run。
+
+**Implementation status:** 两份正式 selection receipt 已冻结并独立复算，SHA-256 分别为
+`0fdc195552e742b017d71da57974a98ff626c018d289a1f5ffa891f74e1ee838` 与
+`84ba2e7435438d65ebd1fb926cda21fbf69f92093021cf68cc4f0abc579586f6`；脱敏 compact summary 和 portable
+technical report 已生成。Stage A/repeat 2/Stage B/matched-state selected-pair diagnostics 均未启动。
 
 **Status:** active
 

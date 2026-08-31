@@ -13,6 +13,11 @@ from robot_vla.data.trajectory import (
     load_manifest,
     validate_trajectory,
 )
+from robot_vla.local_dagger_protocol import (
+    LOCAL_DAGGER_ACTION_BUDGET_PROTOCOL_FIELD,
+    LOCAL_DAGGER_ACTION_BUDGET_USAGE_FIELD,
+    resolve_local_dagger_action_budget,
+)
 
 
 def _local_dagger_episode(meta_factory, arrays_factory, *, steps: int = 80, takeover: int = 4):
@@ -39,6 +44,24 @@ def _local_dagger_episode(meta_factory, arrays_factory, *, steps: int = 80, take
         ),
     )
     return meta, arrays
+
+
+def _with_segmented_budget(meta, *, steps: int, takeover: int):
+    plan = resolve_local_dagger_action_budget("segmented-300-180-480")
+    planned = plan.planned_metadata()
+    usage = plan.usage_metadata(
+        total_actions=steps,
+        expert_takeover_step=takeover,
+    )
+    assert planned is not None and usage is not None
+    return replace(
+        meta,
+        randomization={
+            **meta.randomization,
+            LOCAL_DAGGER_ACTION_BUDGET_PROTOCOL_FIELD: planned,
+            LOCAL_DAGGER_ACTION_BUDGET_USAGE_FIELD: usage,
+        },
+    )
 
 
 def test_manifest_and_trajectory_v2_round_trip(
@@ -179,3 +202,107 @@ def test_local_dagger_contract_rejects_policy_action_marked_as_expert(
             meta,
             RobotSpec(),
         )
+
+
+@pytest.mark.parametrize("takeover", (299, 300))
+def test_segmented_local_dagger_budget_accepts_each_segment_cap_before_deadline(
+    meta_factory,
+    arrays_factory,
+    takeover: int,
+) -> None:
+    meta, arrays = _local_dagger_episode(
+        meta_factory,
+        arrays_factory,
+        steps=479,
+        takeover=takeover,
+    )
+    meta = _with_segmented_budget(meta, steps=479, takeover=takeover)
+
+    validate_trajectory(arrays, meta, RobotSpec())
+
+
+@pytest.mark.parametrize(
+    ("steps", "takeover", "message"),
+    (
+        (400, 301, "Policy action budget"),
+        (185, 4, "Expert recovery"),
+        (480, 300, "hard deadline"),
+        (481, 300, "hard deadline"),
+    ),
+)
+def test_segmented_local_dagger_budget_caps_fail_closed(
+    meta_factory,
+    arrays_factory,
+    steps: int,
+    takeover: int,
+    message: str,
+) -> None:
+    meta, arrays = _local_dagger_episode(
+        meta_factory,
+        arrays_factory,
+        steps=steps,
+        takeover=takeover,
+    )
+    meta = _with_segmented_budget(meta, steps=steps, takeover=takeover)
+
+    with pytest.raises(ValueError, match=message):
+        validate_trajectory(arrays, meta, RobotSpec())
+
+
+def test_segmented_local_dagger_budget_rejects_partial_or_drifted_usage(
+    meta_factory,
+    arrays_factory,
+) -> None:
+    meta, arrays = _local_dagger_episode(meta_factory, arrays_factory)
+    plan = resolve_local_dagger_action_budget("segmented-300-180-480")
+    planned = plan.planned_metadata()
+    assert planned is not None
+    partial = replace(
+        meta,
+        randomization={
+            **meta.randomization,
+            LOCAL_DAGGER_ACTION_BUDGET_PROTOCOL_FIELD: planned,
+        },
+    )
+    with pytest.raises(ValueError, match="必须同时声明"):
+        validate_trajectory(arrays, partial, RobotSpec())
+
+    explicit_null = replace(
+        meta,
+        randomization={
+            **meta.randomization,
+            LOCAL_DAGGER_ACTION_BUDGET_PROTOCOL_FIELD: None,
+            LOCAL_DAGGER_ACTION_BUDGET_USAGE_FIELD: None,
+        },
+    )
+    with pytest.raises(ValueError, match="protocol 必须是对象"):
+        validate_trajectory(arrays, explicit_null, RobotSpec())
+
+    amended = _with_segmented_budget(meta, steps=80, takeover=4)
+    drifted_usage = dict(
+        amended.randomization[LOCAL_DAGGER_ACTION_BUDGET_USAGE_FIELD]
+    )
+    drifted_usage["expert_actions"] -= 1
+    drifted = replace(
+        amended,
+        randomization={
+            **amended.randomization,
+            LOCAL_DAGGER_ACTION_BUDGET_USAGE_FIELD: drifted_usage,
+        },
+    )
+    with pytest.raises(ValueError, match="usage 与 trajectory"):
+        validate_trajectory(arrays, drifted, RobotSpec())
+
+    drifted_protocol = dict(
+        amended.randomization[LOCAL_DAGGER_ACTION_BUDGET_PROTOCOL_FIELD]
+    )
+    drifted_protocol["deadline_semantics"] = "success_may_coincide_with_truncation"
+    drifted = replace(
+        amended,
+        randomization={
+            **amended.randomization,
+            LOCAL_DAGGER_ACTION_BUDGET_PROTOCOL_FIELD: drifted_protocol,
+        },
+    )
+    with pytest.raises(ValueError, match="冻结定义"):
+        validate_trajectory(arrays, drifted, RobotSpec())

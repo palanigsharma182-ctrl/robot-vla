@@ -22,6 +22,11 @@ from robot_vla.data.events import (
     EVENT_STATE_ARRAYS,
     EVENT_STATE_CONTRACT_VERSION,
 )
+from robot_vla.local_dagger_protocol import (
+    LOCAL_DAGGER_ACTION_BUDGET_PROTOCOL_FIELD,
+    LOCAL_DAGGER_ACTION_BUDGET_USAGE_FIELD,
+    resolve_local_dagger_action_budget,
+)
 
 REQUIRED_ARRAYS = (
     "rgb_external",
@@ -619,9 +624,25 @@ def validate_trajectory(arrays: TrajectoryArrays, meta: TrajectoryMeta, spec: Ro
         raise ValueError("声明 event-state contract 的轨迹缺少 optional arrays")
 
     local_dagger_available = arrays.local_dagger_available
+    action_budget_protocol_present = (
+        LOCAL_DAGGER_ACTION_BUDGET_PROTOCOL_FIELD in meta.randomization
+    )
+    action_budget_usage_present = (
+        LOCAL_DAGGER_ACTION_BUDGET_USAGE_FIELD in meta.randomization
+    )
+    action_budget_protocol = meta.randomization.get(
+        LOCAL_DAGGER_ACTION_BUDGET_PROTOCOL_FIELD
+    )
+    action_budget_usage = meta.randomization.get(
+        LOCAL_DAGGER_ACTION_BUDGET_USAGE_FIELD
+    )
+    if action_budget_protocol_present != action_budget_usage_present:
+        raise ValueError("Local DAgger action-budget protocol/usage 必须同时声明")
     if meta.local_dagger is None:
         if local_dagger_available:
             raise ValueError("Clean trajectory 不能携带未声明的 Local DAgger arrays")
+        if action_budget_protocol_present:
+            raise ValueError("Clean trajectory 不能声明 Local DAgger action-budget")
     else:
         if not local_dagger_available:
             raise ValueError("Local DAgger trajectory 缺少逐 Action source/supervision arrays")
@@ -658,6 +679,47 @@ def validate_trajectory(arrays: TrajectoryArrays, meta: TrajectoryMeta, spec: Ro
         expected_supervision = expected_source == ACTION_SOURCE_EXPERT
         if not np.array_equal(arrays.expert_supervision_mask, expected_supervision):
             raise ValueError("expert_supervision_mask 与 action_source 不一致")
+        if action_budget_protocol_present:
+            if not isinstance(action_budget_protocol, dict):
+                raise ValueError("Local DAgger action-budget protocol 必须是对象")
+            plan = resolve_local_dagger_action_budget(
+                str(action_budget_protocol.get("name", ""))
+            )
+            planned = plan.planned_metadata()
+            if planned is None or action_budget_protocol != planned:
+                raise ValueError("Local DAgger action-budget protocol 与冻结定义不一致")
+            if not isinstance(action_budget_usage, dict):
+                raise ValueError("Local DAgger action-budget usage 必须是对象")
+            if set(action_budget_usage) != {
+                "policy_actions",
+                "expert_actions",
+                "total_actions",
+            } or any(
+                not isinstance(value, int) or isinstance(value, bool)
+                for value in action_budget_usage.values()
+            ):
+                raise ValueError("Local DAgger action-budget usage 必须是精确整数计数")
+            expected_usage = plan.usage_metadata(
+                total_actions=length,
+                expert_takeover_step=takeover,
+            )
+            if action_budget_usage != expected_usage:
+                raise ValueError("Local DAgger action-budget usage 与 trajectory 不一致")
+            expert_actions = length - takeover
+            if (
+                plan.policy_action_limit is None
+                or plan.expert_action_limit is None
+                or plan.environment_action_limit is None
+            ):
+                raise RuntimeError("amended Local DAgger action-budget 缺少冻结上限")
+            if plan.environment_hard_deadline_reached_after_action(
+                total_actions=length
+            ):
+                raise ValueError("Local DAgger trajectory 达到或超出环境 hard deadline")
+            if takeover > plan.policy_action_limit:
+                raise ValueError("Local DAgger takeover 超出 Policy action budget")
+            if expert_actions > plan.expert_action_limit:
+                raise ValueError("Local DAgger Expert recovery 超出 action budget")
 
     if not np.isfinite(arrays.proprio).all() or not np.isfinite(arrays.action).all():
         raise ValueError("proprio/action 包含 NaN 或 Inf")

@@ -258,6 +258,8 @@ class TrustedPickPlaceCollector:
         self,
         dataset_root: str | Path | None,
         spec: RobotSpec | None = None,
+        *,
+        max_episode_steps: int | None = None,
     ) -> None:
         self.spec = spec or RobotSpec()
         self.writer = (
@@ -266,12 +268,23 @@ class TrustedPickPlaceCollector:
         self.observation_adapter = FrankaObservationAdapter(self.spec)
         self.action_adapter = ActionAdapter(self.spec)
         register_robot_vla_maniskill_envs()
-        self.env = gym.make(
-            PICK_CUBE_TO_REGION_ENV_ID,
-            obs_mode="rgb+segmentation",
-            control_mode="pd_joint_delta_pos",
-            num_envs=1,
-        )
+        if max_episode_steps is None:
+            self.env = gym.make(
+                PICK_CUBE_TO_REGION_ENV_ID,
+                obs_mode="rgb+segmentation",
+                control_mode="pd_joint_delta_pos",
+                num_envs=1,
+            )
+        else:
+            if max_episode_steps <= 0:
+                raise ValueError("max_episode_steps 必须为正整数")
+            self.env = gym.make(
+                PICK_CUBE_TO_REGION_ENV_ID,
+                obs_mode="rgb+segmentation",
+                control_mode="pd_joint_delta_pos",
+                num_envs=1,
+                max_episode_steps=max_episode_steps,
+            )
         self.base_env = self.env.unwrapped
         self._planner: PandaArmMotionPlanningSolver | None = None
 

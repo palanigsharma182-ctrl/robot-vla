@@ -1,6 +1,6 @@
 """robot-vla-trajectory/v2 数据组件。"""
 
-from robot_vla.data.dataset import ActionChunkDataset
+from robot_vla.data.dataset import ActionChunkDataset, CompositeActionChunkDataset
 from robot_vla.data.events import (
     EventDetectionConfig,
     TrajectoryEventMasks,
@@ -22,10 +22,11 @@ from robot_vla.data.trajectory import (
 from robot_vla.data.writer import TrajectoryDatasetWriter, plan_scene_splits
 
 __all__ = [
-    "ActionChunkDataset",
     "ACTION_SOURCE_EXPERT",
     "ACTION_SOURCE_POLICY",
+    "ActionChunkDataset",
     "CameraCalibration",
+    "CompositeActionChunkDataset",
     "EventDetectionConfig",
     "LocalDaggerProvenance",
     "OutcomeEvidence",

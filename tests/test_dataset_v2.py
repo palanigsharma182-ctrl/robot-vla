@@ -2,7 +2,7 @@ import numpy as np
 
 from robot_vla.adapters import ProprioNormalizer, ProprioStats
 from robot_vla.contracts import RobotSpec
-from robot_vla.data.dataset import ActionChunkDataset
+from robot_vla.data.dataset import ActionChunkDataset, CompositeActionChunkDataset
 from robot_vla.data.trajectory import LocalDaggerProvenance, load_manifest
 
 
@@ -127,3 +127,38 @@ def test_local_dagger_dataset_only_indexes_complete_expert_window_chunks(
     assert dataset[0]["action_mask"].all()
     assert dataset[0]["supervision_mask"].all()
     assert not np.any(dataset[0]["action"][:, 0] == 1.0)
+
+
+class _FakeChunkDataset:
+    def __init__(self, label: str, size: int) -> None:
+        self.label = label
+        self.size = size
+
+    def __len__(self) -> int:
+        return self.size
+
+    def __getitem__(self, index: int) -> dict[str, int | str]:
+        return {"component": self.label, "index": index}
+
+    def sampling_metadata(self, index: int) -> dict[str, int | str | None]:
+        return {
+            "episode_key": f"episode-{index // 2}",
+            "task_id": "task",
+            "source": "base_d0" if self.label == "base" else "dagger_reach_grasp",
+            "skill_id": index,
+            "boundary_offset": None if self.label == "base" else index,
+        }
+
+
+def test_composite_dataset_keeps_component_storage_separate() -> None:
+    dataset = CompositeActionChunkDataset(
+        (_FakeChunkDataset("base", 3), _FakeChunkDataset("dagger", 2))
+    )
+
+    assert len(dataset) == 5
+    assert dataset[0] == {"component": "base", "index": 0}
+    assert dataset[2] == {"component": "base", "index": 2}
+    assert dataset[3] == {"component": "dagger", "index": 0}
+    assert dataset[-1] == {"component": "dagger", "index": 1}
+    assert dataset.sampling_metadata(1)["episode_key"] == (0, "episode-0")
+    assert dataset.sampling_metadata(4)["episode_key"] == (1, "episode-0")

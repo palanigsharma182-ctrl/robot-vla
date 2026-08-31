@@ -1,0 +1,53 @@
+{
+  "all_prefix_aligned": true,
+  "blocked": false,
+  "classification_additivity": {
+    "classified_candidates": 16,
+    "completed_candidates": 16,
+    "holds": true
+  },
+  "classification_counts": {
+    "engineering_error": 0,
+    "expert_completed_but_snapshot_or_paired_gate_failed": 1,
+    "expert_recovery_budget_exhausted": 4,
+    "other_behavioral_rejection": 6,
+    "prefix_mismatch": 0,
+    "recovered_full_eligible": 5
+  },
+  "complete": true,
+  "completed_candidates": 16,
+  "expected_candidates": 16,
+  "format": "robot-vla-local-dagger-budget-counterfactual/v1",
+  "purpose": "exploratory counterfactual",
+  "scan_complete": true,
+  "seeds_by_classification": {
+    "engineering_error": [],
+    "expert_completed_but_snapshot_or_paired_gate_failed": [
+      30181
+    ],
+    "expert_recovery_budget_exhausted": [
+      30137,
+      30187,
+      30193,
+      30196
+    ],
+    "other_behavioral_rejection": [
+      30129,
+      30143,
+      30156,
+      30162,
+      30165,
+      30195
+    ],
+    "prefix_mismatch": [],
+    "recovered_full_eligible": [
+      30103,
+      30105,
+      30106,
+      30145,
+      30171
+    ]
+  },
+  "successful_npz_may_enter_d1": false,
+  "trajectory_usage": "forbidden as training data"
+}

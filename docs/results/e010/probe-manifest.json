@@ -2,19 +2,19 @@
   "checkpoints": [
     {
       "label": "e090",
-      "path": "/home/ubuntu/robot-vla-runs/stage1-layer12-data220-event025-e100/checkpoints/step-00005760.pt",
+      "path": "run://stage1-layer12-data220-event025-e100/checkpoints/step-00005760.pt",
       "sha256": "a7a35227f1c6e1b5e42e2d0fa228ba47d7ab4f589249fd33de98de43673645ee",
       "size_bytes": 1290603631
     },
     {
       "label": "e098-best",
-      "path": "/home/ubuntu/robot-vla-runs/stage1-layer12-data220-event025-e100/checkpoints/best.pt",
+      "path": "run://stage1-layer12-data220-event025-e100/checkpoints/best.pt",
       "sha256": "a542076f291e29b68e3d28930b15c40396d511a44eb358c2eaeb4e113c041ad6",
       "size_bytes": 1290603631
     },
     {
       "label": "e100",
-      "path": "/home/ubuntu/robot-vla-runs/stage1-layer12-data220-event025-e100/checkpoints/step-00006400.pt",
+      "path": "run://stage1-layer12-data220-event025-e100/checkpoints/step-00006400.pt",
       "sha256": "d6eff9f4086765118a032fe812f29466e1b3e7a99c0f8fe8d56f93bc4d57e339",
       "size_bytes": 1290603631
     }
@@ -166,7 +166,7 @@
     "e100"
   ],
   "created_at": "2026-08-28T18:03:06.764494+00:00",
-  "data_path": "/home/ubuntu/robot-vla-data/trusted-v0.4-event-recovery-220",
+  "data_path": "dataset://trusted-v0.4-event-recovery-220",
   "dataset": {
     "dataset_sha256": "bc024b6b9c566ca9500945fb6ac262bf657bee713d8a5816229bdc8478139407",
     "manifest_sha256": "43f131cc1b79b93cf6e38f3f5e476d7a03fe29410daa720a672989c95afc477f",
@@ -905,7 +905,7 @@
     "final_norm",
     "velocity_head"
   ],
-  "model_cache_path": "/home/ubuntu/robot-vla-cache/qwen",
+  "model_cache_path": "model-cache://qwen",
   "objective": {
     "autocast_dtype": "bfloat16",
     "event_loss_weight": 0.25,

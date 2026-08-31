@@ -1,0 +1,1967 @@
+{
+  "accepted_survivor_timing": {
+    "count": 10,
+    "definition": "takeover_to_full_success_steps = trajectory.num_steps - expert_takeover_step",
+    "expert_takeover_step": {
+      "max": 179,
+      "median": 131,
+      "min": 82
+    },
+    "per_seed": [
+      {
+        "environment_seed": 30111,
+        "expert_takeover_step": 154,
+        "num_steps": 294,
+        "takeover_to_success_steps": 140
+      },
+      {
+        "environment_seed": 30125,
+        "expert_takeover_step": 141,
+        "num_steps": 274,
+        "takeover_to_success_steps": 133
+      },
+      {
+        "environment_seed": 30133,
+        "expert_takeover_step": 86,
+        "num_steps": 237,
+        "takeover_to_success_steps": 151
+      },
+      {
+        "environment_seed": 30138,
+        "expert_takeover_step": 106,
+        "num_steps": 237,
+        "takeover_to_success_steps": 131
+      },
+      {
+        "environment_seed": 30154,
+        "expert_takeover_step": 179,
+        "num_steps": 298,
+        "takeover_to_success_steps": 119
+      },
+      {
+        "environment_seed": 30161,
+        "expert_takeover_step": 144,
+        "num_steps": 285,
+        "takeover_to_success_steps": 141
+      },
+      {
+        "environment_seed": 30176,
+        "expert_takeover_step": 121,
+        "num_steps": 255,
+        "takeover_to_success_steps": 134
+      },
+      {
+        "environment_seed": 30183,
+        "expert_takeover_step": 144,
+        "num_steps": 278,
+        "takeover_to_success_steps": 134
+      },
+      {
+        "environment_seed": 30192,
+        "expert_takeover_step": 82,
+        "num_steps": 219,
+        "takeover_to_success_steps": 137
+      },
+      {
+        "environment_seed": 30197,
+        "expert_takeover_step": 102,
+        "num_steps": 229,
+        "takeover_to_success_steps": 127
+      }
+    ],
+    "survivorship_caveat": "该 timing 只由 10 条完整成功的 accepted survivors 估计；不可将其外推为 90 条 rejected episode 的 boundary timing 或成功所需时间。",
+    "takeover_to_full_success_steps": {
+      "max": 151,
+      "median": 134,
+      "min": 119
+    },
+    "trajectory_num_steps": {
+      "max": 298,
+      "median": 264.5,
+      "min": 219
+    }
+  },
+  "analysis_scope": {
+    "boundary_type": "grasp_lift",
+    "diagnostic_replay_is_training_data": false,
+    "diagnostic_replay_targets": 87,
+    "formal_candidates": 100,
+    "historical_formal_result_mutated": false
+  },
+  "boundary_reach_lower_bound": {
+    "caveat": "这是可证下界，不是新的 success rate；71 条 boundary-before failures 的重放只用于分解未到达过程。",
+    "count": 29,
+    "definition": "稳定 Grasp boundary 已发生的可证最低数：formal accepted，与 formal 逐 seed 对齐的 Expert time-limit replay，以及按 collector 控制流只可在 boundary 后发生的其他 formal rejection。",
+    "denominator": 100,
+    "evidence": {
+      "formal_accepted": {
+        "count": 10,
+        "seeds": [
+          30111,
+          30125,
+          30133,
+          30138,
+          30154,
+          30161,
+          30176,
+          30183,
+          30192,
+          30197
+        ]
+      },
+      "formal_post_boundary_only_rejections": {
+        "count": 3,
+        "seeds": [
+          30112,
+          30124,
+          30146
+        ]
+      },
+      "replay_confirmed_expert_time_limit": {
+        "count": 16,
+        "seeds": [
+          30103,
+          30105,
+          30106,
+          30129,
+          30137,
+          30143,
+          30145,
+          30156,
+          30162,
+          30165,
+          30171,
+          30181,
+          30187,
+          30193,
+          30195,
+          30196
+        ]
+      }
+    },
+    "metric": "formal_gl_boundary_reach_lower_bound",
+    "qualifier": "at_least",
+    "rate": 0.29,
+    "seeds": [
+      30103,
+      30105,
+      30106,
+      30111,
+      30112,
+      30124,
+      30125,
+      30129,
+      30133,
+      30137,
+      30138,
+      30143,
+      30145,
+      30146,
+      30154,
+      30156,
+      30161,
+      30162,
+      30165,
+      30171,
+      30176,
+      30181,
+      30183,
+      30187,
+      30192,
+      30193,
+      30195,
+      30196,
+      30197
+    ]
+  },
+  "canonical_formal_population": {
+    "additivity": {
+      "expected_count": 100,
+      "passed": true,
+      "summed_count": 100
+    },
+    "candidates": [
+      {
+        "environment_seed": 30100,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30101,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30102,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30103,
+        "failure_reason": "Episode 在可信成功前达到时间上限",
+        "reason_code": "episode_time_limit_after_takeover",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30104,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30105,
+        "failure_reason": "Episode 在可信成功前达到时间上限",
+        "reason_code": "episode_time_limit_after_takeover",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30106,
+        "failure_reason": "Episode 在可信成功前达到时间上限",
+        "reason_code": "episode_time_limit_after_takeover",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30107,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30108,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30109,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30110,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30111,
+        "failure_reason": null,
+        "reason_code": "accepted",
+        "status": "accepted"
+      },
+      {
+        "environment_seed": 30112,
+        "failure_reason": "Local DAgger Expert 未完成完整 Pick-and-Place",
+        "reason_code": "expert_incomplete_pick_and_place",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30113,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30114,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30115,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30116,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30117,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30118,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30119,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30120,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30121,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30122,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30123,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30124,
+        "failure_reason": "MPlib 无法规划可信 screw 路径",
+        "reason_code": "mplib_no_trusted_screw_path",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30125,
+        "failure_reason": null,
+        "reason_code": "accepted",
+        "status": "accepted"
+      },
+      {
+        "environment_seed": 30126,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30127,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30128,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30129,
+        "failure_reason": "Episode 在可信成功前达到时间上限",
+        "reason_code": "episode_time_limit_after_takeover",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30130,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30131,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30132,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30133,
+        "failure_reason": null,
+        "reason_code": "accepted",
+        "status": "accepted"
+      },
+      {
+        "environment_seed": 30134,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30135,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30136,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30137,
+        "failure_reason": "Episode 在可信成功前达到时间上限",
+        "reason_code": "episode_time_limit_after_takeover",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30138,
+        "failure_reason": null,
+        "reason_code": "accepted",
+        "status": "accepted"
+      },
+      {
+        "environment_seed": 30139,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30140,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30141,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30142,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30143,
+        "failure_reason": "Episode 在可信成功前达到时间上限",
+        "reason_code": "episode_time_limit_after_takeover",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30144,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30145,
+        "failure_reason": "Episode 在可信成功前达到时间上限",
+        "reason_code": "episode_time_limit_after_takeover",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30146,
+        "failure_reason": "Boundary snapshot round-trip 未通过：{'passed': False, 'immediate_observation_hashes_equal': False, 'immediate_camera_calibration_equal': False, 'immediate_camera_max_abs_error': 2.3585744202136993e-07, 'immediate_controller_targets_equal': True, 'immediate_segmentation_equal': True, 'immediate_rgb_max_abs_error': 1.0, 'immediate_rgb_mean_abs_error': 0.006184895833333333, 'immediate_proprio_max_abs_error': 0.0, 'immediate_predicate_max_abs_error': 5.960464477539063e-08, 'immediate_is_grasped_equal': False, 'immediate_contact_force_max_abs_error_n': 21.32844352722168, 'main_rng_equal': True, 'episode_rng_equal': True, 'repeated_restore_observation_hashes_equal': True, 'next_state_max_abs_error': 0.0, 'next_controller_target_max_abs_error': 0.0, 'next_predicate_max_abs_error': 0.0, 'next_is_grasped_matches_source': True, 'next_contact_force_max_abs_error_n': 0.0, 'next_outcome_equal': True, 'tolerances': {'immediate_proprio_atol': 0.0, 'immediate_predicate_atol': 1e-07, 'immediate_camera_atol': 1e-06, 'immediate_rgb_max_abs_error': 1.0, 'immediate_rgb_mean_abs_error': 0.002, 'next_state_atol': 0.0002, 'next_controller_target_atol': 1e-07, 'next_predicate_atol': 1e-07, 'next_contact_force_atol_n': 0.001}}",
+        "reason_code": "snapshot_round_trip",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30147,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30148,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30149,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30150,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30151,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30152,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30153,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30154,
+        "failure_reason": null,
+        "reason_code": "accepted",
+        "status": "accepted"
+      },
+      {
+        "environment_seed": 30155,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30156,
+        "failure_reason": "Episode 在可信成功前达到时间上限",
+        "reason_code": "episode_time_limit_after_takeover",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30157,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30158,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30159,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30160,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30161,
+        "failure_reason": null,
+        "reason_code": "accepted",
+        "status": "accepted"
+      },
+      {
+        "environment_seed": 30162,
+        "failure_reason": "Episode 在可信成功前达到时间上限",
+        "reason_code": "episode_time_limit_after_takeover",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30163,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30164,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30165,
+        "failure_reason": "Episode 在可信成功前达到时间上限",
+        "reason_code": "episode_time_limit_after_takeover",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30166,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30167,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30168,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30169,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30170,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30171,
+        "failure_reason": "Episode 在可信成功前达到时间上限",
+        "reason_code": "episode_time_limit_after_takeover",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30172,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30173,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30174,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30175,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30176,
+        "failure_reason": null,
+        "reason_code": "accepted",
+        "status": "accepted"
+      },
+      {
+        "environment_seed": 30177,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30178,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30179,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30180,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30181,
+        "failure_reason": "Episode 在可信成功前达到时间上限",
+        "reason_code": "episode_time_limit_after_takeover",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30182,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30183,
+        "failure_reason": null,
+        "reason_code": "accepted",
+        "status": "accepted"
+      },
+      {
+        "environment_seed": 30184,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30185,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30186,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30187,
+        "failure_reason": "Episode 在可信成功前达到时间上限",
+        "reason_code": "episode_time_limit_after_takeover",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30188,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30189,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30190,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30191,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30192,
+        "failure_reason": null,
+        "reason_code": "accepted",
+        "status": "accepted"
+      },
+      {
+        "environment_seed": 30193,
+        "failure_reason": "Episode 在可信成功前达到时间上限",
+        "reason_code": "episode_time_limit_after_takeover",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30194,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30195,
+        "failure_reason": "Episode 在可信成功前达到时间上限",
+        "reason_code": "episode_time_limit_after_takeover",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30196,
+        "failure_reason": "Episode 在可信成功前达到时间上限",
+        "reason_code": "episode_time_limit_after_takeover",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30197,
+        "failure_reason": null,
+        "reason_code": "accepted",
+        "status": "accepted"
+      },
+      {
+        "environment_seed": 30198,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      },
+      {
+        "environment_seed": 30199,
+        "failure_reason": "Policy 在目标 boundary 前终止或截断",
+        "reason_code": "policy_before_stable_grasp_boundary",
+        "status": "rejected"
+      }
+    ],
+    "count": 100,
+    "status_reason_counts": {
+      "accepted": 10,
+      "episode_time_limit_after_takeover": 16,
+      "expert_incomplete_pick_and_place": 1,
+      "mplib_no_trusted_screw_path": 1,
+      "policy_before_stable_grasp_boundary": 71,
+      "snapshot_round_trip": 1
+    }
+  },
+  "decision_use": "本文件可用于冻结 protocol amendment 的证据；不得改写 formal E012a 结果、当作 D1 样本，或直接解释为训练收益。",
+  "experiment_id": "E012a-GL-failure-diagnostics-v1",
+  "failure_decomposition": {
+    "all_target_failures": {
+      "expected_total": 87,
+      "expert_time_limit_total": 16,
+      "passed": true,
+      "policy_total": 71,
+      "total": 87
+    },
+    "expert_time_limit_after_takeover": {
+      "additivity": {
+        "expected_total": 16,
+        "passed": true,
+        "phase_total": 16
+      },
+      "commanded_phase": [
+        {
+          "commanded_phase": "expert_lift_motion",
+          "count": 3,
+          "seeds": [
+            30171,
+            30181,
+            30187
+          ]
+        },
+        {
+          "commanded_phase": "expert_transport_motion",
+          "count": 8,
+          "seeds": [
+            30103,
+            30105,
+            30106,
+            30129,
+            30137,
+            30145,
+            30165,
+            30195
+          ]
+        },
+        {
+          "commanded_phase": "expert_lower_motion",
+          "count": 3,
+          "seeds": [
+            30143,
+            30162,
+            30196
+          ]
+        },
+        {
+          "commanded_phase": "expert_release_settle",
+          "count": 2,
+          "seeds": [
+            30156,
+            30193
+          ]
+        }
+      ],
+      "phase_semantics": "commanded_phase 是失败 action 发生时 collector 正在执行的 Expert 调用阶段，不等价于该阶段对应 Predicate 已完成。",
+      "total": 16
+    },
+    "policy_before_stable_grasp_boundary": {
+      "additivity": {
+        "cross_total": 71,
+        "expected_total": 71,
+        "passed": true,
+        "progress_total": 71,
+        "terminal_total": 71
+      },
+      "progress_by_terminal": [
+        {
+          "count": 57,
+          "progress_bucket": "never_completed_reach",
+          "seeds": [
+            30100,
+            30102,
+            30104,
+            30107,
+            30108,
+            30109,
+            30110,
+            30114,
+            30116,
+            30117,
+            30118,
+            30119,
+            30120,
+            30121,
+            30122,
+            30123,
+            30126,
+            30127,
+            30130,
+            30131,
+            30132,
+            30134,
+            30135,
+            30136,
+            30139,
+            30140,
+            30141,
+            30147,
+            30148,
+            30149,
+            30150,
+            30151,
+            30152,
+            30153,
+            30157,
+            30158,
+            30160,
+            30163,
+            30166,
+            30167,
+            30168,
+            30169,
+            30170,
+            30172,
+            30173,
+            30174,
+            30177,
+            30180,
+            30182,
+            30184,
+            30185,
+            30186,
+            30189,
+            30190,
+            30194,
+            30198,
+            30199
+          ],
+          "terminal_bucket": "policy_time_limit"
+        },
+        {
+          "count": 12,
+          "progress_bucket": "reached_never_raw_grasped",
+          "seeds": [
+            30101,
+            30113,
+            30115,
+            30144,
+            30155,
+            30159,
+            30164,
+            30175,
+            30178,
+            30179,
+            30188,
+            30191
+          ],
+          "terminal_bucket": "policy_time_limit"
+        },
+        {
+          "count": 2,
+          "progress_bucket": "transient_grasp_then_lost_before_stable",
+          "seeds": [
+            30128,
+            30142
+          ],
+          "terminal_bucket": "policy_time_limit"
+        }
+      ],
+      "progress_marginal": [
+        {
+          "bucket": "never_completed_reach",
+          "count": 57,
+          "seeds": [
+            30100,
+            30102,
+            30104,
+            30107,
+            30108,
+            30109,
+            30110,
+            30114,
+            30116,
+            30117,
+            30118,
+            30119,
+            30120,
+            30121,
+            30122,
+            30123,
+            30126,
+            30127,
+            30130,
+            30131,
+            30132,
+            30134,
+            30135,
+            30136,
+            30139,
+            30140,
+            30141,
+            30147,
+            30148,
+            30149,
+            30150,
+            30151,
+            30152,
+            30153,
+            30157,
+            30158,
+            30160,
+            30163,
+            30166,
+            30167,
+            30168,
+            30169,
+            30170,
+            30172,
+            30173,
+            30174,
+            30177,
+            30180,
+            30182,
+            30184,
+            30185,
+            30186,
+            30189,
+            30190,
+            30194,
+            30198,
+            30199
+          ]
+        },
+        {
+          "bucket": "reached_never_raw_grasped",
+          "count": 12,
+          "seeds": [
+            30101,
+            30113,
+            30115,
+            30144,
+            30155,
+            30159,
+            30164,
+            30175,
+            30178,
+            30179,
+            30188,
+            30191
+          ]
+        },
+        {
+          "bucket": "transient_grasp_then_lost_before_stable",
+          "count": 2,
+          "seeds": [
+            30128,
+            30142
+          ]
+        }
+      ],
+      "terminal_marginal": [
+        {
+          "bucket": "policy_time_limit",
+          "count": 71,
+          "seeds": [
+            30100,
+            30101,
+            30102,
+            30104,
+            30107,
+            30108,
+            30109,
+            30110,
+            30113,
+            30114,
+            30115,
+            30116,
+            30117,
+            30118,
+            30119,
+            30120,
+            30121,
+            30122,
+            30123,
+            30126,
+            30127,
+            30128,
+            30130,
+            30131,
+            30132,
+            30134,
+            30135,
+            30136,
+            30139,
+            30140,
+            30141,
+            30142,
+            30144,
+            30147,
+            30148,
+            30149,
+            30150,
+            30151,
+            30152,
+            30153,
+            30155,
+            30157,
+            30158,
+            30159,
+            30160,
+            30163,
+            30164,
+            30166,
+            30167,
+            30168,
+            30169,
+            30170,
+            30172,
+            30173,
+            30174,
+            30175,
+            30177,
+            30178,
+            30179,
+            30180,
+            30182,
+            30184,
+            30185,
+            30186,
+            30188,
+            30189,
+            30190,
+            30191,
+            30194,
+            30198,
+            30199
+          ]
+        }
+      ],
+      "total": 71
+    }
+  },
+  "format": "robot-vla-e012-gl-failure-decomposition/v1",
+  "identities": {
+    "base_dataset": {
+      "audit": {
+        "dataset_sha256": "bc024b6b9c566ca9500945fb6ac262bf657bee713d8a5816229bdc8478139407",
+        "manifest_sha256": "43f131cc1b79b93cf6e38f3f5e476d7a03fe29410daa720a672989c95afc477f",
+        "step_count": 48922,
+        "trajectory_count": 220
+      },
+      "path": "dataset://trusted-v0.4-event-recovery-220"
+    },
+    "checkpoint": {
+      "path": "checkpoint://e011-layer12-best.pt",
+      "sha256": "a542076f291e29b68e3d28930b15c40396d511a44eb358c2eaeb4e113c041ad6"
+    },
+    "formal_candidates_sha256": "bec0b41f0adddd36e85fac1694d0e59c874a19eda9e2dcbbdefeabb0c164bcc9",
+    "formal_experiment_sha256": "a7e8952a24932cbe8de11f7bf316b7a806d3832413ce697ebb3d51b6eb523a2e",
+    "formal_source_revision": "source-tree-sha256:a847e9f90fb255405714351379b1530691f4224f6a29a8e21daad76a5ef8ee00",
+    "frozen_collection_config": {
+      "inference_strategy": "temporal-ensemble",
+      "max_anomaly_replans": 3,
+      "num_flow_steps": 10,
+      "paired_clean_expert_required": true,
+      "qwen_context_layer": 12,
+      "recency_decay": 0.5,
+      "sampling_seed_base": 52012,
+      "snapshot_round_trip_required": true
+    },
+    "replay_candidates_sha256": "045aae3e9b4b47b53d7a1a87778642e727e952443b2f746b2f20b25d7c22f21d",
+    "replay_experiment_sha256": "3285b9fa0fb75dbd73ed79d3654d7af1141ab53031d7376a756915fb9a120356",
+    "replay_source_revision": "source-tree-sha256:7353870d112b51b7bf10d1f7b93d3ba3eb8ae8e1ac2b3bfe97712c292e6a92f8",
+    "source_revision_note": "formal source 是历史结果身份；replay source 包含无干预 diagnostic observer，二者允许不同，但 87 条 replay 内必须一致。"
+  },
+  "reconciliation": {
+    "checkpoint_sha256_match_count": 87,
+    "config_match_count": 87,
+    "exact_match": true,
+    "failure_reason_match_count": 87,
+    "formal_target_count": 87,
+    "matched_count": 87,
+    "per_seed": [
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30100,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30101,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30102,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30103,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30104,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30105,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30106,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30107,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30108,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30109,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30110,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30113,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30114,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30115,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30116,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30117,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30118,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30119,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30120,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30121,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30122,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30123,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30126,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30127,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30128,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30129,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30130,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30131,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30132,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30134,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30135,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30136,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30137,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30139,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30140,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30141,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30142,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30143,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30144,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30145,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30147,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30148,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30149,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30150,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30151,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30152,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30153,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30155,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30156,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30157,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30158,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30159,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30160,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30162,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30163,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30164,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30165,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30166,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30167,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30168,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30169,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30170,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30171,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30172,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30173,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30174,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30175,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30177,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30178,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30179,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30180,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30181,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30182,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30184,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30185,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30186,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30187,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30188,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30189,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30190,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30191,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30193,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30194,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30195,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30196,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30198,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      },
+      {
+        "checkpoint_sha256_match": true,
+        "config_match": true,
+        "diagnostics_valid": true,
+        "environment_seed": 30199,
+        "exact_match": true,
+        "failure_reason_match": true,
+        "status_match": true
+      }
+    ],
+    "replay_count": 87,
+    "status_match_count": 87,
+    "valid_diagnostics_count": 87
+  },
+  "survivorship_caveat": "该 timing 只由 10 条完整成功的 accepted survivors 估计；不可将其外推为 90 条 rejected episode 的 boundary timing 或成功所需时间。",
+  "unidentifiable_items": [
+    "formal rejected records 没有 step-level telemetry；细分来自同 seed/同配置的 deterministic diagnostic replay，不是对历史 trajectory 的事后解析。",
+    "commanded Expert phase 只标识失败时的 collector callsite，不能证明对应 Lift/Transport/Place Predicate 已成功。",
+    "3 条非目标 rejection（Expert incomplete、MPlib、snapshot）未纳入 87-seed replay，因而只能依 collector 控制流证明它们在 boundary 后，不做更细因果归类。",
+    "互斥 progress/terminal 类别是观测性分解，不识别 Action Chunk 冲突或任一控制参数对失败的因果效应。"
+  ]
+}
