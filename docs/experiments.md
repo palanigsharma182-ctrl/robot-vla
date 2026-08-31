@@ -1812,11 +1812,20 @@ Control 和 treatment 的参数量、显存与 latency 必须分别报告。因�
 正式训练前先在冻结的正式 Python/CUDA/ManiSkill 环境运行非正式 smoke seeds，且 smoke 不进入 Dataset、
 训练或效果统计：
 
+0. 先按 [E013 Layer-12 在线相对几何 smoke](e013_online_geometry_smoke.md) 使用隔离 seeds
+   `39000..39099` 采集 20/5/5 共 30 条非正式 V2 Expert trajectories。测试 selector 不得读取 GT token
+   index；若 object online world-XY median `>0.02 m`、p90 `>0.04 m` 或存在无效反投影，不启动四轮
+   正式训练；
 1. Temporal Expert 单次 forward/backward、V2 checkpoint save/load/resume/init round-trip；
 2. 真实 Qwen Processor 八图输入、Episode padding attention mask、单次 Replan 只运行一次 Qwen；
 3. ManiSkill TCP/camera SE(3)、左右 force 的 shape/dtype/单位与同-Tick timestamp；
 4. plain Flow、temporal ensemble、RTC 各一条 full-chain 和 atomic smoke；
 5. batch 1 的峰值显存、单次 Replan latency 和闭环 p95 latency。
+
+在线几何 smoke 的 deployable-precision candidate 另要求 object p90 `<=0.01 m`、goal p90
+`<=0.015 m`、object→goal relative-XY p90 `<=0.015 m`。它只约束“最小可部署”表述：通过仍不能替代
+Z、姿态、Action 和闭环验证；coarse Reach 通过但该门槛失败时，E013 即使继续也必须披露当前视觉精度
+不足，不能把 bundled V2 称为已可部署。
 
 若 24 GB GPU OOM 或 p95 latency 超出 20 Hz/既定 Replan 预算，记为 engineering-gate failed。不得在同一
 实验身份下静默降低分辨率、历史长度、Qwen 图像数或模型宽度；任何资源 amendment 必须先更新预注册并
