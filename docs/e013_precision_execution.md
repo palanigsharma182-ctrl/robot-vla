@@ -227,7 +227,8 @@ Vulkan 与渲染实际成功；这不能替代正式 simulator throughput 或 GP
 默认约 205 万参数 U-Net 在随机初始化、128×128 合成 wrist RGB、batch=1 下：
 
 - CUDA/BF16 单帧 forward latency：p50 `4.03 ms`、p95 `4.38 ms`；
-- 当前 Provider 顺序重算四帧：p50 `16.09 ms`、p95 `17.05 ms`；
+- 四次顺序 Predictor forward：p50 `16.09 ms`、p95 `17.05 ms`；该数值不含 Provider 状态编码、
+  geometry callback、detection adapter 或 estimator 开销；
 - peak allocated/reserved：约 `39.8/50.0 MiB`；
 - decoded keypoint、motion、visibility、projection validity 与 sigma 均为有限值，parameter identity 复核通过。
 
