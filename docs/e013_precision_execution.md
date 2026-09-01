@@ -16,9 +16,9 @@ Layer-12 粗定位诊断；它测量单帧表示，不是最终物体放置闭�
 个位数毫米只作可选挑战，不影响 E013 是否完成：
 
 ```text
-E008 Layer-12 baseline
-  p50 final placement XY error = 0.0253 m
-  p90 final placement XY error = 0.0388 m
+E008 Layer-12 spatial-probe reference（不是闭环 placement baseline）
+  p50 decoded world-XY localization error = 0.0253 m
+  p90 decoded world-XY localization error = 0.0388 m
 
 engineering floor（可接受底线）
   p50 final placement XY error <= 0.015 m
@@ -38,6 +38,9 @@ optional stretch（不作为项目成败门槛）
 失败只要存在可测最终位置就必须进入误差统计；invalid projection、system/safety/tracking failure、控制器
 重叠和 stale-observation command 均单独计数，任一非零都阻断 promotion，不能删除失败样本后复算。
 正式报告同时给出 bootstrap 95% 区间；区间用于披露不确定性，不在看到结果后改变上述点估计门槛。
+正式相对改善必须用这 100 个 paired seed 上实际运行的 coarse-only control 复算；不得把 E008 线性 probe
+的定位误差当成 final-placement control。Probe reference 只用于说明 Qwen 表示的空间上限和量级；当前
+`PrecisionEvaluationAssessment` 因此不输出“相对 probe 改善百分比”，相对效果留给正式 paired analyzer。
 
 ## 两时间尺度架构
 

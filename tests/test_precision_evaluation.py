@@ -29,8 +29,10 @@ def test_recommended_threshold_is_inclusive_and_above_engineering_floor() -> Non
     assert assessment.recommended_target_passed is True
     assert assessment.optional_stretch_passed is False
     assert assessment.guardrail_failures == ()
-    assert assessment.p50_reduction_from_baseline == pytest.approx(1.0 - 0.012 / 0.0253)
-    assert assessment.p90_reduction_from_baseline == pytest.approx(1.0 - 0.020 / 0.0388)
+    assert not hasattr(assessment, "p50_reduction_from_baseline")
+    assert not hasattr(assessment, "p90_reduction_from_baseline")
+    assert not hasattr(assessment, "p50_reduction_from_spatial_probe_reference")
+    assert not hasattr(assessment, "p90_reduction_from_spatial_probe_reference")
 
 
 def test_engineering_floor_is_an_acceptable_but_separate_tier() -> None:
