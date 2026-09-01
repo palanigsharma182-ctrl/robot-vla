@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
 torch = pytest.importorskip("torch")
@@ -13,6 +14,10 @@ from robot_vla.precision.model import (
     PrecisionThreeHeadUNet,
     PrecisionUNetConfig,
     decode_keypoints,
+)
+from robot_vla.precision.provider import (
+    TorchPrecisionFramePredictor,
+    TorchPrecisionFramePredictorConfig,
 )
 
 
@@ -144,3 +149,35 @@ def test_model_rejects_image_or_state_contract_drift() -> None:
         model(image[:, :2], state, geometry)
     with pytest.raises(ValueError, match="structured_state"):
         model(image, state[:, :5], geometry)
+
+
+def test_torch_frame_predictor_freezes_model_and_decodes_raw_rgb() -> None:
+    config = PrecisionUNetConfig(
+        encoder_channels=(8, 16, 32),
+        state_hidden_size=8,
+        head_hidden_size=16,
+    )
+    model = PrecisionThreeHeadUNet(config)
+    predictor = TorchPrecisionFramePredictor(
+        model,
+        checkpoint_sha256="a" * 64,
+        config=TorchPrecisionFramePredictorConfig(device="cpu"),
+    )
+
+    prediction = predictor.predict(
+        np.full((32, 40, 3), 127, dtype=np.uint8),
+        np.zeros(config.structured_state_dim, dtype=np.float32),
+        np.zeros(config.motion_spec.motion_dim, dtype=np.float32),
+    )
+
+    assert prediction.keypoints.normalized_uv.shape == (1, config.keypoint_count, 2)
+    assert predictor.identity.keypoint_names == config.keypoint_names
+    assert len(predictor.identity.parameter_state_sha256) == 64
+    assert not model.training
+    assert all(not parameter.requires_grad for parameter in model.parameters())
+    predictor.verify_identity()
+
+    with torch.no_grad():
+        model.motion_head[-1].bias.add_(1.0)
+    with pytest.raises(RuntimeError, match="parameter state"):
+        predictor.verify_identity()

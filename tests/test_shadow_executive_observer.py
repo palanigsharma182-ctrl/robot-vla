@@ -281,6 +281,34 @@ def test_shadow_observer_reset_is_episode_local_and_rejects_control_step_regress
     assert restarted.executive_tick == 0
 
 
+def test_shadow_observer_reset_also_resets_stateful_detection_provider() -> None:
+    spec = RobotSpec()
+
+    class StatefulProvider:
+        def __init__(self) -> None:
+            self.reset_calls = 0
+
+        def __call__(self, window):
+            return _detections(window)
+
+        def reset(self) -> None:
+            self.reset_calls += 1
+
+    provider = StatefulProvider()
+    observer = _observer(
+        spec,
+        enabled=True,
+        detection_provider=provider,
+    )
+    observer.observe(_window(spec), control_step=0)
+
+    observer.reset()
+
+    assert provider.reset_calls == 1
+    assert observer.records == ()
+    assert observer.ledger_jsonl == ""
+
+
 def test_shadow_observer_rejects_non_shadow_executive_configuration() -> None:
     spec = RobotSpec()
     with pytest.raises(ValueError, match="shadow_only=False"):

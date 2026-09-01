@@ -201,6 +201,9 @@ class ShadowExecutiveObserver:
     def reset(self) -> None:
         """开始新 Episode；调用方应在 reset 前保存上一 Episode 的 records/ledger。"""
 
+        reset_provider = getattr(self.detection_provider, "reset", None)
+        if callable(reset_provider):
+            reset_provider()
         self._records.clear()
         self._executive = HierarchicalExecutive(self.plan, self.executive_config)
         self._next_executive_tick = 0

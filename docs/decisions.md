@@ -1504,8 +1504,53 @@ hierarchy 归因。只保存 age 又会在 Episode 起点因 float32 舍入得�
 - 把 replan-boundary stability 写成 20 Hz 结果：cadence 不同，拒绝。
 
 **Implementation status:** 原始 timestamp、Precision detection adapter、episode-local Observer、ledger/error/
-latency record 与 `QwenVLAReplanLoop` 默认关闭 hook 已实现。真实模型 provider、20 Hz control-tick observer、
+latency record 与 `QwenVLAReplanLoop` 默认关闭 hook 已实现。RGB→冻结 U-Net 的 replay/shadow-only Provider
+接线已实现，但没有训练/标定 checkpoint，也未在当前环境运行 Torch forward；20 Hz control-tick observer、
 异步资源隔离和正式 shadow rollout 尚未实现或验证。
+
+**Status:** active
+
+## D033 — Precision Provider 要求显式 deployable geometry，四帧顺序推理不获得控制权
+
+**Decision:**
+
+新增 `PrecisionDetectionProvider`，默认 `enabled=false`，execution mode 固定为
+`replay-shadow-only/no-actuation/v1`。它只消费 Observation V2，按有效 history 的 oldest→newest 顺序、
+batch 1 运行 wrist RGB；padding 和缺失 wrist modality 返回 `None`，不会复制或补造图像。每个检测绑定
+该帧原始 wrist timestamp，不能使用当前帧时间解释历史图像。
+
+三头 U-Net forward 还需要结构化 frame state 和 `geometric_motion`。Provider 使用与 V2 Dataset/Runtime
+相同的 proprio 与 `F_L/F_R` normalization，并要求 geometric-motion callback 返回带 timestamp、固定 Cartesian
+semantics 和 `deployable_estimator` provenance 的输入；禁止用全零占位绕过接口，也拒绝 evaluator GT 和
+图像—geometry 时间漂移。U-Net 按单帧 current-frame 语义训练，因此每个历史行使用该时刻的真实物理
+state，但 forward 内的 frame-age feature 固定为 0；真实 freshness 只由原始 timestamp 和外部 estimator
+计算，避免把相对最新窗口的 age 当成模型训练输入。Provider 不提供内部默认零向量；合法 callback 在
+目标已经对齐时计算出的真实零 motion 仍然允许。
+
+Torch wrapper 在构造时切换到 frozen eval，记录 checkpoint SHA、实际 parameter-state SHA、model-config
+SHA、keypoint schema、预处理和设备类型；Provider 再绑定 RobotSpec、stats file SHA、实际 normalizer
+semantic SHA、geometry provider ID 和自身 config SHA。Episode reset 会重新核对 tensor/config identity。
+逐帧记录 timestamp、status、latency 和 confidence evidence，并提供 canonical JSONL/digest；不保存 RGB、
+完整 state、NPZ 或权重。
+Provider 只返回 `WristKeypointDetection | None`，没有 Action、executor 或 actuator 接口。
+
+**Reason:**
+
+Localization feature 虽是 image-only，当前 projection-validity 与 uncertainty head 仍显式依赖 state 和
+geometry。用零 geometry 完成 forward 会产生看似合法但语义错误的 confidence，破坏最直接归因。显式
+callback 和双重 identity 能先验证 RGB→检测→四帧 estimator 数据流，又不提前引入 controller treatment。
+
+**Alternatives considered:**
+
+- 固定传入零 geometric motion：projection-validity 输入与训练语义不一致，拒绝。
+- padding 复制最近图像：制造不存在的历史并伪造速度，拒绝。
+- 把四帧合成 batch 4：当前要求逐帧 latency、顺序错误定位和 batch-1 部署一致性，首版拒绝。
+- Provider 直接生成 geometry command：会越过 Shadow Executive/Precision owner gate，拒绝。
+- 每个正式记录保存 RGB/state：超出脱敏审计所需，增加数据泄漏风险，拒绝。
+
+**Implementation status:** 轻依赖 Provider、identity/record contract、Torch lazy wrapper、负例和时间顺序
+测试已实现。当前环境没有 PyTorch，真实 wrapper forward 只加入依赖型测试，尚未实际运行；训练 checkpoint、
+calibration、20 Hz latency 和 ManiSkill shadow rollout 仍未完成。
 
 **Status:** active
 
