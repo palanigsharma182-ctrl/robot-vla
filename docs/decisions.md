@@ -1427,10 +1427,12 @@ uncertainty gate 和接触反馈。工程底线与推荐目标分开报告，避
 - 因目标放宽而恢复旧八图 Layer-12 方案：旧 smoke 不是最终闭环，并且不解决控制权、相机几何或接触，
   拒绝。
 
-**Implementation status:** 已加入轻依赖 `robot_vla.precision.evaluation` 评估契约和分档复算；四时刻
-关键点/相机位姿/原始时间戳的确定性融合与默认关闭 Runtime observer hook 已实现。真实 RGB provider、
-confidence/outcome 标定、正式数据、GPU/ManiSkill smoke、Cartesian IK、20 Hz observer、force controller
-和闭环效果实验仍未完成，不能把目标门槛写成已达到结果。
+**Implementation status:** RGB-only deployable/privileged Dataset、四时刻 Provider、formal-training
+checkpoint、confidence calibration、held-out perception 与 20 Hz no-actuation observer 已实现并正式运行。
+步骤 1–8 通过；100-seed 步骤 9 只形成 95 个 pair，并出现 5 个 Expert/collector rejection 与 7 次
+`>50 ms` deadline miss，因此 promotion 按冻结 gate 停止。Cartesian IK、force controller、Motion Head
+bounded residual、Precision actuator 和 final-placement 效果仍未实现或验证，不能把 offline GT-plane
+held-out XY 误差写成目标档位已达到。
 
 **Status:** active
 

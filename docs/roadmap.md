@@ -67,7 +67,7 @@ Engineering release 与 research promotion 是两个不同结论：接口、回�
 | --- | --- | --- |
 | E008 Layer-12 spatial probe | decoded world-XY localization `p50=25.3 mm`、`p90=38.8 mm` | 只作表示诊断参考，不是 final-placement baseline，不能用于计算闭环相对改善 |
 | E012 Local DAgger | repeat-1 训练和 checkpoint validation 完成，但 replay/Dagger 均无 eligible promotion checkpoint | 不继承“DAgger 已改善”的结论；E012 产物保持只读 |
-| E013 precision execution | 只有工程 scaffold；尚无正式训练、GPU smoke 或闭环效果证据 | 未通过 E013 G0 前不得启动 v1.0 正式训练或效果实验 |
+| E013 precision execution | Dataset、正式训练、held-out/calibration、四帧 latency 已通过；100-seed no-actuation shadow 因 95/100 pairs、5 个 Expert rejection 和 7 次 deadline miss 失败 | E013 G0 仍未通过；不得启动 v1.0 正式训练或效果实验，也不得把 offline 感知写成闭环 placement |
 | v1.0 正式 control | 以冻结 E013 checkpoint 为不可变 parent，派生使用 null hierarchy condition、无显式 Executive 的配对 control child checkpoint | 这是 hierarchy 相对效果的唯一 control，不以 probe、validation loss 或历史 checkpoint 代理；未改写 E013 parent |
 
 E013 推荐求职档仍是 final-placement `p50<=12 mm`、`p90<=20 mm`、within-20-mm rate `>=90%`；

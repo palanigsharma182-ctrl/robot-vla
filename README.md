@@ -42,8 +42,9 @@ Franka Panda 双相机 VLA 链路：
 - Observation V2：TCP 完整位姿、OpenGL→OpenCV→base 相机变换、四步双图、`F_L/F_R`、
   时间/validity 和 controller state，以及 train-only force stats/checkpoint identity；
 - E013 的厘米级闭环精调架构：低频 VLA + 20 Hz 三头 U-Net、显式 base-plane 几何、逐轴不确定性和
-  shadow-only metric residual 控制契约；正式目标为 `p50<=12 mm/p90<=20 mm`，工程底线为
-  `p50<=15 mm/p90<=25 mm`，当前仍只是工程 scaffold，尚无闭环效果证据；
+  shadow-only metric residual 控制契约；RGB-only Dataset、正式训练、held-out/calibration、完整四帧
+  latency 和 100-seed no-actuation shadow 已执行，步骤 9 因 5 个 Expert rejection 和 7 次 deadline miss
+  停止 promotion；正式目标仍为 `p50<=12 mm/p90<=20 mm`，当前没有 actuation 或闭环 placement 证据；
 - ManiSkill 单环境 Franka `pd_joint_delta_pos` Controller Adapter；
 - reach/grasp/lift/transport/place Outcome Predicate、原子技能状态机和完整组合任务；
 - 目标双相机可见、必须松爪并稳定放置的 `RobotVLAPickCubeToRegion-v1` 环境；
@@ -135,8 +136,9 @@ Checkpoint 或闭环产物。Qwen、ManiSkill、SAPIEN 及其他第三方组件�
 最小可部署状态、坐标公式、Action 等式、迁移与验证门禁见
 [`docs/minimum_deployable_state.md`](docs/minimum_deployable_state.md)。其他边界见
 [`docs/architecture.md`](docs/architecture.md) 和 [`docs/decisions.md`](docs/decisions.md)。
-厘米级闭环精调层的当前实现边界和未完成门禁见
-[`docs/e013_precision_execution.md`](docs/e013_precision_execution.md)。
+厘米级闭环精调层的实现边界和正式负结果见
+[`docs/e013_precision_execution.md`](docs/e013_precision_execution.md) 与
+[`docs/results/e013/README.md`](docs/results/e013/README.md)。
 E013 之后候选的 `qwen-vla-v1.0` 分层子任务、阶段控制与渐进验证事项见
 [`docs/roadmap.md`](docs/roadmap.md)。当前 `robot_vla.executive` 只实现 P0 的 shadow-only 主体契约、
 Plan Compiler、状态机和 ledger replay；尚未接入 Runtime、训练或形成效果结论。
