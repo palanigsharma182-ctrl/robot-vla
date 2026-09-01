@@ -12,7 +12,11 @@ pytest.importorskip("mplib")
 
 from robot_vla.contracts import RobotSpec
 from robot_vla.observation import OBSERVATION_MODALITIES, ObservationV2Frame
-from robot_vla.precision.shadow import PrecisionShadowObserver
+from robot_vla.precision.shadow import (
+    PrecisionShadowObserver,
+    _synthetic_warmup_window,
+    _warm_up_provider,
+)
 
 
 def _valid_arm_q() -> np.ndarray:
@@ -119,3 +123,16 @@ def test_precision_shadow_observer_records_wall_time_when_provider_raises() -> N
 
     assert len(observer.wall_latency_s) == 1
     assert observer.wall_latency_s[0] >= 0.0
+
+
+def test_precision_shadow_provider_warmup_is_four_frame_and_clears_ledger() -> None:
+    spec = RobotSpec()
+    provider = _FakeProvider()
+    window = _synthetic_warmup_window(spec, image_size_hw=(8, 8))
+
+    completed = _warm_up_provider(provider, window, calls=3)
+
+    assert completed == 3
+    assert window.history_valid.tolist() == [True, True, True, True]
+    assert provider.reset_count == 2
+    assert provider.records == ()

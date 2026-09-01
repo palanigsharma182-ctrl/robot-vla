@@ -43,7 +43,7 @@ from robot_vla.precision.training import (
 )
 from robot_vla.sim.collector import EpisodeRejected, TrustedPickPlaceCollector
 
-PRECISION_SHADOW_VERSION = "e013-precision-paired-shadow/v1"
+PRECISION_SHADOW_VERSION = "e013-precision-paired-shadow/v2"
 
 
 @dataclass(frozen=True)
@@ -78,6 +78,7 @@ class PrecisionShadowSummary:
     action_parity_mismatch_count: int
     commanded_target_parity_mismatch_count: int
     episode_length_mismatch_count: int
+    provider_warmup_call_count: int
     provider_call_count: int
     predicted_frame_count: int
     deadline_miss_count: int
@@ -119,6 +120,72 @@ def _safe_hold_geometry(window: Any, frame_index: int) -> PrecisionGeometricMoti
         motion=(0.0, 0.0, 0.0, 0.0),
         source=PredicateSource.DEPLOYABLE_ESTIMATOR,
     )
+
+
+def _synthetic_warmup_window(
+    spec: RobotSpec,
+    *,
+    image_size_hw: tuple[int, int],
+) -> Any:
+    height, width = image_size_hw
+    if height <= 0 or width <= 0:
+        raise ValueError("Precision shadow warmup image size 必须为正数")
+    limits = np.asarray(spec.joint_position_limits_rad, dtype=np.float32)
+    arm_q = limits.mean(axis=1).astype(np.float32)
+    physical_proprio = np.concatenate(
+        (
+            arm_q,
+            np.zeros(spec.arm_dof, dtype=np.float32),
+            np.asarray((spec.gripper_joint_position_range_m[1],), dtype=np.float32),
+        )
+    ).astype(np.float32)
+    history = ObservationV2History(spec)
+    for timestep in range(4):
+        timestamp = timestep / spec.control_hz
+        history.append(
+            ObservationV2Frame(
+                rgb_external=np.zeros((height, width, 3), dtype=np.uint8),
+                rgb_wrist=np.zeros((height, width, 3), dtype=np.uint8),
+                physical_proprio=physical_proprio,
+                base_from_tcp=np.eye(4, dtype=np.float64),
+                base_from_wrist_camera=np.eye(4, dtype=np.float64),
+                finger_force_n=np.zeros(2, dtype=np.float32),
+                timestamp_s=timestamp,
+                modality_timestamp_s=np.full(
+                    len(OBSERVATION_MODALITIES),
+                    timestamp,
+                    dtype=np.float64,
+                ),
+                modality_valid=np.ones(len(OBSERVATION_MODALITIES), dtype=np.bool_),
+            )
+        )
+    return history.snapshot(
+        "precision synthetic preflight warmup only",
+        previous_command_q=arm_q,
+        previous_action=np.zeros(spec.action_dim, dtype=np.float32),
+    )
+
+
+def _warm_up_provider(
+    provider: PrecisionDetectionProvider,
+    window: Any,
+    *,
+    calls: int,
+) -> int:
+    if calls <= 0:
+        raise ValueError("Precision shadow warmup calls 必须为正整数")
+    provider.reset()
+    for _ in range(calls):
+        provider(window)
+    records = provider.records
+    if (
+        len(records) != calls
+        or any(not record.success for record in records)
+        or any(record.detections_count != 4 for record in records)
+    ):
+        raise RuntimeError("Precision shadow synthetic warmup 未完整执行四帧 Provider")
+    provider.reset()
+    return calls
 
 
 class PrecisionShadowObserver:
@@ -292,6 +359,17 @@ def run_precision_paired_shadow(
             baseline_collector,
             seeds,
         )
+    warmup_call_count = _warm_up_provider(
+        provider,
+        _synthetic_warmup_window(
+            spec,
+            image_size_hw=(
+                config.dataset.image_height,
+                config.dataset.image_width,
+            ),
+        ),
+        calls=config.held_out.provider_latency_warmup_calls,
+    )
     with TrustedPickPlaceCollector(
         shadow_root,
         spec,
@@ -350,6 +428,7 @@ def run_precision_paired_shadow(
         and action_mismatch == 0
         and target_mismatch == 0
         and length_mismatch == 0
+        and warmup_call_count == config.held_out.provider_latency_warmup_calls
         and deadline_misses == 0
         and p95 <= deadline_s
     )
@@ -371,6 +450,7 @@ def run_precision_paired_shadow(
         action_parity_mismatch_count=action_mismatch,
         commanded_target_parity_mismatch_count=target_mismatch,
         episode_length_mismatch_count=length_mismatch,
+        provider_warmup_call_count=warmup_call_count,
         provider_call_count=sum(receipt.provider_call_count for receipt in episode_receipts),
         predicted_frame_count=sum(receipt.predicted_frame_count for receipt in episode_receipts),
         deadline_miss_count=deadline_misses,
