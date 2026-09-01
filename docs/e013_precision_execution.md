@@ -265,7 +265,7 @@ closed-loop Episode。
   checkpoint/parameter/config/stats identity、逐帧 latency 和 confidence evidence；
 - 版本化 weights-only checkpoint 保存/加载：拒绝覆盖，先核验文件 SHA，再以
   `torch.load(weights_only=True)` 严格检查 model config、parameter state 与训练 provenance SHA，最后创建
-  frozen/eval Predictor；
+  frozen/eval Predictor；Predictor loader 强制调用方声明并匹配预期 `synthetic-debug/formal-training` role；
 - Window 原始 float64 frame/modality timestamp、四时刻 base-frame track/velocity/innovation 融合，以及
   默认关闭的 replan-boundary Shadow Executive hook；
 - 合成几何、控制、checkpoint 与真实 Torch forward/backward 单元测试。

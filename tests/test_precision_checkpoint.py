@@ -68,6 +68,7 @@ def test_precision_checkpoint_roundtrip_loads_verified_frozen_predictor(tmp_path
     loaded_predictor = load_torch_precision_frame_predictor(
         checkpoint_path,
         expected_checkpoint_sha256=saved.checkpoint_sha256,
+        expected_role=PrecisionCheckpointRole.SYNTHETIC_DEBUG,
         expected_provenance_sha256=saved.provenance_sha256,
         predictor_config=TorchPrecisionFramePredictorConfig(device="cpu"),
     )
@@ -108,6 +109,12 @@ def test_precision_checkpoint_refuses_overwrite_or_external_identity_drift(tmp_p
             checkpoint_path,
             expected_checkpoint_sha256=receipt.checkpoint_sha256,
             expected_provenance_sha256="e" * 64,
+        )
+    with pytest.raises(RuntimeError, match="role 与预期"):
+        load_torch_precision_frame_predictor(
+            checkpoint_path,
+            expected_checkpoint_sha256=receipt.checkpoint_sha256,
+            expected_role=PrecisionCheckpointRole.FORMAL_TRAINING,
         )
 
 
