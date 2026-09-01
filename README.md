@@ -41,8 +41,9 @@ Franka Panda 双相机 VLA 链路：
 - Action 标签/执行统一为 commanded-target 增量，并跨 Replan 保存 command reference；
 - Observation V2：TCP 完整位姿、OpenGL→OpenCV→base 相机变换、四步双图、`F_L/F_R`、
   时间/validity 和 controller state，以及 train-only force stats/checkpoint identity；
-- E013 的 2 mm 架构 amendment：低频 VLA + 高频三头 U-Net、显式 base-plane 几何、逐轴不确定性和
-  shadow-only metric residual 控制契约；当前只是工程 scaffold，尚无毫米级闭环效果证据；
+- E013 的厘米级闭环精调架构：低频 VLA + 20 Hz 三头 U-Net、显式 base-plane 几何、逐轴不确定性和
+  shadow-only metric residual 控制契约；正式目标为 `p50<=12 mm/p90<=20 mm`，工程底线为
+  `p50<=15 mm/p90<=25 mm`，当前仍只是工程 scaffold，尚无闭环效果证据；
 - ManiSkill 单环境 Franka `pd_joint_delta_pos` Controller Adapter；
 - reach/grasp/lift/transport/place Outcome Predicate、原子技能状态机和完整组合任务；
 - 目标双相机可见、必须松爪并稳定放置的 `RobotVLAPickCubeToRegion-v1` 环境；
@@ -134,7 +135,7 @@ Checkpoint 或闭环产物。Qwen、ManiSkill、SAPIEN 及其他第三方组件�
 最小可部署状态、坐标公式、Action 等式、迁移与验证门禁见
 [`docs/minimum_deployable_state.md`](docs/minimum_deployable_state.md)。其他边界见
 [`docs/architecture.md`](docs/architecture.md) 和 [`docs/decisions.md`](docs/decisions.md)。
-2 mm 高频精密层的当前实现边界和未完成门禁见
+厘米级闭环精调层的当前实现边界和未完成门禁见
 [`docs/e013_precision_execution.md`](docs/e013_precision_execution.md)。
 
 ## 环境验证

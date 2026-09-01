@@ -1,26 +1,43 @@
-# E013 — 2 mm 高频精密执行层
+# E013 — 厘米级闭环精调执行层
 
 ## 状态与边界
 
 **Status:** engineering scaffold；尚未运行正式数据采集、训练、GPU smoke 或闭环效果实验。
 
 E013 在任何正式训练开始前由“八图 Frozen Qwen Layer 12 状态归因”修订为两时间尺度架构：低频
-VLA 只负责语义、技能和粗 ROI；高频精密层直接读取腕部原始高分辨率 ROI，通过三头 U-Net、显式
+VLA 只负责语义、技能和粗 ROI；闭环精调层直接读取腕部原始高分辨率 ROI，通过三头 U-Net、显式
 相机几何和视觉伺服生成小幅 TCP commanded-target delta。旧 E013 online geometry smoke 保留为历史
-Layer-12 粗定位设计，不再是 2 mm promotion gate，也不得把其 10–15 mm 阈值解释为可部署精度。
+Layer-12 粗定位诊断；它测量单帧表示，不是最终物体放置闭环门槛。
 
 本次修改没有运行或改写 E012 Dataset、checkpoint、evaluation 或其他冻结产物。新增代码只是可测试的
-模型/几何/控制边界，不能写成已经达到 2 mm。
+模型/几何/控制边界，不能写成已经达到厘米级闭环效果。
 
-端到端验收目标按未删除失败样本的最终 object→goal 平面位置误差定义：
+端到端验收按最终 object→goal 平面位置误差分档。推荐求职档是正式目标，工程可用档是可接受底线，
+个位数毫米只作可选挑战，不影响 E013 是否完成：
 
 ```text
-p90 final placement XY error <= 0.002 m
-invalid projection              = 0
-system/safety/tracking failure  不得从误差统计中删除
+E008 Layer-12 baseline
+  p50 final placement XY error = 0.0253 m
+  p90 final placement XY error = 0.0388 m
+
+engineering floor（可接受底线）
+  p50 final placement XY error <= 0.015 m
+  p90 final placement XY error <= 0.025 m
+
+recommended portfolio target（正式目标）
+  p50 final placement XY error <= 0.012 m
+  p90 final placement XY error <= 0.020 m
+  P(final placement XY error <= 0.020 m) >= 0.90
+
+optional stretch（不作为项目成败门槛）
+  p50 final placement XY error <= 0.010 m
+  p90 final placement XY error <= 0.015 m
 ```
 
-正式闭环前还需冻结最大误差、失败率、样本数与置信区间；当前只冻结方向和工程接口。
+正式评估至少包含 `100` 个预注册 unseen Episode，control/treatment 使用相同环境和采样 seed。有效任务
+失败只要存在可测最终位置就必须进入误差统计；invalid projection、system/safety/tracking failure、控制器
+重叠和 stale-observation command 均单独计数，任一非零都阻断 promotion，不能删除失败样本后复算。
+正式报告同时给出 bootstrap 95% 区间；区间用于披露不确定性，不在看到结果后改变上述点估计门槛。
 
 ## 两时间尺度架构
 
@@ -29,7 +46,7 @@ system/safety/tracking failure  不得从误差统计中删除
   instruction + semantic view
   -> object / goal / skill / coarse ROI / precision-mode request
 
-30–60 Hz precision layer
+20 Hz required precision loop; 30 Hz optional stretch
   current high-resolution wrist ROI
   -> U-Net Localization Head
   -> explicit camera geometry
@@ -38,7 +55,7 @@ system/safety/tracking failure  不得从误差统计中删除
   -> calibrated uncertainty gates
   -> bounded commanded TCP target delta
 
-200–1000 Hz robot controller
+200–1000 Hz robot inner controller
   Cartesian target / IK / impedance tracking
   -> joint or torque command
 ```
@@ -181,18 +198,21 @@ U-Net 不从 220 条 Expert Action 轨迹学习“怎么移动”。训练标签
 
 1. **Action/coordinate gate：**Cartesian action frame/unit/semantics、图像时间戳、camera pose 和 TCP pose
    round-trip 全部通过。
-2. **Oracle geometry gate：**privileged mask/GT pixel + 显式几何在固定 unseen states 上达到约
-   `p90 <= 1 mm`，invalid=0。失败则先修分辨率、标定或公式。
-3. **RGB-only perception gate：**先比较 HSV/轮廓，再比较 U-Net；不运行长 VLA 训练。
-4. **GT-pose controller gate：**使用 GT target 检查 Cartesian/IK/底层跟踪和接触是否能达到最终
-   `p90 <= 2 mm`。
+2. **Oracle geometry gate：**privileged mask/GT pixel + 显式几何在固定 unseen states 上达到
+   `p90 <= 5 mm`，invalid=0。它是公式/标定 lower bound，不是最终效果声明。
+3. **RGB-only perception gate：**先比较 HSV/轮廓，再比较 U-Net；held-out world-XY `p90 <= 15 mm`
+   后才接控制器，不运行长 VLA 训练。
+4. **GT-pose controller gate：**使用 GT target 检查 Cartesian/IK/底层跟踪和接触达到
+   `p90 <= 10 mm`，为 RGB 感知误差保留预算。
 5. **Shadow gate：**Motion Head 不控制，只比较 geometry、prediction 和 achieved delta，并校准
    uncertainty。
 6. **Bounded residual gate：**前五项通过后才以新身份允许 learned residual 进入命令。
-7. **完整 RGB-only closed loop：**最后才评价端到端放置误差和失败率。
+7. **完整 RGB-only closed loop：**最后按 engineering/recommended/stretch 三档评价端到端放置误差、
+   `within 20 mm` 成功率和全部 guardrail。
 
 所有 gate 使用固定 unseen seeds，不能删除失败帧或在结果后调整阈值。20–30 个 smoke state 只能发现
-工程错误；正式 p90 需要更大的独立样本和置信区间。
+工程错误；正式分档至少需要 100 个独立 paired Episode 和置信区间。闭环运行门槛固定为有效控制频率
+`>=20 Hz` 且端到端延迟 `p95 <= 50 ms`；30 Hz 只作可选性能结果，不要求 60 Hz。
 
 ## 当前实现
 
@@ -210,10 +230,10 @@ U-Net 不从 220 条 Expert Action 轨迹学习“怎么移动”。训练标签
 - ManiSkill 相机真实分辨率、畸变和 tabletop mm/pixel receipt；
 - oracle/HSV/RGB-only Dataset 与训练 CLI；
 - 四帧关键点状态估计器；
-- Cartesian IK、机器人底层接口和 30–60 Hz latency；
+- Cartesian IK、机器人底层接口和 20 Hz / p95 50 ms latency；
 - force-contact controller；
 - PyTorch 环境中的 forward/backward 实测；
-- 任意 2 mm 效果证据。
+- 任意厘米级闭环效果证据。
 
 本机当前 Python 环境没有 PyTorch，模型测试会明确 skip；轻依赖几何/控制测试可以执行。下一步应先在
 正式 ManiSkill/PyTorch 环境读取相机能力并完成 oracle geometry lower-bound，而不是启动旧 E013 的四轮
