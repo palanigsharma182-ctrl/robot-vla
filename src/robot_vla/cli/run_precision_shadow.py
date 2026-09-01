@@ -16,6 +16,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--training-output", type=Path, required=True)
     parser.add_argument("--held-out-output", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--repository-root", type=Path, required=True)
     return parser.parse_args()
 
 
@@ -27,6 +28,7 @@ def main() -> None:
         training_output=args.training_output,
         held_out_output=args.held_out_output,
         output_root=args.output,
+        repository_root=args.repository_root,
     )
     print(json.dumps(summary.to_dict(), indent=2, sort_keys=True), flush=True)
 
