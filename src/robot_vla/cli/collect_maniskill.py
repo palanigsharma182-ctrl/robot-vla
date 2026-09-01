@@ -13,6 +13,7 @@ from robot_vla.data.audit import audit_dataset
 from robot_vla.data.recovery import RECOVERY_PROFILES
 from robot_vla.data.trajectory import load_manifest
 from robot_vla.data.writer import plan_scene_splits
+from robot_vla.precision.data import audit_precision_dataset
 from robot_vla.sim import PICK_CUBE_TO_REGION_ENV_ID
 from robot_vla.sim.collector import EpisodeRejected, TrustedPickPlaceCollector
 
@@ -20,6 +21,12 @@ from robot_vla.sim.collector import EpisodeRejected, TrustedPickPlaceCollector
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--precision-label-output",
+        type=Path,
+        default=None,
+        help="可选的 E013 privileged label sibling root；不得位于 deployable output 内",
+    )
     parser.add_argument("--train", type=int, default=24)
     parser.add_argument("--val", type=int, default=3)
     parser.add_argument("--test", type=int, default=3)
@@ -55,6 +62,7 @@ def _collection_config(args: argparse.Namespace) -> dict[str, object]:
         "test": args.test,
         "start_seed": args.start_seed,
         "max_candidates": args.max_candidates,
+        "precision_label_sidecar": args.precision_label_output is not None,
     }
     if args.recovery_profiles:
         config["recovery_profiles"] = list(args.recovery_profiles)
@@ -240,7 +248,11 @@ def collect_dataset(args: argparse.Namespace) -> None:
     _validate_existing_split_plan(args.output, split_map)
     failure_path = args.output / "collection_failures.jsonl"
 
-    with TrustedPickPlaceCollector(args.output, RobotSpec()) as collector:
+    with TrustedPickPlaceCollector(
+        args.output,
+        RobotSpec(),
+        precision_label_root=args.precision_label_output,
+    ) as collector:
         for seed, scene_id in zip(seeds, scene_ids, strict=True):
             split = split_map[scene_id]
             if seed in existing_seeds or counts[split] >= target[split]:
@@ -294,6 +306,15 @@ def collect_dataset(args: argparse.Namespace) -> None:
         raise RuntimeError(f"候选 seed 耗尽：只采集到 {counts}，目标为 {target}")
     report = audit_dataset(args.output, RobotSpec())
     print(json.dumps(report.to_dict(), indent=2, sort_keys=True), flush=True)
+    if args.precision_label_output is not None:
+        precision_report = audit_precision_dataset(
+            args.output,
+            args.precision_label_output,
+            RobotSpec(),
+        )
+        if not precision_report.passed:
+            raise RuntimeError("E013 Precision Dataset audit gate 未通过")
+        print(json.dumps(precision_report.to_dict(), indent=2, sort_keys=True), flush=True)
 
 
 def main() -> None:

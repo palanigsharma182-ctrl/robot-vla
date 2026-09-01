@@ -1,0 +1,52 @@
+{
+  "version": "e013-precision-training/v1",
+  "dataset": {
+    "start_seed": 131000,
+    "max_candidates": 400,
+    "train_trajectories": 24,
+    "val_trajectories": 6,
+    "test_trajectories": 10,
+    "history_length": 4,
+    "image_height": 128,
+    "image_width": 128,
+    "model_camera": "hand_camera",
+    "privileged_sidecar": true
+  },
+  "debug_overfit": {
+    "sample_count": 64,
+    "optimizer_steps": 300,
+    "normalized_uv_mae_max": 0.01,
+    "normalized_uv_improvement_min": 0.95,
+    "mask_iou_min": 0.75
+  },
+  "formal_training": {
+    "seed": 13013,
+    "epochs": 20,
+    "batch_size": 32,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.0001,
+    "gradient_clip_norm": 1.0,
+    "use_bf16": true,
+    "num_workers": 0,
+    "cache_size": 32,
+    "heatmap_sigma_px": 1.5,
+    "selection_metric": "val_normalized_uv_mae",
+    "selection_tie_break": "earlier_epoch",
+    "motion_head_policy": "frozen-zero-shadow-only"
+  },
+  "held_out": {
+    "calibration_split": "val",
+    "evaluation_split": "test",
+    "temperature_grid": [0.5, 0.75, 1.0, 1.25, 1.5, 2.0],
+    "confidence_target_coverage": 0.9,
+    "provider_latency_warmup_calls": 20,
+    "provider_latency_measurement_calls": 200
+  },
+  "shadow_rollout": {
+    "start_seed": 132000,
+    "episode_count": 100,
+    "required_control_hz": 20.0,
+    "p95_latency_max_s": 0.05,
+    "actuation_allowed": false
+  }
+}
