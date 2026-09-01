@@ -217,6 +217,37 @@ U-Net 不从 220 条 Expert Action 轨迹学习“怎么移动”。训练标签
 工程错误；正式分档至少需要 100 个独立 paired Episode 和置信区间。闭环运行门槛固定为有效控制频率
 `>=20 Hz` 且端到端延迟 `p95 <= 50 ms`；30 Hz 只作可选性能结果，不要求 60 Hz。
 
+## 2026-09-01 GPU engineering smoke（非正式）
+
+在 Ubuntu 22.04、RTX 4090 24 GB、driver 570.153.02、PyTorch 2.11.0+cu128、BF16 环境完成了
+第一轮真实执行门禁。固定 runtime verifier 同时通过 CUDA、Qwen3.5-2B config 结构、NVIDIA Vulkan、
+ManiSkill `PickCube-v1` 环境与一帧渲染。SAPIEN 启动时报告系统 ICD 文件 warning，但自动 fallback 后
+Vulkan 与渲染实际成功；这不能替代正式 simulator throughput 或 GPU physics 验证。
+
+默认约 205 万参数 U-Net 在随机初始化、128×128 合成 wrist RGB、batch=1 下：
+
+- CUDA/BF16 单帧 forward latency：p50 `4.03 ms`、p95 `4.38 ms`；
+- 当前 Provider 顺序重算四帧：p50 `16.09 ms`、p95 `17.05 ms`；
+- peak allocated/reserved：约 `39.8/50.0 MiB`；
+- decoded keypoint、motion、visibility、projection validity 与 sigma 均为有限值，parameter identity 复核通过。
+
+固定 8 样本、64×64 合成 Gaussian keypoint batch 的 200-step BF16 debug overfit：
+
+- normalized-UV MAE：`0.16095 -> 0.000452`；
+- motion residual MAE：`1.20e-4 -> 8.06e-7`；
+- train step p50（前 20 步后）：约 `12.04 ms`；
+- peak allocated：约 `160.6 MiB`；
+- heatmap、mask、motion、uncertainty、visibility 与 projection 三类 head 均有梯度且 loss 下降。
+
+这些数字只证明 Torch/CUDA、三头 loss、优化器和固定 batch 记忆能力可运行。它们没有真实图像、相机
+分布、标签噪声、held-out state 或闭环控制，尤其不能把 `0.000452 normalized UV` 或 synthetic motion
+MAE 换算成毫米精度。正式结论仍必须来自冻结 Dataset、unseen states、confidence calibration 和 paired
+closed-loop Episode。
+
+同一完整环境中的 E013 定向回归为 `94 passed`；安装项目包后全仓回归为 `528 passed`。全仓仅出现
+12 条 ManiSkill `component.pose` 既有 deprecation warning，没有失败或 skip。checkpoint 子集进一步覆盖
+文件/config/parameter/provenance identity、禁止覆盖、payload 篡改拒绝与 frozen predictor round-trip。
+
 ## 当前实现
 
 已实现：
@@ -231,9 +262,12 @@ U-Net 不从 220 条 Expert Action 轨迹学习“怎么移动”。训练标签
 - 默认关闭的 replay/shadow-only RGB Provider：按 oldest→newest 顺序运行冻结 U-Net，使用训练一致的
   proprio/force normalization、显式 deployable geometric motion、原始 wrist timestamp，并记录
   checkpoint/parameter/config/stats identity、逐帧 latency 和 confidence evidence；
+- 版本化 weights-only checkpoint 保存/加载：拒绝覆盖，先核验文件 SHA，再以
+  `torch.load(weights_only=True)` 严格检查 model config、parameter state 与训练 provenance SHA，最后创建
+  frozen/eval Predictor；
 - Window 原始 float64 frame/modality timestamp、四时刻 base-frame track/velocity/innovation 融合，以及
   默认关闭的 replan-boundary Shadow Executive hook；
-- 合成几何和控制单元测试。
+- 合成几何、控制、checkpoint 与真实 Torch forward/backward 单元测试。
 
 尚未实现或验证：
 
@@ -242,9 +276,10 @@ U-Net 不从 220 条 Expert Action 轨迹学习“怎么移动”。训练标签
 - 训练完成并冻结的 RGB keypoint checkpoint、track/outcome confidence 标定与 20 Hz shadow measurement；
 - Cartesian IK、机器人底层接口和 20 Hz / p95 50 ms latency；
 - force-contact controller；
-- PyTorch 环境中的 forward/backward 实测；
+- 真实 RGB Dataset 上的 forward/backward、held-out 泛化和完整 Provider latency；
 - 任意厘米级闭环效果证据。
 
-本机当前 Python 环境没有 PyTorch，模型测试会明确 skip；轻依赖几何/控制测试可以执行。下一步应先在
-正式 ManiSkill/PyTorch 环境读取相机能力并完成 oracle geometry lower-bound，而不是启动旧 E013 的四轮
-Qwen 训练。
+下一步应先冻结 E013 RGB-only Dataset/label audit 和训练配置，并完成 oracle geometry lower-bound；随后
+才能生成 `formal-training` provenance 的 Precision checkpoint 和 confidence calibration。当前
+`synthetic-debug` checkpoint 不具备进入 Provider 正式 shadow 或控制器的资格，也不应启动旧 E013 的
+四轮 Qwen 训练。

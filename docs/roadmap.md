@@ -43,9 +43,10 @@ Expert-only supervision、配对实验、失败门禁和可复现实验发布。
 `QwenVLAReplanLoop` 已有默认关闭的 observer hook：原有 VLA 推理和当前 Action Chunk 执行完成后，才用
 同一份执行前 Observation 做 shadow replay；observer decision、reset request 或异常均不得修改 Action。
 当前 cadence 仅为 replan boundary，且同步 observer latency 可能影响下一次 Replan，因此它只用于接口/
-action-parity smoke，不等价于 20 Hz P1 measurement。RGB→冻结 U-Net 的 replay/shadow-only Provider 接线
-已实现，但尚无训练/标定 checkpoint 或正式 GPU smoke；抓取/支撑/稳定 monitor 标定、Qwen proposal、
-Action Expert condition、Precision/Force owner 和 ManiSkill 正式接线仍未完成。
+action-parity smoke，不等价于 20 Hz P1 measurement。RGB→冻结 U-Net 的 replay/shadow-only Provider 接线、
+版本化 weights-only checkpoint loader 和合成 Torch/GPU engineering smoke 已完成，但尚无真实 Dataset
+训练/标定 checkpoint 或正式 shadow rollout；抓取/支撑/稳定 monitor 标定、Qwen proposal、Action Expert
+condition、Precision/Force owner 和 ManiSkill 正式接线仍未完成。
 
 ## 版本定位与证据边界
 
