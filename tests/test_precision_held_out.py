@@ -8,6 +8,7 @@ import pytest
 from robot_vla.precision.detection import PRECISION_TRACK_CONFIDENCE_SEMANTICS
 from robot_vla.precision.held_out import (
     _calibrate,
+    _full_history_dataset_indices,
     _held_out_metrics,
     _PredictionRows,
 )
@@ -69,3 +70,13 @@ def test_held_out_zero_accepted_samples_is_reported_without_crashing() -> None:
         mask_iou=0.8,
     )
     assert not invalid.perception_gate_passed
+
+
+def test_provider_latency_indices_only_include_complete_four_frame_history() -> None:
+    dataset = type(
+        "Dataset",
+        (),
+        {"base": type("Base", (), {"index": [(0, 0), (0, 3), (1, 2), (1, 4)]})()},
+    )()
+
+    assert _full_history_dataset_indices(dataset) == [1, 3]

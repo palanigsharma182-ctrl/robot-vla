@@ -37,7 +37,10 @@ from robot_vla.precision.provider import (
     PrecisionGeometricMotionInput,
     TorchPrecisionFramePredictorConfig,
 )
-from robot_vla.precision.training import load_precision_experiment_config
+from robot_vla.precision.training import (
+    load_precision_experiment_config,
+    source_tree_sha256,
+)
 from robot_vla.sim.collector import EpisodeRejected, TrustedPickPlaceCollector
 
 PRECISION_SHADOW_VERSION = "e013-precision-paired-shadow/v1"
@@ -249,6 +252,7 @@ def run_precision_paired_shadow(
     training_output: str | Path,
     held_out_output: str | Path,
     output_root: str | Path,
+    repository_root: str | Path,
 ) -> PrecisionShadowSummary:
     output = Path(output_root)
     if output.exists():
@@ -258,6 +262,9 @@ def run_precision_paired_shadow(
     held_out_receipt = json.loads(
         (Path(held_out_output) / "receipt.json").read_text(encoding="utf-8")
     )
+    current_source_identity = source_tree_sha256(repository_root)
+    if held_out_receipt["evaluation_source_tree_sha256"] != current_source_identity:
+        raise RuntimeError("Precision shadow source identity 与 held-out evaluation 不一致")
     if not held_out_receipt["held_out"]["perception_gate_passed"]:
         raise RuntimeError("RGB-only perception gate 未通过，禁止 20 Hz shadow rollout")
     if not held_out_receipt["provider_latency"]["latency_gate_passed"]:

@@ -18,7 +18,7 @@ from robot_vla.adapters import (
     ProprioNormalizer,
     ProprioStats,
 )
-from robot_vla.contracts import RobotSpec
+from robot_vla.contracts import OBSERVATION_HISTORY_LENGTH, RobotSpec
 from robot_vla.executive.contracts import PredicateSource
 from robot_vla.observation import (
     OBSERVATION_MODALITIES,
@@ -51,6 +51,7 @@ from robot_vla.precision.training import (
     _to_device,
     evaluate_precision_model,
     load_precision_experiment_config,
+    source_tree_sha256,
 )
 
 PRECISION_CALIBRATION_VERSION = "e013-precision-confidence-calibration/v1"
@@ -121,6 +122,7 @@ class PrecisionProviderLatencyMetrics:
     provider_records_sha256: str
     warmup_calls: int
     measurement_calls: int
+    full_history_call_count: int
     predicted_frame_count: int
     failed_call_count: int
     provider_latency_p50_s: float
@@ -139,12 +141,16 @@ class PrecisionHeldOutReceipt:
     calibration: PrecisionConfidenceCalibration
     held_out: PrecisionHeldOutMetrics
     provider_latency: PrecisionProviderLatencyMetrics
+    evaluation_source_tree_sha256: str
+    training_source_tree_sha256: str
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "calibration": self.calibration.to_dict(),
             "held_out": self.held_out.to_dict(),
             "provider_latency": self.provider_latency.to_dict(),
+            "evaluation_source_tree_sha256": self.evaluation_source_tree_sha256,
+            "training_source_tree_sha256": self.training_source_tree_sha256,
         }
 
 
@@ -470,6 +476,18 @@ def _safe_hold_geometry(window: Any, frame_index: int) -> PrecisionGeometricMoti
     )
 
 
+def _full_history_dataset_indices(dataset: PrecisionRGBDataset) -> list[int]:
+    minimum_timestep = OBSERVATION_HISTORY_LENGTH - 1
+    indices = [
+        index
+        for index, (_, timestep) in enumerate(dataset.base.index)
+        if timestep >= minimum_timestep
+    ]
+    if not indices:
+        raise ValueError("Provider latency Dataset 没有完整四帧 history 样本")
+    return indices
+
+
 def _provider_latency(
     *,
     checkpoint_path: Path,
@@ -506,17 +524,20 @@ def _provider_latency(
     )
     warmup = config.held_out.provider_latency_warmup_calls
     measured = config.held_out.provider_latency_measurement_calls
-    if len(dataset) < 4:
-        raise ValueError("Provider latency Dataset 至少需要四个连续样本")
+    full_history_indices = _full_history_dataset_indices(dataset)
     for call_index in range(warmup):
-        index = 3 + call_index % (len(dataset) - 3)
+        index = full_history_indices[call_index % len(full_history_indices)]
         provider(_window_for_dataset_index(dataset, index))
     provider.reset()
     for call_index in range(measured):
-        index = 3 + call_index % (len(dataset) - 3)
+        index = full_history_indices[call_index % len(full_history_indices)]
         provider(_window_for_dataset_index(dataset, index))
     records = provider.records
     failed = sum(not record.success for record in records)
+    full_history_calls = sum(
+        record.success and record.detections_count == OBSERVATION_HISTORY_LENGTH
+        for record in records
+    )
     provider_latency = np.asarray(
         [record.total_latency_s for record in records],
         dtype=np.float64,
@@ -539,6 +560,7 @@ def _provider_latency(
         provider_records_sha256=provider.records_sha256,
         warmup_calls=warmup,
         measurement_calls=measured,
+        full_history_call_count=full_history_calls,
         predicted_frame_count=predicted,
         failed_call_count=failed,
         provider_latency_p50_s=_safe_quantile(
@@ -560,6 +582,9 @@ def _provider_latency(
         effective_rate_from_p95_hz=float(1.0 / p95),
         latency_gate_passed=(
             failed == 0
+            and len(records) == measured
+            and full_history_calls == measured
+            and predicted == measured * OBSERVATION_HISTORY_LENGTH
             and p95 <= config.shadow_rollout.p95_latency_max_s
             and p95 <= 1.0 / config.shadow_rollout.required_control_hz
         ),
@@ -573,10 +598,12 @@ def evaluate_precision_checkpoint(
     config_path: str | Path,
     training_output: str | Path,
     output_root: str | Path,
+    repository_root: str | Path,
 ) -> PrecisionHeldOutReceipt:
     output = Path(output_root)
     if output.exists():
         raise FileExistsError(f"Precision held-out output 已存在，拒绝覆盖: {output}")
+    evaluation_source_identity = source_tree_sha256(repository_root)
     output.mkdir(mode=0o700, parents=True, exist_ok=False)
     config = load_precision_experiment_config(config_path)
     audit = audit_precision_dataset(
@@ -684,6 +711,8 @@ def evaluate_precision_checkpoint(
         calibration=calibration,
         held_out=held_out,
         provider_latency=latency,
+        evaluation_source_tree_sha256=evaluation_source_identity,
+        training_source_tree_sha256=loaded.provenance.source_tree_sha256,
     )
     _atomic_json(output / "confidence_calibration.json", calibration.to_dict())
     _atomic_json(output / "held_out_evaluation.json", held_out.to_dict())
