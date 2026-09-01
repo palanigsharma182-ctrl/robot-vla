@@ -31,8 +31,8 @@ Expert-only supervision、配对实验、失败门禁和可复现实验发布。
 
 - 严格 `qwen-vla-semantic-plan/v1` schema，只接受冻结的单物体 Pick-and-Place 顺序；
 - 稳定 SHA-256 plan identity、四个宏观子任务、17 个正常 phase 和 3 个恢复 phase；
-- `history_length=4`、Observation V2、object/goal base-frame track 与 velocity、`F_L/F_R`、抓取/支撑/
-  稳定置信度的 State Estimator 输出契约；
+- `history_length=4`、Observation V2、逐时刻 wrist detection + camera pose/time 的 base-frame
+  object/goal track、velocity、innovation/freshness 诊断，以及 `F_L/F_R` 与抓取/支撑/稳定置信度契约；
 - 连续 Tick、required modality、entry/exit/invariant Predicate、多 Tick stability、timeout 接口、有限恢复
   和 retry budget；
 - close/lift/release 每 Tick 重新授权、单 controller owner、transition 后 action/reference reset 要求；
@@ -41,7 +41,9 @@ Expert-only supervision、配对实验、失败门禁和可复现实验发布。
 
 这只证明 P0 状态机和审计链可以运行，不表示 E013 已完成，也不表示 hierarchy 改善了任何闭环指标。
 当前 Executive 尚未接入 Qwen proposal、现有 `QwenVLAReplanLoop`、Action Expert condition、Precision、
-Force Guard 或 ManiSkill actuator；State Estimator 目前只有输出契约，四帧滤波算法仍属于 E013 未完成项。
+Force Guard 或 ManiSkill actuator。四时刻确定性几何/速度融合与 State Estimate→Predicate/Snapshot adapter
+已实现；真实 keypoint detector、抓取/支撑/稳定 monitor 的标定、shadow measurement 和闭环门禁仍属于
+E013 未完成项。
 
 ## 版本定位与证据边界
 
