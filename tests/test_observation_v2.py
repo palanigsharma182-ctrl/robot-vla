@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import numpy as np
 import pytest
 
@@ -84,6 +86,9 @@ def test_history_uses_zero_padding_and_explicit_invalid_mask_at_episode_start() 
     assert not window.modality_valid[:3].any()
     np.testing.assert_allclose(window.frame_age_s, 0.0)
     np.testing.assert_array_equal(window.controller_valid, (False, False))
+    assert window.timestamp_s == 0.0
+    np.testing.assert_array_equal(window.frame_timestamp_s, 0.0)
+    np.testing.assert_array_equal(window.modality_timestamp_s, 0.0)
 
 
 def test_history_is_four_consecutive_control_steps_oldest_to_newest() -> None:
@@ -112,6 +117,12 @@ def test_history_is_four_consecutive_control_steps_oldest_to_newest() -> None:
         previous_command - window.physical_proprio[-1, : spec.arm_dof],
     )
     np.testing.assert_array_equal(window.controller_valid, (True, True))
+    assert window.timestamp_s == pytest.approx(4 / spec.control_hz)
+    np.testing.assert_allclose(window.frame_timestamp_s, (0.05, 0.10, 0.15, 0.20))
+    np.testing.assert_allclose(
+        window.modality_timestamp_s[:, 0],
+        (0.05, 0.10, 0.15, 0.20),
+    )
     state = window.frame_state(
         window.physical_proprio.copy(),
         np.log1p(window.finger_force_n).astype(np.float32),
@@ -145,6 +156,21 @@ def test_history_rejects_nonconsecutive_or_future_frames() -> None:
             ),
             modality_valid=future.modality_valid,
         )
+
+
+def test_window_preserves_exact_timestamps_and_rejects_cross_frame_skew() -> None:
+    spec = RobotSpec()
+    history = ObservationV2History(spec)
+    for step in range(4):
+        history.append(_frame(spec, step))
+    window = history.snapshot("pick")
+    drifted = window.modality_timestamp_s.copy()
+    drifted[0, OBSERVATION_MODALITIES.index("rgb_wrist")] = (
+        window.frame_timestamp_s[0] + 0.001
+    )
+
+    with pytest.raises(ValueError, match="所属 frame"):
+        replace(window, modality_timestamp_s=drifted).validate(spec)
 
 
 def test_history_zeroes_invalid_modalities_and_runtime_gate_requires_complete_current() -> None:

@@ -5,7 +5,7 @@
 | 字段 | 内容 |
 | --- | --- |
 | Plan ID | `QVLA-V1.0-PLAN-001` |
-| 状态 | `engineering / P0`；主体契约、Plan Compiler、shadow Executive、ledger/replay 已实现，尚未接 Runtime、训练或运行正式闭环实验 |
+| 状态 | `engineering / P0+P1 scaffold`；主体契约、ledger/replay 与默认关闭的 Runtime observer hook 已实现，尚未训练或运行正式闭环实验 |
 | Owner | Project owner |
 | 最后更新 | 2026-09-01 |
 | 前置依赖 | E013 完成正式 GPU、ManiSkill 和至少 100 个 paired unseen Episode 闭环验收 |
@@ -25,7 +25,7 @@ Expert-only supervision、配对实验、失败门禁和可复现实验发布。
 核心问题只有一个：在 E013 能力和预算固定时，显式 hierarchy 是否能安全、可审计地改善阶段交接和
 完整任务成功。
 
-### 当前 P0 实现边界
+### 当前 P0 与 P1 scaffold 实现边界
 
 `robot_vla.executive` 已实现以下轻依赖主体框架：
 
@@ -40,10 +40,11 @@ Expert-only supervision、配对实验、失败门禁和可复现实验发布。
   一致性检查。
 
 这只证明 P0 状态机和审计链可以运行，不表示 E013 已完成，也不表示 hierarchy 改善了任何闭环指标。
-当前 Executive 尚未接入 Qwen proposal、现有 `QwenVLAReplanLoop`、Action Expert condition、Precision、
-Force Guard 或 ManiSkill actuator。四时刻确定性几何/速度融合与 State Estimate→Predicate/Snapshot adapter
-已实现；真实 keypoint detector、抓取/支撑/稳定 monitor 的标定、shadow measurement 和闭环门禁仍属于
-E013 未完成项。
+`QwenVLAReplanLoop` 已有默认关闭的 observer hook：原有 VLA 推理和当前 Action Chunk 执行完成后，才用
+同一份执行前 Observation 做 shadow replay；observer decision、reset request 或异常均不得修改 Action。
+当前 cadence 仅为 replan boundary，且同步 observer latency 可能影响下一次 Replan，因此它只用于接口/
+action-parity smoke，不等价于 20 Hz P1 measurement。真实 keypoint model provider、抓取/支撑/稳定 monitor
+标定、Qwen proposal、Action Expert condition、Precision/Force owner 和 ManiSkill 正式接线仍未完成。
 
 ## 版本定位与证据边界
 

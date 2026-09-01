@@ -207,6 +207,16 @@ class TemporalTrackDiagnostics:
     speed_m_s: float | None
     rejection_reasons: tuple[str, ...]
 
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "candidate_count": self.candidate_count,
+            "accepted_count": self.accepted_count,
+            "latest_age_s": self.latest_age_s,
+            "innovation_m": self.innovation_m,
+            "speed_m_s": self.speed_m_s,
+            "rejection_reasons": list(self.rejection_reasons),
+        }
+
 
 @dataclass(frozen=True)
 class DeployableStateEstimatorResult:
@@ -324,7 +334,6 @@ class FourFrameDeployableStateEstimator:
         self,
         window: ObservationV2Window,
         detections: tuple[WristKeypointDetection | None, ...],
-        current_timestamp_s: float,
         *,
         target: str,
     ) -> tuple[list[_TrackPoint], int, list[str]]:
@@ -377,12 +386,8 @@ class FourFrameDeployableStateEstimator:
                 _append_reason(reasons, "wrist_camera_pose_invalid")
                 continue
 
-            image_timestamp = (
-                current_timestamp_s - window.modality_age_s[index, wrist_rgb_index]
-            )
-            camera_timestamp = (
-                current_timestamp_s - window.modality_age_s[index, camera_pose_index]
-            )
+            image_timestamp = window.modality_timestamp_s[index, wrist_rgb_index]
+            camera_timestamp = window.modality_timestamp_s[index, camera_pose_index]
             if (
                 abs(detection.timestamp_s - image_timestamp)
                 > self.config.max_detection_timestamp_error_s
@@ -506,18 +511,12 @@ class FourFrameDeployableStateEstimator:
         window: ObservationV2Window,
         detections: tuple[WristKeypointDetection | None, ...],
         *,
-        current_timestamp_s: float,
         outcome_evidence: DeployableOutcomeEvidence | None = None,
     ) -> DeployableStateEstimatorResult:
-        """估计一个 Tick；``current_timestamp_s`` 是 Window 最新控制步时间。
+        """估计一个 Tick；运行时缺测返回 invalid，结构/来源污染直接拒绝。"""
 
-        运行时缺测返回 invalid，结构/来源污染直接拒绝。
-        """
-
-        timestamp = _finite(current_timestamp_s, "current_timestamp_s")
-        if timestamp < 0.0:
-            raise ValueError("current_timestamp_s 必须非负")
         window.validate(self.spec)
+        timestamp = window.timestamp_s
         if len(detections) != self.config.history_length:
             raise ValueError(
                 f"detections 必须与四时刻 history 对齐，实际长度为 {len(detections)}"
@@ -525,18 +524,16 @@ class FourFrameDeployableStateEstimator:
         timestamp_tolerance = max(1e-6, 1e-5 / self.spec.control_hz)
         for index in np.flatnonzero(window.history_valid):
             if window.frame_age_s[index] > timestamp + timestamp_tolerance:
-                raise ValueError("current_timestamp_s 早于 Observation history")
+                raise ValueError("Observation timestamp_s 早于 history 起点")
 
         object_points, object_candidates, object_reasons = self._collect_points(
             window,
             detections,
-            timestamp,
             target="object",
         )
         goal_points, goal_candidates, goal_reasons = self._collect_points(
             window,
             detections,
-            timestamp,
             target="goal",
         )
         object_track, object_diagnostics = self._fit_track(

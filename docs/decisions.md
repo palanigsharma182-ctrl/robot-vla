@@ -1427,9 +1427,10 @@ uncertainty gate 和接触反馈。工程底线与推荐目标分开报告，避
 - 因目标放宽而恢复旧八图 Layer-12 方案：旧 smoke 不是最终闭环，并且不解决控制权、相机几何或接触，
   拒绝。
 
-**Implementation status:** 已加入轻依赖 `robot_vla.precision.evaluation` 评估契约和分档复算；模型、几何
-和控制 scaffold 不改动。正式数据、GPU/ManiSkill smoke、Cartesian IK、四帧 filter、force controller 和
-闭环效果实验仍未完成，不能把目标门槛写成已达到结果。
+**Implementation status:** 已加入轻依赖 `robot_vla.precision.evaluation` 评估契约和分档复算；四时刻
+关键点/相机位姿/原始时间戳的确定性融合与默认关闭 Runtime observer hook 已实现。真实 RGB provider、
+confidence/outcome 标定、正式数据、GPU/ManiSkill smoke、Cartesian IK、20 Hz observer、force controller
+和闭环效果实验仍未完成，不能把目标门槛写成已达到结果。
 
 **Status:** active
 
@@ -1465,8 +1466,46 @@ E008–E012 已显示空间表示改善、checkpoint 选择和 boundary recovery
 **Implementation status:** 项目计划与 Gate 已定义；`robot_vla.executive` 已实现 P0 的 semantic schema、
 Plan Compiler、四时刻 wrist detection/camera pose/time 到 base-frame track/velocity 的确定性融合、可部署
 State Estimate→Predicate/Snapshot adapter、shadow-only 状态机、有限恢复和 JSONL ledger replay，并有轻依赖
-负例测试。真实 detector 与 outcome monitor 尚未标定，也尚未接入 Qwen、Action Expert、Precision/Force、
-现有 Runtime 或 actuator；未训练或运行正式闭环实验。
+负例测试。`QwenVLAReplanLoop` 已有默认关闭、Action 执行后调用的 observer hook；真实 detector/outcome
+monitor 尚未标定，也尚未接入 Qwen proposal、Action Expert condition、Precision/Force owner 或 actuator；
+未训练或运行正式闭环实验。
+
+**Status:** active
+
+## D032 — Shadow Executive 在当前 Action 执行后观察，replan cadence 不冒充 20 Hz 控制
+
+**Decision:**
+
+Observation V2 Window 保留原始 float64 frame/modality timestamp；四时刻融合禁止用 newest timestamp 减
+float32 age 重建采集时间。Precision decoded output 通过固定 adapter 形成 object/goal wrist detection，track
+confidence 定义为 keypoint visibility 与 projection validity 的最小值；peak、entropy 和 pixel sigma 原样
+进入诊断，未标定前不任意加权。
+
+`QwenVLAReplanLoop` 的 `shadow_observer` 默认是 `None`，Observer 自身还需显式 `enabled=true`。启用时先
+完成原有推理、ensemble/RTC 和当前 Action Chunk 执行，再把执行前 Observation 交给 Shadow Executive。
+Observer 的 decision、`requires_action_reset` 或异常都不调用 actuator/executor；意外异常只写入独立
+`shadow_error`。每 Episode reset 同时清空 observer 的内存 ledger，但调用方必须先冻结上一 Episode 记录。
+
+当前 hook cadence 固定为 `replan-boundary/pre-execution-observation/v1`，通常只有 5 Hz。它可以验证接口、
+ledger、错误隔离和当前 Chunk 的 Action parity，但不能测量正式 20 Hz phase delay/stability。同步 observer
+还会记录 latency；在异步隔离或时延门禁通过前，不把它加入正式 treatment rollout。
+
+**Reason:**
+
+在原有 Action 生成或执行前同步运行 detector/Executive，会改变当前命令延迟，把 instrumentation 影响混入
+hierarchy 归因。只保存 age 又会在 Episode 起点因 float32 舍入得到负时间，并掩盖图像—相机位姿错配。
+保留原始时间并在 Action 后观察，可以先验证数据链和 fail-closed 语义，同时明确暴露下一次 Replan 延迟。
+
+**Alternatives considered:**
+
+- 从 `control_step / control_hz` 推算绝对时间：真实硬件、重连和异步传感器下不成立，拒绝。
+- Observer 在当前 Action 前同步运行：可能改变当前 Chunk latency 和行为，拒绝作为 action-parity smoke。
+- 直接让 shadow decision reset/hold：会提前把 P1 观察升级成控制 treatment，拒绝。
+- 把 replan-boundary stability 写成 20 Hz 结果：cadence 不同，拒绝。
+
+**Implementation status:** 原始 timestamp、Precision detection adapter、episode-local Observer、ledger/error/
+latency record 与 `QwenVLAReplanLoop` 默认关闭 hook 已实现。真实模型 provider、20 Hz control-tick observer、
+异步资源隔离和正式 shadow rollout 尚未实现或验证。
 
 **Status:** active
 

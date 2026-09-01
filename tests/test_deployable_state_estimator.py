@@ -185,7 +185,6 @@ def test_four_frame_geometry_compensates_dynamic_wrist_camera_pose() -> None:
     result = estimator.estimate(
         window,
         _detections(frames),
-        current_timestamp_s=frames[-1].timestamp_s,
     )
 
     state = result.state_estimate
@@ -207,7 +206,6 @@ def test_four_frame_fit_recovers_base_frame_object_velocity() -> None:
     result = estimator.estimate(
         window,
         _detections(frames, object_velocity_x_m_s=0.2),
-        current_timestamp_s=frames[-1].timestamp_s,
     )
 
     assert result.state_estimate.object_track.valid
@@ -231,7 +229,6 @@ def test_state_to_snapshot_preserves_pressure_modality_and_direct_predicates() -
     state = estimator.estimate(
         window,
         _detections(frames),
-        current_timestamp_s=frames[-1].timestamp_s,
         outcome_evidence=outcome,
     ).state_estimate
 
@@ -275,7 +272,6 @@ def test_missing_outcome_monitor_does_not_invent_grasp_or_support_state() -> Non
     state = estimator.estimate(
         window,
         _detections(frames),
-        current_timestamp_s=frames[-1].timestamp_s,
     ).state_estimate
 
     snapshot = build_deployable_snapshot(
@@ -305,7 +301,6 @@ def test_timestamp_mismatch_fails_track_closed_with_auditable_reason() -> None:
     result = estimator.estimate(
         window,
         _detections(frames, timestamp_offset_s=0.01),
-        current_timestamp_s=frames[-1].timestamp_s,
     )
 
     assert not result.state_estimate.object_track.valid
@@ -332,7 +327,6 @@ def test_latest_keypoint_jump_is_rejected_by_temporal_innovation_gate() -> None:
     result = estimator.estimate(
         window,
         tuple(detections),
-        current_timestamp_s=frames[-1].timestamp_s,
     )
 
     assert not result.state_estimate.object_track.valid
@@ -352,7 +346,6 @@ def test_episode_prefix_padding_requires_none_and_cannot_fabricate_velocity() ->
     result = estimator.estimate(
         window,
         (None, None, None, detection),
-        current_timestamp_s=frame.timestamp_s,
     )
     assert not result.state_estimate.object_track.valid
     assert "track_insufficient_points" in result.object_diagnostics.rejection_reasons
@@ -361,7 +354,6 @@ def test_episode_prefix_padding_requires_none_and_cannot_fabricate_velocity() ->
         estimator.estimate(
             window,
             (detection, None, None, detection),
-            current_timestamp_s=frame.timestamp_s,
         )
 
 
@@ -374,13 +366,11 @@ def test_runtime_estimator_and_snapshot_reject_hidden_gt_or_evidence_drift() -> 
         estimator.estimate(
             window,
             _detections(frames, source=PredicateSource.EVALUATOR_GT),
-            current_timestamp_s=frames[-1].timestamp_s,
         )
 
     state = estimator.estimate(
         window,
         _detections(frames),
-        current_timestamp_s=frames[-1].timestamp_s,
     ).state_estimate
     with pytest.raises(ValueError, match="F_L/F_R"):
         build_deployable_snapshot(

@@ -219,6 +219,8 @@ class ObservationV2Window:
     finger_force_n: np.ndarray
     frame_age_s: np.ndarray
     modality_age_s: np.ndarray
+    frame_timestamp_s: np.ndarray
+    modality_timestamp_s: np.ndarray
     history_valid: np.ndarray
     modality_valid: np.ndarray
     previous_command_q: np.ndarray
@@ -226,6 +228,7 @@ class ObservationV2Window:
     previous_action: np.ndarray
     controller_valid: np.ndarray
     instruction: str
+    timestamp_s: float
     version: str = OBSERVATION_V2_VERSION
 
     @property
@@ -244,6 +247,8 @@ class ObservationV2Window:
             raise ValueError(f"Observation version 必须是 {OBSERVATION_V2_VERSION}")
         if not isinstance(self.instruction, str) or not self.instruction.strip():
             raise ValueError("instruction 必须是非空字符串")
+        if not math.isfinite(self.timestamp_s) or self.timestamp_s < 0.0:
+            raise ValueError("Observation V2 timestamp_s 必须是有限非负数")
         if self.history_length != OBSERVATION_HISTORY_LENGTH:
             raise ValueError(
                 f"Observation V2 history_length 必须为 {OBSERVATION_HISTORY_LENGTH}"
@@ -287,6 +292,23 @@ class ObservationV2Window:
             raise ValueError("finger_force_n 必须非负")
         if np.any(self.frame_age_s < 0.0) or np.any(self.modality_age_s < 0.0):
             raise ValueError("Observation V2 age 必须非负")
+        frame_timestamp = np.asarray(self.frame_timestamp_s)
+        modality_timestamp = np.asarray(self.modality_timestamp_s)
+        if (
+            frame_timestamp.shape != (self.history_length,)
+            or frame_timestamp.dtype != np.float64
+            or not np.isfinite(frame_timestamp).all()
+            or np.any(frame_timestamp < 0.0)
+        ):
+            raise ValueError("frame_timestamp_s 必须是有限非负 float64 [4]")
+        if (
+            modality_timestamp.shape
+            != (self.history_length, len(OBSERVATION_MODALITIES))
+            or modality_timestamp.dtype != np.float64
+            or not np.isfinite(modality_timestamp).all()
+            or np.any(modality_timestamp < 0.0)
+        ):
+            raise ValueError("modality_timestamp_s 必须是有限非负 float64 [4,6]")
 
         history_valid = np.asarray(self.history_valid)
         modality_valid = np.asarray(self.modality_valid)
@@ -325,6 +347,8 @@ class ObservationV2Window:
             (self.finger_force_n, "finger_force_n"),
             (self.frame_age_s, "frame_age_s"),
             (self.modality_age_s, "modality_age_s"),
+            (self.frame_timestamp_s, "frame_timestamp_s"),
+            (self.modality_timestamp_s, "modality_timestamp_s"),
         ):
             if np.any(np.asarray(value)[padding_rows] != 0):
                 raise ValueError(f"{name} 的 padding history 必须为零")
@@ -366,6 +390,39 @@ class ObservationV2Window:
             raise ValueError("有效 modality 的时间戳不能晚于所属控制步")
         if np.any(self.modality_age_s[~modality_valid] != 0):
             raise ValueError("无效 modality 的 age 必须使用零值")
+        if np.any(self.modality_timestamp_s[~modality_valid] != 0):
+            raise ValueError("无效 modality 的 timestamp 必须使用零值")
+        if np.any(self.frame_timestamp_s[~history_valid] != 0):
+            raise ValueError("padding history 的 frame timestamp 必须使用零值")
+        if np.any(self.frame_timestamp_s[valid_indices] > self.timestamp_s + 1e-9):
+            raise ValueError("frame timestamp 不能晚于 Window timestamp")
+        if np.any(
+            self.modality_timestamp_s[modality_valid] > self.timestamp_s + 1e-9
+        ):
+            raise ValueError("modality timestamp 不能晚于 Window timestamp")
+        frame_timestamp_grid = np.broadcast_to(
+            self.frame_timestamp_s[:, None],
+            self.modality_timestamp_s.shape,
+        )
+        if np.any(
+            self.modality_timestamp_s[modality_valid]
+            > frame_timestamp_grid[modality_valid] + 1e-9
+        ):
+            raise ValueError("modality timestamp 不能晚于所属 frame timestamp")
+        if not np.allclose(
+            self.timestamp_s - self.frame_timestamp_s[valid_indices],
+            self.frame_age_s[valid_indices],
+            rtol=0.0,
+            atol=tolerance,
+        ):
+            raise ValueError("frame timestamp 与 age 不一致")
+        if not np.allclose(
+            self.timestamp_s - self.modality_timestamp_s[modality_valid],
+            self.modality_age_s[modality_valid],
+            rtol=0.0,
+            atol=tolerance,
+        ):
+            raise ValueError("modality timestamp 与 age 不一致")
         for index in valid_indices:
             if modality_valid[index, 3]:
                 rotation_6d_to_matrix(self.tcp_rotation_6d[index])
@@ -524,6 +581,11 @@ class ObservationV2History:
             (self.history_length, len(OBSERVATION_MODALITIES)),
             dtype=np.float32,
         )
+        frame_timestamp = np.zeros(self.history_length, dtype=np.float64)
+        modality_timestamp = np.zeros(
+            (self.history_length, len(OBSERVATION_MODALITIES)),
+            dtype=np.float64,
+        )
         history_valid = np.zeros(self.history_length, dtype=np.bool_)
         modality_valid = np.zeros_like(modality_age, dtype=np.bool_)
         for index, frame in enumerate(frames):
@@ -550,6 +612,10 @@ class ObservationV2History:
                 newest.timestamp_s
                 - frame.modality_timestamp_s[frame.modality_valid]
             ).astype(np.float32)
+            frame_timestamp[index] = frame.timestamp_s
+            modality_timestamp[index, frame.modality_valid] = (
+                frame.modality_timestamp_s[frame.modality_valid]
+            )
             history_valid[index] = True
             modality_valid[index] = frame.modality_valid
 
@@ -586,6 +652,8 @@ class ObservationV2History:
             finger_force_n=forces,
             frame_age_s=frame_age,
             modality_age_s=modality_age,
+            frame_timestamp_s=frame_timestamp,
+            modality_timestamp_s=modality_timestamp,
             history_valid=history_valid,
             modality_valid=modality_valid,
             previous_command_q=command,
@@ -593,6 +661,7 @@ class ObservationV2History:
             previous_action=action,
             controller_valid=controller_valid,
             instruction=instruction,
+            timestamp_s=newest.timestamp_s,
         )
         window.validate(self.spec)
         return window
