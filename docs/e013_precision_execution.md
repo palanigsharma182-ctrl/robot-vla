@@ -228,6 +228,9 @@ U-Net 不从 220 条 Expert Action 轨迹学习“怎么移动”。训练标签
 - shadow/bounded-residual 仲裁与 visibility/entropy/uncertainty fail-closed gate；
 - Precision decoded keypoint 到部署 wrist detection 的版本化适配，保留 visibility、projection validity、
   peak、entropy 与 pixel sigma；
+- 默认关闭的 replay/shadow-only RGB Provider：按 oldest→newest 顺序运行冻结 U-Net，使用训练一致的
+  proprio/force normalization、显式 deployable geometric motion、原始 wrist timestamp，并记录
+  checkpoint/parameter/config/stats identity、逐帧 latency 和 confidence evidence；
 - Window 原始 float64 frame/modality timestamp、四时刻 base-frame track/velocity/innovation 融合，以及
   默认关闭的 replan-boundary Shadow Executive hook；
 - 合成几何和控制单元测试。
@@ -236,7 +239,7 @@ U-Net 不从 220 条 Expert Action 轨迹学习“怎么移动”。训练标签
 
 - ManiSkill 相机真实分辨率、畸变和 tabletop mm/pixel receipt；
 - oracle/HSV/RGB-only Dataset 与训练 CLI；
-- 真实 RGB keypoint model provider、track/outcome confidence 标定与 20 Hz shadow measurement；
+- 训练完成并冻结的 RGB keypoint checkpoint、track/outcome confidence 标定与 20 Hz shadow measurement；
 - Cartesian IK、机器人底层接口和 20 Hz / p95 50 ms latency；
 - force-contact controller；
 - PyTorch 环境中的 forward/backward 实测；

@@ -28,7 +28,11 @@ def _numpy(value: Any, name: str) -> np.ndarray:
     if hasattr(candidate, "numpy"):
         candidate = candidate.numpy()
     array = np.asarray(candidate)
-    if not np.issubdtype(array.dtype, np.number) or not np.isfinite(array).all():
+    if (
+        not np.issubdtype(array.dtype, np.number)
+        or np.iscomplexobj(array)
+        or not np.isfinite(array).all()
+    ):
         raise ValueError(f"{name} 必须是有限数值 array/tensor")
     return array.astype(np.float64, copy=False)
 
@@ -149,7 +153,9 @@ def precision_prediction_to_wrist_detection(
     混成一个不可解释分数。
     """
 
-    if not keypoint_names or any(not name.strip() for name in keypoint_names):
+    if not keypoint_names or any(
+        not isinstance(name, str) or not name.strip() for name in keypoint_names
+    ):
         raise ValueError("keypoint_names 必须包含非空名称")
     if len(set(keypoint_names)) != len(keypoint_names):
         raise ValueError("keypoint_names 不能重复")

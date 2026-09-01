@@ -101,3 +101,23 @@ def test_precision_adapter_does_not_require_torch_for_replay_arrays() -> None:
 
     assert isinstance(result.detection.object_normalized_uv, tuple)
     assert isinstance(result.object_evidence.sigma_px, tuple)
+
+
+def test_precision_adapter_rejects_complex_arrays_or_non_string_keypoint_names() -> None:
+    complex_prediction = _prediction()
+    complex_prediction.keypoints.normalized_uv = (
+        complex_prediction.keypoints.normalized_uv.astype(np.complex64) + 0.1j
+    )
+    with pytest.raises(ValueError, match="normalized_uv"):
+        precision_prediction_to_wrist_detection(
+            complex_prediction,
+            keypoint_names=("goal_center", "object_center"),
+            timestamp_s=0.0,
+        )
+
+    with pytest.raises(ValueError, match="keypoint_names"):
+        precision_prediction_to_wrist_detection(
+            _prediction(),
+            keypoint_names=("goal_center", 1),
+            timestamp_s=0.0,
+        )
