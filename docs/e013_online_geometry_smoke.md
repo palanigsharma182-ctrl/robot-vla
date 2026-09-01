@@ -1,5 +1,10 @@
 # E013 Layer-12 在线相对几何 smoke
 
+> **Status: superseded before execution.** 用户将目标明确为端到端 `p90 <= 2 mm` 后，本 smoke 的
+> 10–15 mm deployable-candidate 阈值不再适用，也不得作为新 E013 的 promotion gate。当前文件保留
+> 旧 Layer-12 设计和命令供审计；没有由此生成正式结果。新的 canonical 方案见
+> [E013 — 2 mm 高频精密执行层](e013_precision_execution.md)。
+
 本 smoke 在 E013 正式采集和四轮训练前回答一个更小的问题：冻结 Qwen Layer 12 在四步双视角
 Observation V2 中，能否在 **测试阶段不读取 GT token index** 的情况下自行定位当前 external 图像中的
 方块和目标区域，并达到值得继续正式实验的 world-XY 精度。

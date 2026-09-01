@@ -41,6 +41,8 @@ Franka Panda 双相机 VLA 链路：
 - Action 标签/执行统一为 commanded-target 增量，并跨 Replan 保存 command reference；
 - Observation V2：TCP 完整位姿、OpenGL→OpenCV→base 相机变换、四步双图、`F_L/F_R`、
   时间/validity 和 controller state，以及 train-only force stats/checkpoint identity；
+- E013 的 2 mm 架构 amendment：低频 VLA + 高频三头 U-Net、显式 base-plane 几何、逐轴不确定性和
+  shadow-only metric residual 控制契约；当前只是工程 scaffold，尚无毫米级闭环效果证据；
 - ManiSkill 单环境 Franka `pd_joint_delta_pos` Controller Adapter；
 - reach/grasp/lift/transport/place Outcome Predicate、原子技能状态机和完整组合任务；
 - 目标双相机可见、必须松爪并稳定放置的 `RobotVLAPickCubeToRegion-v1` 环境；
@@ -119,6 +121,8 @@ Checkpoint 或闭环产物。Qwen、ManiSkill、SAPIEN 及其他第三方组件�
 - V2 接触：左右 finger–cube pairwise force magnitude `F_L/F_R`；它是仿真近似，不是真实应变片；
 - 动作：`command_target_delta_q[7] + gripper_target[1]`，共 8 维；controller correction 是独立的
   `commanded_target - actual_q`；
+- 精密层动作：`commanded TCP target delta [base dx/dy/dz meter + dyaw radian]`；与 VLA joint Action
+  隔离，Motion Head 第一阶段只允许 shadow；
 - 控制频率：20 Hz；Action Horizon：16；每次执行前 4 步；
 - Qwen：`Qwen/Qwen3.5-2B`，固定 revision
   `15852e8c16360a2fea060d615a32b45270f8a8fc`；
@@ -130,6 +134,8 @@ Checkpoint 或闭环产物。Qwen、ManiSkill、SAPIEN 及其他第三方组件�
 最小可部署状态、坐标公式、Action 等式、迁移与验证门禁见
 [`docs/minimum_deployable_state.md`](docs/minimum_deployable_state.md)。其他边界见
 [`docs/architecture.md`](docs/architecture.md) 和 [`docs/decisions.md`](docs/decisions.md)。
+2 mm 高频精密层的当前实现边界和未完成门禁见
+[`docs/e013_precision_execution.md`](docs/e013_precision_execution.md)。
 
 ## 环境验证
 

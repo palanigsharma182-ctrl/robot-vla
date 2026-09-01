@@ -39,7 +39,7 @@ Action 安全拒绝诊断、事件损失、temporal ensemble，以及固定低�
 | E010 | 2026-08-29 | Layer 12 五技能梯度冲突与 base/event 归因 probe | completed | e098-best/e100 均未通过两阶段负冲突门槛；五技能 train median 全为正，Reach/Transport event gradient 为零不可识别，不支持直接多头或 PCGrad |
 | E011 | 2026-08-29 | RTC Action Chunk Transition 受控评估 | completed | RTC 在共同 Reach seed 上推进到 Transport，但把完整闭环 Reach 从 temporal 的 6/10 降到 2/10，未通过 promotion；默认继续 temporal ensemble，不进入 Stage B |
 | E012 | 2026-08-29 | Local DAgger Boundary Recovery | stopped | amended D1、repeat-1 训练与 315-Episode checkpoint validation 完成；replay/Dagger 均无 eligible checkpoint，promotion 按 gate 停止，不支持声称 Local DAgger 改善 |
-| E013 | 2026-09-01 | 最小可部署状态 paired attribution | planned | Action correctness amendment 已实现；正式 GPU/ManiSkill 门禁、新 V2 数据采集、训练与闭环比较均未开始 |
+| E013 | 2026-09-01 | 2 mm 高频精密执行层 | engineering | 三头 U-Net、显式平面几何和 shadow 控制契约已开始实现；尚无 GPU/ManiSkill、训练或闭环效果证据；旧八图 Layer-12 方案在执行前被修订 |
 
 ## E001 — 30 条数据 Stage 1 与首轮闭环
 
@@ -1718,7 +1718,15 @@ Dataset 或含图像的 trajectory。
 
 **Date:** 2026-09-01
 
-**Status:** planned
+**Status:** superseded before formal execution
+
+**Pre-result amendment:** 用户在任何 E013 正式采集、训练和闭环评估开始前，将验收目标明确为最终
+world-XY `p90 <= 0.002 m`。E008 Layer 12 的 `0.0253 m` median / `0.0388 m` p90 以及本节旧
+online smoke 的 10–15 mm candidate 阈值都不能支持该目标。因此本节以下“八图 Frozen Qwen Layer 12
+paired attribution”保留为未执行的历史预注册，不再启动。当前 canonical E013 改为低频 VLA + 高频
+三头 U-Net/显式几何/视觉伺服方案，完整接口、门禁和未完成项见
+[E013 — 2 mm 高频精密执行层](e013_precision_execution.md)。Observation V2 与 commanded-target
+Action correctness 契约继续有效；旧 E012 产物保持冻结。
 
 **Experiment:**
 

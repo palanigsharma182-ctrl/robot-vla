@@ -1350,6 +1350,46 @@ PyTorch/Qwen/ManiSkill GPU smoke、新 D0-V2 audit 和正式 paired training 尚
 
 **Status:** active
 
+## D029 — 2 mm 精定位从 VLA Action 中拆出，三头 U-Net Motion Head 先 shadow
+
+**Decision:**
+
+E013 在正式数据采集和训练开始前改为两时间尺度架构。低频 Qwen/VLA 继续负责指令、object/goal、技能、
+粗 ROI 和 coarse approach；进入 fine alignment 后由高频 precision layer 独占位置控制权。Precision layer
+直接读取腕部原始高分辨率 ROI，以三头 U-Net 输出稠密关键点/mask、base-frame 四维 TCP metric residual
+和逐关键点/逐轴不确定性；目标像素先经过冻结 OpenCV 相机模型与平面几何生成 geometry delta。
+
+新的笛卡尔动作语义固定为
+`commanded-tcp-target-delta/base-frame/m-rad/v1`，与 D028 的 commanded joint-target delta 明确隔离。
+Residual Head 最后一层零初始化；第一阶段只允许 `shadow`，正式候选命令等于 clipped geometry delta。
+只有独立 shadow/calibration gate 通过后，才能在新实验身份中启用每轴硬限幅的 bounded residual。
+四帧第一版在网络外对关键点、camera pose 和 timestamp 做状态估计；不把双相机八图继续送入 Qwen 或
+直接堆进 U-Net。`F_L/F_R` 只在 contact mode 参与接触、偏载和滑脱控制。
+
+**Reason:**
+
+E008 Layer 12 的 world-XY median/p90 为 `25.3/38.8 mm`，距离 2 mm p90 目标约 19 倍；Layer 24 更差。
+增加 Qwen 层、KV 或帧数不能恢复视觉 patch/merge 已丢失的空间带宽，也不能消除相机标定、TCP、控制
+跟踪和接触误差。当前任务是已知桌面平面和受限物体几何，专用高分辨率 dense perception + 显式几何
+可以分别验证 pixel、world、controller 和 final placement 误差。Shadow residual 保留学习系统偏差的能力，
+同时避免再次把 Action label、坐标变换和控制动态混进不可审计的端到端 head。
+
+**Alternatives considered:**
+
+- 继续 sweep Qwen Layer 12/24 或使用 24 层 KV：没有度量坐标约束，且现有证据离 2 mm 太远，拒绝作为
+  主精定位路径。
+- 四帧双相机八图继续进入 Frozen Qwen：增加计算但不改变原始空间采样，旧 E013 在执行前 supersede。
+- U-Net 直接输出不受限 Cartesian/Joint Action：重新混合感知、标签语义、IK 和控制误差，拒绝。
+- 第一版立即启用 learned residual：没有 shadow calibration 和闭环证据，拒绝。
+- 只使用单一 confidence sigmoid：无法区分遮挡、像素、投影和 motion uncertainty，拒绝。
+
+**Implementation status:** `robot_vla.precision` 已加入动作契约、OpenCV base-plane 几何、三头 U-Net、
+soft-argmax、heteroscedastic loss 和 fail-closed shadow/bounded-residual 仲裁；轻依赖合成测试已通过。
+当前本机缺少 PyTorch，模型 forward/backward 测试只可静态编译并明确 skip；ManiSkill camera receipt、
+oracle/HSV/RGB-only 数据、训练、Cartesian IK、四帧 filter、force controller 和 2 mm 闭环验证均未完成。
+
+**Status:** active
+
 ## 新决策模板
 
 ```markdown
