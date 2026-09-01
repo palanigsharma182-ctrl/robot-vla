@@ -134,12 +134,13 @@ class HoldOnlyController:
 class StableController:
     def __init__(self) -> None:
         self.q = np.asarray((0.0, -0.5, 0.0, -1.5, 0.0, 1.5, 0.0), dtype=np.float32)
+        self.sent_actions = []
 
     def read_state(self) -> FrankaControlState:
         return FrankaControlState(self.q.copy(), 0.5)
 
-    def send_action(self, _controller_action) -> None:
-        pass
+    def send_action(self, controller_action) -> None:
+        self.sent_actions.append(np.asarray(controller_action).copy())
 
     def hold_current(self) -> None:
         pass
@@ -172,6 +173,32 @@ class RecordingRTCRuntime:
             context_length=2,
             sampling=trace,
         )
+
+
+class RecordingShadowObserver:
+    def __init__(self, controller: StableController, expected_steps: int) -> None:
+        self.controller = controller
+        self.expected_steps = expected_steps
+        self.calls = []
+        self.reset_calls = 0
+        self.result = SimpleNamespace(success=True, label="shadow-only")
+
+    def reset(self) -> None:
+        self.reset_calls += 1
+
+    def observe(self, observation, *, control_step: int):
+        # Observer 必须在 Action 已全部发送后运行，避免改变当前 Chunk 行为。
+        assert len(self.controller.sent_actions) == self.expected_steps
+        self.calls.append((observation, control_step))
+        return self.result
+
+
+class RaisingShadowObserver:
+    def reset(self) -> None:
+        pass
+
+    def observe(self, _observation, *, control_step: int):
+        raise RuntimeError(f"shadow failed at {control_step}")
 
 
 def _policy() -> tuple[QwenVLAPolicy, FakeQwen]:
@@ -587,6 +614,66 @@ def test_rtc_anomaly_clears_previous_reference() -> None:
     loop.replan_and_execute(_observation(spec), controller)
 
     assert runtime.calls[1]["rtc_previous_overlap"] is None
+
+
+def test_replan_loop_shadow_observer_runs_after_execution_without_changing_action() -> None:
+    spec = RobotSpec()
+    baseline_runtime = RecordingRTCRuntime(spec)
+    baseline_controller = StableController()
+    baseline_loop = QwenVLAReplanLoop(
+        baseline_runtime,
+        RecedingHorizonChunkExecutor(spec),
+    )
+    baseline = baseline_loop.replan_and_execute(_observation(spec), baseline_controller)
+
+    observed_runtime = RecordingRTCRuntime(spec)
+    observed_controller = StableController()
+    observer = RecordingShadowObserver(observed_controller, spec.execute_steps)
+    observed_loop = QwenVLAReplanLoop(
+        observed_runtime,
+        RecedingHorizonChunkExecutor(spec),
+        shadow_observer=observer,
+    )
+    observed = observed_loop.replan_and_execute(_observation(spec), observed_controller)
+
+    assert baseline.shadow_observation is None
+    assert baseline.shadow_error is None
+    assert observed.shadow_observation is observer.result
+    assert observed.shadow_error is None
+    assert len(observer.calls) == 1
+    assert observer.calls[0][1] == 0
+    assert baseline.action_chunk is not None and observed.action_chunk is not None
+    np.testing.assert_array_equal(
+        observed.action_chunk.normalized_action,
+        baseline.action_chunk.normalized_action,
+    )
+    np.testing.assert_array_equal(
+        observed.action_chunk.physical_action,
+        baseline.action_chunk.physical_action,
+    )
+    assert len(observed_controller.sent_actions) == spec.execute_steps
+
+    observed_loop.reset()
+    assert observer.reset_calls == 1
+
+
+def test_replan_loop_isolates_unexpected_shadow_failure_from_action_execution() -> None:
+    spec = RobotSpec()
+    runtime = RecordingRTCRuntime(spec)
+    controller = StableController()
+    loop = QwenVLAReplanLoop(
+        runtime,
+        RecedingHorizonChunkExecutor(spec),
+        shadow_observer=RaisingShadowObserver(),
+    )
+
+    result = loop.replan_and_execute(_observation(spec), controller)
+
+    assert result.execution.success
+    assert result.action_chunk is not None
+    assert len(controller.sent_actions) == spec.execute_steps
+    assert result.shadow_observation is None
+    assert result.shadow_error == "RuntimeError: shadow failed at 0"
 
 
 def test_observation_v2_runtime_uses_shared_force_transform_and_runs_qwen_once() -> None:

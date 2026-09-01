@@ -59,6 +59,13 @@ from robot_vla.executive.planning import (
     PlanCompilationError,
     PlanCompilerConfig,
 )
+from robot_vla.executive.shadow import (
+    SHADOW_EXECUTIVE_CADENCE,
+    SHADOW_EXECUTIVE_OBSERVER_VERSION,
+    ShadowExecutiveObservation,
+    ShadowExecutiveObserver,
+    ShadowExecutiveObserverConfig,
+)
 
 __all__ = [
     "CANONICAL_PICK_PLACE_SUBTASKS",
@@ -68,6 +75,8 @@ __all__ = [
     "EXECUTIVE_PREDICATES",
     "PICK_PLACE_TASK_ID",
     "SEMANTIC_PLAN_SCHEMA_VERSION",
+    "SHADOW_EXECUTIVE_CADENCE",
+    "SHADOW_EXECUTIVE_OBSERVER_VERSION",
     "TRANSITION_LEDGER_VERSION",
     "WRIST_KEYPOINT_DETECTION_VERSION",
     "CompiledTaskPlan",
@@ -96,6 +105,9 @@ __all__ = [
     "PredicateSource",
     "ScalarStateEstimate",
     "SemanticPlanProposal",
+    "ShadowExecutiveObservation",
+    "ShadowExecutiveObserver",
+    "ShadowExecutiveObserverConfig",
     "SubtaskId",
     "SubtaskSpec",
     "TemporalTrackDiagnostics",
