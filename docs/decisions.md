@@ -1388,6 +1388,47 @@ soft-argmax、heteroscedastic loss 和 fail-closed shadow/bounded-residual 仲�
 当前本机缺少 PyTorch，模型 forward/backward 测试只可静态编译并明确 skip；ManiSkill camera receipt、
 oracle/HSV/RGB-only 数据、训练、Cartesian IK、四帧 filter、force controller 和 2 mm 闭环验证均未完成。
 
+**Status:** superseded by D030 before formal E013 data collection or evaluation
+
+## D030 — E013 以厘米级闭环精调为正式目标，工程可用档为底线
+
+**Decision:**
+
+保留 D029 的两时间尺度架构、三头 U-Net、显式几何、shadow residual、控制权互斥和 `F_L/F_R`
+contact 边界，但取消系统级 `p90 <= 2 mm` 的项目成败要求。E013 按同一最终 object→goal world-XY
+误差分三档：
+
+- engineering floor：p50 `<=15 mm` 且 p90 `<=25 mm`，是可接受底线；
+- recommended portfolio target：p50 `<=12 mm`、p90 `<=20 mm`，且 within-20-mm rate `>=90%`；
+- optional stretch：p50 `<=10 mm` 且 p90 `<=15 mm`，只作附加结果，不阻断项目完成。
+
+正式评估至少使用 100 个预注册 unseen paired Episode。任务失败有可测最终位置时必须进入误差统计；
+invalid projection、system/safety/tracking failure、控制器重叠或 stale-observation command 任一非零都阻断
+promotion。精调环最低要求为有效 `20 Hz` 和端到端 `p95 <=50 ms`；30 Hz 是可选性能目标，不要求
+60 Hz。现有 E008 Layer-12 `25.3/38.8 mm` p50/p90 是固定 baseline，只用于复算相对改善，不在结果后
+替换。
+
+**Reason:**
+
+个位数毫米系统精度会把主要工作转化为计量级相机/TCP/手眼标定、机械回差与柔性补偿、高带宽实时控制
+和外部真值测量，超出当前求职项目的合理范围，也不是 π0.5 类基础操作系统通常用来证明语义泛化和长程
+任务能力的核心指标。`12/20 mm` 推荐档仍要求相对 Layer-12 baseline 显著改善，并能充分展示粗到精控制、
+Observation V2、动作语义、动态相机几何、时间同步、uncertainty gate 和接触反馈。工程底线与推荐目标
+分开报告，避免为追求单一数字删除失败样本或临时放宽安全门禁。
+
+**Alternatives considered:**
+
+- 继续以 2 mm 为硬门槛：硬件、标定和真实测量成本过高，且会掩盖层级 VLA/闭环执行的求职价值，拒绝。
+- 完全删除精调层：无法验证从 `25.3/38.8 mm` baseline 到厘米级闭环改善，也失去控制语义和多速率系统
+  的核心工程贡献，拒绝。
+- 只报告平均误差或挑选成功 Episode：会隐藏长尾和系统失败，拒绝。
+- 因目标放宽而恢复旧八图 Layer-12 方案：旧 smoke 不是最终闭环，并且不解决控制权、相机几何或接触，
+  拒绝。
+
+**Implementation status:** 已加入轻依赖 `robot_vla.precision.evaluation` 评估契约和分档复算；模型、几何
+和控制 scaffold 不改动。正式数据、GPU/ManiSkill smoke、Cartesian IK、四帧 filter、force controller 和
+闭环效果实验仍未完成，不能把目标门槛写成已达到结果。
+
 **Status:** active
 
 ## 新决策模板

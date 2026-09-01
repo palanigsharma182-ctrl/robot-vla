@@ -51,7 +51,7 @@ class PrecisionMotionSpec:
     translation_unit: str = "meter"
     rotation_unit: str = "radian"
     components: tuple[str, ...] = PRECISION_MOTION_COMPONENTS
-    # 这些只是 v1 工程安全上限，不是已经验证的 2 mm 性能结论。
+    # 这些只是 v1 工程安全上限，不是已经验证的闭环效果结论。
     step_limits: tuple[float, ...] = (
         1.0e-3,
         1.0e-3,
