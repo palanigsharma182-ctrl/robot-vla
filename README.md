@@ -137,6 +137,8 @@ Checkpoint 或闭环产物。Qwen、ManiSkill、SAPIEN 及其他第三方组件�
 [`docs/architecture.md`](docs/architecture.md) 和 [`docs/decisions.md`](docs/decisions.md)。
 厘米级闭环精调层的当前实现边界和未完成门禁见
 [`docs/e013_precision_execution.md`](docs/e013_precision_execution.md)。
+E013 之后候选的 `qwen-vla-v1.0` 分层子任务、阶段控制与渐进验证事项见
+[`docs/roadmap.md`](docs/roadmap.md)；该 Roadmap 仅是计划，不属于当前实现或效果结论。
 
 ## 环境验证
 

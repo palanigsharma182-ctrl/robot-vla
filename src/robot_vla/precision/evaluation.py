@@ -20,8 +20,6 @@ class PrecisionPerformanceTier(str, Enum):
 class PrecisionEvaluationThresholds:
     """冻结的 E013 指标；全部平移量使用米，延迟使用秒。"""
 
-    baseline_p50_xy_error_m: float = 0.0253
-    baseline_p90_xy_error_m: float = 0.0388
     engineering_p50_xy_error_max_m: float = 0.015
     engineering_p90_xy_error_max_m: float = 0.025
     recommended_p50_xy_error_max_m: float = 0.012
@@ -35,8 +33,6 @@ class PrecisionEvaluationThresholds:
 
     def __post_init__(self) -> None:
         distance_fields = (
-            self.baseline_p50_xy_error_m,
-            self.baseline_p90_xy_error_m,
             self.engineering_p50_xy_error_max_m,
             self.engineering_p90_xy_error_max_m,
             self.recommended_p50_xy_error_max_m,
@@ -46,8 +42,6 @@ class PrecisionEvaluationThresholds:
         )
         if any(not math.isfinite(value) or value <= 0.0 for value in distance_fields):
             raise ValueError("所有距离阈值必须是有限正数")
-        if self.baseline_p50_xy_error_m > self.baseline_p90_xy_error_m:
-            raise ValueError("baseline p50 不能大于 baseline p90")
         if self.engineering_p50_xy_error_max_m > self.engineering_p90_xy_error_max_m:
             raise ValueError("engineering p50 阈值不能大于 p90 阈值")
         if self.recommended_p50_xy_error_max_m > self.recommended_p90_xy_error_max_m:
@@ -143,8 +137,6 @@ class PrecisionEvaluationAssessment:
     recommended_target_passed: bool
     optional_stretch_passed: bool
     guardrail_failures: tuple[str, ...]
-    p50_reduction_from_baseline: float
-    p90_reduction_from_baseline: float
 
 
 def assess_precision_evaluation(
@@ -205,12 +197,6 @@ def assess_precision_evaluation(
         recommended_target_passed=recommended_passed,
         optional_stretch_passed=stretch_passed,
         guardrail_failures=tuple(guardrail_failures),
-        p50_reduction_from_baseline=(
-            1.0 - metrics.final_xy_error_p50_m / target.baseline_p50_xy_error_m
-        ),
-        p90_reduction_from_baseline=(
-            1.0 - metrics.final_xy_error_p90_m / target.baseline_p90_xy_error_m
-        ),
     )
 
 

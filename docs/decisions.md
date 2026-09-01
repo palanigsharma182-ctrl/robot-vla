@@ -1405,22 +1405,24 @@ contact 边界，但取消系统级 `p90 <= 2 mm` 的项目成败要求。E013 �
 正式评估至少使用 100 个预注册 unseen paired Episode。任务失败有可测最终位置时必须进入误差统计；
 invalid projection、system/safety/tracking failure、控制器重叠或 stale-observation command 任一非零都阻断
 promotion。精调环最低要求为有效 `20 Hz` 和端到端 `p95 <=50 ms`；30 Hz 是可选性能目标，不要求
-60 Hz。现有 E008 Layer-12 `25.3/38.8 mm` p50/p90 是固定 baseline，只用于复算相对改善，不在结果后
-替换。
+60 Hz。E008 Layer-12 `25.3/38.8 mm` p50/p90 是线性空间 probe 的固定诊断参考，不是最终放置
+baseline；正式相对改善必须由相同 unseen paired seeds 上实际运行的 coarse-only control 复算，不在结果后
+替换 control 或误用 probe 代理。
 
 **Reason:**
 
 个位数毫米系统精度会把主要工作转化为计量级相机/TCP/手眼标定、机械回差与柔性补偿、高带宽实时控制
 和外部真值测量，超出当前求职项目的合理范围，也不是 π0.5 类基础操作系统通常用来证明语义泛化和长程
-任务能力的核心指标。`12/20 mm` 推荐档仍要求相对 Layer-12 baseline 显著改善，并能充分展示粗到精控制、
-Observation V2、动作语义、动态相机几何、时间同步、uncertainty gate 和接触反馈。工程底线与推荐目标
-分开报告，避免为追求单一数字删除失败样本或临时放宽安全门禁。
+任务能力的核心指标。`12/20 mm` 推荐档仍是严格的厘米级系统目标；相对效果必须与正式 coarse-only
+control 配对计算，并能充分展示粗到精控制、Observation V2、动作语义、动态相机几何、时间同步、
+uncertainty gate 和接触反馈。工程底线与推荐目标分开报告，避免为追求单一数字删除失败样本或临时
+放宽安全门禁。
 
 **Alternatives considered:**
 
 - 继续以 2 mm 为硬门槛：硬件、标定和真实测量成本过高，且会掩盖层级 VLA/闭环执行的求职价值，拒绝。
-- 完全删除精调层：无法验证从 `25.3/38.8 mm` baseline 到厘米级闭环改善，也失去控制语义和多速率系统
-  的核心工程贡献，拒绝。
+- 完全删除精调层：无法验证相对正式 coarse-only control 的厘米级闭环改善，也失去控制语义和多速率
+  系统的核心工程贡献，拒绝。
 - 只报告平均误差或挑选成功 Episode：会隐藏长尾和系统失败，拒绝。
 - 因目标放宽而恢复旧八图 Layer-12 方案：旧 smoke 不是最终闭环，并且不解决控制权、相机几何或接触，
   拒绝。
@@ -1428,6 +1430,39 @@ Observation V2、动作语义、动态相机几何、时间同步、uncertainty 
 **Implementation status:** 已加入轻依赖 `robot_vla.precision.evaluation` 评估契约和分档复算；模型、几何
 和控制 scaffold 不改动。正式数据、GPU/ManiSkill smoke、Cartesian IK、四帧 filter、force controller 和
 闭环效果实验仍未完成，不能把目标门槛写成已达到结果。
+
+**Status:** active
+
+## D031 — v1.0 将层级执行与 E013 精度归因分离
+
+**Decision:**
+
+`qwen-vla-v1.0` 只在 E013 通过正式闭环门禁后开始效果实验，并以其冻结 Observation V2、状态估计、
+Precision、Force、Geometry 和 Controller 契约为不可变 parent。v1.0 使用一个共享 Action Expert、四个
+宏观子任务和一个横切恢复状态；确定性 Subtask Executive 是 phase transition 的唯一提交者，Qwen 只
+提供 schema 化 semantic proposal，Safety 保留动作否决权。第一正式 treatment 只引入 subtask/phase
+condition、显式 Executive、关键不可逆动作门控和有限恢复；control 使用参数量匹配的 null condition，
+两臂从同一 E013 checkpoint 派生并配对训练/评估。
+
+开发按契约回放、shadow、Expert condition、不可逆门控、完整 Executive、独立 paired evaluation 逐级
+推进。Runtime 不得读取仿真隐藏 GT；旧数据不得补造缺失的力、相机或 phase 字段。完整范围、Gate、
+资源和发布条件记录在 [`roadmap.md`](roadmap.md)。
+
+**Reason:**
+
+E008–E012 已显示空间表示改善、checkpoint 选择和 boundary recovery 都不能自动转化为完整任务提升，
+主要瓶颈集中在状态可观测性和阶段交接。若同时修改 E013 精调层、Qwen layer、数据和 hierarchy，就无法
+区分收益来源。四个宏观子任务保留接触与控制约束的真实边界，又避免把固定 Pick-and-Place 扩张成多个
+独立 policy 或伪装成 π0.5 规模基础模型。
+
+**Alternatives considered:**
+
+- 把 v1.0 合并进 E013：会混淆 Observation/precision 与 hierarchy 归因，拒绝。
+- 为 Reach/Grasp/Lift/Transport/Place 分别训练网络：数据量和维护成本上升，且增加 handoff，拒绝。
+- 让 Qwen 在控制循环中直接决定 phase 或 release：延迟、随机性和安全权责不可审计，拒绝。
+- 同时解冻 Qwen、加入 24-layer KV 或学习式力控：超出单一变量和求职项目范围，进入 Future Work。
+
+**Implementation status:** 项目计划与 Gate 已定义；尚未实现 v1.0 Executive、训练或正式闭环实验。
 
 **Status:** active
 
