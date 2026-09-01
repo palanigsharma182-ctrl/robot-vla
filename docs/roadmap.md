@@ -5,7 +5,7 @@
 | 字段 | 内容 |
 | --- | --- |
 | Plan ID | `QVLA-V1.0-PLAN-001` |
-| 状态 | `planned`；尚未实现、训练或运行正式闭环实验 |
+| 状态 | `engineering / P0`；主体契约、Plan Compiler、shadow Executive、ledger/replay 已实现，尚未接 Runtime、训练或运行正式闭环实验 |
 | Owner | Project owner |
 | 最后更新 | 2026-09-01 |
 | 前置依赖 | E013 完成正式 GPU、ManiSkill 和至少 100 个 paired unseen Episode 闭环验收 |
@@ -24,6 +24,24 @@ Expert-only supervision、配对实验、失败门禁和可复现实验发布。
 220 条单任务轨迹从头训练“机器人基础模型”，也不把 2 mm、60 Hz 或通用多任务能力设为当前成败标准。
 核心问题只有一个：在 E013 能力和预算固定时，显式 hierarchy 是否能安全、可审计地改善阶段交接和
 完整任务成功。
+
+### 当前 P0 实现边界
+
+`robot_vla.executive` 已实现以下轻依赖主体框架：
+
+- 严格 `qwen-vla-semantic-plan/v1` schema，只接受冻结的单物体 Pick-and-Place 顺序；
+- 稳定 SHA-256 plan identity、四个宏观子任务、17 个正常 phase 和 3 个恢复 phase；
+- `history_length=4`、Observation V2、object/goal base-frame track 与 velocity、`F_L/F_R`、抓取/支撑/
+  稳定置信度的 State Estimator 输出契约；
+- 连续 Tick、required modality、entry/exit/invariant Predicate、多 Tick stability、timeout 接口、有限恢复
+  和 retry budget；
+- close/lift/release 每 Tick 重新授权、单 controller owner、transition 后 action/reference reset 要求；
+- evaluator GT provenance 拒绝、默认 `shadow_only=True`、逐 Tick JSONL ledger、稳定 digest 和重新执行
+  一致性检查。
+
+这只证明 P0 状态机和审计链可以运行，不表示 E013 已完成，也不表示 hierarchy 改善了任何闭环指标。
+当前 Executive 尚未接入 Qwen proposal、现有 `QwenVLAReplanLoop`、Action Expert condition、Precision、
+Force Guard 或 ManiSkill actuator；State Estimator 目前只有输出契约，四帧滤波算法仍属于 E013 未完成项。
 
 ## 版本定位与证据边界
 
@@ -509,4 +527,4 @@ Dataset manifest、正式 checkpoint 和聚合结果的 restore/read test。GitH
 - 不改变当前 E012/E013 冻结产物或回写其结论。
 
 只有 P0–P4 的工程门禁通过并完成独立预注册 P5 后，才能决定该结构是否成为
-`qwen-vla-v1.0` 的正式契约；在此之前它只是下一版本候选计划。
+`qwen-vla-v1.0` 的正式契约；在此之前它只是默认关闭的下一版本候选工程 scaffold。

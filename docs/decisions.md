@@ -1462,7 +1462,9 @@ E008–E012 已显示空间表示改善、checkpoint 选择和 boundary recovery
 - 让 Qwen 在控制循环中直接决定 phase 或 release：延迟、随机性和安全权责不可审计，拒绝。
 - 同时解冻 Qwen、加入 24-layer KV 或学习式力控：超出单一变量和求职项目范围，进入 Future Work。
 
-**Implementation status:** 项目计划与 Gate 已定义；尚未实现 v1.0 Executive、训练或正式闭环实验。
+**Implementation status:** 项目计划与 Gate 已定义；`robot_vla.executive` 已实现 P0 的 semantic schema、
+Plan Compiler、可部署状态证据、shadow-only 状态机、有限恢复和 JSONL ledger replay，并有轻依赖负例测试。
+尚未接入 Qwen、Action Expert、Precision/Force、现有 Runtime 或 actuator，也未训练或运行正式闭环实验。
 
 **Status:** active
 
