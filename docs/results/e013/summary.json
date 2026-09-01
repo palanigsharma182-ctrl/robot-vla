@@ -1,0 +1,311 @@
+{
+  "version": "e013-precision-public-summary/v1",
+  "generated_at": "2026-09-01T16:47:42Z",
+  "canonical_status": "steps-1-through-8-passed-step-9-executed-gate-failed",
+  "code": {
+    "branch": "codex/e013-minimum-deployable-state",
+    "formal_shadow_commit": "093142a92e39b07e13da5eb410e49f0e138b8c2d",
+    "training_source_tree_sha256": "5eb09a8599ae497a0b637968be1d8e36ac76f9b15c44efb13ef88860b607e744",
+    "evaluation_source_tree_sha256": "b595bddebef019bf73a3e876260287f513aee302891d379cda4f533f27911faf",
+    "training_source_precedes_shadow_preflight_fixes": true
+  },
+  "step_gates": [
+    {
+      "step": 1,
+      "name": "freeze-deployable-and-privileged-schema",
+      "status": "passed"
+    },
+    {
+      "step": 2,
+      "name": "collect-observation-v2-tcp-camera-force-history",
+      "status": "passed"
+    },
+    {
+      "step": 3,
+      "name": "separate-privileged-labels-from-model-inputs",
+      "status": "passed"
+    },
+    {
+      "step": 4,
+      "name": "audit-time-coordinate-projection-and-splits",
+      "status": "passed"
+    },
+    {
+      "step": 5,
+      "name": "real-sample-overfit-gate",
+      "status": "passed"
+    },
+    {
+      "step": 6,
+      "name": "formal-precision-unet-training",
+      "status": "passed"
+    },
+    {
+      "step": 7,
+      "name": "freeze-formal-training-checkpoint",
+      "status": "passed"
+    },
+    {
+      "step": 8,
+      "name": "held-out-calibration-and-full-history-latency",
+      "status": "passed"
+    },
+    {
+      "step": 9,
+      "name": "paired-20hz-no-actuation-shadow",
+      "status": "failed",
+      "stop_promotion": true
+    }
+  ],
+  "dataset": {
+    "contract": "robot-vla-precision-rgb-dataset/v1",
+    "dataset_identity_sha256": "063d6e04f32a0cd3506f6293d1ade4e318397975e8fa542c642b45b9e9413efd",
+    "trajectory_count": 40,
+    "sample_count": 7987,
+    "split_trajectory_counts": {
+      "train": 24,
+      "val": 6,
+      "test": 10
+    },
+    "split_sample_counts": {
+      "train": 4776,
+      "val": 1167,
+      "test": 2044
+    },
+    "image_shape_hwc": [
+      128,
+      128,
+      3
+    ],
+    "history_length": 4,
+    "observation_v2_coverage": 1.0,
+    "modality_invalid_count": 0,
+    "action_semantic_parity_steps": 7987,
+    "action_semantic_parity_total_steps": 7987,
+    "model_input_keys": [
+      "rgb_wrist",
+      "structured_state",
+      "geometric_motion"
+    ],
+    "model_input_privileged_overlap": [],
+    "split_scene_overlap": {
+      "train_val": [],
+      "train_test": [],
+      "val_test": []
+    },
+    "keypoint_counts": {
+      "object_visible": 7987,
+      "object_projected": 7987,
+      "object_training": 7987,
+      "goal_visible": 6049,
+      "goal_projected": 5558,
+      "goal_training": 5403,
+      "projection_unavailable": 2429
+    },
+    "oracle_roundtrip_error_m": {
+      "p50": 3.725290298461914e-09,
+      "p90": 7.450580596923828e-09,
+      "max": 2.2351741790771484e-08,
+      "invalid_count": 0
+    },
+    "finger_force_semantics": "maniskill-target-cube-pairwise-contact-force-magnitude-per-finger/v1"
+  },
+  "real_sample_overfit": {
+    "sample_count": 64,
+    "optimizer_steps": 300,
+    "initial_normalized_uv_mae": 0.2190445065498352,
+    "final_normalized_uv_mae": 0.00047796560102142394,
+    "final_pixel_error_p90": 0.1818438306450844,
+    "final_mask_iou": 0.8149772305616462,
+    "motion_head_unchanged": true,
+    "passed": true
+  },
+  "formal_training": {
+    "seed": 13013,
+    "epochs": 20,
+    "total_examples": 95520,
+    "total_optimizer_steps": 3000,
+    "motion_head_policy": "frozen-zero-shadow-only",
+    "selection_metric": "val_normalized_uv_mae",
+    "selection_tie_break": "earlier_epoch",
+    "selected_epoch": 4,
+    "selected_checkpoint_examples": 19104,
+    "selected_checkpoint_optimizer_steps": 600,
+    "selected_val_normalized_uv_mae": 0.0023873108439147472,
+    "selected_val_pixel_p90": 0.705956780910492,
+    "selected_val_mask_iou": 0.8535739826940412,
+    "checkpoint_role": "formal-training",
+    "checkpoint_strict_reload_passed": true,
+    "motion_head_parameter_identity_unchanged": true
+  },
+  "training_metrics": [
+    {"epoch": 1, "val_normalized_uv_mae": 0.0044671655632555485, "val_pixel_p90": 1.8503186225891128, "val_mask_iou": 0.3999011055414509, "selected": false},
+    {"epoch": 2, "val_normalized_uv_mae": 0.003761647269129753, "val_pixel_p90": 1.052663540840149, "val_mask_iou": 0.6487063196326569, "selected": false},
+    {"epoch": 3, "val_normalized_uv_mae": 0.004805410746484995, "val_pixel_p90": 0.7879998445510864, "val_mask_iou": 0.8412452689067267, "selected": false},
+    {"epoch": 4, "val_normalized_uv_mae": 0.0023873108439147472, "val_pixel_p90": 0.705956780910492, "val_mask_iou": 0.8535739826940412, "selected": true},
+    {"epoch": 5, "val_normalized_uv_mae": 0.002604839624837041, "val_pixel_p90": 0.8027371644973756, "val_mask_iou": 0.8570363478213432, "selected": false},
+    {"epoch": 6, "val_normalized_uv_mae": 0.0025935284793376923, "val_pixel_p90": 0.8529914617538453, "val_mask_iou": 0.8837964762061584, "selected": false},
+    {"epoch": 7, "val_normalized_uv_mae": 0.0028075226582586765, "val_pixel_p90": 0.647609281539917, "val_mask_iou": 0.8886643571552754, "selected": false},
+    {"epoch": 8, "val_normalized_uv_mae": 0.0037623520474880934, "val_pixel_p90": 0.8039200186729432, "val_mask_iou": 0.9282830580274642, "selected": false},
+    {"epoch": 9, "val_normalized_uv_mae": 0.003361571580171585, "val_pixel_p90": 0.6332054257392886, "val_mask_iou": 0.9347120096682943, "selected": false},
+    {"epoch": 10, "val_normalized_uv_mae": 0.0030999176669865847, "val_pixel_p90": 0.5914421319961548, "val_mask_iou": 0.942531484598138, "selected": false},
+    {"epoch": 11, "val_normalized_uv_mae": 0.0036763898096978664, "val_pixel_p90": 0.6091185927391055, "val_mask_iou": 0.947993423707561, "selected": false},
+    {"epoch": 12, "val_normalized_uv_mae": 0.0032869544811546803, "val_pixel_p90": 0.6371812224388137, "val_mask_iou": 0.9547684658920145, "selected": false},
+    {"epoch": 13, "val_normalized_uv_mae": 0.0032096807844936848, "val_pixel_p90": 0.5552153468132021, "val_mask_iou": 0.9617690533276667, "selected": false},
+    {"epoch": 14, "val_normalized_uv_mae": 0.003103633178398013, "val_pixel_p90": 0.6259275317192083, "val_mask_iou": 0.9663155229758871, "selected": false},
+    {"epoch": 15, "val_normalized_uv_mae": 0.0031114115845412016, "val_pixel_p90": 0.589998996257783, "val_mask_iou": 0.9657584128018278, "selected": false},
+    {"epoch": 16, "val_normalized_uv_mae": 0.0030023688450455666, "val_pixel_p90": 0.6072229027748113, "val_mask_iou": 0.9698896534119258, "selected": false},
+    {"epoch": 17, "val_normalized_uv_mae": 0.0030854002106934786, "val_pixel_p90": 0.5428955793380741, "val_mask_iou": 0.9705254241225805, "selected": false},
+    {"epoch": 18, "val_normalized_uv_mae": 0.0029873140156269073, "val_pixel_p90": 0.5441615819931032, "val_mask_iou": 0.9709476923462048, "selected": false},
+    {"epoch": 19, "val_normalized_uv_mae": 0.002877146238461137, "val_pixel_p90": 0.5421316981315613, "val_mask_iou": 0.9726151103290603, "selected": false},
+    {"epoch": 20, "val_normalized_uv_mae": 0.0027801559772342443, "val_pixel_p90": 0.49664641022682193, "val_mask_iou": 0.9730484617902583, "selected": false}
+  ],
+  "confidence_calibration": {
+    "split": "val",
+    "temperature": 1.0,
+    "confidence_semantics": "min-keypoint-visibility-and-projection-validity/v1",
+    "confidence_threshold": 0.02843603305518627,
+    "target_coverage": 0.9,
+    "validation_coverage": 0.9003595274781715,
+    "validation_precision": 0.9663726571113561,
+    "validation_sigma_coverage": 0.8998459167950693
+  },
+  "held_out_test": {
+    "sample_count": 2044,
+    "valid_keypoint_count": 3307,
+    "world_xy_error_m": {
+      "p50": 0.00037036684807389975,
+      "p90": 0.0015172345098108057,
+      "max": 0.20853787660598755,
+      "object_p90": 0.0009968333295546474,
+      "goal_p90": 0.002312003681436181,
+      "accepted_p90": 0.0015752814593724914
+    },
+    "within_15mm_rate": 0.9942546114302994,
+    "pixel_error_p50": 0.22677931189537048,
+    "pixel_error_p90": 0.6834750533103944,
+    "mask_iou": 0.8573075017377152,
+    "invalid_backprojection_count": 0,
+    "confidence_coverage": 0.9319625037798609,
+    "confidence_precision": 0.9263600841599038,
+    "perception_gate_passed": true
+  },
+  "full_history_provider_latency": {
+    "measurement_calls": 200,
+    "full_history_calls": 200,
+    "predicted_frames": 800,
+    "failed_calls": 0,
+    "warmup_calls": 20,
+    "provider_p50_s": 0.018201375999524316,
+    "provider_p95_s": 0.01883901310056899,
+    "effective_rate_from_p95_hz": 53.08133683339268,
+    "latency_gate_passed": true,
+    "superseded_v1_predicted_frames": 794,
+    "superseded_v1_requested_frames": 800
+  },
+  "shadow_smoke": {
+    "cold_start_v1": {
+      "paired_episodes": 2,
+      "deadline_misses": 1,
+      "provider_p95_s": 0.019350872600261936,
+      "gate_passed": false
+    },
+    "prewarmed_v2": {
+      "paired_episodes": 2,
+      "provider_warmup_calls": 20,
+      "provider_calls": 396,
+      "predicted_frames": 1572,
+      "deadline_misses": 0,
+      "provider_p95_s": 0.019088896000084787,
+      "action_mismatches": 0,
+      "commanded_target_mismatches": 0,
+      "episode_length_mismatches": 0,
+      "gate_passed": true
+    }
+  },
+  "formal_shadow": {
+    "version": "e013-precision-paired-shadow/v2",
+    "seed_start": 132000,
+    "requested_paired_episodes": 100,
+    "completed_baseline_episodes": 95,
+    "completed_shadow_episodes": 95,
+    "paired_episode_count": 95,
+    "baseline_failure_count": 5,
+    "shadow_failure_count": 5,
+    "failure_seed_sets_equal": true,
+    "failure_seeds": [
+      132030,
+      132031,
+      132050,
+      132054,
+      132089
+    ],
+    "failure_breakdown_per_arm": {
+      "trusted_screw_path_planning_failed": 4,
+      "controller_correction_safety_limit": 1
+    },
+    "action_mismatch_count": 0,
+    "commanded_target_mismatch_count": 0,
+    "episode_length_mismatch_count": 0,
+    "provider_failure_count": 0,
+    "observer_error_count": 0,
+    "provider_warmup_calls": 20,
+    "provider_calls": 19100,
+    "predicted_frames": 75830,
+    "prefix_padding_frame_equation_holds": true,
+    "deadline_miss_count": 7,
+    "deadline_miss_rate": 0.00036649214659685864,
+    "deadline_miss_seeds": [
+      132012,
+      132025,
+      132038,
+      132051,
+      132064,
+      132077,
+      132091
+    ],
+    "provider_p50_s": 0.018337982000048214,
+    "provider_p95_s": 0.02077493679944382,
+    "effective_rate_from_p95_hz": 48.13492381005807,
+    "actuation_allowed": false,
+    "expert_outcome_is_not_precision_treatment": true,
+    "gate_passed": false,
+    "promotion_stopped": true,
+    "independent_read_only_audit": {
+      "seed_sets_equal": true,
+      "receipt_seed_set_matches_pairs": true,
+      "summary_consistent": true,
+      "action_and_target_arrays_bitwise_equal": true,
+      "paired_action_target_digest_sha256": "ecac2165de30ed230658aaf6b6fe18d0829f812dc1c0baf75375a375ed63b90c"
+    }
+  },
+  "artifact_sha256": {
+    "deployable_audit_report": "6fc18c37abd394f06d46c84982578f02c96f97abcdadce0291b7d8692e47732a",
+    "deployable_manifest": "c5c2925f46f0db0bbea3a32a8cd8de95616dc3ee7d542b8feb28a8cdbdb9faa7",
+    "privileged_label_manifest": "66e536de266dd9b730d0d2bbad32c320c620393742028e60701da7c8c1a0f6aa",
+    "dataset_audit": "31db67304c88a851208a030ae2ec4c85d563344df32eda180c38e3c7ac28acfd",
+    "real_sample_overfit": "95f47944f3f9a5c2358f89ba15ca7df045d0c605ae63cba9993af7c2170c1856",
+    "training_metrics": "af5f59a60082f6d334526f280c1fad9e9135d042be19055a5a5ba257dd4780da",
+    "formal_checkpoint": "3930573f30275608004160c87f9c33ec5f3da8eb49c689cbc2b048edf2573ac7",
+    "checkpoint_provenance": "d846874ea57be92f0b30fa4f5698f2463df08e05188b7c838d5cf0fa7c4f0491",
+    "checkpoint_receipt": "604aa55194deb2b9137c162e988155aa62838a893d651359e0bc54857c331c28",
+    "confidence_calibration": "5bfaae59b34a26b96424743f884431f8671974d4822c45eb5d0f3df7df2c60ff",
+    "held_out_evaluation": "7e409316231641a2d9bc6a51eb0a6d488d219d8a92cdc2cddf4490eaec27831e",
+    "provider_latency": "64573d60c74a7466aa889dffcb4b98e13bb80388cb0e19be6694218bf8ed0f4c",
+    "held_out_receipt": "67f8e8fd80a88e29e10cb5b7a541656c611e0b38a529a6fc2dcace165ecf7a56",
+    "prewarmed_smoke_summary": "69f9d654fc44bf422d6380868289c6491afc380377243e77d6d281a4e64ff720",
+    "formal_shadow_summary": "4f740850c9b6ac734b36d806ae59b306235dd47baeb37eda6a9a5903ca319074",
+    "formal_shadow_episode_receipts": "2ed3ae56ff9f13a0d435d4fbc482c75791dd5674776a5026063465b47dea9222",
+    "formal_shadow_failures": "2786b7e2ea5aa3699e5e8566678c997015b3600fb10fc2c3ebaeae0cbc4a77cc"
+  },
+  "limitations": [
+    "The 1.52 mm p90 is simulator held-out conditional XY perception error after offline ground-truth z-plane backprojection, not final robot placement error.",
+    "The held-out maximum error is 208.5 mm; confidence calibration reduces but does not eliminate long-tail failures.",
+    "Only 24 training trajectories and a narrow simulated object/scene distribution support the perception estimate.",
+    "The formal shadow is no-actuation; all executed actions and task outcomes come from the Expert and are not a Precision treatment effect.",
+    "The Motion Head remains frozen at its zero-initialized identity and no Cartesian IK, force-contact controller, or Precision actuator was promoted.",
+    "Seven individual Provider calls exceeded the 50 ms deadline even though p95 latency passed; aggregate receipts do not identify a unique runtime cause.",
+    "F_L/F_R are ManiSkill per-finger pairwise contact-force magnitudes, not calibrated real pressure-sensor measurements.",
+    "E012 replay resume preserved structural state, examples, steps, exposure, offsets, and frozen identities, but its CUDA loss and gradient trajectory was not bitwise reproducible after strict epoch-24 full-state recovery."
+  ]
+}

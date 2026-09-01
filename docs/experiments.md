@@ -1718,7 +1718,8 @@ Dataset 或含图像的 trajectory。
 
 **Date:** 2026-09-01
 
-**Status:** superseded before formal execution
+**Status:** 本节的八图 Layer-12 attribution 设计在正式执行前 superseded；canonical Precision v1 已完成
+步骤 1–9，步骤 9 gate 失败并停止 promotion
 
 **Pre-result amendments:** 用户先在任何 E013 正式采集、训练和闭环评估开始前把目标提高为最终
 world-XY `p90 <= 0.002 m`，因此本节以下“八图 Frozen Qwen Layer 12 paired attribution”被保留为未执行
@@ -1728,6 +1729,14 @@ world-XY `p90 <= 0.002 m`，因此本节以下“八图 Frozen Qwen Layer 12 pai
 因为它解决闭环、坐标和控制权问题，而不只是追逐更小数字。完整接口、门禁和未完成项见
 [E013 — 厘米级闭环精调执行层](e013_precision_execution.md)。Observation V2 与 commanded-target
 Action correctness 契约继续有效；旧 E012 产物保持冻结。
+
+**Canonical executed result (2026-09-02):** RGB-only Dataset、privileged-label 隔离、坐标/split audit、
+真实样本 overfit、20-epoch U-Net、formal checkpoint、held-out calibration/perception 和完整四帧 Provider
+latency 均通过。正式 100-seed no-actuation shadow 只形成 `95/100` pairs：两臂有相同 5 个
+Expert/collector rejection，19,100 Provider calls 中另有 7 次超过 `50 ms`；尽管 Action/commanded-target/
+episode-length mismatch、Provider failure 和 observer error 均为 0，冻结 gate 仍为 `false`。没有启用
+actuator，也没有 final-placement 结果。完整脱敏结果见 [`results/e013/README.md`](results/e013/README.md)；
+本节以下内容继续作为未执行旧设计的历史预注册保留，不回写为 canonical protocol。
 
 **Experiment:**
 

@@ -1,0 +1,23 @@
+{
+  "version": "e013-portable-report-delivery/v1",
+  "generated_at": "2026-09-01T16:47:42Z",
+  "validation": "passed",
+  "package": "passed",
+  "verification": "structural_only",
+  "browser_warning_code": "browser_unavailable",
+  "browser_qa_scope": {
+    "payload_equality": "passed",
+    "semantic_fallback": "passed",
+    "enhanced_reader_desktop": "not_run",
+    "enhanced_reader_narrow": "not_run",
+    "source_dialog_interaction": "not_run"
+  },
+  "counts": {
+    "blocks": 24,
+    "charts": 2,
+    "metric_cards": 5,
+    "tables": 3
+  },
+  "artifact_sha256": "2621452238c392180eb418ba12b196a4e1bcdb3e4939953e931aef9f370a0c86",
+  "report_html_sha256": "6ae2b9340a7f4bb119a1a49d3f3cf6f52e90472c1c6ad10b5d004d844caf5438"
+}

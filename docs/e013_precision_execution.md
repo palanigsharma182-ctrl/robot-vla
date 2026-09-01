@@ -2,7 +2,9 @@
 
 ## 状态与边界
 
-**Status:** engineering scaffold；尚未运行正式数据采集、训练、GPU smoke 或闭环效果实验。
+**Status:** 正式步骤 1–8 已通过；100-seed、20 Hz、no-actuation shadow 已执行，但步骤 9 因
+`95/100` 干净 pairs、5 个 Expert/collector rejection 和 7 次 deadline miss 未通过，promotion 已停止。
+当前没有 Precision actuation 或 final-placement 效果证据。
 
 E013 在任何正式训练开始前由“八图 Frozen Qwen Layer 12 状态归因”修订为两时间尺度架构：低频
 VLA 只负责语义、技能和粗 ROI；闭环精调层直接读取腕部原始高分辨率 ROI，通过三头 U-Net、显式
@@ -249,6 +251,27 @@ closed-loop Episode。
 12 条 ManiSkill `component.pose` 既有 deprecation warning，没有失败或 skip。checkpoint 子集进一步覆盖
 文件/config/parameter/provenance identity、禁止覆盖、payload 篡改拒绝与 frozen predictor round-trip。
 
+## 2026-09-02 正式执行结果
+
+正式 RGB-only Dataset 共 40 条完整成功 trajectory、7,987 ticks，train/val/test 为 `24/6/10` 条。
+Observation V2 六模态 coverage 为 1.0、invalid 为 0，Action semantic parity 为 `7987/7987`；模型只读取
+`rgb_wrist + structured_state + geometric_motion`，与独立 privileged labels 的字段 overlap 为空。
+
+64 个真实样本 overfit 通过后，Precision U-Net 完成 20 epochs、95,520 examples、3,000 optimizer steps。
+按预注册的最小 validation normalized-UV MAE、同分取较早 epoch，选择 epoch 4；checkpoint strict reload
+和 frozen-zero Motion Head 参数身份均通过。
+
+当前 canonical held-out v3 只测完整四帧 history：200/200 calls、800/800 frame predictions、Provider
+failure 0，p95 `18.84 ms`。Test split 条件 world-XY p50/p90 为 `0.370/1.517 mm`，但它依赖 offline GT
+z-plane 反投影，不能写成最终机器人 placement 精度；最大 outlier 为 `208.5 mm`。
+
+第二次 prewarmed 2-seed smoke 通过后，正式 seeds `132000..132099` 完整执行。Baseline/shadow 各接受
+95 条、失败 seed 集完全相同；95 个 pair 的 Action、commanded target 与 episode length 零 mismatch，
+Provider/observer failure 为 0。每臂仍有 4 个 MPlib trusted screw path failure 和 1 个 controller-correction
+safety rejection；19,100 calls 的 p50/p95 为 `18.34/20.77 ms`，另有 7 次单 call 超过 `50 ms`。
+正式 gate 要求 100/100 pairs、所有 failure 为 0、deadline miss 为 0，因此 `gate_passed=false`，未接入
+actuator。完整脱敏证据、SHA 和限制见 [`results/e013/README.md`](results/e013/README.md)。
+
 ## 当前实现
 
 已实现：
@@ -272,15 +295,12 @@ closed-loop Episode。
 
 尚未实现或验证：
 
-- ManiSkill 相机真实分辨率、畸变和 tabletop mm/pixel receipt；
-- oracle/HSV/RGB-only Dataset 与训练 CLI；
-- 训练完成并冻结的 RGB keypoint checkpoint、track/outcome confidence 标定与 20 Hz shadow measurement；
-- Cartesian IK、机器人底层接口和 20 Hz / p95 50 ms latency；
-- force-contact controller；
-- 真实 RGB Dataset 上的 forward/backward、held-out 泛化和完整 Provider latency；
-- 任意厘米级闭环效果证据。
+- 真实硬件相机畸变、hand-eye/TCP 标定和 tabletop metric receipt；
+- 逐 call phase latency telemetry、异步 GPU 隔离、frame cache 或其他零 deadline-miss 方案；
+- 能在全新预注册 100 seeds 上达到零 Expert/collector rejection 的 trusted planning/control 路径；
+- Cartesian IK、机器人底层接口和 force-contact controller；
+- Motion Head bounded residual promotion；
+- 任何 RGB-only Precision actuation、最终 placement error 或厘米级闭环效果证据。
 
-下一步应先冻结 E013 RGB-only Dataset/label audit 和训练配置，并完成 oracle geometry lower-bound；随后
-才能生成 `formal-training` provenance 的 Precision checkpoint 和 confidence calibration。当前
-`synthetic-debug` checkpoint 不具备进入 Provider 正式 shadow 或控制器的资格，也不应启动旧 E013 的
-四轮 Qwen 训练。
+下一步必须使用新实验 ID 和全新 seeds，先解决实时极端尾部与 Expert/collector 完整性；不得复用当前
+formal seeds、删除 5 个失败 Episode、放宽 `50 ms` gate 或把 held-out GT-plane 感知误差当作闭环结果。
