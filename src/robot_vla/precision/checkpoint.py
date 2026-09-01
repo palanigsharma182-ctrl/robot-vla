@@ -285,12 +285,15 @@ def load_precision_checkpoint(
     *,
     expected_checkpoint_sha256: str,
     expected_provenance_sha256: str | None = None,
+    expected_role: PrecisionCheckpointRole | None = None,
 ) -> LoadedPrecisionCheckpoint:
     """先验证文件身份，再以 ``weights_only=True`` 严格加载所有字段。"""
 
     _require_sha256(expected_checkpoint_sha256, "expected_checkpoint_sha256")
     if expected_provenance_sha256 is not None:
         _require_sha256(expected_provenance_sha256, "expected_provenance_sha256")
+    if expected_role is not None and not isinstance(expected_role, PrecisionCheckpointRole):
+        raise TypeError("expected_role 必须是 PrecisionCheckpointRole")
     checkpoint_path = Path(path)
     if not checkpoint_path.is_file():
         raise FileNotFoundError(f"Precision checkpoint 不存在: {checkpoint_path}")
@@ -329,6 +332,8 @@ def load_precision_checkpoint(
         raise RuntimeError("Precision checkpoint provenance SHA-256 漂移")
     if expected_provenance_sha256 is not None and provenance.sha256 != expected_provenance_sha256:
         raise RuntimeError("Precision checkpoint provenance 与预期不一致")
+    if expected_role is not None and provenance.role != expected_role:
+        raise RuntimeError("Precision checkpoint role 与预期不一致")
 
     state = payload["model_state"]
     if not isinstance(state, Mapping) or any(not isinstance(key, str) for key in state):
@@ -355,6 +360,7 @@ def load_torch_precision_frame_predictor(
     path: str | Path,
     *,
     expected_checkpoint_sha256: str,
+    expected_role: PrecisionCheckpointRole,
     predictor_config: TorchPrecisionFramePredictorConfig | None = None,
     expected_provenance_sha256: str | None = None,
 ) -> LoadedPrecisionPredictor:
@@ -364,6 +370,7 @@ def load_torch_precision_frame_predictor(
         path,
         expected_checkpoint_sha256=expected_checkpoint_sha256,
         expected_provenance_sha256=expected_provenance_sha256,
+        expected_role=expected_role,
     )
     predictor = TorchPrecisionFramePredictor(
         loaded.model,
