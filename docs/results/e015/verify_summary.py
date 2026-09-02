@@ -91,6 +91,15 @@ def verify(root: Path) -> None:
             raise RuntimeError("E015 supplement 不得重复 model forward")
         if correction.get("test_rules_changed") is not False:
             raise RuntimeError("E015 supplement 不得修改 frozen rules")
+        protocol = summary.get("evaluation_protocol_scope", {})
+        if protocol.get("test_used_for_rule_selection") is not False:
+            raise RuntimeError("E015 test 不得参与 rule selection")
+        if protocol.get("test_model_forward_evaluation_count") != 1:
+            raise RuntimeError("E015 test model forward 必须只评估一次")
+        if protocol.get("test_once_claim_scope") != (
+            "model-forward-and-shadow-replay/v1"
+        ):
+            raise RuntimeError("E015 test-once claim scope 漂移")
         memory = summary["e015_b_memory_replay"]
         expected_unavailable = int(memory["gt_unobservable_count"]) - int(
             memory["memory_valid_while_gt_unobservable_count"]

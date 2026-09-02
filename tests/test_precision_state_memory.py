@@ -369,7 +369,7 @@ def test_test_evaluation_claim_is_atomic_and_cannot_be_reused(tmp_path) -> None:
 
     assert len(sha256) == 64
     assert json.loads(claim.read_text(encoding="utf-8"))["status"] == (
-        "claimed-before-test-read"
+        "claimed-before-test-model-forward"
     )
     with pytest.raises(RuntimeError, match="禁止.*重复评估"):
         _claim_test_evaluation_once(

@@ -170,13 +170,13 @@ def _claim_test_evaluation_once(
     seed_identity_sha256: str,
     source_tree_sha256: str,
 ) -> str:
-    """在读取 test split 前原子创建不可复用的消费凭证。"""
+    """在 test model forward 前原子创建不可复用的消费凭证。"""
 
     if not path.parent.is_dir():
         raise FileNotFoundError(f"E015 test-once claim parent 不存在: {path.parent}")
     payload = {
         "version": E015_TEST_ONCE_CLAIM_VERSION,
-        "status": "claimed-before-test-read",
+        "status": "claimed-before-test-model-forward",
         "rules_sha256": rules_sha256,
         "dataset_identity_sha256": dataset_identity_sha256,
         "seed_identity_sha256": seed_identity_sha256,

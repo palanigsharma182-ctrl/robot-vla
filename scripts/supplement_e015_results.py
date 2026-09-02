@@ -24,6 +24,13 @@ E015_EXPERIMENT_VERSION = "e015-precision-goal-memory/v1"
 E015_PUBLIC_VERSION = "e015-precision-goal-memory-public/v1"
 SUPPLEMENT_VERSION = "e015-precision-memory-supplement/v1"
 SUPPLEMENT_POLICY = "deterministic-postprocessing-no-model-forward/v1"
+EVALUATION_PROTOCOL_SCOPE = {
+    "all_split_integrity_audit_before_calibration": True,
+    "integrity_audit_used_test_predictions": False,
+    "test_used_for_rule_selection": False,
+    "test_model_forward_evaluation_count": 1,
+    "test_once_claim_scope": "model-forward-and-shadow-replay/v1",
+}
 SUPPLEMENT_SOURCE_FILES = (
     "scripts/supplement_e015_results.py",
     "scripts/verify_e015_public_results.py",
@@ -305,6 +312,10 @@ E015-A 与 E015-B 使用 frozen E013 checkpoint 和全新 seeds 完成；没有�
 checkpoint、没有 Action 输出，也没有 actuator。fresh validation 只用于冻结 write threshold 与
 memory age，fresh test 只评估一次。
 
+术语边界：数据生成后、calibration 前会对所有 split 做 schema、文件 identity 和 oracle
+round-trip 完整性 audit；该 audit 不产生 test prediction，也不参与 threshold/age 选择。test-once
+claim 的精确范围是 **U-Net model forward 与 shadow replay**，这部分只执行一次。
+
 ## V1.0 瓶颈判断
 
 **显式 base-frame memory 的状态保持机制成立，但 E015 工程 gate 未通过。** memory 能在当前
@@ -438,6 +449,7 @@ def supplement(args: argparse.Namespace) -> dict[str, Any]:
             "supplement_policy": SUPPLEMENT_POLICY,
             "supplement_source_tree_sha256": supplement_source,
             "original_public_receipt_sha256": original_public_receipt_sha256,
+            "evaluation_protocol_scope": EVALUATION_PROTOCOL_SCOPE,
             "memory_availability_audit": availability,
             "unsafe_write_audit": unsafe,
             "aggregation_correction": {
@@ -464,6 +476,7 @@ def supplement(args: argparse.Namespace) -> dict[str, Any]:
         "rules_sha256": original_private_summary["rules_sha256"],
         "test_once_claim_sha256": original_private_summary["test_once_claim_sha256"],
         "test_split_status_after_e015": "consumed-for-evaluation",
+        "evaluation_protocol_scope": EVALUATION_PROTOCOL_SCOPE,
         "memory_availability_audit": availability,
         "unsafe_write_audit": unsafe,
         "aggregation_correction": public_summary["aggregation_correction"],
