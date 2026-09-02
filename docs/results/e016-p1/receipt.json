@@ -1,0 +1,16 @@
+{
+  "contains_model_weights": false,
+  "contains_raw_heatmaps": false,
+  "contains_raw_rgb": false,
+  "contains_sensitive_paths": false,
+  "contains_trajectory_identity": false,
+  "files": {
+    "README.md": "be6264ec6e85e33736c8c972e67c1d7f0f1a093573fba8bf34abef59c1c5f1b4",
+    "sanitized_summary.json": "67a1ae66ff587d4b0048f388261555fd7c66844043922a72b700315278eba7a5",
+    "verify_summary.py": "cccba56905b68fa01627d12bd1c7b864e215df0d76c0d90f242a1b3efe593741"
+  },
+  "private_receipt_sha256": "5ee9816858181197f38d24d90101e02f389ec9cae4cc32547970e8061c21ba6c",
+  "rules_sha256": "29233975680808296201bafb500a8af2ab4abb2520046f6ecba735d6dc849010",
+  "status": "complete",
+  "version": "e016-p1-formal-precision-public/v1"
+}
