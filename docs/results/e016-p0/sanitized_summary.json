@@ -1,0 +1,131 @@
+{
+  "corrected_label_audit": {
+    "corrected_data_identity_sha256": "8c1e82398232ea8a8d439355e113d41fba5a3a4398839a681e5350cc87d7f026",
+    "goal_exists_count": 5943,
+    "goal_observable_count": 3210,
+    "goal_projection_valid_count": 4223,
+    "goal_unobservable_count": 2733,
+    "legacy_goal_visible_count": 4635,
+    "legacy_visible_but_unobservable_count": 1425,
+    "occlusion_counts": {
+      "goal_absent": 0,
+      "object_occlusion": 750,
+      "observable": 3210,
+      "other_occlusion_or_background": 263,
+      "out_of_frame": 0,
+      "projection_invalid": 1720
+    },
+    "sample_counts": {
+      "train": 4776,
+      "val": 1167
+    },
+    "schema_version": "e016-corrected-observability-sidecar/v1",
+    "trajectory_counts": {
+      "train": 24,
+      "val": 6
+    }
+  },
+  "experiment": "E016-P0 corrected-observability pretraining contract",
+  "formal_training_performed": false,
+  "full_preflight": {
+    "checkpoint_persisted": false,
+    "epochs_completed": 3,
+    "final_validation": {
+      "goal_mask_iou": 0.4771742298566903,
+      "goal_observable_normalized_uv_mae": 0.004206275101751089,
+      "goal_unobservable_false_positive_rate": 0.007168458781362007,
+      "goal_visibility_f1": 0.9476394849785408,
+      "goal_visibility_precision": 0.9928057553956835,
+      "goal_visibility_recall": 0.9064039408866995,
+      "object_mask_iou": 0.9388966450743286,
+      "object_normalized_uv_mae": 0.0014586170436814427,
+      "projection_accuracy": 0.9845758354755784
+    },
+    "fresh_random_initialization": true,
+    "motion_head_unchanged": true,
+    "optimizer_steps": 450,
+    "passed": true
+  },
+  "loss_contract": {
+    "all_negative_batch_finite": true,
+    "localization_losses": {
+      "coordinate": 0.0,
+      "heatmap": 0.0,
+      "total": 0.0,
+      "uncertainty": 0.0
+    },
+    "localization_output_gradient_abs_max": {
+      "heatmap_logits": 0.0,
+      "keypoint_log_variance": 0.0,
+      "subpixel_offsets": 0.0
+    },
+    "passed": true
+  },
+  "protocol": {
+    "actuation_allowed": false,
+    "debug_training_performed": true,
+    "e015_test_used_for_tuning": false,
+    "excluded_splits": [
+      "test"
+    ],
+    "formal_checkpoint_written": false,
+    "included_splits": [
+      "train",
+      "val"
+    ],
+    "initialization": "random-from-scratch",
+    "test_label_array_read_count": 0,
+    "test_samples_used_for_training_or_selection": false
+  },
+  "safe_for_actuator_promotion": false,
+  "source": {
+    "commit": "d1481ba3ca669d799c450227398771779a470c4b",
+    "source_tree_sha256": "8d5f4e077bcdbcc893da0406781b10ef6f61b86c57ab40a83a2c31212cbf0491",
+    "training_config_sha256": "660126c3b2eac3ae8e920f3f76c02bf0b239499e7032e581b95e14a3bca28580"
+  },
+  "status": "complete",
+  "stratified_overfit": {
+    "checkpoint_persisted": false,
+    "final": {
+      "goal_mask_iou": 0.8780788611297086,
+      "goal_observable_normalized_uv_mae": 0.0010608162265270948,
+      "goal_observable_pixel_error_p50": 0.17124904692173004,
+      "goal_observable_pixel_error_p90": 0.4047040492296219,
+      "goal_unobservable_false_positive_rate": 0.0,
+      "goal_visibility_f1": 1.0,
+      "goal_visibility_precision": 1.0,
+      "goal_visibility_recall": 1.0,
+      "object_mask_iou": 0.9177642244363241,
+      "object_normalized_uv_mae": 0.00044224050361663103,
+      "projection_accuracy": 1.0
+    },
+    "gates": {
+      "goal_mask_iou": true,
+      "goal_normalized_uv_improvement": true,
+      "goal_normalized_uv_mae": true,
+      "goal_unobservable_false_positive_rate": true,
+      "goal_visibility_precision": true,
+      "goal_visibility_recall": true,
+      "motion_head_unchanged": true
+    },
+    "goal_normalized_uv_improvement": 0.9932188114540752,
+    "initial": {
+      "goal_mask_iou": 0.01178233214296973,
+      "goal_observable_normalized_uv_mae": 0.15643514692783356,
+      "goal_unobservable_false_positive_rate": 0.0,
+      "goal_visibility_precision": 0.0,
+      "goal_visibility_recall": 0.0,
+      "projection_accuracy": 0.875
+    },
+    "optimizer_steps": 600,
+    "passed": true,
+    "sample_count": 128,
+    "strata_counts": {
+      "object_occlusion": 24,
+      "observable": 64,
+      "other_occlusion_or_background": 24,
+      "projection_invalid_or_out_of_frame": 16
+    }
+  },
+  "version": "e016-p0-corrected-observability-public/v1"
+}
