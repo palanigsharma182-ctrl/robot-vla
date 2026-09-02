@@ -1,0 +1,55 @@
+{
+  "version": "e015-precision-goal-memory/v1",
+  "upstream": {
+    "checkpoint_sha256": "3930573f30275608004160c87f9c33ec5f3da8eb49c689cbc2b048edf2573ac7",
+    "temperature": 1.0,
+    "training_performed": false
+  },
+  "fresh_dataset": {
+    "start_seed": 133000,
+    "max_candidates": 1000,
+    "train_trajectories": 1,
+    "calibration_trajectories": 20,
+    "evaluation_trajectories": 100,
+    "calibration_split": "val",
+    "evaluation_split": "test"
+  },
+  "observability": {
+    "center_sampling": "pixel-containing-projected-center/v1",
+    "support_radius_px": 2,
+    "legacy_visible_semantics": "any-own-mask-pixel/v1",
+    "corrected_observable_semantics": "projected-center-ray-hits-own-goal-mask/v1"
+  },
+  "write_gate": {
+    "safe_world_xy_error_m": 0.005,
+    "catastrophic_world_xy_error_m": 0.02,
+    "min_goal_mask_probability": 0.5,
+    "max_object_mask_probability": 0.5,
+    "score_semantics": "min-visibility-projection-goal-mask-not-object-not-entropy-inverse-sigma/v1",
+    "threshold_policy": "maximum-coverage-zero-unsafe-on-fresh-validation/v1"
+  },
+  "memory": {
+    "frame_semantics": "position/robot-base/m/v1",
+    "update_policy": "direct-replace-reliable-hold-occluded/v1",
+    "max_innovation_m": 0.01,
+    "max_position_std_m": 0.02,
+    "require_covariance": true,
+    "covariance_growth_m2_per_s": 0.0,
+    "max_unobserved_age_candidates_s": [0.25, 0.5, 1.0, 2.0, 5.0, 10.0],
+    "age_policy": "maximum-occluded-coverage-zero-catastrophic-on-fresh-validation/v1"
+  },
+  "execution": {
+    "device": "cuda",
+    "use_bf16": true,
+    "actuation_allowed": false,
+    "mode": "shadow-replay"
+  },
+  "success_criteria": {
+    "validation_unsafe_write_count_max": 0,
+    "test_unsafe_write_count_max": 0,
+    "test_memory_catastrophic_count_max": 0,
+    "episode_reset_leakage_count_max": 0,
+    "require_memory_unobservable_coverage_improvement": true,
+    "actuator_promotion_allowed": false
+  }
+}
