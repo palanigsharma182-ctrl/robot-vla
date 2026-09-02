@@ -1,0 +1,69 @@
+{
+  "version": "e016-p0-corrected-observability/v1",
+  "source": {
+    "allowed_splits": ["train", "val"],
+    "excluded_splits": ["test"],
+    "expected_trajectory_counts": {
+      "train": 24,
+      "val": 6
+    },
+    "precision_dataset_version": "robot-vla-precision-rgb-dataset/v1",
+    "precision_label_schema_version": "robot-vla-precision-label-sidecar/v1"
+  },
+  "observability": {
+    "goal_exists_policy": "static-goal-present-every-frame/v1",
+    "semantics": "projected-center-ray-hits-own-goal-mask/v1",
+    "support_radius_px": 2,
+    "goal_localization_policy": "observable-only/v1",
+    "mask_supervision_policy": "visible-instance-pixels-independent-of-center/v1"
+  },
+  "loss": {
+    "heatmap_weight": 1.0,
+    "mask_weight": 0.5,
+    "mask_dice_weight": 1.0,
+    "coordinate_weight": 2.0,
+    "motion_weight": 1.0,
+    "uncertainty_weight": 0.1,
+    "visibility_weight": 1.0,
+    "projection_weight": 1.0,
+    "keypoint_temperature": 1.0
+  },
+  "stratified_overfit": {
+    "seed": 16016,
+    "strata_counts": {
+      "observable": 64,
+      "object_occlusion": 24,
+      "other_occlusion_or_background": 24,
+      "projection_invalid_or_out_of_frame": 16
+    },
+    "optimizer_steps": 600,
+    "batch_size": 32,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.0001,
+    "gradient_clip_norm": 1.0,
+    "heatmap_sigma_px": 1.5,
+    "goal_normalized_uv_mae_max": 0.01,
+    "goal_normalized_uv_improvement_min": 0.95,
+    "goal_mask_iou_min": 0.75,
+    "goal_visibility_precision_min": 0.95,
+    "goal_visibility_recall_min": 0.95,
+    "goal_unobservable_false_positive_rate_max": 0.05
+  },
+  "full_preflight": {
+    "seed": 16017,
+    "epochs": 3,
+    "batch_size": 32,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.0001,
+    "gradient_clip_norm": 1.0,
+    "heatmap_sigma_px": 1.5
+  },
+  "execution": {
+    "device": "cuda",
+    "use_bf16": true,
+    "motion_head_policy": "frozen-zero-shadow-only",
+    "initialization": "random-from-scratch",
+    "persist_checkpoint": false,
+    "actuation_allowed": false
+  }
+}
