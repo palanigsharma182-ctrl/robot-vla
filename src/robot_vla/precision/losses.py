@@ -15,6 +15,7 @@ from robot_vla.precision.model import PrecisionUNetOutput
 class PrecisionLossConfig:
     heatmap_weight: float = 1.0
     mask_weight: float = 0.5
+    mask_dice_weight: float = 0.0
     coordinate_weight: float = 2.0
     motion_weight: float = 1.0
     uncertainty_weight: float = 0.1
@@ -26,6 +27,7 @@ class PrecisionLossConfig:
         for name, value in (
             ("heatmap_weight", self.heatmap_weight),
             ("mask_weight", self.mask_weight),
+            ("mask_dice_weight", self.mask_dice_weight),
             ("coordinate_weight", self.coordinate_weight),
             ("motion_weight", self.motion_weight),
             ("uncertainty_weight", self.uncertainty_weight),
@@ -47,6 +49,9 @@ class PrecisionSupervision:
     motion_residual_targets: torch.Tensor
     motion_valid: torch.Tensor
     projection_valid: torch.Tensor
+    # E013 兼容路径留空时沿用 keypoint_valid。E016 起显式区分：
+    # keypoint_valid 控制定位监督，keypoint_observable 监督当前帧 visibility。
+    keypoint_observable: torch.Tensor | None = None
 
 
 @dataclass(frozen=True)
@@ -137,6 +142,18 @@ def precision_unet_loss(
         or target.keypoint_valid.dtype != torch.bool
     ):
         raise ValueError("keypoint_valid 必须是 bool [B,K]")
+    keypoint_observable = (
+        target.keypoint_valid
+        if target.keypoint_observable is None
+        else target.keypoint_observable
+    )
+    if (
+        keypoint_observable.shape != expected_keypoint
+        or keypoint_observable.dtype != torch.bool
+    ):
+        raise ValueError("keypoint_observable 必须是 bool [B,K]")
+    if torch.any(target.keypoint_valid & ~keypoint_observable):
+        raise ValueError("定位有效 keypoint 必须同时具有当前帧可观察证据")
     if tuple(target.motion_residual_targets.shape) != tuple(output.motion_residual.shape):
         raise ValueError("motion_residual_targets 与 motion_residual shape 必须一致")
     if (
@@ -184,10 +201,24 @@ def precision_unet_loss(
         dim=-1,
     )
     heatmap_loss = _masked_mean(heatmap_per_keypoint, target.keypoint_valid)
-    mask_loss = F.binary_cross_entropy_with_logits(
+    mask_bce = F.binary_cross_entropy_with_logits(
         output.mask_logits.float(),
         target.mask_targets.float(),
     )
+    mask_probability = torch.sigmoid(output.mask_logits.float())
+    mask_dimensions = (0, 2, 3)
+    mask_intersection = torch.sum(
+        mask_probability * target.mask_targets.float(),
+        dim=mask_dimensions,
+    )
+    mask_denominator = torch.sum(
+        mask_probability + target.mask_targets.float(),
+        dim=mask_dimensions,
+    )
+    mask_dice = 1.0 - (2.0 * mask_intersection + 1.0) / (
+        mask_denominator + 1.0
+    )
+    mask_loss = mask_bce + loss_config.mask_dice_weight * mask_dice.mean()
 
     decoded = output.decode_keypoints(temperature=loss_config.keypoint_temperature)
     coordinate_error = F.smooth_l1_loss(
@@ -225,7 +256,7 @@ def precision_unet_loss(
 
     visibility_loss = F.binary_cross_entropy_with_logits(
         output.visibility_logits,
-        target.keypoint_valid.to(dtype=torch.float32),
+        keypoint_observable.to(dtype=torch.float32),
     )
     projection_loss = F.binary_cross_entropy_with_logits(
         output.projection_validity_logit,
