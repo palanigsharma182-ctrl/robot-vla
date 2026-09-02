@@ -51,6 +51,14 @@ def _parse_args() -> argparse.Namespace:
         default=(),
         help="与 recovery-profiles 对齐的 Dataset 最终各 profile 轨迹总数",
     )
+    parser.add_argument(
+        "--defer-precision-label-audit",
+        action="store_true",
+        help=(
+            "采集完成后暂不读取 privileged Precision label NPZ；用于必须先创建 "
+            "test-once claim 的 held-out 协议"
+        ),
+    )
     return parser.parse_args()
 
 
@@ -63,6 +71,7 @@ def _collection_config(args: argparse.Namespace) -> dict[str, object]:
         "start_seed": args.start_seed,
         "max_candidates": args.max_candidates,
         "precision_label_sidecar": args.precision_label_output is not None,
+        "precision_label_audit_deferred": args.defer_precision_label_audit,
     }
     if args.recovery_profiles:
         config["recovery_profiles"] = list(args.recovery_profiles)
@@ -75,7 +84,13 @@ def _is_compatible_extension(
     existing: dict[str, object],
     requested: dict[str, object],
 ) -> bool:
-    fixed_keys = ("environment_id", "start_seed", "max_candidates")
+    fixed_keys = (
+        "environment_id",
+        "start_seed",
+        "max_candidates",
+        "precision_label_sidecar",
+        "precision_label_audit_deferred",
+    )
     if any(existing.get(key) != requested.get(key) for key in fixed_keys):
         return False
     old_profiles = tuple(existing.get("recovery_profiles", ()))
@@ -92,9 +107,10 @@ def _is_compatible_extension(
         return False
     old_total = sum(old_counts.values())
     new_total = sum(new_counts.values())
-    return old_total > 0 and new_total > 0 and all(
-        old_counts[split] * new_total == new_counts[split] * old_total
-        for split in splits
+    return (
+        old_total > 0
+        and new_total > 0
+        and all(old_counts[split] * new_total == new_counts[split] * old_total for split in splits)
     )
 
 
@@ -200,6 +216,8 @@ def collect_dataset(args: argparse.Namespace) -> None:
         raise ValueError("train/val/test 目标轨迹数必须都是正数")
     if args.start_seed < 0 or args.max_candidates < sum(target.values()):
         raise ValueError("seed 范围或 max_candidates 无效")
+    if args.defer_precision_label_audit and args.precision_label_output is None:
+        raise ValueError("defer Precision label audit 要求 --precision-label-output")
     if len(set(recovery_profiles)) != len(recovery_profiles):
         raise ValueError("recovery_profiles 不能重复")
     if recovery_profile_targets:
@@ -228,8 +246,7 @@ def collect_dataset(args: argparse.Namespace) -> None:
             raise ValueError("已有 recovery profile 数量超过请求目标")
         remaining_trajectories = sum(target.values()) - sum(counts.values())
         remaining_recovery = sum(
-            profile_targets[name] - recovery_counts[name]
-            for name in recovery_profiles
+            profile_targets[name] - recovery_counts[name] for name in recovery_profiles
         )
         if remaining_recovery != remaining_trajectories:
             raise ValueError(
@@ -285,8 +302,7 @@ def collect_dataset(args: argparse.Namespace) -> None:
                         + "\n"
                     )
                 print(
-                    f"REJECT seed={seed} split={split} "
-                    f"recovery={recovery_profile}: {exc}",
+                    f"REJECT seed={seed} split={split} recovery={recovery_profile}: {exc}",
                     flush=True,
                 )
                 continue
@@ -307,14 +323,27 @@ def collect_dataset(args: argparse.Namespace) -> None:
     report = audit_dataset(args.output, RobotSpec())
     print(json.dumps(report.to_dict(), indent=2, sort_keys=True), flush=True)
     if args.precision_label_output is not None:
-        precision_report = audit_precision_dataset(
-            args.output,
-            args.precision_label_output,
-            RobotSpec(),
-        )
-        if not precision_report.passed:
-            raise RuntimeError("E013 Precision Dataset audit gate 未通过")
-        print(json.dumps(precision_report.to_dict(), indent=2, sort_keys=True), flush=True)
+        if args.defer_precision_label_audit:
+            print(
+                json.dumps(
+                    {
+                        "precision_label_audit": "deferred",
+                        "privileged_test_label_read": False,
+                    },
+                    indent=2,
+                    sort_keys=True,
+                ),
+                flush=True,
+            )
+        else:
+            precision_report = audit_precision_dataset(
+                args.output,
+                args.precision_label_output,
+                RobotSpec(),
+            )
+            if not precision_report.passed:
+                raise RuntimeError("E013 Precision Dataset audit gate 未通过")
+            print(json.dumps(precision_report.to_dict(), indent=2, sort_keys=True), flush=True)
 
 
 def main() -> None:
