@@ -168,8 +168,8 @@ class E016P0OverfitConfig:
             (self.batch_size, "stratified_overfit.batch_size"),
         ):
             _positive_int(value, name)
-        if tuple(self.strata_counts) != E016_STRATA:
-            raise ValueError("E016-P0 strata 及其顺序必须保持冻结")
+        if set(self.strata_counts) != set(E016_STRATA):
+            raise ValueError("E016-P0 strata 集合必须保持冻结")
         for stratum, count in self.strata_counts.items():
             _positive_int(count, f"stratified_overfit.strata_counts.{stratum}")
         sample_count = sum(self.strata_counts.values())
@@ -1081,11 +1081,37 @@ def _loader(
     )
 
 
+def build_e016_loader(
+    dataset: Dataset[dict[str, Any]],
+    *,
+    batch_size: int,
+    shuffle: bool,
+    seed: int,
+) -> DataLoader[dict[str, Any]]:
+    """构造冻结为单进程、可复现顺序的 E016 DataLoader。"""
+
+    return _loader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        seed=seed,
+    )
+
+
 def _to_device(batch: dict[str, Any], device: torch.device) -> dict[str, Any]:
     return {
         key: value.to(device, non_blocking=False) if isinstance(value, torch.Tensor) else value
         for key, value in batch.items()
     }
+
+
+def move_e016_batch_to_device(
+    batch: dict[str, Any],
+    device: torch.device,
+) -> dict[str, Any]:
+    """移动 E016 batch；audit 元数据保持在 CPU。"""
+
+    return _to_device(batch, device)
 
 
 def _supervision(
@@ -1108,6 +1134,16 @@ def _supervision(
         projection_valid=batch["projection_valid"],
         keypoint_observable=batch["keypoint_observable"],
     )
+
+
+def build_e016_supervision(
+    batch: dict[str, Any],
+    image_size_hw: tuple[int, int],
+    sigma_px: float,
+) -> PrecisionSupervision:
+    """按 corrected observability contract 构造 E016 supervision。"""
+
+    return _supervision(batch, image_size_hw, sigma_px)
 
 
 @dataclass(frozen=True)
@@ -1156,7 +1192,15 @@ def evaluate_e016_p0_model(
     use_bf16: bool,
     heatmap_sigma_px: float,
     loss_config: PrecisionLossConfig,
+    visibility_threshold: float = 0.5,
+    projection_threshold: float = 0.5,
 ) -> E016P0Metrics:
+    for value, name in (
+        (visibility_threshold, "visibility_threshold"),
+        (projection_threshold, "projection_threshold"),
+    ):
+        if not math.isfinite(value) or not 0.0 <= value <= 1.0:
+            raise ValueError(f"{name} 必须位于 [0,1]")
     loader = _loader(dataset, batch_size=batch_size, shuffle=False, seed=0)
     was_training = model.training
     model.eval()
@@ -1233,12 +1277,16 @@ def evaluate_e016_p0_model(
                     (predicted_mask[:, index] | target_mask[:, index]).sum().item()
                 )
             goal_target = batch["keypoint_observable"][:, 1]
-            goal_predicted = decoded.visibility_probability[:, 1] >= 0.5
+            goal_predicted = (
+                decoded.visibility_probability[:, 1] >= visibility_threshold
+            )
             true_positive += int((goal_predicted & goal_target).sum().item())
             false_positive += int((goal_predicted & ~goal_target).sum().item())
             true_negative += int((~goal_predicted & ~goal_target).sum().item())
             false_negative += int((~goal_predicted & goal_target).sum().item())
-            projection_predicted = decoded.projection_validity_probability >= 0.5
+            projection_predicted = (
+                decoded.projection_validity_probability >= projection_threshold
+            )
             projection_correct += int(
                 (projection_predicted == batch["projection_valid"]).sum().item()
             )
@@ -1296,6 +1344,12 @@ def _seed_everything(seed: int) -> None:
     torch.cuda.manual_seed_all(seed)
 
 
+def seed_e016_everything(seed: int) -> None:
+    """统一设置 E016 Python、NumPy 与 Torch 随机种子。"""
+
+    _seed_everything(seed)
+
+
 def _new_frozen_motion_model(
     device: torch.device,
 ) -> tuple[PrecisionThreeHeadUNet, str]:
@@ -1303,6 +1357,14 @@ def _new_frozen_motion_model(
     model.motion_head.requires_grad_(False)
     motion_hash = precision_parameter_state_sha256(model.motion_head.state_dict())
     return model, motion_hash
+
+
+def new_e016_frozen_motion_model(
+    device: torch.device,
+) -> tuple[PrecisionThreeHeadUNet, str]:
+    """创建随机初始化 U-Net，并冻结 zero-shadow Motion Head。"""
+
+    return _new_frozen_motion_model(device)
 
 
 def run_e016_loss_contract_probe(device: torch.device) -> dict[str, Any]:
@@ -1769,15 +1831,20 @@ __all__ = [
     "E016P0Config",
     "E016P0Metrics",
     "build_e016_corrected_sidecar",
+    "build_e016_loader",
+    "build_e016_supervision",
     "derive_e016_corrected_arrays",
     "evaluate_e016_p0_model",
     "load_e016_corrected_manifest",
     "load_e016_p0_config",
+    "move_e016_batch_to_device",
+    "new_e016_frozen_motion_model",
     "read_e016_corrected_labels",
     "run_e016_full_preflight",
     "run_e016_loss_contract_probe",
     "run_e016_p0",
     "run_e016_stratified_overfit",
+    "seed_e016_everything",
     "select_stratified_overfit_indices",
     "validate_e016_corrected_arrays",
 ]
