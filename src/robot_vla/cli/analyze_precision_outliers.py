@@ -33,11 +33,14 @@ from robot_vla.precision.geometry import (
 from robot_vla.precision.held_out import PrecisionConfidenceCalibration
 from robot_vla.precision.outliers import (
     E014_DIAGNOSTIC_VERSION,
+    FAILURE_FAMILY_ORDER,
     FAILURE_TAXONOMY_PRIORITY,
     aggregate_prediction_rows,
     assert_public_payload_safe,
     classify_outlier,
     derive_validation_rules,
+    failure_family,
+    failure_family_counts,
     geometry_conditioning,
     local_peak_nms,
     point_distance,
@@ -549,6 +552,9 @@ def _collect_rows(
                         point_distance(soft_pixel, peak) for peak in refined_peaks
                     )
                     radial_sigma = float(np.linalg.norm(sigma[batch_index, keypoint_index]))
+                    entropy_nats = float(
+                        entropy[batch_index, keypoint_index] * math.log(height * width)
+                    )
                     observed_scale = (
                         None
                         if world_error is None or pixel_error is None or pixel_error <= 1e-12
@@ -643,6 +649,7 @@ def _collect_rows(
                         "top1_argmax_pixel_error_px": top1_error,
                         "softargmax_minus_top1_error_px": soft_minus_top1,
                         "normalized_entropy": float(entropy[batch_index, keypoint_index]),
+                        "entropy_nats": entropy_nats,
                         "visibility_probability": float(
                             visibility_probability[batch_index, keypoint_index]
                         ),
@@ -964,6 +971,8 @@ def _plot_top20(
             "\n".join(
                 (
                     f"rank={rank}  keypoint={worst['keypoint_type']}",
+                    f"trajectory={worst['trajectory_id']}",
+                    f"timestep={worst['timestep']}",
                     f"world={worst['world_xy_error_m'] * 1000.0:.3f} mm",
                     f"pixel={worst['pixel_error_px']:.3f} px",
                     f"taxonomy={worst['failure_taxonomy']}",
@@ -982,7 +991,12 @@ def _plot_top20(
             family="monospace",
             fontsize=10,
         )
-        fig.suptitle(f"E014 private diagnostic — {fingerprint}", fontsize=13)
+        fig.suptitle(
+            "E014 private diagnostic — "
+            f"trajectory={worst['trajectory_id']} timestep={worst['timestep']} "
+            f"keypoint={worst['keypoint_type']} — {fingerprint}",
+            fontsize=13,
+        )
         fig.savefig(figure_root / f"{stem}.png", dpi=150)
         plt.close(fig)
 
@@ -994,6 +1008,12 @@ def _public_maximum(row: dict[str, Any]) -> dict[str, Any]:
         "world_xy_error_mm": float(row["world_xy_error_m"] * 1000.0),
         "pixel_error_px": row["pixel_error_px"],
         "failure_taxonomy": row["failure_taxonomy"],
+        "failure_family": row["failure_family"],
+        "heatmap_mode_assessment": (
+            "multimodal-softargmax"
+            if row["failure_taxonomy"] == "multimodal_softargmax_failure"
+            else "no-frozen-multimodal-signature"
+        ),
         "confidence_accepted": row["confidence_accepted"],
         "confidence_score": row["confidence_score"],
         "visibility_probability": row["visibility_probability"],
@@ -1017,7 +1037,9 @@ def _readme(summary: dict[str, Any]) -> str:
     maximum = summary["maximum_outlier"]
     confidence = summary["aggregate"]["confidence"]
     top20 = summary["top20_taxonomy"]
+    top20_family = summary["top20_failure_family"]
     taxonomy_lines = "\n".join(f"- `{name}`: {top20[name]}" for name in FAILURE_TAXONOMY_PRIORITY)
+    family_lines = "\n".join(f"- `{name}`: {top20_family[name]}" for name in FAILURE_FAMILY_ORDER)
     fail_closed = confidence["accepted_over_20mm_count"] == 0
     bottleneck = (
         "毫米级主体分布之外的离散 catastrophic perception failure"
@@ -1032,11 +1054,16 @@ def _readme(summary: dict[str, Any]) -> str:
 
 - 重新计算得到 world-XY p50 `{summary["aggregate"]["world_error"]["all"]["p50_mm"]:.3f} mm`、p90 `{summary["aggregate"]["world_error"]["all"]["p90_mm"]:.3f} mm`、max `{summary["aggregate"]["world_error"]["all"]["max_mm"]:.3f} mm`，与 E013 canonical 指标在预注册容差内一致。
 - 最大异常是 `{maximum["keypoint_type"]}`，匿名指纹 `{maximum["sample_fingerprint"]}`，分类为 `{maximum["failure_taxonomy"]}`；像素误差 `{maximum["pixel_error_px"]:.3f} px`，world-XY 误差 `{maximum["world_xy_error_mm"]:.3f} mm`。
+- 最大异常的 heatmap 判定为 `{maximum["heatmap_mode_assessment"]}`，confidence accepted=`{maximum["confidence_accepted"]}`，visibility probability=`{maximum["visibility_probability"]:.6f}`。
 - 当前主要瓶颈是：**{bottleneck}**。
 - confidence gate 对超过 20 mm 的错误{"能够全部 fail-closed" if fail_closed else "不能可靠 fail-closed"}；被接受的 >20 / >50 / >100 mm 数量分别为 `{confidence["accepted_over_20mm_count"]}` / `{confidence["accepted_over_50mm_count"]}` / `{confidence["accepted_over_100mm_count"]}`。
 - E013 的旧 `confidence_precision` 实际是 accepted validity precision，不是定位准确率；E014 单独报告 5/10/20 mm accepted accuracy。
 
-## Top-20 固定 taxonomy
+## Top-20 五类 failure family（实验 Q2 口径）
+
+{family_lines}
+
+## Top-20 细粒度固定 taxonomy
 
 {taxonomy_lines}
 
@@ -1151,6 +1178,7 @@ def _run_test(args: argparse.Namespace) -> dict[str, Any]:
         )
         for row in collection.rows:
             row["failure_taxonomy"] = classify_outlier(row, rules)
+            row["failure_family"] = failure_family(row["failure_taxonomy"])
             row["high_confidence_catastrophic_perception_failure"] = bool(
                 row["confidence_accepted"]
                 and row["world_xy_error_m"] is not None
@@ -1186,6 +1214,9 @@ def _run_test(args: argparse.Namespace) -> dict[str, Any]:
         top20_taxonomy = taxonomy_counts(top20)
         top50_taxonomy = taxonomy_counts(top50)
         all_taxonomy = taxonomy_counts(collection.rows)
+        top20_failure_family = failure_family_counts(top20)
+        top50_failure_family = failure_family_counts(top50)
+        all_rows_failure_family = failure_family_counts(collection.rows)
 
         _atomic_jsonl(private_root / "per_sample.jsonl", collection.rows)
         _atomic_jsonl(private_root / "top50_worst.jsonl", top50)
@@ -1210,6 +1241,9 @@ def _run_test(args: argparse.Namespace) -> dict[str, Any]:
             "top20_taxonomy": top20_taxonomy,
             "top50_taxonomy": top50_taxonomy,
             "all_rows_taxonomy": all_taxonomy,
+            "top20_failure_family": top20_failure_family,
+            "top50_failure_family": top50_failure_family,
+            "all_rows_failure_family": all_rows_failure_family,
             "accepted_catastrophic_count": len(accepted_catastrophic),
             "test_split_status_after_e014": "consumed-for-diagnostic-postmortem",
         }
@@ -1235,6 +1269,9 @@ def _run_test(args: argparse.Namespace) -> dict[str, Any]:
             "top20_taxonomy": top20_taxonomy,
             "top50_taxonomy": top50_taxonomy,
             "all_rows_taxonomy": all_taxonomy,
+            "top20_failure_family": top20_failure_family,
+            "top50_failure_family": top50_failure_family,
+            "all_rows_failure_family": all_rows_failure_family,
             "taxonomy_priority": list(FAILURE_TAXONOMY_PRIORITY),
             "validation_frozen_thresholds": rules["thresholds"],
             "test_split_status_after_e014": "consumed-for-diagnostic-postmortem",
@@ -1246,6 +1283,8 @@ def _run_test(args: argparse.Namespace) -> dict[str, Any]:
             "confidence": aggregate["confidence"],
             "top20_taxonomy": top20_taxonomy,
             "top50_taxonomy": top50_taxonomy,
+            "top20_failure_family": top20_failure_family,
+            "top50_failure_family": top50_failure_family,
         }
         public_receipt = _write_public_output(
             public_root=public_root,
@@ -1291,6 +1330,7 @@ def _run_test(args: argparse.Namespace) -> dict[str, Any]:
             "valid_keypoints": len(valid_rows),
             "maximum_outlier": _public_maximum(maximum),
             "top20_taxonomy": top20_taxonomy,
+            "top20_failure_family": top20_failure_family,
             "accepted_catastrophic_count": len(accepted_catastrophic),
         }
     except Exception as error:

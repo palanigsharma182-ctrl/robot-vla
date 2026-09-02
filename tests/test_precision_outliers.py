@@ -4,11 +4,14 @@ import numpy as np
 import pytest
 
 from robot_vla.precision.outliers import (
+    FAILURE_FAMILY_ORDER,
     FAILURE_TAXONOMY_PRIORITY,
     aggregate_prediction_rows,
     assert_public_payload_safe,
     classify_outlier,
     derive_validation_rules,
+    failure_family,
+    failure_family_counts,
     geometry_conditioning,
     local_peak_nms,
     semantic_distance_features,
@@ -123,6 +126,7 @@ def test_geometry_conditioning_reports_unit_ray_and_metric_jacobian() -> None:
     assert result["abs_n_dot_unit_ray"] == pytest.approx(1.0)
     assert result["physical_ray_distance_m"] == pytest.approx(1.0)
     assert result["jacobian_sigma_max_mm_per_px"] == pytest.approx(10.0, rel=1e-4)
+    assert result["gt_plane_z_m"] == pytest.approx(2.0)
 
 
 def test_taxonomy_is_mutually_exclusive_and_honours_priority() -> None:
@@ -234,6 +238,18 @@ def test_validation_rule_derivation_and_aggregate_keep_confidence_semantics_sepa
     assert aggregate["confidence"]["accepted_accuracy_rate_at_5mm"] == pytest.approx(0.5)
     assert aggregate["confidence"]["accepted_over_50mm_count"] == 1
     assert sum(taxonomy_counts(rows).values()) == 3
+    assert failure_family("semantic_swap_failure") == "correspondence_failure"
+    family_counts = failure_family_counts(rows)
+    assert set(family_counts) == set(FAILURE_FAMILY_ORDER)
+    assert family_counts["correspondence_failure"] == 1
+    assert family_counts["visibility_or_ood_failure"] == 1
+    assert family_counts["unclear_or_mixed"] == 1
+    assert sum(family_counts.values()) == 3
+
+
+def test_failure_family_rejects_unknown_taxonomy() -> None:
+    with pytest.raises(ValueError, match="未知 failure taxonomy"):
+        failure_family("invented_failure")
 
 
 def test_public_payload_rejects_raw_identity_or_absolute_path() -> None:

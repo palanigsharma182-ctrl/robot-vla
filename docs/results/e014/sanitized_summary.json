@@ -1,0 +1,232 @@
+{
+  "aggregate": {
+    "confidence": {
+      "accepted_accuracy_rate_at_10mm": 0.9931862426995457,
+      "accepted_accuracy_rate_at_20mm": 0.9951330304996755,
+      "accepted_accuracy_rate_at_5mm": 0.9873458792991564,
+      "accepted_invalid_keypoint_count": 245,
+      "accepted_max_error_mm": 208.53786770663348,
+      "accepted_over_100mm_count": 9,
+      "accepted_over_20mm_count": 15,
+      "accepted_over_50mm_count": 9,
+      "accepted_row_count": 3327,
+      "accepted_valid_keypoint_count": 3082,
+      "accepted_validity_precision": 0.9263600841599038,
+      "catastrophic_acceptance_rate": 0.8823529411764706,
+      "false_safe_catastrophic_rate": 0.004866969500324465,
+      "semantics": "accepted-validity-and-localization-audit/v1"
+    },
+    "invalid_keypoint_count": 781,
+    "prediction_row_count": 4088,
+    "valid_keypoint_count": 3307,
+    "world_error": {
+      "all": {
+        "count": 3307,
+        "max_mm": 208.53786770663348,
+        "p50_mm": 0.3703668481410647,
+        "p90_mm": 1.5172345037236405,
+        "p95_mm": 2.2421247522010113,
+        "p99_mm": 6.488266779166299,
+        "threshold_counts": {
+          "over_100mm": 9,
+          "over_10mm": 25,
+          "over_20mm": 17,
+          "over_50mm": 9,
+          "over_5mm": 45
+        }
+      },
+      "confidence_accepted": {
+        "count": 3082,
+        "max_mm": 208.53786770663348,
+        "p50_mm": 0.3775389597547637,
+        "p90_mm": 1.575281440217788,
+        "p95_mm": 2.257163627207339,
+        "p99_mm": 6.134554914083732,
+        "threshold_counts": {
+          "over_100mm": 9,
+          "over_10mm": 21,
+          "over_20mm": 15,
+          "over_50mm": 9,
+          "over_5mm": 39
+        }
+      },
+      "goal_center": {
+        "count": 1263,
+        "max_mm": 208.53786770663348,
+        "p50_mm": 0.7411806809682584,
+        "p90_mm": 2.3120036918509483,
+        "p95_mm": 3.642609994781629,
+        "p99_mm": 24.84239624169097,
+        "threshold_counts": {
+          "over_100mm": 9,
+          "over_10mm": 25,
+          "over_20mm": 17,
+          "over_50mm": 9,
+          "over_5mm": 45
+        }
+      },
+      "object_center": {
+        "count": 2044,
+        "max_mm": 2.786396936346118,
+        "p50_mm": 0.24472712080796477,
+        "p90_mm": 0.996833358892529,
+        "p95_mm": 1.5890136649557982,
+        "p99_mm": 2.3587088737063575,
+        "threshold_counts": {
+          "over_100mm": 0,
+          "over_10mm": 0,
+          "over_20mm": 0,
+          "over_50mm": 0,
+          "over_5mm": 0
+        }
+      }
+    }
+  },
+  "all_rows_failure_family": {
+    "correspondence_failure": 51,
+    "geometry_conditioning_failure": 0,
+    "multimodal_softargmax_failure": 0,
+    "unclear_or_mixed": 3817,
+    "visibility_or_ood_failure": 220
+  },
+  "all_rows_taxonomy": {
+    "generic_correspondence_failure": 2,
+    "geometry_conditioning_failure": 0,
+    "label_or_channel_contract_failure": 293,
+    "multimodal_softargmax_failure": 0,
+    "semantic_swap_failure": 49,
+    "temporal_alignment_failure": 0,
+    "unclear_or_mixed": 3524,
+    "visibility_or_ood_failure": 220
+  },
+  "experiment": "E014 \u2014 E013 Precision long-tail failure decomposition",
+  "frozen_conditions": {
+    "calibration_sha256": "a613ce9daeef5e48316739832d2d5cedd246a598a36df1a190a5637a8aeaf355",
+    "checkpoint_changed": false,
+    "checkpoint_sha256": "3930573f30275608004160c87f9c33ec5f3da8eb49c689cbc2b048edf2573ac7",
+    "confidence_threshold": 0.02843603305518627,
+    "data_identity_sha256": "063d6e04f32a0cd3506f6293d1ade4e318397975e8fa542c642b45b9e9413efd",
+    "softargmax_changed": false,
+    "temperature": 1.0,
+    "training_performed": false
+  },
+  "maximum_outlier": {
+    "abs_n_dot_unit_ray": 0.7899011320284641,
+    "adjacent_improvement_px": 2.2192070448770522,
+    "best_adjacent_offset": -1,
+    "confidence_accepted": true,
+    "confidence_score": 0.05582314357161522,
+    "failure_family": "correspondence_failure",
+    "failure_taxonomy": "semantic_swap_failure",
+    "heatmap_mode_assessment": "no-frozen-multimodal-signature",
+    "jacobian_sigma_max_mm_per_px": 2.4678916577461574,
+    "keypoint_type": "goal_center",
+    "normalized_entropy": 0.6880376935005188,
+    "object_goal_distance_mm": 182.23823606967926,
+    "pixel_error_px": 84.95888114971251,
+    "projection_validity_probability": 0.16451646387577057,
+    "radial_sigma_px": 9.313983917236328,
+    "sample_fingerprint": "25baeec97247a4cff83c",
+    "semantic_margin_px": 51.867649614129554,
+    "softargmax_to_top1_distance_px": 24.206135014086744,
+    "top1_argmax_pixel_error_px": 102.29421739869751,
+    "top1_probability": 0.030228478834033012,
+    "top2_top1_probability_ratio": 0.1792901270341087,
+    "visibility_probability": 0.05582314357161522,
+    "world_xy_error_mm": 208.53786770663348
+  },
+  "metric_reproduction": {
+    "actual": {
+      "accepted_validity_precision": 0.9263600841599038,
+      "invalid_backprojection_count": 0,
+      "sample_count": 2044,
+      "valid_keypoint_count": 3307,
+      "world_xy_error_max_m": 0.2085378677066335,
+      "world_xy_error_p50_m": 0.00037036684814106466,
+      "world_xy_error_p90_m": 0.0015172345037236406
+    },
+    "canonical": {
+      "invalid_backprojection_count": 0,
+      "legacy_confidence_precision": 0.9263600841599038,
+      "sample_count": 2044,
+      "valid_keypoint_count": 3307,
+      "world_xy_error_max_m": 0.20853787660598755,
+      "world_xy_error_p50_m": 0.00037036684807389975,
+      "world_xy_error_p90_m": 0.0015172345098108057
+    },
+    "hardware_note": "BF16 inference may differ slightly across CUDA GPU architectures.",
+    "metric_deltas_m": {
+      "world_xy_error_max_m": -8.899354059233033e-09,
+      "world_xy_error_p50_m": 6.716491512265277e-14,
+      "world_xy_error_p90_m": -6.087165060203459e-12
+    },
+    "passed": true
+  },
+  "public_evidence_policy": "aggregate-and-pseudonymous-only/v1",
+  "status": "complete-supplemented",
+  "supplement_policy": "deterministic-postprocessing-no-model-forward/v1",
+  "supplement_source_tree_sha256": "1f055f6027ee4aef5fadb39ea35c368e2513a76fb6a1a23520e3c089e98a54d6",
+  "supplement_version": "e014-precision-long-tail-supplement/v1",
+  "taxonomy_priority": [
+    "label_or_channel_contract_failure",
+    "temporal_alignment_failure",
+    "semantic_swap_failure",
+    "geometry_conditioning_failure",
+    "multimodal_softargmax_failure",
+    "visibility_or_ood_failure",
+    "generic_correspondence_failure",
+    "unclear_or_mixed"
+  ],
+  "test_split_status_after_e014": "consumed-for-diagnostic-postmortem",
+  "top20_failure_family": {
+    "correspondence_failure": 4,
+    "geometry_conditioning_failure": 0,
+    "multimodal_softargmax_failure": 0,
+    "unclear_or_mixed": 16,
+    "visibility_or_ood_failure": 0
+  },
+  "top20_taxonomy": {
+    "generic_correspondence_failure": 2,
+    "geometry_conditioning_failure": 0,
+    "label_or_channel_contract_failure": 14,
+    "multimodal_softargmax_failure": 0,
+    "semantic_swap_failure": 2,
+    "temporal_alignment_failure": 0,
+    "unclear_or_mixed": 2,
+    "visibility_or_ood_failure": 0
+  },
+  "top50_failure_family": {
+    "correspondence_failure": 4,
+    "geometry_conditioning_failure": 0,
+    "multimodal_softargmax_failure": 0,
+    "unclear_or_mixed": 31,
+    "visibility_or_ood_failure": 15
+  },
+  "top50_taxonomy": {
+    "generic_correspondence_failure": 2,
+    "geometry_conditioning_failure": 0,
+    "label_or_channel_contract_failure": 26,
+    "multimodal_softargmax_failure": 0,
+    "semantic_swap_failure": 2,
+    "temporal_alignment_failure": 0,
+    "unclear_or_mixed": 5,
+    "visibility_or_ood_failure": 15
+  },
+  "validation_frozen_thresholds": {
+    "catastrophic_world_error_m": 0.02,
+    "geometry_abs_n_dot_unit_ray_max": 0.6771687593489548,
+    "geometry_jacobian_sigma_min_mm_per_px": 3.4434034161036218,
+    "label_oracle_roundtrip_error_max_px": 0.001,
+    "large_pixel_error_px": 10.0,
+    "multimodal_softargmax_to_top1_px": 2.5,
+    "multimodal_top1_error_improvement_px": 2.0,
+    "multimodal_top2_top1_ratio_min": 0.1,
+    "nms_radius_px": 5,
+    "semantic_swap_margin_px": 5.0,
+    "small_pixel_error_px": 0.7059567853246252,
+    "temporal_adjacent_improvement_px": 5.0,
+    "visibility_edge_distance_max_px": 2.9813131713867187,
+    "visibility_mask_area_fraction_max": 0.006854248046875001
+  },
+  "version": "e014-precision-long-tail-diagnostic/v1"
+}
