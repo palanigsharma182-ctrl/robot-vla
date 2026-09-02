@@ -78,6 +78,13 @@
     "structurally_eligible_count": 9760
   },
   "engineering_gate_passed": false,
+  "evaluation_protocol_scope": {
+    "all_split_integrity_audit_before_calibration": true,
+    "integrity_audit_used_test_predictions": false,
+    "test_model_forward_evaluation_count": 1,
+    "test_once_claim_scope": "model-forward-and-shadow-replay/v1",
+    "test_used_for_rule_selection": false
+  },
   "experiment": "E015 \u2014 explicit geometric goal state memory",
   "fresh_dataset": {
     "calibration_trajectory_count": 20,
@@ -126,7 +133,7 @@
   "safe_for_actuator_promotion": false,
   "status": "complete-supplemented",
   "supplement_policy": "deterministic-postprocessing-no-model-forward/v1",
-  "supplement_source_tree_sha256": "62fe5650c6a6778e625e6f2dd67f62faadd73873d215d6cb182c564dc749a86d",
+  "supplement_source_tree_sha256": "0f1b961373e690f8aafcea7c176757a1ca3353b7b3bcbb5d963143f315dd5ab4",
   "supplement_version": "e015-precision-memory-supplement/v1",
   "test_split_status_after_e015": "consumed-for-evaluation",
   "unsafe_write_audit": {

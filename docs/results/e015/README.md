@@ -4,6 +4,10 @@ E015-A 与 E015-B 使用 frozen E013 checkpoint 和全新 seeds 完成；没有�
 checkpoint、没有 Action 输出，也没有 actuator。fresh validation 只用于冻结 write threshold 与
 memory age，fresh test 只评估一次。
 
+术语边界：数据生成后、calibration 前会对所有 split 做 schema、文件 identity 和 oracle
+round-trip 完整性 audit；该 audit 不产生 test prediction，也不参与 threshold/age 选择。test-once
+claim 的精确范围是 **U-Net model forward 与 shadow replay**，这部分只执行一次。
+
 ## V1.0 瓶颈判断
 
 **显式 base-frame memory 的状态保持机制成立，但 E015 工程 gate 未通过。** memory 能在当前
