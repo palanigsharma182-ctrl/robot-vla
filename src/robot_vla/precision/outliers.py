@@ -29,6 +29,23 @@ FAILURE_TAXONOMY_PRIORITY = (
     "generic_correspondence_failure",
     "unclear_or_mixed",
 )
+FAILURE_FAMILY_ORDER = (
+    "correspondence_failure",
+    "multimodal_softargmax_failure",
+    "visibility_or_ood_failure",
+    "geometry_conditioning_failure",
+    "unclear_or_mixed",
+)
+FAILURE_TAXONOMY_TO_FAMILY = {
+    "label_or_channel_contract_failure": "unclear_or_mixed",
+    "temporal_alignment_failure": "unclear_or_mixed",
+    "semantic_swap_failure": "correspondence_failure",
+    "geometry_conditioning_failure": "geometry_conditioning_failure",
+    "multimodal_softargmax_failure": "multimodal_softargmax_failure",
+    "visibility_or_ood_failure": "visibility_or_ood_failure",
+    "generic_correspondence_failure": "correspondence_failure",
+    "unclear_or_mixed": "unclear_or_mixed",
+}
 WORLD_ERROR_THRESHOLDS_MM = (5.0, 10.0, 20.0, 50.0, 100.0)
 
 
@@ -307,6 +324,7 @@ def geometry_conditioning(
     jacobian = np.column_stack(derivatives)
     sigma_max = float(np.linalg.svd(jacobian, compute_uv=False)[0])
     return {
+        "gt_plane_z_m": float(plane_base_z_m),
         "camera_position_base_m": transform[:3, 3].astype(float).tolist(),
         "camera_viewing_direction_base": transform[:3, 2].astype(float).tolist(),
         "ray_direction_base": direction_base.astype(float).tolist(),
@@ -653,6 +671,26 @@ def taxonomy_counts(rows: Sequence[Mapping[str, Any]]) -> dict[str, int]:
     return result
 
 
+def failure_family(taxonomy: str) -> str:
+    """把细粒度 taxonomy 映射到实验协议要求的五类 Q2 口径。"""
+
+    try:
+        return FAILURE_TAXONOMY_TO_FAMILY[taxonomy]
+    except KeyError as error:
+        raise ValueError(f"未知 failure taxonomy: {taxonomy}") from error
+
+
+def failure_family_counts(rows: Sequence[Mapping[str, Any]]) -> dict[str, int]:
+    counter = Counter(
+        failure_family(str(row.get("failure_taxonomy")))
+        for row in rows
+    )
+    result = {name: int(counter.get(name, 0)) for name in FAILURE_FAMILY_ORDER}
+    if sum(result.values()) != len(rows):
+        raise RuntimeError("failure family 计数未精确覆盖输入 rows")
+    return result
+
+
 def sample_fingerprint(
     *,
     trajectory_id: str,
@@ -703,6 +741,7 @@ def assert_public_payload_safe(value: Any) -> None:
 __all__ = [
     "E014_DIAGNOSTIC_VERSION",
     "E014_RULES_VERSION",
+    "FAILURE_FAMILY_ORDER",
     "FAILURE_TAXONOMY_PRIORITY",
     "LocalPeak",
     "LocalPeakDiagnostics",
@@ -710,6 +749,8 @@ __all__ = [
     "assert_public_payload_safe",
     "classify_outlier",
     "derive_validation_rules",
+    "failure_family",
+    "failure_family_counts",
     "geometry_conditioning",
     "local_peak_nms",
     "point_distance",
