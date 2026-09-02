@@ -334,12 +334,12 @@ def summarize_goal_memory_replay(
         for row in records
         if "measurement_conflict" in row.measurement_rejection_reasons
     ]
-    stale = [
-        row
-        for row in records
-        if not row.memory_valid
-        and row.memory_age_s is not None
-        and "not_observable" in row.measurement_rejection_reasons
+    unavailable_occluded = [row for row in gt_occluded if not row.memory_valid]
+    uninitialized_occluded = [
+        row for row in unavailable_occluded if row.memory_age_s is None
+    ]
+    previously_initialized_invalid_occluded = [
+        row for row in unavailable_occluded if row.memory_age_s is not None
     ]
 
     def errors(rows: Sequence[GoalMemoryReplayRecord], *, memory: bool) -> np.ndarray:
@@ -384,7 +384,17 @@ def summarize_goal_memory_replay(
         "accepted_memory_update_count": len(accepted_updates),
         "held_valid_memory_count": len(held),
         "measurement_conflict_count": len(conflicts),
-        "stale_or_uninitialized_occluded_count": len(stale),
+        # 保留 v1 字段名，但修正为它承诺的“遮挡且 memory 不可用”总数。
+        "stale_or_uninitialized_occluded_count": len(unavailable_occluded),
+        "memory_unavailable_while_gt_unobservable_count": len(
+            unavailable_occluded
+        ),
+        "memory_uninitialized_while_gt_unobservable_count": len(
+            uninitialized_occluded
+        ),
+        "memory_previously_initialized_but_invalid_while_gt_unobservable_count": len(
+            previously_initialized_invalid_occluded
+        ),
         "gt_unobservable_count": len(gt_occluded),
         "current_valid_while_gt_unobservable_count": len(current_valid_occluded),
         "memory_valid_while_gt_unobservable_count": len(memory_valid_occluded),

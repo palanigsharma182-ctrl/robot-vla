@@ -293,6 +293,39 @@ def test_memory_replay_improves_occluded_availability_without_hallucinating() ->
     assert summary["memory_catastrophic_count"] == 0
 
 
+def test_memory_summary_counts_uninitialized_occluded_frames() -> None:
+    frame = _replay_frame(
+        0,
+        score=0.1,
+        gt_observable=False,
+        predicted_observable=False,
+    )
+    calibration = calibrate_goal_write_threshold(
+        scores=(frame.write_score,),
+        structurally_eligible=np.asarray((False,), dtype=np.bool_),
+        oracle_safe=np.asarray((False,), dtype=np.bool_),
+    )
+    records = replay_goal_memory(
+        (frame,),
+        calibration=calibration,
+        memory_config=_config(max_age_s=0.5),
+    )
+    summary = summarize_goal_memory_replay(
+        records,
+        catastrophic_world_xy_error_m=0.02,
+    )
+
+    assert summary["stale_or_uninitialized_occluded_count"] == 1
+    assert summary["memory_unavailable_while_gt_unobservable_count"] == 1
+    assert summary["memory_uninitialized_while_gt_unobservable_count"] == 1
+    assert (
+        summary[
+            "memory_previously_initialized_but_invalid_while_gt_unobservable_count"
+        ]
+        == 0
+    )
+
+
 def test_memory_age_selection_uses_validation_only_and_prefers_safe_coverage() -> None:
     frames = tuple(
         _replay_frame(
