@@ -56,6 +56,10 @@ def verify(root: Path) -> None:
     receipt = _read_json(root / "receipt.json")
     if summary.get("version") != VERSION or receipt.get("version") != VERSION:
         raise RuntimeError("E015 public version 漂移")
+    if summary.get("status") not in {"complete", "complete-supplemented"}:
+        raise RuntimeError("E015 public summary 状态漂移")
+    if receipt.get("status") != summary.get("status"):
+        raise RuntimeError("E015 public summary/receipt 状态不一致")
     _scan(summary)
     _scan(receipt)
     if summary["frozen_conditions"]["training_performed"] is not False:
@@ -75,6 +79,37 @@ def verify(root: Path) -> None:
     claim_sha256 = summary["frozen_conditions"].get("test_once_claim_sha256")
     if not isinstance(claim_sha256, str) or SHA256_PATTERN.fullmatch(claim_sha256) is None:
         raise RuntimeError("E015 缺少有效 test-once claim SHA-256")
+    if summary["frozen_conditions"].get("test_evaluated_once") is not True:
+        raise RuntimeError("E015 test-once 状态漂移")
+    if summary.get("status") == "complete-supplemented":
+        if summary.get("supplement_policy") != (
+            "deterministic-postprocessing-no-model-forward/v1"
+        ):
+            raise RuntimeError("E015 supplement policy 漂移")
+        correction = summary.get("aggregation_correction", {})
+        if correction.get("model_forward_repeated") is not False:
+            raise RuntimeError("E015 supplement 不得重复 model forward")
+        if correction.get("test_rules_changed") is not False:
+            raise RuntimeError("E015 supplement 不得修改 frozen rules")
+        memory = summary["e015_b_memory_replay"]
+        expected_unavailable = int(memory["gt_unobservable_count"]) - int(
+            memory["memory_valid_while_gt_unobservable_count"]
+        )
+        if int(memory["stale_or_uninitialized_occluded_count"]) != expected_unavailable:
+            raise RuntimeError("E015 supplemented unavailable-memory 聚合错误")
+        if int(memory["memory_unavailable_while_gt_unobservable_count"]) != (
+            expected_unavailable
+        ):
+            raise RuntimeError("E015 supplemented unavailable-memory 字段不一致")
+        availability = summary["memory_availability_audit"]
+        if int(availability["initialized_episode_count"]) + int(
+            availability["never_initialized_episode_count"]
+        ) != int(memory["episode_count"]):
+            raise RuntimeError("E015 initialized Episode 聚合错误")
+        if int(summary["unsafe_write_audit"]["count"]) != int(
+            summary["e015_b_write_measurements"]["accepted_unsafe_count"]
+        ):
+            raise RuntimeError("E015 unsafe-write supplement 聚合错误")
     for name, expected in receipt["files"].items():
         if _sha256(root / name) != expected:
             raise RuntimeError(f"E015 public file SHA-256 漂移: {name}")
