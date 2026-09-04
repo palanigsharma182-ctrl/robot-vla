@@ -1903,6 +1903,95 @@ full-data 前返回 R2。
 
 **Status:** active
 
+## D037 — 修正 G2C 静态时间合同，并以 W-KV0 取代不稳定的原 W 正式候选
+
+**Decision:**
+
+依据 D035 的 B 级代决授权和 D036 engineering smoke 的 R2 抽查，D036 的数据、loss、预算和安全边界保持
+不变，但在 full DATA 前冻结以下两项协议修正。
+
+第一，`_capture_static_view()` 不得再用 `5/20 + sample_index*1e-6` 为 no-environment-step 的静态视角
+构造伪时间。reset 后 5 个 20 Hz SafeHold-open step 产生的真实 simulation-control-time 是 0.25 s；如果
+随后 11 个 static-render viewpoint 没有 environment step，它们可以且应当保留相同的真实 timestamp。采集
+顺序只由 `sample_index`、`capture_sequence` 和 viewpoint order 表达，不能伪造时间差。RGB 与 actual pose
+仍必须来自同一 observation，并分别保存绑定该 observation 的真实 timestamp。任何合成、回填、单调扰动或
+把 capture order 冒充 simulation time 的行为都使 split protocol-invalid。
+
+第二，每个 seed 的 reset diagnostic 明确保留两个 phase，各恰好一条：
+
+```text
+raw-reset-return-before-warmup/v1
+post-five-safe-hold-open-warmup/v1
+```
+
+两条都必须是 diagnostic-only、`eligible=false`，并且 training/selection/calibration/qualification 使用计数
+全为零。summary、receipt 和 verifier 必须分别冻结并校验 raw、post-warmup 和 total 三个计数：
+
+```text
+4-seed smoke: raw=4, post=4, total=8
+full DATA:    raw=550, post=550, total=1100
+```
+
+缺 seed、重复 phase、phase 名称/role 漂移、使用标志非零或三项计数不一致都 fail closed。保留
+post-warmup diagnostic 不改变 eligible capture 数；full DATA 仍为 train 4400、model-validation 1100 和
+calibration 550，共 6050 eligible rows。
+
+D036 的原 `W` warm-start 在 front-domain smoke 中仅保留为诊断，不再进入正式 candidate pool。exact
+smoke 显示其 keypoint log-variance p50 为约 -11.53，weighted uncertainty loss 约 1918.63，总 loss 约
+1929.09，pre-clip gradient norm 约 137486.66；同期 `S` 总 loss 约 12.01、weighted uncertainty loss 约
+0.0047。虽然结果 finite 且 gradient clip 生效，但原 W 的 front-domain 更新会被继承的极端过置信 NLL
+主导，不能直接放行 20-epoch 正式训练。
+
+正式 warm-start treatment 改为 `W-KV0`：
+
+1. 加载冻结的 E016 epoch-12 checkpoint 并验证原 checkpoint、parameter、provenance 和 model config SHA；
+2. 只把 `uncertainty_head` 最后一个 Linear 中全部 keypoint-logvariance output rows 的 weight 与 bias
+   确定性置零；
+3. 保留 encoder、decoder、localization、mask、state、visibility、projection 和其余 uncertainty rows 的
+   warm-start 参数；
+4. Motion Head 继续 frozen-zero，且置零前后 motion parameter SHA 必须相同；
+5. 记录被置零 row indices、置零规则版本、原/新 parameter SHA、原/新 keypoint-variance-row SHA；
+6. 初始化后的 front smoke keypoint log-variance 必须精确为 0，loss/grad 必须 finite。
+
+`S` 保持原 random initialization。正式 candidate pool 仍只有两个 treatment：`W-KV0` 与 `S`，不是增加
+第三候选；control 与原 W 诊断都不能进入 selection。D036 冻结的 loss、optimizer、learning rate、weight
+decay、20 epochs、batch size、BF16、candidate epochs、shared `sampler_seed=18020`、W/S run RNG、
+checkpoint eligibility、calibration、qualification、预算和允许结论全部不变。W-KV0 只改变 warm-start
+candidate 的确定性初始化边界，不放宽指标或安全 Gate。
+
+工程必须在新的 source commit、config/source identity 和不覆盖旧 artifact 的新 run ID 上重跑同一个
+4-seed smoke。旧 `be2ad36` smoke 保留为 `superseded-by-D037` 的工程证据，不是 provider negative。新
+smoke 必须同时验证真实 timestamp、reset 三计数、W-KV0 row reset、W-KV0/S sampler order、finite
+loss/grad、motion hash、prediction-before-label 和全部零权限计数。快速 R2 复核通过后，只能先放行 full
+DATA；正式 TRAIN 仍需等待 canonical DATA receipt 和机械绑定的 TRAIN config。
+
+**Reason:**
+
+静态 RenderCamera 顺序需要可审计，但 capture 顺序和物理时间是两个不同字段。人工给未推进仿真的 observation
+增加微秒会伪造 RGB/pose 时间语义，并可能让后续历史、age 或 skew 检查把同一时刻误认为连续物理观测。
+保留真实相同 timestamp，同时用 sequence 表达顺序，既符合仿真事实，也不会丢失采集排序。
+
+原 W 的 localization/mask 基础优于 S，但 inherited wrist-domain log-variance 对 front error 极端过置信，
+使 NLL 比其他 loss 大约三个数量级。仅确定性清零 keypoint-logvariance output rows 是最小修改：它保留可迁移
+的视觉与 visibility/projection 权重，去除已被 smoke 反证的不适用 uncertainty prior，同时不更改 loss、
+数据、训练预算或最终 per-view conformal calibration。
+
+**Alternatives considered:**
+
+- 保留 `sample_index*1e-6` 作为“近似时间”：与实际 simulation time 不一致，拒绝。
+- 为每个 static viewpoint 增加 environment step：会改变 free-static 数据生命周期和 object/robot state，
+  不是修复时间字段所必需，拒绝。
+- 删除 post-warmup diagnostic：会失去对 reset transient 已被 warmup 清除的直接审计证据，拒绝。
+- 原 W 直接训练并依赖 gradient clipping：有限但由 uncertainty NLL 主导，20-epoch 行为不可解释，拒绝。
+- 修改 uncertainty loss weight、clamp 或先冻结若干 epoch：同时改变 loss/schedule，归因范围更大，首选方案
+  不采用。
+- 重置整个 uncertainty head：会不必要地丢弃 visibility/projection 等可能可迁移参数，拒绝。
+
+**Implementation status:** B 级修正已冻结；工程正在生成新 source identity 和替代 smoke。full DATA 与
+正式 TRAIN 尚未授权。
+
+**Status:** active
+
 ## 新决策模板
 
 ```markdown

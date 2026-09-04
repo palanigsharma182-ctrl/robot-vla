@@ -5,7 +5,7 @@
 > Experiment ID：`E018-P1-G2C-FRONT-PROVIDER-ADAPTATION-DEVELOPMENT/v1`
 > Data identity：`E018-P1-G2C-DATA/v1`
 > Train identity：`E018-P1-G2C-TRAIN/v1`
-> Decision Gate：[`D036`](decisions.md)
+> Decision Gate：[`D036`、`D037`](decisions.md)
 > 上位计划：[`E018-P1 三阶段主动视觉闭环`](e018_p1_three_stage_active_vision_closed_loop_plan.md)
 
 本实验是 E018 Stage 2 的上游 provider 资格实验。它只回答“受限动态 front 视角是否能产生可部署语义的
@@ -41,7 +41,8 @@ baseline。它只用于量化 domain gap，永不参与 checkpoint selection，�
 
 读取 model-validation label 前固定两个候选：
 
-- `W`：`PrecisionThreeHeadUNet`，从 E016 epoch-12 warm start；
+- `W-KV0`：`PrecisionThreeHeadUNet`，从 E016 epoch-12 warm start 后，只将 final uncertainty Linear 的
+  全部 keypoint-logvariance output rows 的 weight/bias 确定性置零；
 - `S`：相同架构，random initialization。
 
 两个候选只改变 initialization。两者共享数据、tensor/loss 语义、optimizer、epoch 预算和选择规则。沿用
@@ -79,7 +80,7 @@ split、seed 和用途在采集前冻结：
 
 | Split | Seeds | Pose/seed | Eligible/scored rows | 唯一用途 |
 |---|---:|---:|---:|---|
-| train | 76001–76400 | 11 | 4400 | 拟合 W/S |
+| train | 76001–76400 | 11 | 4400 | 拟合 W-KV0/S |
 | model validation | 76501–76600 | 11 | 1100 | eligibility 与 checkpoint ranking |
 | per-view calibration | 76601–76650 | 11 | 550 | covariance 与 write threshold |
 | one-shot qualification | 76701–76750 | 11 | 550 | 最终 development-only qualification |
@@ -100,11 +101,16 @@ split、seed 和用途在采集前冻结：
 1. 执行 environment reset；
 2. 把 raw reset-return observation 写入 `reset_diagnostic`；
 3. 执行 5 个 20 Hz SafeHold-open warmup steps；
-4. 只对 warmup 后、通过 settle rule 的 capture 标记 `eligible=true`。
+4. 把 post-warmup observation 写入另一条 diagnostic；
+5. 只对 warmup 后、通过 settle rule 的 capture 标记 `eligible=true`。
 
 raw reset observation 永不进入 train、selection、calibration 或 qualification。这个规则用于规避已经定位的
 ManiSkill reset-first-frame contact cache transient，必须由 config 和 verifier 在采集前强制，不是看到结果后
 删除异常行。
+
+每 seed 必须恰有一条 raw-reset 和一条 post-warmup diagnostic，两条都必须 `eligible=false` 且所有用途标志
+为 false。smoke 计数固定 raw/post/total=`4/4/8`，full DATA 固定为 `550/550/1100`；缺失、重复或计数
+不一致均 fail closed。
 
 ### 4.2 Static splits
 
@@ -115,6 +121,10 @@ train、model validation 和 calibration 可以使用 static-render-only pose co
 - 显式完成 OpenGL camera 到 OpenCV optical frame，再转换到 base frame；
 - 在冻结 settle rule 后只生成一个 eligible row；
 - 证明 arm/TCP hold、open gripper 和 no contact。
+
+5 个 20 Hz warmup 后真实 simulation-control-time 为 0.25 s。static-render viewpoint 之间不执行
+environment step，因此 11 个 view 可以保留同一个真实 timestamp；顺序由 `sample_index` /
+`capture_sequence` 表达。禁止用 sample index 增加微秒、回填时间或制造伪单调 timestamp。
 
 ### 4.3 Split fail-whole invariant
 
@@ -167,7 +177,7 @@ prediction-before-label 顺序一旦破坏，整个阶段 protocol-invalid。
 | scheduler | cosine annealing，eta-min 5% |
 | num workers | 0 |
 | spatial augmentation | none |
-| W/S initialization/run seed | 18021 / 18022 |
+| W-KV0/S initialization/run seed | 18021 / 18022 |
 | shared sampler seed | 18020 |
 | candidate epochs | 5, 10, 15, 20 |
 
@@ -185,7 +195,7 @@ observable world-XYZ max <= 0.020 m
 all geometry finite and valid
 ```
 
-W/S 必须使用 `sampler_seed=18020` 产生完全相同的逐 epoch shuffle 顺序；`18021/18022` 只驱动各自的
+W-KV0/S 必须使用 `sampler_seed=18020` 产生完全相同的逐 epoch shuffle 顺序；`18021/18022` 只驱动各自的
 initialization/run RNG，不能驱动 sampler。某 viewpoint 的 observable-positive support 小于 30 时仅该
 viewpoint 因 `insufficient_observable_positive_support` 不合格；如果因此没有任何 non-HOME eligible
 viewpoint，则 `selected=null` 并收口为 protocol-valid model-selection negative。只有 support 计数与冻结
@@ -198,7 +208,7 @@ label/ledger 不一致或指标实现异常才使 selection protocol-invalid。
 3. 对应 XYZ max 升序；
 4. validation loss 升序；
 5. 较早 epoch；
-6. 完全相同时 W 优先于 S。
+6. 完全相同时 W-KV0 优先于 S。
 
 全部 checkpoint 和 SHA 必须在读取 validation label 前冻结。无 eligible checkpoint 时 selected checkpoint
 必须为 null；不得选“最不坏”候选、临时增加 epoch 或查看 qualification 后重选。
@@ -335,12 +345,12 @@ qualification 只运行一次。无 eligible checkpoint、无可校准 viewpoint
 
 1. 实现 DATA config、collector、writer、verifier 和 label sidecar；
 2. 实现 seed/split/lifecycle/pose/timestamp/identity/disjoint audits；
-3. 实现 W/S train、model-validation、per-view calibration 和 dynamic qualification 接口；
+3. 实现 W-KV0/S train、model-validation、per-view calibration 和 dynamic qualification 接口；
 4. 运行 targeted unit tests 和工程自审；
 5. 运行 4-seed、无持久 checkpoint smoke；
 6. 在 full-data 前停止，提交 DATA/sampling/label/identity evidence 给决策 Agent 做一次 R2 抽样；
 7. R2 通过后收集 full DATA 并冻结 receipt；
-8. 由 receipt 机械冻结 train config，训练 W/S；
+8. 由 receipt 机械冻结 train config，训练 W-KV0/S；
 9. 冻结 checkpoint selection，再做 calibration；
 10. 冻结 calibration/threshold 后执行一次 qualification；
 11. verifier、Drive/local 持久化和 evidence packet 完成后才关闭本 Gate。
@@ -358,7 +368,7 @@ PASS 只允许声明：
 不得声明主动视觉优于 Passive、任务成功率提升、正式闭环、canonical promotion、actuator 安全、真实相机
 动力学或真实机器人安全。
 
-若 W/S 均失败：
+若 W-KV0/S 均失败：
 
 1. 冻结 control/candidate/data/ledger/checkpoint/receipt 和所有负结果；
 2. 不复用 qualification 调整当前模型；
