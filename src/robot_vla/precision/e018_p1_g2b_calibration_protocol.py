@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+
 from robot_vla.contracts import OUTCOME_PREDICATE_VERSION, PICK_AND_PLACE_SKILLS
 from robot_vla.data.trajectory import TrajectoryStore
 from robot_vla.precision.calibrated_front_provider import canonical_sha256

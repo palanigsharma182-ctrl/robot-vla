@@ -8,6 +8,7 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
+
 from robot_vla.precision import e018_p1_g2b as g2b
 from robot_vla.precision.e018_p1_g2b import (
     E018_P1_G2B_CONFIG_VERSION,

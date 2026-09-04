@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+
 from robot_vla.contracts import RobotSpec
 from robot_vla.data.dataset import ObservationV2ActionChunkDataset
 from robot_vla.data.trajectory import TrajectoryStore, load_manifest
@@ -2668,6 +2669,7 @@ def _score_qualification_after_prediction_freeze(
     import gymnasium as gym
     import sapien
     from mani_skill.utils import sapien_utils
+
     from robot_vla.precision.e018_p1_viewpoint_screen import (
         _capture_sensor_observation,
         _set_static_camera_pose,
