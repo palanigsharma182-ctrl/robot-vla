@@ -5,8 +5,16 @@
 > Experiment ID：`E018-P1-G2C-FRONT-PROVIDER-ADAPTATION-DEVELOPMENT/v1`
 > Data identity：`E018-P1-G2C-DATA/v1`
 > Train identity：`E018-P1-G2C-TRAIN/v1`
-> Decision Gate：[`D036`、`D037`](decisions.md)
+> Decision Gate：[`D036`、`D037`、`D038`](decisions.md)
 > 上位计划：[`E018-P1 三阶段主动视觉闭环`](e018_p1_three_stage_active_vision_closed_loop_plan.md)
+
+> 2026-09-05 DATA Gate：`E018-P1-G2C-DATA/v1` 已通过独立 verifier 与 R2，接受为 canonical
+> development-only 数据 parent。固定计数为 550 seeds、6050 eligible rows、raw/post reset diagnostics
+> 550/550、2750 SafeHold-open steps 和 8800 simulator pose-set；test/Memory/runtime/actuator 均为零。DATA
+> identity 为 `07919f413224fba797d4c12df25e2d5aec8ded8213e3283a07feed282701cfa3`，receipt raw/internal
+> 为 `0bd4c2c6dd008889f9c02bb09e050d65b98d97620acbc8bfa5d225f1ed16e99d` /
+> `0b52c3f1463087ad04275237c4567e656e698ab1043991b11d6c41d6711aa383`。当前允许 Drive 持久化和 TRAIN
+> runner 实现；正式训练仍需新 source R2 GO。
 
 本实验是 E018 Stage 2 的上游 provider 资格实验。它只回答“受限动态 front 视角是否能产生可部署语义的
 object measurement”，不评价 Active 相对 Passive 的任务收益，也不授予 canonical runtime、机械臂、夹爪、

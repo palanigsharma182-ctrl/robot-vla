@@ -1992,6 +1992,96 @@ DATA；正式 TRAIN 仍需等待 canonical DATA receipt 和机械绑定的 TRAIN
 
 **Status:** active
 
+## D038 — 接受 G2C-DATA/v1，并冻结 DATA 到 TRAIN 的单向身份边界
+
+**Decision:**
+
+依据 D035 的 B 级代决授权、D036/D037 协议和独立 R2 抽查，接受
+`E018-P1-G2C-DATA/v1` 为 canonical development-only 数据 parent。该接受只授权构建机械绑定的数据训练
+config 和实现/验证 TRAIN runner；不自动授权正式训练、model selection、calibration、qualification、test、
+Memory、canonical runtime 或 actuator。
+
+accepted DATA 绑定：
+
+```text
+source commit:
+  b84536279fc751e65b9f685d951c4f77043f675c
+source identity:
+  f226b1f66c775ae8ff86a2111f0ff9b0f15aaab97155b2aa9f9096752253a39c
+config canonical SHA:
+  56718c0611fc620ccfb767141d8d0867ea5d03806348396d0a2e201fbff3d5de
+data identity:
+  07919f413224fba797d4c12df25e2d5aec8ded8213e3283a07feed282701cfa3
+data receipt raw SHA:
+  0bd4c2c6dd008889f9c02bb09e050d65b98d97620acbc8bfa5d225f1ed16e99d
+data receipt internal SHA:
+  0b52c3f1463087ad04275237c4567e656e698ab1043991b11d6c41d6711aa383
+```
+
+固定数据计数：
+
+```text
+train:        400 seeds / 4400 eligible rows
+model-val:    100 seeds / 1100 eligible rows
+calibration:   50 seeds /  550 eligible rows
+total:        550 seeds / 6050 eligible rows
+
+raw reset diagnostics:       550
+post-warmup diagnostics:     550
+all reset diagnostics:      1100
+SafeHold-open steps:        2750
+simulator camera pose-set:  8800
+```
+
+三 split 的 16 类 lifecycle violation 均为零，row deletion 与 seed replacement 均为零；test trajectory/label
+array read、checkpoint write、Memory read/write、runtime/physical camera actuation、arm motion、gripper close
+和 manipulation progression 均为零。独立 verifier exit 0；R2 抽样覆盖 15 个跨 split seed bundle × 11
+view，1100 条 reset diagnostic 已全量聚合检查。model-validation object observable-positive support 为 HOME
+85、十个 alternate 89–99，均高于冻结的 30 下限。
+
+工程 Agent 可以并行：
+
+1. 对 accepted DATA 做 Drive immutable copy、one-way check 和最后写入 completion marker；在长期副本完成前
+   保留 worker source；
+2. 新增独立 `E018-P1-G2C-TRAIN/v1` config、runner、verifier 和 targeted tests；
+3. 只做不持久化正式 checkpoint、不打开正式 model-validation label 的工程 smoke。
+
+TRAIN config 必须逐项绑定 accepted DATA 的 source/config/data/receipt identity、deployable/privileged
+manifest SHA 和输入文件 SHA。训练进程只允许挂载/读取 train deployable inputs 与 train privileged labels；
+model-validation、calibration、qualification 和 test labels 必须不可达。
+
+正式 TRAIN 仍为 HOLD，直到新 source 通过快速 R2。放行前必须证明：
+
+- candidate pool 只有 W-KV0/S，20 epochs、candidate epochs `{5,10,15,20}` 和 shared
+  `sampler_seed=18020` 未漂移；
+- 两臂逐 epoch sample order 相同，initialization/run RNG 独立；
+- optimizer、scheduler、RNG、sampler 和 resume identity 可完整恢复；
+- 8 个候选 checkpoint 的 file/parameter/provenance SHA 与训练 trace 可冻结；
+- output 已存在时拒绝覆盖，预算保持 40 model-epochs、GPU 不超过 10 h、artifact 不超过 20 GB；
+- train 阶段 model-validation/calibration/qualification/test label read count 为零。
+
+在 model selection 中，8 个 checkpoint 及其 SHA、全部 1100-row deployable prediction ledgers、validation
+loss 所需的 deployable-only 输出和 prediction-freeze receipt 必须先全部 `fsync` 并冻结，随后卸载 model/
+inference context，才允许打开 model-validation labels。不得在 label 打开后重跑 checkpoint、改变候选集或
+补充预测。selection、calibration 和 qualification 仍按 D036/D037 的单向 Gate 分开执行。
+
+**Reason:**
+
+DATA 采集已经通过生命周期、时间、坐标、seed、权限和身份门禁，继续把数据收集与 TRAIN runner 实现串行化
+只会造成 GPU 空转。允许并行备份和实现可以缩短关键路径；但保留正式 TRAIN Gate，能确保 accepted DATA
+receipt 被机械绑定，避免训练代码在 label 可达性、checkpoint freeze 或 resume 上引入新的泄漏和身份漂移。
+
+**Alternatives considered:**
+
+- DATA 通过后立即运行 40 epochs：TRAIN config/runner 尚未经过 source-level Gate，拒绝。
+- 把 DATA 和 TRAIN 写成同一运行后补 identity：无法证明训练输入与 accepted receipt 一致，拒绝。
+- model-validation label 打开后再补 checkpoint prediction/loss：会让 selection 输出依赖已读 label，拒绝。
+- 等 Drive 与本机双副本全部结束后才写 TRAIN runner：备份和纯工程实现可安全并行，拒绝无谓串行。
+
+**Implementation status:** DATA 已接受；Drive 持久化和 TRAIN runner 实现并行进行。正式训练仍 HOLD。
+
+**Status:** active
+
 ## 新决策模板
 
 ```markdown
