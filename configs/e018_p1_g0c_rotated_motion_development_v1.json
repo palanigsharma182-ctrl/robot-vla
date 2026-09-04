@@ -1,0 +1,168 @@
+{
+  "version": "e018-p1-g0c-rotated-motion-development/v1",
+  "status": "development-only-g0c-no-formal-claim",
+  "scope": {
+    "gate": "G0C_ROTATED_POSE_MOTION_FEASIBILITY",
+    "test_split_allowed": false,
+    "formal_claim_allowed": false,
+    "runtime_gt_control_allowed": false,
+    "p0_rules_consumed": false,
+    "provider_inference_allowed": false,
+    "memory_read_allowed": false,
+    "memory_write_allowed": false
+  },
+  "parent_screen": {
+    "gate": "G0B_STATIC_VIEWPOINT_GEOMETRY_SCREEN",
+    "config_sha256": "b413487cc35a8ffb8bbaeba8ec6401bbe76eb885b6a3774d1e53b16e18b058a3",
+    "receipt_sha256": "faf4609954cb1be33e16198ee7b305c7e8f5fabd58a8a48710fd30035f5309ea",
+    "screen_integrity_required": true,
+    "selection_status": "static-eligible-development-not-frozen",
+    "eligible_primitive_ids": [
+      "LEFT_LOW__CENTER",
+      "LEFT_LOW__YAW_LEFT",
+      "LEFT_LOW__YAW_RIGHT",
+      "LEFT_LOW__PITCH_UP",
+      "LEFT_LOW__PITCH_DOWN",
+      "RIGHT_LOW__CENTER",
+      "RIGHT_LOW__YAW_LEFT",
+      "RIGHT_LOW__YAW_RIGHT",
+      "RIGHT_LOW__PITCH_UP",
+      "RIGHT_LOW__PITCH_DOWN"
+    ]
+  },
+  "software": {
+    "expected_mani_skill_version": "3.0.1",
+    "expected_sapien_version": "3.0.3"
+  },
+  "environment": {
+    "environment_id": "RobotVLAPickCubeToRegion-v1",
+    "robot_uid": "panda_wristcam",
+    "camera_uid": "base_camera",
+    "obs_mode": "rgb+segmentation",
+    "control_mode": "pd_joint_delta_pos",
+    "num_envs": 1,
+    "control_hz": 20
+  },
+  "viewpoint_library": {
+    "version": "e018-p1-front-low-2x5-rotated-motion-provisional/v1",
+    "status": "provisional-development-not-frozen",
+    "pose_frame": "world",
+    "nominal_orientation_policy": "fixed-workspace-look-at/v1",
+    "orientation_offset_frame": "sapien-camera-local-x-forward-y-left-z-up/v1",
+    "interpolation": "shared-quintic-position-and-local-orientation-offset/v1",
+    "route_policy": "HOME_TO_ONE_FULL_POSE_TO_HOME/v1",
+    "expected_anchor_count": 2,
+    "expected_orientation_count": 5,
+    "expected_primitive_count": 10,
+    "home": {
+      "viewpoint_id": "HOME",
+      "lateral_anchor": "CENTER",
+      "vertical_anchor": "CENTER",
+      "position_world_m": [0.3, 0.0, 0.6],
+      "look_at_world_m": [-0.1, 0.0, 0.1],
+      "yaw_rad": 3.141592653589793,
+      "pitch_rad": -0.8960553845713439,
+      "roll_rad": 0.0
+    },
+    "anchors": [
+      {
+        "viewpoint_id": "LEFT_LOW",
+        "lateral_anchor": "LEFT",
+        "vertical_anchor": "LOW",
+        "position_world_m": [0.3, -0.16, 0.48],
+        "look_at_world_m": [-0.1, 0.0, 0.1],
+        "yaw_rad": 2.761086276477428,
+        "pitch_rad": -0.7228106035383705,
+        "roll_rad": 0.0
+      },
+      {
+        "viewpoint_id": "RIGHT_LOW",
+        "lateral_anchor": "RIGHT",
+        "vertical_anchor": "LOW",
+        "position_world_m": [0.3, 0.16, 0.48],
+        "look_at_world_m": [-0.1, 0.0, 0.1],
+        "yaw_rad": -2.761086276477428,
+        "pitch_rad": -0.7228106035383705,
+        "roll_rad": 0.0
+      }
+    ],
+    "orientation_modes": [
+      {
+        "orientation_id": "CENTER",
+        "yaw_offset_rad": 0.0,
+        "pitch_offset_rad": 0.0,
+        "roll_offset_rad": 0.0
+      },
+      {
+        "orientation_id": "YAW_LEFT",
+        "yaw_offset_rad": 0.20943951023931953,
+        "pitch_offset_rad": 0.0,
+        "roll_offset_rad": 0.0
+      },
+      {
+        "orientation_id": "YAW_RIGHT",
+        "yaw_offset_rad": -0.20943951023931953,
+        "pitch_offset_rad": 0.0,
+        "roll_offset_rad": 0.0
+      },
+      {
+        "orientation_id": "PITCH_UP",
+        "yaw_offset_rad": 0.0,
+        "pitch_offset_rad": 0.13962634015954636,
+        "roll_offset_rad": 0.0
+      },
+      {
+        "orientation_id": "PITCH_DOWN",
+        "yaw_offset_rad": 0.0,
+        "pitch_offset_rad": -0.13962634015954636,
+        "roll_offset_rad": 0.0
+      }
+    ]
+  },
+  "motion": {
+    "command_mode": "time-indexed-kinematic-render-camera/v1",
+    "interpolation": "shared-quintic-position-and-local-orientation-offset/v1",
+    "warmup_ticks": 5,
+    "move_duration_s": 2.0,
+    "settle_ticks": 4,
+    "collect_ticks": 3,
+    "max_linear_velocity_m_s": 0.31,
+    "max_linear_acceleration_m_s2": 0.7,
+    "max_angular_velocity_rad_s": 0.75,
+    "max_angular_acceleration_rad_s2": 2.5
+  },
+  "safety": {
+    "camera_position_tracking_tolerance_m": 0.00001,
+    "camera_orientation_tracking_tolerance_rad": 0.0001,
+    "settled_linear_velocity_max_m_s": 0.002,
+    "settled_angular_velocity_max_rad_s": 0.01,
+    "required_consecutive_settled_ticks": 3,
+    "home_position_tolerance_m": 0.00001,
+    "home_orientation_tolerance_rad": 0.0001,
+    "arm_joint_drift_max_rad": 0.00001,
+    "tcp_position_drift_max_m": 0.00001,
+    "tcp_orientation_drift_max_rad": 0.0001,
+    "minimum_open_finger_joint_position_m": 0.039,
+    "unexpected_finger_contact_max_n": 0.01,
+    "minimum_alternate_rgb_mean_abs_difference": 5.0,
+    "maximum_return_home_rgb_mean_abs_difference": 0.1
+  },
+  "experiment": {
+    "usage": "simulator-development-only-no-test-no-provider-no-memory/v1",
+    "seeds": [73001, 73013, 73027, 73039],
+    "execute_all_primitives": true,
+    "save_settled_rgb": true,
+    "offline_segmentation_diagnostics": true
+  },
+  "execution": {
+    "device": "cuda",
+    "physical_robot_actuation_allowed": false,
+    "arm_motion_command_allowed": false,
+    "gripper_command_mode": "safe-hold-open",
+    "simulated_external_camera_motion_allowed": true,
+    "provider_inference_allowed": false,
+    "memory_read_allowed": false,
+    "memory_write_allowed": false,
+    "manipulation_progression_allowed": false
+  }
+}

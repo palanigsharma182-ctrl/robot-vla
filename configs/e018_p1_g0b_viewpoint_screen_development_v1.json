@@ -1,0 +1,159 @@
+{
+  "version": "e018-p1-g0b-static-viewpoint-screen-development/v1",
+  "status": "development-only-static-screen-no-formal-claim",
+  "scope": {
+    "gate": "G0B_STATIC_VIEWPOINT_GEOMETRY_SCREEN",
+    "test_split_allowed": false,
+    "formal_claim_allowed": false,
+    "runtime_gt_control_allowed": false,
+    "provider_inference_allowed": false,
+    "memory_read_allowed": false,
+    "memory_write_allowed": false,
+    "time_resolved_motion_claim_allowed": false
+  },
+  "software": {
+    "expected_mani_skill_version": "3.0.1",
+    "expected_sapien_version": "3.0.3"
+  },
+  "environment": {
+    "environment_id": "RobotVLAPickCubeToRegion-v1",
+    "robot_uid": "panda_wristcam",
+    "camera_uid": "base_camera",
+    "obs_mode": "rgb+segmentation",
+    "control_mode": "pd_joint_delta_pos",
+    "num_envs": 1,
+    "image_height": 128,
+    "image_width": 128
+  },
+  "viewpoint_lattice": {
+    "version": "e018-p1-front-5x5-static-screen-provisional/v1",
+    "status": "provisional-development-not-frozen",
+    "pose_frame": "world",
+    "nominal_orientation_policy": "legacy-fixed-workspace-look-at/v1",
+    "orientation_offset_frame": "sapien-camera-local-x-forward-y-left-z-up/v1",
+    "cross_product_enabled": true,
+    "expected_anchor_count": 5,
+    "expected_orientation_count": 5,
+    "expected_primitive_count": 25,
+    "anchors": [
+      {
+        "viewpoint_id": "HOME",
+        "lateral_anchor": "CENTER",
+        "vertical_anchor": "CENTER",
+        "position_world_m": [0.3, 0.0, 0.6],
+        "look_at_world_m": [-0.1, 0.0, 0.1],
+        "yaw_rad": 3.141592653589793,
+        "pitch_rad": -0.8960553845713439,
+        "roll_rad": 0.0
+      },
+      {
+        "viewpoint_id": "LEFT_LOW",
+        "lateral_anchor": "LEFT",
+        "vertical_anchor": "LOW",
+        "position_world_m": [0.3, -0.16, 0.48],
+        "look_at_world_m": [-0.1, 0.0, 0.1],
+        "yaw_rad": 2.761086276477428,
+        "pitch_rad": -0.7228106035383705,
+        "roll_rad": 0.0
+      },
+      {
+        "viewpoint_id": "LEFT_HIGH",
+        "lateral_anchor": "LEFT",
+        "vertical_anchor": "HIGH",
+        "position_world_m": [0.3, -0.16, 0.72],
+        "look_at_world_m": [-0.1, 0.0, 0.1],
+        "yaw_rad": 2.761086276477428,
+        "pitch_rad": -0.9635283801277769,
+        "roll_rad": 0.0
+      },
+      {
+        "viewpoint_id": "RIGHT_LOW",
+        "lateral_anchor": "RIGHT",
+        "vertical_anchor": "LOW",
+        "position_world_m": [0.3, 0.16, 0.48],
+        "look_at_world_m": [-0.1, 0.0, 0.1],
+        "yaw_rad": -2.761086276477428,
+        "pitch_rad": -0.7228106035383705,
+        "roll_rad": 0.0
+      },
+      {
+        "viewpoint_id": "RIGHT_HIGH",
+        "lateral_anchor": "RIGHT",
+        "vertical_anchor": "HIGH",
+        "position_world_m": [0.3, 0.16, 0.72],
+        "look_at_world_m": [-0.1, 0.0, 0.1],
+        "yaw_rad": -2.761086276477428,
+        "pitch_rad": -0.9635283801277769,
+        "roll_rad": 0.0
+      }
+    ],
+    "orientation_modes": [
+      {
+        "orientation_id": "CENTER",
+        "yaw_offset_rad": 0.0,
+        "pitch_offset_rad": 0.0,
+        "roll_offset_rad": 0.0
+      },
+      {
+        "orientation_id": "YAW_LEFT",
+        "yaw_offset_rad": 0.20943951023931953,
+        "pitch_offset_rad": 0.0,
+        "roll_offset_rad": 0.0
+      },
+      {
+        "orientation_id": "YAW_RIGHT",
+        "yaw_offset_rad": -0.20943951023931953,
+        "pitch_offset_rad": 0.0,
+        "roll_offset_rad": 0.0
+      },
+      {
+        "orientation_id": "PITCH_UP",
+        "yaw_offset_rad": 0.0,
+        "pitch_offset_rad": 0.13962634015954636,
+        "roll_offset_rad": 0.0
+      },
+      {
+        "orientation_id": "PITCH_DOWN",
+        "yaw_offset_rad": 0.0,
+        "pitch_offset_rad": -0.13962634015954636,
+        "roll_offset_rad": 0.0
+      }
+    ]
+  },
+  "sampling": {
+    "usage": "simulator-development-static-geometry-screen-no-test/v1",
+    "seed_policy": "contiguous-development-range/v1",
+    "seed_start": 72001,
+    "seed_count": 50,
+    "captures_per_pose": 3,
+    "visualization_seeds": [72001, 72002, 72003, 72004]
+  },
+  "screening": {
+    "geometric_visibility_min_pixels": 1,
+    "framing_usable_min_pixels": 8,
+    "framing_usable_min_border_margin_px": 2,
+    "center_ray_support_radius_px": 2,
+    "shortlist_size": 8,
+    "shortlist_max_per_anchor": 2,
+    "shortlist_min_both_geometric_visible_rate": 0.95,
+    "shortlist_min_both_framing_usable_rate": 0.8
+  },
+  "safety": {
+    "camera_position_tracking_tolerance_m": 0.00001,
+    "camera_orientation_tracking_tolerance_rad": 0.0001,
+    "arm_joint_drift_max_rad": 0.00001,
+    "tcp_position_drift_max_m": 0.00001,
+    "tcp_orientation_drift_max_rad": 0.0001
+  },
+  "execution": {
+    "device": "cuda",
+    "static_pose_teleport_for_screening_allowed": true,
+    "physical_robot_actuation_allowed": false,
+    "environment_step_allowed": false,
+    "arm_motion_command_allowed": false,
+    "gripper_command_allowed": false,
+    "provider_inference_allowed": false,
+    "memory_access_allowed": false,
+    "manipulation_progression_allowed": false
+  }
+}

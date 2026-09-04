@@ -1,0 +1,66 @@
+{
+  "version": "e018-p0-dual-memory-development/v1",
+  "status": "development-only-validation-no-test",
+  "parent": {
+    "e016_config_sha256": "4b469e1abcab1cb2289a75797b683adb8719e5f510e23681a20a35d9ff10908b",
+    "checkpoint_sha256": "c0be8769f75e4b991daa3a71878df72d2e2aaad70b5139abb4190512d6110552",
+    "checkpoint_parameter_sha256": "0d84e3fbf56445a0b6cbfabf46643abce6b8ddd6c152e0534a1870b88eeeaed6",
+    "checkpoint_provenance_sha256": "f25d876c2cf0b670b22e4c09aa561ff4190704411a4c053a089a9bc05804fed2",
+    "goal_memory_rules_sha256": "29233975680808296201bafb500a8af2ab4abb2520046f6ecba735d6dc849010",
+    "goal_memory_calibration_receipt_sha256": "faba27fa2cb1fa9cb236ccec62bd507d60fd13ff9709ade6147f3d8adaf7a930",
+    "selected_epoch": 12,
+    "source_camera": "hand_camera",
+    "source_model_identity": "precision-unet/c0be8769f75e4b991daa3a71878df72d2e2aaad70b5139abb4190512d6110552"
+  },
+  "source": {
+    "allowed_split": "val",
+    "test_split_allowed": false,
+    "expected_trajectory_count": 20,
+    "expected_frame_count": 4154,
+    "expected_pregrasp_frame_count": 1135,
+    "pregrasp_skill_id": 0,
+    "usage": "recorded-validation-development-only-not-formal-held-out/v1"
+  },
+  "geometry": {
+    "pregrasp_object_center_plane_base_z_m": 0.02,
+    "plane_source": "pick-cube-task-contract-not-runtime-gt/v1"
+  },
+  "observability": {
+    "support_radius_px": 2,
+    "min_object_mask_probability": 0.5,
+    "max_goal_mask_probability": 0.5
+  },
+  "write_calibration": {
+    "safe_world_xyz_error_m": 0.005,
+    "catastrophic_world_xyz_error_m": 0.02,
+    "threshold_policy": "maximum-coverage-zero-unsafe-on-validation/v1"
+  },
+  "candidate_search": {
+    "min_candidate_frames": [2, 3, 4],
+    "max_candidate_gap_s": 0.075,
+    "max_candidate_position_spread_candidates_m": [0.002, 0.005, 0.01]
+  },
+  "memory_search": {
+    "max_unobserved_age_candidates_s": [0.1, 0.25, 0.5, 1.0, 2.0],
+    "max_innovation_m": 0.01,
+    "max_position_std_m": 0.02,
+    "require_covariance": true,
+    "covariance_growth_m2_per_s": 0.0,
+    "selection_policy": "max-navigation-gain-zero-safety-violation-then-stricter-tie-break/v1"
+  },
+  "safety": {
+    "gripper_opening_min": 0.95,
+    "finger_contact_threshold_n": 0.5,
+    "controller_tracking_error_max_rad": 0.04,
+    "max_sensor_skew_s": 0.01,
+    "phase_policy": "skill-id-reach-as-offline-pregrasp-alignment-only/v1"
+  },
+  "execution": {
+    "device": "cuda",
+    "use_bf16": true,
+    "batch_size": 32,
+    "num_workers": 0,
+    "actuation_allowed": false,
+    "camera_motion_allowed": false
+  }
+}
