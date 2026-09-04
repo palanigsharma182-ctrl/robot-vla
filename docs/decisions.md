@@ -1556,6 +1556,353 @@ calibration、20 Hz latency 和 ManiSkill shadow rollout 仍未完成。
 
 **Status:** active
 
+## D034 — E018 只授权仿真 development 的受限主动 front-camera 三阶段闭环
+
+**Decision:**
+
+用户已授权启动 E018-P1 三阶段主动视觉闭环，并指定由决策 Agent 持续负责实验组织、Gate、归因和回退，
+由工程 Agent 负责具体实现与运行。当前授权严格限定为 `simulation / development-only / no-test`，不是正式
+预注册、fresh test-once、真实硬件部署或 actuator promotion。三阶段依次为：
+
+1. 动态 external observation、受限触发、owner、latch、SafeHold 和相机状态机；
+2. front provider 资格、信息增益、pending candidate、HOME 验证和 Object Memory 两阶段提交；
+3. 全阶段负例、故障注入、replay 以及匹配预算的 Passive/Active development 对照。
+
+首版只恢复 object 的抓取前 navigation/pregrasp state，来源阶段只允许：
+
+```text
+ACQUIRE_TRACK
+STABILIZE_PREGRASP
+```
+
+每个 Episode 最多一次 `HOME -> frozen alternate -> HOME`。进入 `FINAL_APPROACH`、发生 object contact、发送
+gripper-close、形成 grasp candidate/grasp verified 或出现 object-maybe-moved 证据后，Episode-local active
+window 永久关闭。Goal Memory 保持冻结；active Object Memory 不能单独授权 `FINAL_APPROACH`、contact、close、
+lift 或 release。
+
+Stage 1 只有有限 GO：可以实现独立 dynamic-external sidecar、纯 trigger/latch/state machine、shadow/replay 和
+ManiSkill capability probe；可以沿用已通过 G0C v2 的无接触 camera motion parent。front provider 未完成逐
+viewpoint qualification 前，不得把真实 front output 用作 live trigger、Memory write 或 manipulation resume。
+Stage 1 的 live Object Memory write count 必须为零，fresh test read count 必须为零。
+
+冻结的 Observation V2 不原地扩维或改变 external-pose 语义。active capture 使用独立版本化 contract，RGB 与
+pose 保留各自 timestamp；视觉几何只接受与该 RGB 对应的
+`sensor_param.base_camera.cam2world_gl` actual pose，经显式 OpenGL→OpenCV 和 world→base 转换。commanded pose
+和 `camera.get_local_pose()` 只能用于命令/跟踪审计，不能冒充图像的 actual extrinsic。运动或 alternate-view
+frame 不进入正常 VLA 的四帧历史；返回 HOME 后，必须重新取得四个连续、有效且均为 HOME 的 Observation V2
+frame，才允许生成新的 manipulation Action Chunk。
+
+external camera owner 与既有 arm/gripper `ControllerOwner` 分域。主动观察期间 effective arm owner 固定为
+`SAFE_HOLD`，gripper 固定 open，camera 使用唯一 lease；camera controller 不获得 arm/TCP command interface。
+首版 active phase 由 E018-only supervisor/context/ledger 承载，以保持默认 20-phase plan 和 P0 identity 不变。
+若后续必须并入正式 Executive graph，使用新的 versioned plan/compiler identity，不静默改写 v1。
+
+主动 request 前必须同时证明：当前 wrist object measurement 不可用、qualified HOME-front measurement 不可用、
+Object Memory navigation state 不可用、来源 phase 合法、单调 latch 仍开放、attempt budget 未耗尽、安全前提
+通过且失败属于 viewpoint-resolvable reason。单帧失败、invalid sensor/pose、provider identity mismatch、unsafe
+arm/camera state 或 unknown reason 只能 Passive Reobserve/SafeHold，不能触发相机运动。
+
+active request 接受时必须清除 temporal ensemble proposal、RTC overlap、executor previous command/action
+reference，并记录严格递增的 Action generation。不得用整个 Episode 的 `reset()` 冒充 mid-Episode
+invalidation，也不得复用 active 前的 Action Chunk。当前同步 executor 没有 20 Hz 中途打断能力，因此首版
+trigger 明确发生在 replan boundary；不能把该结果描述为已经实现控制 Tick 级 chunk interrupt。
+
+alternate settled window 只产生不可变 pending candidate。只有 actual HOME、arm q/TCP hold、open gripper、
+no-contact、latch、candidate age/provenance、source invariant 和四帧 HOME barrier 全部复核通过后，Stage 2 才
+允许一次原子 Object Memory commit。任一检查失败时丢弃 pending candidate、保留提交前 Memory、不恢复旧
+Action，并进入 SafeHold/Abort。
+
+单条技术路线的 no-go 不等于三阶段项目提前结束。每次 no-go 必须：
+
+1. 冻结失败 config、source、provider、seed、ledger、receipt 和原始结果；
+2. 区分实现错误、接口能力缺失、provider 不合格、viewpoint 无增益、安全失败和研究假设负结果；
+3. 回退到最近一个 identity 完整且已通过的 checkpoint；
+4. 在相同用户目标和安全边界内选择替代路线并下发新的工程任务；
+5. schema、provider、schedule 或实验变量改变时创建新 config/experiment identity；
+6. 同时报告失败路线与最终路线，不删除失败 seed、不放宽零容忍门禁；
+7. 持续推进剩余独立工作，并在依赖修复后重新进入被阻断阶段。
+
+合法完成有两种：安全与身份门禁全过且 Active 达到冻结 improvement gate 的正结果；或预定替代路线、paired
+development 和失败分层全部完成后仍未达到 improvement gate 的证据化负结果。没有 qualified provider 时只能
+形成 provider-qualification 负结果，不能冒充 Active-vs-Passive 的因果负结论；需要以独立上游 provider
+实验冻结新 parent 后再继续 Stage 2。
+
+以下变化必须建立新 Decision/Experiment/config identity，并在需要新增权限、明显资源预算或改变研究问题时
+返回用户确认：
+
+- 修改 Observation V2/model input、Dataset schema、label、正式 success/failure 或 test-once；
+- 训练或微调 front provider，或用 Active 结果反向调整 perception threshold；
+- 将 object-only 扩为 goal、held-object、contact 后或 manipulation 中主动观察；
+- 将单次冻结 primitive 扩为多次运动、alternate-to-alternate、连续优化或 learned NBV；
+- 改变相机/机械臂碰撞包络、让 camera/Memory/Executive 获得新的 arm/TCP actuator 权限；
+- 超出已批准 simulation development 数据、GPU、时间或外部服务范围。
+
+三阶段结束前，任何结果都不得声明正式任务成功率提升、通用主动视觉、真实硬件安全或部署资格。所有安全、
+identity、provider 和 test 边界保持 fail closed；持续推进不能作为绕过 Gate 的理由。
+
+**Reason:**
+
+G0B/G0C 已证明 10 个低位相机姿态的静态和动态运动可行，但没有证明动态 external schema、front provider、
+信息增益、Memory commit 或 manipulation resume。把这些能力一次接入会混淆运动、感知、Memory 和任务收益，
+也容易让 alternate frame、旧 Action reference 或未验证的外参进入闭环。三阶段和两阶段提交把控制可行性、
+感知资格与因果效果拆开，同时允许在路线失败后继续形成正结果或可解释负结果。
+
+**Alternatives considered:**
+
+- 直接把 active phase 加入默认 Executive v1：会改变冻结 plan/identity，并把尚未获得 actuator 权的 shadow
+  Executive 提前升级，首轮拒绝。
+- 复用 Observation V2 的固定 external calibration：动态相机后几何语义错误，拒绝。
+- 直接把 wrist checkpoint 用于所有 front viewpoint：camera role/OOD 未资格化，拒绝。
+- alternate view 一看到 object 就立即写 Memory 或继续抓取：无法在 HOME/arm hold 失败时回滚，也会绕过
+  current contact evidence，拒绝。
+- gate 失败即结束整个项目：无法区分单路线失败与研究假设负结果，拒绝。
+- 为得到正结果放宽安全阈值、筛掉失败 seed 或增加 test 次数：破坏归因和 test-once，拒绝。
+
+**Implementation status:** 用户已批准上述 simulation development 范围；三阶段实施计划和回退规则已形成。
+G0B/G0C development parent 已存在；Stage 1 dynamic-external contract、E018 supervisor、mid-Episode Action
+invalidation、Stage 2 provider/commit 和 Stage 3 paired evaluation 尚待按 Gate 实现与验证。当前不含正式 test
+或真实硬件授权。
+
+**Status:** active
+
+## D035 — E018 推进期间授权决策 Agent 代决正式 B 级实验 Gate
+
+**Decision:**
+
+用户在 E018 三阶段持续推进期间明确授权：当用户离线或休息时，正式 B 级实验协议可以由决策 Agent 通过
+Decision Gate 直接冻结、放行、否决或选择回退路线，不需要等待用户逐项确认。该授权覆盖受控实验设计，
+包括 development 数据量、seed/split、校准方法、sampling、threshold/candidate window、ablation、公平对照、
+资源预算和停止条件，也覆盖隔离 candidate 路径中的模型/架构/输入/loss/data strategy、offline 训练、
+checkpoint 持久化、正式 offline evaluation 和 no-actuation shadow。D034 当前 active-reobserve 主实验仍保持
+`simulation / development-only / no-test`；如需训练或消费新的 fresh held-out/test，必须由新的 B 级
+Experiment/Config identity 在执行前冻结数据、选择规则、预算和 test-once，并且不得复用已消费的 E016 test。
+
+每个 B 级 Gate 必须先记录并冻结：
+
+1. hypothesis、control/treatment 和预期信息增益；
+2. 自变量、冻结变量、data/config/source/provider identity；
+3. train/validation/test 使用边界和泄漏审计；
+4. 资源预算、停止条件、success/safety/promotion gate；
+5. 允许的结论、失败语义、证据保留和下一条回退路线。
+
+工程 Agent 对实现、常规代码自审、针对性测试、GPU 运行和 artifact 完整性负责。决策 Agent 保持独立，
+只对 Dataset/label/sampling、坐标/时间、Memory write、安全门禁、checkpoint/result identity 和实验归因做
+高风险逻辑审查与抽样检测；不逐行替代工程审查，也不重复整套常规测试。R2 reviewer PASS 不能替代正式实验
+或安全证据。
+
+该授权不覆盖 A 级变化。将候选 front provider、learned memory、active perception 或 held/contact memory
+晋升为 canonical 主数据流，改变稳定 Observation/Action、坐标、时间、canonical Dataset schema/Label、
+正式评估/公开 claim，放宽 fail-closed/privileged-data 边界，或让 camera/Memory/Executive 获得新的 actuator
+控制权，仍必须暂停对应晋升并等待用户明确决定。隔离的 offline/no-actuation 候选训练本身属于 B 级，不能
+再被一概当作 A 级阻塞。遇到真正的 A 级边界时，两个 Agent 必须先完成所有不依赖该授权的安全、合同、诊断
+和 evidence 工作，不得把等待 A 级决定解释为整个三阶段项目停止。
+
+**Reason:**
+
+E018 包含多次可能的 protocol-invalid、parent-health no-go 和受控回退。如果每个 B 级细节都等待用户在线确认，
+会造成 GPU 空转和项目中断；让独立决策 Agent 在预先批准的安全边界内冻结 B Gate，可以保持连续推进，同时
+保留清晰的研究归因。把 A 级权限保留给用户，避免实验便利性被误用为核心架构、训练或控制授权。
+
+**Alternatives considered:**
+
+- 用户离线时暂停全部实验：会让已租用 GPU 和已冻结的安全路线无谓中断，拒绝。
+- 让工程 Agent同时决定协议并实现：缺少 Dataset/label、安全和结论层的独立审查，拒绝。
+- 把候选晋升、稳定合同或 actuator 等 A 级事项也交给决策 Agent：超出用户明确授权，也会改变核心研究
+  所有权，拒绝。
+
+**Status:** active
+
+## D036 — 冻结 G2B-CAL-v2 协议性负结果，并以全新 free-static 数据训练隔离 front provider
+
+**Decision:**
+
+依据 D035 的 B 级代决授权，冻结 `E018-P1-G2B-CAL-v2` 为
+`protocol-invalid / data-lifecycle-mismatch / negative-completion`。执行绑定 exact commit
+`07821cb21d903454064599b395670bb476f0d8f7`、config canonical SHA
+`7289767f783034a33ae4143d754697e6e05c90f03af6e833faa26c1a2fae109a`、source identity
+`97443a6160c7f1a855556a1f54b17296480ab3f1a3a17fdbc7fb8c974501bdda`、prediction ledger
+`0db758b1c0564c47d17774f87886a3570af18b0f7959cd5f8fd3a6790b5d8bee`、cohort audit
+`3e9e8bf56ecabb3c7b1f1aec1307e6084b95ec1af9280d554c5ed27ed5000f08`、receipt internal/raw
+`6b548874e90983a607b8d97770cc82a8c59d127a830268232b76db6d8aadbca4` /
+`1541a043d210799906167d8931485e3eca3a5a2308afbb76de32334fa3edf4b5`。4154 个 prediction 和 skill
+counts 均匹配；完整 1135-frame skill-0 cohort 中，仅 `pick-place-seed-134013/timestep 0` 同时出现
+`is_grasped=true`、`F_L=27.81941795349121 N`、`F_R=27.870399475097656 N` 三个 violation，其余
+finite/z/force-valid/raw-gripper 均零违规。按冻结规则整 cohort protocol-invalid；selection/fit 未执行，
+calibration gate `evaluated=false/passed=null`，scoring ledger 为空，test/training/Memory/camera/arm/
+manipulation counts 均为零。禁止启动 G2B preflight/full-50、删除该帧、改写 E016 artifact 或放宽 invariant。
+
+只读诊断显示该 NPZ 与 label source SHA、shape/dtype/timestamp/skill/pose 均一致；t0 cube 仍在 task plane、
+gripper open、TCP-object 距离 193 mm，t1 grasp/双力同时归零。ManiSkill reset 在 actor/velocity reset 后
+直接读取 contact impulse、没有 physics step，因此高置信为上一个 rejected episode 遗留的 reset-first-frame
+contact cache transient，而非真实抓持、数组错位或文件损坏。这个解释不追认 CAL-v2，也不授权 post-hoc
+排帧。
+
+否决方案 A：在已经读取的 E016 validation 上新增 deployable predicate 并删除 t0。它会在看到 privileged
+lifecycle 异常后改变 cohort，破坏冻结协议；即使第三次 covariance 校准通过，也不能修正 G2A 诊断性 front
+mean p90 约 141 mm 的 camera-role domain shift。选择方案 B：建立独立
+`E018-P1-G2C-FRONT-PROVIDER-ADAPTATION-DEVELOPMENT/v1`，用全新 seed 隔离、专门
+free-static/pregrasp 的 native contract + front RGB 数据训练 front provider，再用各自冻结的
+model-selection、calibration 和 qualification split 验证。
+
+G2C hypothesis：在 G0C 已通过运动门禁的十个离散 non-HOME front 位姿上，front-domain supervised
+adaptation 能使至少一个 alternate 达到 object world-XYZ p90 `<=0.005 m`，并在冻结 uncertainty/write gate
+后保持零 unsafe/catastrophic accepted。Control 为冻结的 E016-P1 selected epoch-12 wrist checkpoint 经原
+role-substitution adapter 在新数据上的 baseline，只作诊断且永不进入 checkpoint selection。Treatment
+候选池在读取 model-validation label 前固定为：
+
+- `W`：同一 `PrecisionThreeHeadUNet` 从 E016 epoch-12 warm start；
+- `S`：同架构 random initialization。
+
+两臂使用相同数据、loss、optimizer 与 epoch 预算，只改变 initialization。沿用 E016 corrected-observability
+tensor shape 和监督；motion head 保持 frozen-zero/shadow-only。Goal 输出最多作为既有辅助通道参与同 loss，
+但在本实验没有 Goal Memory、qualification 或任何 consumer；只有 object measurement 可以获得候选 provider
+identity。Qwen、Observation V2、canonical Dataset schema/Label 均不修改。
+
+G2C 数据先使用 `G2C-DATA/v1` 冻结 seed/schema/lifecycle，DATA receipt 通过后再由其 manifest/file SHA
+机械绑定 immutable `G2C-TRAIN/v1`；这两个 identity 不得合并成运行后才补 config 的单一 artifact。11 个
+front pose 固定为 HOME 加 G2A/G0C 的 10 个低位平移/旋转 pose。split 固定为：
+
+```text
+train:                  76001..76400, 400 seeds × 11 = 4400 eligible frames
+model-selection val:    76501..76600, 100 seeds × 11 = 1100 frames
+per-view calibration:   76601..76650,  50 seeds × 11 =  550 frames
+one-shot qualification: 76701..76750,  50 seeds × 11 =  550 scored frames
+test:                   none
+```
+
+必须审计它们与所有 canonical manifest split、E016、G0/G0B/G0C/G1A、G2A `75001..75050` 及其他已登记
+development seeds 完全不相交。不得用 E016 val/test、G2A output、Active-vs-Passive 结果或 qualification
+label 训练/调参。
+
+为处理已知 reset contact-cache 语义，每个新 episode reset 后固定执行 5 个 20 Hz SafeHold-open warmup
+steps；raw reset-return observation 单独写 `reset_diagnostic`，永不成为训练、selection、calibration 或
+qualification eligible row。生命周期 invariant 只对 warmup 后且明确标为 eligible 的 capture 执行，这一
+规则必须在采集前冻结，不是事后删帧。train/validation/calibration 可使用 static-render-only pose
+configuration，但每 pose 必须取得 same-observation actual external pose、intrinsic 和独立 RGB/pose
+timestamp，并只保留冻结 settle rule 后的一帧。
+
+任一 split 的任一 eligible capture 若不满足 finite object position、`z=0.02±1e-5 m`、not-grasped、
+finger-force-valid、`F_L/F_R<=0.01 N`、raw gripper opening `>=0.95`、arm/TCP hold、no contact、
+pose/RGB skew 和 geometry identity，则整个 split `protocol-invalid`；不补 seed、不删除 row。privileged
+masks/positions/observability 只写独立 label sidecar；validation/calibration/qualification 都必须先生成
+deployable prediction ledger、file fsync + parent fsync、冻结 hash 并销毁 model/data context，再打开对应
+label arrays。
+
+两 treatment 的训练策略冻结为 AdamW、BF16、batch size 32、20 epochs、learning rate `3e-4`、weight
+decay `1e-4`、gradient clip `1.0`、cosine annealing eta-min 5%、`num_workers=0`、无 spatial
+augmentation；candidate initialization/run seeds W=`18021`、S=`18022`，两臂共同使用
+`sampler_seed=18020` 和完全相同的逐 epoch shuffle 顺序。初始化 RNG 与 sampler RNG 必须分离；不得让
+W/S 的 candidate seed 驱动数据顺序。候选 epoch 固定 `{5,10,15,20}`，必须全部 checkpoint/hash 冻结后
+才运行 model-validation。
+
+checkpoint eligible 要求至少一个 G0C motion-qualified non-HOME alternate 同时满足 object visibility
+precision `>=0.95`、recall `>=0.90`、observable-positive support `N>=30`、observable world-XYZ p90
+`<=0.005 m`、max `<=0.020 m`、finite/valid geometry。某 viewpoint 的 support 小于 30 时只将该 viewpoint
+标记为 `ineligible_reason=insufficient_observable_positive_support`，不是整轮 protocol-invalid；若因此没有
+任何 non-HOME eligible viewpoint，则 `selected=null` 并收口为 protocol-valid model-selection negative。
+support 计数与冻结 label/ledger 不一致或指标实现异常才属于 protocol-invalid。排序固定为：
+
+1. eligible alternate 数量降序；
+2. 最佳 alternate p90 升序；
+3. 对应 max 升序；
+4. validation loss 升序；
+5. 更早 epoch；
+6. 最终 W 优先于 S。
+
+无 eligible 候选时 selected checkpoint 必须为 null，不得选择“最不坏”、增加 epoch 或读取 qualification 后
+重选。
+
+只有 selected checkpoint SHA 冻结后，才在独立 calibration split 对每个 viewpoint 分别拟合 scalar XY
+Mahalanobis conformal covariance：`alpha=0.05`、target coverage `0.95`、chi-square `5.991`、
+`k=ceil((N+1)*0.95)`、support `>=30`、scale `max(1,q/5.991)`、maximum calibrated position std
+`<=0.020 m`。同一 calibration split 按冻结的 E018 object write-score semantics 逐 viewpoint 选择
+“accepted-safe coverage 最大且 unsafe accepted=0”的 threshold；要求 coverage `>=0.10`，tie 取更保守的
+较高 threshold。confidence、write acceptance 或 prediction error 不得用于 checkpoint selection；
+qualification 之后不得修改 covariance scale、visibility/projection threshold、write threshold 或 viewpoint
+pool。
+
+Qualification 只运行 selected checkpoint 和已冻结 calibration/threshold 一次。它允许且只允许 isolated
+ManiSkill simulator 中复用 G0C-v2 external RenderCamera route；`runtime/canonical camera-controller
+actuation=0`、physical-camera actuation=0。父 identity 必须绑定 G0C config SHA
+`c93bbfd48b6d9bc2fc75b5b87e4ded7161efebd7eda50cd81cc2ded47810e965` 和 receipt SHA
+`bf8232b620cd5ff8de8c0007391252b8829c3ebbac320a7d5a60507beaca258e`。每个 qualification seed 对十个
+non-HOME alternate 各执行恰好一条独立 env reset 的 `HOME→alternate→HOME` roundtrip，禁止 retry、seed
+replacement、alternate-to-alternate，共 `50×10=500` routes，且每 route/episode 仅一次 active attempt。
+
+每 route 精确继承：initial camera pose set 1；HOME warmup 5 ticks；一个 HOME anchor；outbound 40 ticks/
+2.0 s；alternate settle 4；collect 3；return 40 ticks/2.0 s；HOME verify 4。固定总计
+`camera_pose_set_count=97×500=48,500`，其中 moving interpolation command count
+`80×500=40,000`；`simulator_safe_hold_open_step_count=96×500=48,000`；ledger frames
+`92×500=46,000`。HOME provider 评分只取每 seed 固定首条 `LEFT_LOW__CENTER` route 的 HOME anchor，共
+50；每 alternate 只取该 route 第 3 个/最后一个 settled COLLECT frame，共 500；总 scored=550。其余帧只作
+运动/时序/安全 audit，不能扩大统计 N。
+
+不得把 simulator camera commands 或 environment steps 记为零；必须另记 `runtime/canonical camera
+actuation=0`、`physical camera actuation=0`、`nonzero arm-motion command=0`、`gripper-close
+command=0`、`manipulation progression=0`、object contact=0、Memory R/W=0、test array reads=0。
+SafeHold-open command 本身按 48,000 如实记录。
+
+运动门槛精确继承 G0C：linear velocity `<=0.31 m/s`、linear acceleration `<=0.70 m/s²`、angular
+velocity `<=0.75 rad/s`、angular acceleration `<=2.5 rad/s²`、camera tracking
+`<=1e-5 m/1e-4 rad`、settled velocity `<=0.002 m/s/0.01 rad/s` 连续至少 3 ticks、HOME tolerance
+`<=1e-5 m/1e-4 rad`、arm drift `<=1e-5 rad`、TCP drift `<=1e-5 m/1e-4 rad`、finger contact
+`<=0.01 N`。任一路线出现 safety/identity/lifecycle/termination/truncation 失败，整个 qualification
+protocol-invalid；不删除路线或重跑。
+
+最终逐 viewpoint qualification 沿用 G2A front 门槛：visibility P/R `>=0.95/0.90`、observable XYZ
+p90/max `<=0.005/0.020 m`、unsafe accepted=0、catastrophic accepted=0、accepted-safe coverage
+`>=0.10`、covariance-95 coverage `>=0.90` 且 N `>=30`、maximum std `<=0.020 m`。至少一个
+non-HOME alternate 通过才允许从 qualified 集按 frozen shortlist tier、coverage 降序、p90/max 升序、
+`|cov95-0.95|` 升序、recall 降序和 frozen pose order 选择 PRIMARY。G2A 的 native-wrist parent-health gate
+不作为新 front-trained provider 的 blocker；冻结 E016 Control 结果仅用于诊断，不支持相机域因果 claim。
+
+资源预算：先允许 4-seed、无持久 checkpoint 的工程 smoke；Dataset/label/sampling/selection implementation
+必须在 full-data 前完成独立 R2 抽样。正式上限为两 treatment、总 40 model-epochs、RTX 6000 Ada GPU
+execution `<=10 h`、data+artifact `<=20 GB`、qualification once。数据 receipt SHA 必须在训练前写入
+frozen config；output 已存在拒绝覆盖。任何 schema/seed overlap、eligible lifecycle violation、
+prediction-before-label 破坏、nonfinite、权限计数非零、无 eligible checkpoint、无可校准 viewpoint、无
+qualified alternate 或预算超限，都冻结当前 parent 的 negative/protocol-invalid receipt，不能现场改
+threshold、加 epoch、补 seed 或切模型。
+
+G2C PASS 只允许声明：“至少一个冻结离散 alternate 获得 simulation development-only front object provider
+资格，可以作为新 parent 进入 E018 Stage 2 information-gain/pending-candidate/Object-Memory no-test 实现与
+验证。”它不证明主动视角优于 Passive、不证明任务成功率、canonical 主闭环、actuator 或真实硬件安全。
+若 W/S 均失败，冻结完整 control/candidate/data/ledger/checkpoint/receipt，并在同一用户目标下自动建立下一
+独立 B Gate；优先比较 deployable object-mask centroid decoder 或更小 object-only provider，整个 E018 不
+结束，但不得复用 qualification 调模型。任何 canonical 晋升、稳定 schema/label 更改、fresh formal test 或
+actuator 权限仍属 A 级，必须返回用户。
+
+CAL-v2 已达到 `DRIVE_VERIFIED`：远端唯一目录已 immutable copy/check，completion marker 后复核
+24 matching/0 differences；worker source 保留，本机副本待补。G2C 的 canonical dataset、selected
+checkpoint 和不可复现实验证据同样必须最终达到 Drive 与本机双验证副本，未达到对应 release gate 不得释放
+唯一源。
+
+**Reason:**
+
+CAL-v2 精确证明旧 E016 validation 不满足为 pregrasp covariance calibration 冻结的 lifecycle，而不是证明
+calibration 算法失败。事后排除异常行会污染协议，并且 covariance-only 路线无法解决 front 均值定位的数量级
+误差。全新 reset-warmup、free-static、seed-disjoint 数据把数据生命周期、camera-domain learning、
+per-view calibration 与动态 qualification 分开；两种固定 initialization 以低成本提高找到可用 baseline 的
+概率，同时保持同一模型家族和输出合同。qualification 复用 G0C 有时延路线，避免用 static image 资格冒充
+motion-settled provider 证据；精确拆分 48,500 camera pose set 与零 manipulation 权限，消除“仿真 camera
+motion”和“canonical actuator=0”的语义冲突。
+
+**Alternatives considered:**
+
+- 对 E016 val 事后删掉 seed134013/t0：读取 privileged 异常后改变 cohort，拒绝。
+- 第三次只改 covariance CAL：不能修复约 141 mm front 均值误差，拒绝。
+- 直接使用 simulator GT 或 segmentation oracle 作为 provider：绕过 deployable 感知，拒绝。
+- 只做 static qualification：不能支持 motion-settled capture，拒绝。
+- qualification 允许仿真 camera route 却仍记 camera/environment steps 为 0：证据语义错误，拒绝。
+- 一次引入更大 backbone、camera-pose-conditioned 模型或 learned NBV：在同架构 front adaptation 尚未
+  验证前增加归因和成本，推迟到新 parent。
+
+**Implementation status:** CAL-v2 已在 exact clean commit 运行并获得完整可验证 negative completion；Drive
+已验证，本机副本待补。G2C Gate 已冻结；工程只先实现最小 collector/training/verifier 和 4-seed smoke，在
+full-data 前返回 R2。
+
+**Status:** active
+
 ## 新决策模板
 
 ```markdown

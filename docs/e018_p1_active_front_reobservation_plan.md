@@ -33,6 +33,17 @@
 > 首轮结果因 loader 未逐项拒绝 pose 数值漂移而保留为审计；相同轨迹在 fail-closed 加固后的 v2
 > 逐帧复现并通过，后续以 v2 为 parent。
 
+> 三阶段实施细化见
+> [`E018-P1 三阶段主动视觉闭环实施计划书`](e018_p1_three_stage_active_vision_closed_loop_plan.md)。该文件把
+> 动态 external observation、受限控制闭环、信息增益/Object Memory 两阶段提交以及安全回归拆成可执行
+> 工作包，但不替代本文 G0-G9 的顺序和 promotion gate。
+
+> 2026-09-05 provider qualification 更新：G2A/G2B 已排除“直接复用 wrist provider + 只做 covariance
+> 校准”作为可接受路线；当前按 D036 执行新的 seed-disjoint、development-only G2C front provider
+> adaptation。冻结协议见
+> [`E018-P1-G2C Front Provider Adaptation`](e018_p1_g2c_front_provider_adaptation_plan.md)。该上游 Gate
+> 通过前不开放 live Object Memory write、Active-vs-Passive 评价、canonical runtime 或 actuator 权限。
+
 ## 1. 研究问题
 
 当抓取前当前 wrist/front-home measurement 无法安全提供 phase-required object/goal state，而且冻结的
