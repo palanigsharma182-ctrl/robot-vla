@@ -23,11 +23,11 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-
 from robot_vla.contracts import RobotSpec
 from robot_vla.data.dataset import ObservationV2ActionChunkDataset
-from robot_vla.data.trajectory import load_manifest
+from robot_vla.data.trajectory import TrajectoryStore, load_manifest
 from robot_vla.observation import rotation_6d_to_matrix, validate_se3
+from robot_vla.precision import e018_p1_g2b_calibration_protocol as calibration_protocol
 from robot_vla.precision.calibrated_front_provider import (
     SCALAR_COVARIANCE_CALIBRATION_METHOD,
     ScalarCovarianceCalibration,
@@ -72,26 +72,41 @@ from robot_vla.precision.observability import mask_probability_at_normalized_uv
 from robot_vla.precision.outliers import geometry_conditioning
 
 E018_P1_G2B_CONFIG_VERSION = (
-    "e018-p1-g2b-covariance-calibrated-provider-requalification-development/v1"
+    "e018-p1-g2b-covariance-calibrated-provider-requalification-development/v2"
 )
-E018_P1_G2B_RESULT_VERSION = "e018-p1-g2b-covariance-calibrated-provider-requalification-result/v1"
+E018_P1_G2B_RESULT_VERSION = calibration_protocol.G2B_CAL_RESULT_VERSION
 E018_P1_G2B_CAL_GATE = "G2B_CAL_COVARIANCE_CALIBRATION"
 E018_P1_G2B_QUALIFICATION_GATE = "G2B_PROVIDER_REQUALIFICATION"
 G2B_CAL_PRIMITIVE_ID = "WRIST_VALIDATION_CALIBRATION"
+G2B_TASK_TAXONOMY = calibration_protocol.G2B_TASK_TAXONOMY
+assert_calibration_prediction_ledger_deployable_only = (
+    calibration_protocol.assert_prediction_ledger_deployable_only
+)
+audit_calibration_prediction_applicability = (
+    calibration_protocol.audit_prediction_applicability
+)
+_audit_calibration_cohort_invariants = calibration_protocol.audit_cohort_invariants
+_task_taxonomy_from_manifest_entry = calibration_protocol.task_taxonomy_from_manifest_entry
+_verify_e018_p0_pregrasp_binding = calibration_protocol.verify_e018_p0_pregrasp_binding
+_verify_failed_v1_lineage = calibration_protocol.verify_failed_v1_lineage
 _SOURCE_FILES = (
     "src/robot_vla/precision/calibrated_front_provider.py",
+    "src/robot_vla/precision/e018_p1_g2b_calibration_protocol.py",
     "src/robot_vla/precision/e018_p1_g2b.py",
     "src/robot_vla/cli/run_e018_p1_g2b.py",
-    "configs/e018_p1_g2b_covariance_calibrated_provider_requalification_development_v1.json",
+    "configs/e018_p0_dual_memory_development_v1.json",
+    "configs/e018_p1_g2b_covariance_calibrated_provider_requalification_development_v2.json",
 )
 _CAL_ARTIFACT_NAMES = (
     "config_snapshot.json",
     "source_identity.json",
+    "failed_v1_lineage_binding.json",
     "parent_g2a_receipt_binding.json",
     "manifest_audit.json",
     "calibration_inference_audit.json",
     "calibration_prediction_ledger.jsonl",
     "calibration_prediction_freeze.json",
+    "calibration_cohort_audit.json",
     "calibration_scoring_ledger.jsonl",
     "calibration.json",
     "calibration_summary.json",
@@ -295,6 +310,7 @@ def load_e018_p1_g2b_config(
             "status",
             "scope",
             "parents",
+            "failed_v1_lineage",
             "calibration_data",
             "calibration",
             "qualification",
@@ -309,6 +325,60 @@ def load_e018_p1_g2b_config(
         != "development-only-calibration-and-provider-requalification-no-formal-claim"
     ):
         raise ValueError("G2B 只能运行 development-only calibration/requalification")
+    failed_v1_lineage = _require_keys(
+        config["failed_v1_lineage"],
+        {
+            "classification",
+            "source_git_commit",
+            "config_version",
+            "config_canonical_sha256",
+            "config_snapshot_raw_sha256",
+            "prediction_ledger_raw_sha256",
+            "prediction_freeze_raw_sha256",
+            "prediction_freeze_marker_sha256",
+            "failure_raw_sha256",
+        },
+        "failed_v1_lineage",
+    )
+    for name in (
+        "config_canonical_sha256",
+        "config_snapshot_raw_sha256",
+        "prediction_ledger_raw_sha256",
+        "prediction_freeze_raw_sha256",
+        "prediction_freeze_marker_sha256",
+        "failure_raw_sha256",
+    ):
+        _require_sha256(failed_v1_lineage[name], f"failed_v1_lineage.{name}")
+    _require_git_commit(
+        failed_v1_lineage["source_git_commit"],
+        "failed_v1_lineage.source_git_commit",
+    )
+    if failed_v1_lineage != {
+        "classification": "protocol-invalid-failed-preserved",
+        "source_git_commit": "8e43cb598c2cf782f7972c3d19e019b8a4cdd37b",
+        "config_version": (
+            "e018-p1-g2b-covariance-calibrated-provider-requalification-development/v1"
+        ),
+        "config_canonical_sha256": (
+            "3b5c2aad5bc8345b8c71b4861ca4f467be525b6a3f6d3c421d38e21ddd1aacd7"
+        ),
+        "config_snapshot_raw_sha256": (
+            "54fb0533e5b8975d16eab211847c03a5ead84193619ea1fa36da6ca93799532c"
+        ),
+        "prediction_ledger_raw_sha256": (
+            "d8f6bacc953d2cda87c4e4ddfdad7f26dc9bc60d37b82165757456f649880644"
+        ),
+        "prediction_freeze_raw_sha256": (
+            "3397c0c8d2f9c7465406fd21c3ba17a4efd9014374ad8fcbb676ce653ef640b1"
+        ),
+        "prediction_freeze_marker_sha256": (
+            "2896b134fffad9b614bb8c5af1b193d4d35ce5a0fa08687e9d9e00b6bf349811"
+        ),
+        "failure_raw_sha256": (
+            "e7a8f8a1fd407f8f3d46642c762135ae8f3ad0badf221f499f3f5d520d4a53c2"
+        ),
+    }:
+        raise ValueError("G2B CAL-v2 必须精确绑定 failed-preserved v1 谱系")
     expected_scope = {
         "calibration_gate": E018_P1_G2B_CAL_GATE,
         "qualification_gate": E018_P1_G2B_QUALIFICATION_GATE,
@@ -398,6 +468,14 @@ def load_e018_p1_g2b_config(
             "camera_uid",
             "trajectory_count",
             "manifest_sample_count",
+            "expected_skill_counts",
+            "expected_applicable_frame_count",
+            "expected_nonapplicable_frame_count",
+            "expected_trajectories_with_applicable_frames",
+            "applicability_source",
+            "pregrasp_skill_id",
+            "task_spec_taxonomy",
+            "e018_p0_pregrasp_binding",
             "seed_source",
             "require_disjoint_from_g0_g0b_g0c_g1a_g2a_and_all_other_manifest_splits",
             "normalizer_source",
@@ -420,11 +498,55 @@ def load_e018_p1_g2b_config(
         "finger_force_normalizer_sha256",
     ):
         _require_sha256(data[name], f"calibration_data.{name}")
+    taxonomy = _require_keys(
+        data["task_spec_taxonomy"],
+        {
+            "version",
+            "task_id",
+            "task_group_id",
+            "skill_names",
+            "outcome_predicate_version",
+            "identity_sha256",
+        },
+        "calibration_data.task_spec_taxonomy",
+    )
+    taxonomy_identity = _require_sha256(
+        taxonomy["identity_sha256"],
+        "calibration_data.task_spec_taxonomy.identity_sha256",
+    )
+    taxonomy_payload = dict(taxonomy)
+    del taxonomy_payload["identity_sha256"]
+    if taxonomy_payload != G2B_TASK_TAXONOMY or canonical_sha256(
+        taxonomy_payload
+    ) != taxonomy_identity:
+        raise ValueError("G2B CAL-v2 TaskSpec taxonomy identity 漂移")
+    pregrasp_binding = _require_keys(
+        data["e018_p0_pregrasp_binding"],
+        {"config_version", "config_sha256", "pregrasp_skill_id"},
+        "calibration_data.e018_p0_pregrasp_binding",
+    )
+    _require_sha256(
+        pregrasp_binding["config_sha256"],
+        "calibration_data.e018_p0_pregrasp_binding.config_sha256",
+    )
+    if pregrasp_binding != {
+        "config_version": "e018-p0-dual-memory-development/v1",
+        "config_sha256": "67247e1eea057fb48a07d83353ae7b1145ae14f57c75d7b923df0acffe95ab40",
+        "pregrasp_skill_id": 0,
+    }:
+        raise ValueError("G2B CAL-v2 未精确绑定 E018-P0 pregrasp skill")
     if (
         data["split"] != "val"
         or data["camera_uid"] != "hand_camera"
         or data["trajectory_count"] != 20
         or data["manifest_sample_count"] != 4154
+        or data["expected_skill_counts"]
+        != {"0": 1135, "1": 322, "2": 449, "3": 1148, "4": 1100}
+        or data["expected_applicable_frame_count"] != 1135
+        or data["expected_nonapplicable_frame_count"] != 3019
+        or data["expected_trajectories_with_applicable_frames"] != 20
+        or data["applicability_source"] != "phase-a-deployable-trajectory-skill-id/v1"
+        or data["pregrasp_skill_id"] != 0
         or data["seed_source"] != "e016-fresh-manifest-randomization.seed/v1"
         or data["require_disjoint_from_g0_g0b_g0c_g1a_g2a_and_all_other_manifest_splits"]
         is not True
@@ -454,6 +576,8 @@ def load_e018_p1_g2b_config(
             "chi_square_threshold",
             "order_statistic",
             "scale_rule",
+            "applicability_predicate",
+            "cohort_invariants",
             "selection_predicate",
             "selection_must_not_use",
             "minimum_support_count",
@@ -470,10 +594,27 @@ def load_e018_p1_g2b_config(
         "chi_square_threshold": 5.991,
         "order_statistic": "ceil((n+1)*0.95)-one-based/v1",
         "scale_rule": "max(1,q/5.991)/v1",
+        "applicability_predicate": "phase-a-deployable-skill-id-equals-0/v1",
+        "cohort_invariants": {
+            "object_position_finite_required": True,
+            "task_plane_base_z_m": 0.02,
+            "task_plane_tolerance_m": 1e-5,
+            "is_grasped_required": False,
+            "finger_force_valid_required": True,
+            "maximum_left_finger_force_n": 0.01,
+            "maximum_right_finger_force_n": 0.01,
+            "minimum_raw_gripper_opening_ratio": 0.95,
+            "violation_policy": "protocol-invalid-no-fit-no-row-removal/v1",
+        },
         "selection_predicate": (
-            "gt-object-observable-and-geometry-valid-and-raw-covariance-finite-symmetric-psd/v1"
+            "phase-a-skill-id-0-and-gt-object-observable-and-geometry-valid-and-raw-"
+            "covariance-finite-symmetric-psd/v2"
         ),
         "selection_must_not_use": [
+            "gt_object_z",
+            "is_grasped",
+            "finger_force",
+            "gripper_opening_ratio",
             "confidence",
             "write_accepted",
             "prediction_error_magnitude",
@@ -617,6 +758,8 @@ def audit_g2b_calibration_manifests(
             raise RuntimeError("G2B E016 manifest split 内 seed 重复")
         seeds_by_split[entry.split].add(seed)
         label = label_by_id[entry.trajectory_id]
+        if _task_taxonomy_from_manifest_entry(entry) != G2B_TASK_TAXONOMY:
+            raise RuntimeError("G2B E016 TaskSpec taxonomy 漂移")
         if (
             label.split != entry.split
             or label.scene_id != entry.scene_id
@@ -659,6 +802,7 @@ def audit_g2b_calibration_manifests(
         "split_seed_overlaps": split_overlaps,
         "known_development_seed_overlap": known_overlap,
         "source_label_trajectory_sets_equal": True,
+        "task_spec_taxonomy_sha256": data["task_spec_taxonomy"]["identity_sha256"],
         "test_trajectory_array_read_count": 0,
         "test_label_array_read_count": 0,
     }
@@ -676,6 +820,7 @@ class _DeployableWristCalibrationDataset:
         spec: RobotSpec,
         proprio_normalizer: Any,
         finger_force_normalizer: Any,
+        calibration_data: dict[str, Any],
         cache_size: int = 32,
     ) -> None:
         self.root = Path(deployable_root)
@@ -688,6 +833,16 @@ class _DeployableWristCalibrationDataset:
             cache_size=cache_size,
         )
         self.source_by_trajectory = {entry.trajectory_id: entry for entry in self.base.entries}
+        expected_taxonomy = dict(calibration_data["task_spec_taxonomy"])
+        taxonomy_sha256 = str(expected_taxonomy.pop("identity_sha256"))
+        for entry in self.base.entries:
+            taxonomy = _task_taxonomy_from_manifest_entry(entry)
+            if taxonomy != expected_taxonomy or canonical_sha256(taxonomy) != taxonomy_sha256:
+                raise RuntimeError(
+                    f"G2B CAL-v2 TaskSpec taxonomy 漂移: {entry.trajectory_id}"
+                )
+        self.task_taxonomy_sha256 = taxonomy_sha256
+        self.pregrasp_skill_id = int(calibration_data["pregrasp_skill_id"])
 
     def __len__(self) -> int:
         return len(self.base)
@@ -711,6 +866,7 @@ class _DeployableWristCalibrationDataset:
         rgb = np.ascontiguousarray(sample["rgb_wrist"])
         state = np.ascontiguousarray(sample["state_history"][-1].copy())
         motion = np.zeros(4, dtype=np.float32)
+        skill_id = int(sample["skill_id"])
         return {
             "model_inputs": {
                 "rgb_wrist": rgb,
@@ -723,6 +879,9 @@ class _DeployableWristCalibrationDataset:
                 "split": meta.split,
                 "timestep": timestep,
                 "timestamp_s": float(arrays.timestamp_wrist[timestep]),
+                "skill_id": skill_id,
+                "calibration_applicable": skill_id == self.pregrasp_skill_id,
+                "task_spec_taxonomy_sha256": self.task_taxonomy_sha256,
                 "base_from_camera_cv": transform,
                 "intrinsic_cv": intrinsic,
             },
@@ -837,36 +996,6 @@ def fit_covariance_scale(
     }
 
 
-_CAL_PREDICTION_FORBIDDEN_KEYS = {
-    "gt_observable",
-    "gt_object_position_base_m",
-    "gt_projected_normalized_uv",
-    "object_mask",
-    "goal_mask",
-    "world_xy_error_vector_m",
-    "mahalanobis_squared",
-    "calibration_selected",
-    "segmentation",
-}
-
-
-def assert_calibration_prediction_ledger_deployable_only(
-    rows: list[dict[str, Any]],
-) -> None:
-    def walk(value: Any, path: str) -> None:
-        if isinstance(value, dict):
-            for key, item in value.items():
-                if key in _CAL_PREDICTION_FORBIDDEN_KEYS or key.startswith("gt_"):
-                    raise ValueError(f"G2B CAL prediction ledger 含 privileged field: {path}.{key}")
-                walk(item, f"{path}.{key}")
-        elif isinstance(value, list):
-            for index, item in enumerate(value):
-                walk(item, f"{path}[{index}]")
-
-    for index, row in enumerate(rows):
-        walk(row, f"rows[{index}]")
-
-
 def _predict_calibration_validation(
     *,
     context: Any,
@@ -973,6 +1102,11 @@ def _predict_calibration_validation(
                         "split": audit["split"],
                         "timestep": int(audit["timestep"]),
                         "timestamp_s": float(audit["timestamp_s"]),
+                        "skill_id": int(audit["skill_id"]),
+                        "calibration_applicable": bool(audit["calibration_applicable"]),
+                        "task_spec_taxonomy_sha256": audit[
+                            "task_spec_taxonomy_sha256"
+                        ],
                         "source_camera": "hand_camera",
                         "primitive_id": G2B_CAL_PRIMITIVE_ID,
                         "image_input_sha256": array_sha256(raw_batch["image"][index].numpy()),
@@ -998,6 +1132,7 @@ def _predict_calibration_validation(
                     }
                 )
     assert_calibration_prediction_ledger_deployable_only(rows)
+    applicability_audit = audit_calibration_prediction_applicability(rows, config=config)
     prediction_keys = {(str(row["trajectory_id"]), int(row["timestep"])) for row in rows}
     if len(prediction_keys) != len(rows):
         raise RuntimeError("G2B CAL deployable prediction trajectory/timestep identity 重复")
@@ -1018,6 +1153,7 @@ def _predict_calibration_validation(
         "model_forward_sample_count": len(rows),
         "unique_trajectory_timestep_count": len(prediction_keys),
         "stable_camera_calibration_identity_count": stable_identity_count,
+        "applicability_audit": applicability_audit,
         "elapsed_s": time.perf_counter() - started,
         "test_trajectory_array_read_count": 0,
         "test_label_array_read_count": 0,
@@ -1033,19 +1169,21 @@ def freeze_calibration_prediction_ledger(
     output_root: str | Path,
     *,
     rows: list[dict[str, Any]],
-    config_sha256: str,
+    config: dict[str, Any],
 ) -> dict[str, Any]:
     output = Path(output_root)
     assert_calibration_prediction_ledger_deployable_only(rows)
+    applicability_audit = audit_calibration_prediction_applicability(rows, config=config)
     ledger = output / "calibration_prediction_ledger.jsonl"
     _atomic_jsonl(ledger, rows)
     ledger_sha = file_sha256(ledger)
     marker = {
         "version": E018_P1_G2B_RESULT_VERSION,
         "status": "frozen-before-validation-label-read",
-        "config_sha256": config_sha256,
+        "config_sha256": canonical_sha256(config),
         "prediction_ledger_sha256": ledger_sha,
         "prediction_count": len(rows),
+        "applicability_audit": applicability_audit,
         "privileged_field_scan_passed": True,
         "validation_label_array_read_count_before_freeze": 0,
         "test_trajectory_array_read_count": 0,
@@ -1061,7 +1199,7 @@ def freeze_calibration_prediction_ledger(
 def load_frozen_calibration_prediction_ledger(
     output_root: str | Path,
     *,
-    config_sha256: str,
+    config: dict[str, Any],
     expected_prediction_count: int,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     output = Path(output_root)
@@ -1080,7 +1218,7 @@ def load_frozen_calibration_prediction_ledger(
     if (
         marker.get("version") != E018_P1_G2B_RESULT_VERSION
         or marker.get("status") != "frozen-before-validation-label-read"
-        or marker.get("config_sha256") != config_sha256
+        or marker.get("config_sha256") != canonical_sha256(config)
         or marker.get("prediction_count") != expected_prediction_count
         or marker.get("privileged_field_scan_passed") is not True
         or marker.get("validation_label_array_read_count_before_freeze") != 0
@@ -1099,9 +1237,101 @@ def load_frozen_calibration_prediction_ledger(
     if len(rows) != expected_prediction_count:
         raise RuntimeError("G2B CAL frozen prediction count 漂移")
     assert_calibration_prediction_ledger_deployable_only(rows)
+    applicability_audit = audit_calibration_prediction_applicability(rows, config=config)
+    if marker.get("applicability_audit") != applicability_audit:
+        raise RuntimeError("G2B CAL-v2 frozen applicability audit 漂移")
     if file_sha256(ledger) != ledger_sha:
         raise RuntimeError("G2B CAL frozen ledger 读取期间漂移")
     return rows, marker
+
+
+def _write_protocol_invalid_calibration_result(
+    *,
+    output: Path,
+    config: dict[str, Any],
+    marker: dict[str, Any],
+    prediction_ledger: Path,
+    validation_data_identity: str,
+    cohort_audit: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any], list[dict[str, Any]]]:
+    """冻结预注册 cohort invariant 失败；不得继续选样或拟合。"""
+
+    scoring_ledger = output / "calibration_scoring_ledger.jsonl"
+    _atomic_jsonl(scoring_ledger, [])
+    scoring_sha = file_sha256(scoring_ledger)
+    failure_reasons = ["pregrasp_cohort_invariant_violation"]
+    calibration_payload = {
+        "version": E018_P1_G2B_RESULT_VERSION,
+        "status": "calibration-protocol-invalid",
+        "gate": E018_P1_G2B_CAL_GATE,
+        "protocol_gate_evaluated": True,
+        "gate_evaluated": False,
+        "gate_passed": None,
+        "protocol_valid": False,
+        "calibration": None,
+        "failure_reasons": failure_reasons,
+        "calibration_scoring_ledger_sha256": scoring_sha,
+        "prediction_ledger_sha256": marker["prediction_ledger_sha256"],
+        "cohort_audit_sha256": cohort_audit["audit_sha256"],
+        "selection_predicate": config["calibration"]["selection_predicate"],
+        "selection_evaluated": False,
+        "fit_evaluated": False,
+    }
+    _atomic_json(output / "calibration.json", calibration_payload)
+    summary = {
+        "version": E018_P1_G2B_RESULT_VERSION,
+        "status": "calibration-protocol-invalid",
+        "gate": E018_P1_G2B_CAL_GATE,
+        "protocol_gate_evaluated": True,
+        "gate_evaluated": False,
+        "gate_passed": None,
+        "protocol_valid": False,
+        "frame_count": cohort_audit["frame_count"],
+        "validation_trajectory_count": cohort_audit[
+            "validation_label_array_file_read_count"
+        ],
+        "validation_data_identity_sha256": validation_data_identity,
+        "phase_a_applicability_audit": marker["applicability_audit"],
+        "cohort_audit_sha256": cohort_audit["audit_sha256"],
+        "cohort_passed": False,
+        "selection_evaluated": False,
+        "selection_counts": {},
+        "selection_condition_counts": {},
+        "selection_combination_counts": {},
+        "selected_trajectory_count": 0,
+        "fit_evaluated": False,
+        "fit": None,
+        "calibration_identity_sha256": None,
+        "calibrated_covariance_all_finite_symmetric_psd": False,
+        "maximum_calibrated_position_std_m": None,
+        "maximum_allowed_position_std_m": config["calibration"][
+            "maximum_calibrated_position_std_m"
+        ],
+        "validation_empirical_coverage_after_calibration": None,
+        "failure_reasons": failure_reasons,
+        "prediction_source": "fsynced-frozen-ledger-reload/v2",
+        "prediction_freeze_marker_sha256": marker["freeze_marker_sha256"],
+        "prediction_ledger_sha256_before": marker["prediction_ledger_sha256"],
+        "prediction_ledger_sha256_after": file_sha256(prediction_ledger),
+        "validation_label_array_file_read_count": cohort_audit[
+            "validation_label_array_file_read_count"
+        ],
+        "calibration_scoring_row_count": 0,
+        "test_trajectory_array_read_count": 0,
+        "test_label_array_read_count": 0,
+        "model_context_received_by_phase_b": False,
+        "provider_forward_count_in_phase_b": 0,
+        "live_memory_read_count": 0,
+        "live_memory_write_count": 0,
+        "runtime_camera_actuation_count": 0,
+        "arm_actuation_count": 0,
+        "manipulation_progression_count": 0,
+        "provider_training_count": 0,
+    }
+    if summary["prediction_ledger_sha256_after"] != marker["prediction_ledger_sha256"]:
+        raise RuntimeError("G2B CAL-v2 protocol-invalid 后 prediction ledger 漂移")
+    _atomic_json(output / "calibration_summary.json", summary)
+    return summary, calibration_payload, []
 
 
 def _score_calibration_after_prediction_freeze(
@@ -1118,7 +1348,7 @@ def _score_calibration_after_prediction_freeze(
     expected_count = int(config["calibration_data"]["manifest_sample_count"])
     predictions, marker = load_frozen_calibration_prediction_ledger(
         output,
-        config_sha256=canonical_sha256(config),
+        config=config,
         expected_prediction_count=expected_count,
     )
     prediction_ledger = output / "calibration_prediction_ledger.jsonl"
@@ -1139,10 +1369,59 @@ def _score_calibration_after_prediction_freeze(
     label_by_trajectory = {entry.trajectory_id: entry for entry in label_entries}
     if len(label_by_trajectory) != config["calibration_data"]["trajectory_count"]:
         raise RuntimeError("G2B CAL validation label trajectory count 漂移")
-    store = PrecisionLabelStore(labels, cache_size=32)
+    label_store = PrecisionLabelStore(labels, cache_size=32)
+    deployable = Path(deployable_root)
+    deployable_entries = load_manifest(deployable, split="val")
+    deployable_by_trajectory = {
+        entry.trajectory_id: entry for entry in deployable_entries
+    }
+    if set(deployable_by_trajectory) != set(label_by_trajectory):
+        raise RuntimeError("G2B CAL-v2 Phase-B source/label trajectory identity 漂移")
+    deployable_store = TrajectoryStore(deployable, RobotSpec(), cache_size=32)
+    cohort_audit = _audit_calibration_cohort_invariants(
+        predictions=predictions,
+        config=config,
+        label_by_trajectory=label_by_trajectory,
+        label_store=label_store,
+        deployable_by_trajectory=deployable_by_trajectory,
+        deployable_store=deployable_store,
+        phase_a_applicability_audit=marker["applicability_audit"],
+    )
+    _atomic_json(output / "calibration_cohort_audit.json", cohort_audit)
+    if not cohort_audit["cohort_passed"]:
+        return _write_protocol_invalid_calibration_result(
+            output=output,
+            config=config,
+            marker=marker,
+            prediction_ledger=prediction_ledger,
+            validation_data_identity=validation_data_identity,
+            cohort_audit=cohort_audit,
+        )
     scored: list[dict[str, Any]] = []
     label_files_read: set[str] = set()
     selection_counts = Counter()
+    selection_condition_counts = Counter()
+    selection_combination_counts = Counter()
+    for name in (
+        "gt_object_observable",
+        "geometry_valid",
+        "raw_covariance_finite_symmetric_psd",
+    ):
+        selection_condition_counts[f"{name}=false"] = 0
+        selection_condition_counts[f"{name}=true"] = 0
+    for observable in (False, True):
+        for geometry_valid_value in (False, True):
+            for covariance_valid in (False, True):
+                selection_combination_counts[
+                    "/".join(
+                        (
+                            f"gt_object_observable={str(observable).lower()}",
+                            f"geometry_valid={str(geometry_valid_value).lower()}",
+                            f"raw_covariance_finite_symmetric_psd={str(covariance_valid).lower()}",
+                        )
+                    )
+                ] = 0
+    selected_trajectories: set[str] = set()
     scores: list[float] = []
     provider_covariances: list[np.ndarray] = []
     for prediction in predictions:
@@ -1152,14 +1431,44 @@ def _score_calibration_after_prediction_freeze(
         meta = label_by_trajectory.get(trajectory_id)
         if meta is None:
             raise RuntimeError("G2B CAL prediction 缺少对应 validation label")
-        arrays = store.get(meta)
+        if not prediction["calibration_applicable"]:
+            selection_counts["phase_a_nonapplicable"] += 1
+            scored.append(
+                {
+                    "version": E018_P1_G2B_RESULT_VERSION,
+                    "phase": "validation-label-scoring-after-prediction-freeze/v2",
+                    "prediction_ledger_sha256": prediction_sha,
+                    "trajectory_id": trajectory_id,
+                    "scene_id": prediction["scene_id"],
+                    "split": "val",
+                    "timestep": int(prediction["timestep"]),
+                    "source_camera": "hand_camera",
+                    "skill_id": int(prediction["skill_id"]),
+                    "calibration_applicable": False,
+                    "calibration_selected": False,
+                    "selection_evaluated": False,
+                    "selection_reason": "phase_a_skill_id_nonapplicable",
+                    "confidence_used_for_selection": False,
+                    "write_acceptance_used_for_selection": False,
+                    "prediction_error_magnitude_used_for_selection": False,
+                    "test_data_read": False,
+                }
+            )
+            continue
+        selection_counts["phase_a_applicable"] += 1
+        arrays = label_store.get(meta)
         label_files_read.add(meta.file)
         timestep = int(prediction["timestep"])
         if not 0 <= timestep < arrays.num_steps:
             raise RuntimeError("G2B CAL prediction timestep 超出 label 范围")
         object_position = arrays.object_position_base_m[timestep].astype(np.float64)
-        if abs(float(object_position[2]) - 0.02) > 1e-5:
-            raise RuntimeError("G2B CAL object position 不符合冻结 task plane")
+        invariants = config["calibration"]["cohort_invariants"]
+        if (
+            not np.isfinite(object_position).all()
+            or abs(float(object_position[2]) - invariants["task_plane_base_z_m"])
+            > invariants["task_plane_tolerance_m"]
+        ):
+            raise RuntimeError("G2B CAL-v2 cohort audit 与 scoring task plane 漂移")
         transform = validate_se3(
             prediction["actual_base_from_camera_cv"],
             "actual_base_from_camera_cv",
@@ -1206,6 +1515,17 @@ def _score_calibration_after_prediction_freeze(
         selected = bool(
             observability.observable and geometry_valid and covariance_structure["valid"]
         )
+        selection_flags = {
+            "gt_object_observable": bool(observability.observable),
+            "geometry_valid": geometry_valid,
+            "raw_covariance_finite_symmetric_psd": bool(covariance_structure["valid"]),
+        }
+        for name, value in selection_flags.items():
+            selection_condition_counts[f"{name}={str(value).lower()}"] += 1
+        combination_key = "/".join(
+            f"{name}={str(value).lower()}" for name, value in selection_flags.items()
+        )
+        selection_combination_counts[combination_key] += 1
         if not observability.observable:
             selection_counts["gt_object_unobservable"] += 1
         if not geometry_valid:
@@ -1233,18 +1553,21 @@ def _score_calibration_after_prediction_freeze(
             mahalanobis = _mahalanobis_squared_psd(error_xy, covariance[:2, :2])
             scores.append(float(mahalanobis))
             selection_counts["selected"] += 1
+            selected_trajectories.add(trajectory_id)
             if not math.isfinite(mahalanobis):
                 selection_counts["singular_nullspace_nonzero_error"] += 1
         scored.append(
             {
                 "version": E018_P1_G2B_RESULT_VERSION,
-                "phase": "validation-label-scoring-after-prediction-freeze/v1",
+                "phase": "validation-label-scoring-after-prediction-freeze/v2",
                 "prediction_ledger_sha256": prediction_sha,
                 "trajectory_id": trajectory_id,
                 "scene_id": prediction["scene_id"],
                 "split": "val",
                 "timestep": timestep,
                 "source_camera": "hand_camera",
+                "skill_id": int(prediction["skill_id"]),
+                "calibration_applicable": True,
                 "gt_object_position_base_m": object_position.tolist(),
                 "gt_projected_normalized_uv": (
                     None if gt_uv is None else gt_uv.astype(float).tolist()
@@ -1259,11 +1582,8 @@ def _score_calibration_after_prediction_freeze(
                 ),
                 "calibration_selected": selected,
                 "mahalanobis_squared": mahalanobis,
-                "selection_inputs": {
-                    "gt_object_observable": bool(observability.observable),
-                    "geometry_valid": geometry_valid,
-                    "raw_covariance_finite_symmetric_psd": bool(covariance_structure["valid"]),
-                },
+                "selection_evaluated": True,
+                "selection_inputs": selection_flags,
                 "confidence_used_for_selection": False,
                 "write_acceptance_used_for_selection": False,
                 "prediction_error_magnitude_used_for_selection": False,
@@ -1272,6 +1592,13 @@ def _score_calibration_after_prediction_freeze(
         )
     if len(scored) != expected_count:
         raise RuntimeError("G2B CAL scoring row count 漂移")
+    if (
+        selection_counts["phase_a_applicable"]
+        != config["calibration_data"]["expected_applicable_frame_count"]
+        or selection_counts["phase_a_nonapplicable"]
+        != config["calibration_data"]["expected_nonapplicable_frame_count"]
+    ):
+        raise RuntimeError("G2B CAL-v2 scoring applicability counts 漂移")
     _atomic_jsonl(output / "calibration_scoring_ledger.jsonl", scored)
     scoring_sha = file_sha256(output / "calibration_scoring_ledger.jsonl")
     fit = fit_covariance_scale(
@@ -1331,24 +1658,42 @@ def _score_calibration_after_prediction_freeze(
         "version": E018_P1_G2B_RESULT_VERSION,
         "status": "calibration-pass" if passed else "calibration-no-go",
         "gate": E018_P1_G2B_CAL_GATE,
+        "protocol_gate_evaluated": True,
+        "gate_evaluated": True,
         "gate_passed": passed,
+        "protocol_valid": True,
         "calibration": None if calibration is None else calibration.to_dict(),
         "failure_reasons": gate_reasons,
         "calibration_scoring_ledger_sha256": scoring_sha,
         "prediction_ledger_sha256": prediction_sha,
+        "cohort_audit_sha256": cohort_audit["audit_sha256"],
         "selection_predicate": config["calibration"]["selection_predicate"],
+        "selection_evaluated": True,
+        "fit_evaluated": True,
     }
     _atomic_json(output / "calibration.json", calibration_payload)
     summary = {
         "version": E018_P1_G2B_RESULT_VERSION,
         "status": "calibration-pass" if passed else "calibration-no-go",
         "gate": E018_P1_G2B_CAL_GATE,
+        "protocol_gate_evaluated": True,
         "gate_evaluated": True,
         "gate_passed": passed,
+        "protocol_valid": True,
         "frame_count": len(scored),
         "validation_trajectory_count": len(label_files_read),
         "validation_data_identity_sha256": validation_data_identity,
+        "phase_a_applicability_audit": marker["applicability_audit"],
+        "cohort_audit_sha256": cohort_audit["audit_sha256"],
+        "cohort_passed": True,
+        "selection_evaluated": True,
         "selection_counts": dict(sorted(selection_counts.items())),
+        "selection_condition_counts": dict(sorted(selection_condition_counts.items())),
+        "selection_combination_counts": dict(
+            sorted(selection_combination_counts.items())
+        ),
+        "selected_trajectory_count": len(selected_trajectories),
+        "fit_evaluated": True,
         "fit": fit,
         "calibration_identity_sha256": (
             None if calibration is None else calibration.identity_sha256
@@ -1360,11 +1705,12 @@ def _score_calibration_after_prediction_freeze(
         ],
         "validation_empirical_coverage_after_calibration": empirical_coverage,
         "failure_reasons": gate_reasons,
-        "prediction_source": "fsynced-frozen-ledger-reload/v1",
+        "prediction_source": "fsynced-frozen-ledger-reload/v2",
         "prediction_freeze_marker_sha256": marker["freeze_marker_sha256"],
         "prediction_ledger_sha256_before": prediction_sha,
         "prediction_ledger_sha256_after": file_sha256(prediction_ledger),
         "validation_label_array_file_read_count": len(label_files_read),
+        "calibration_scoring_row_count": len(scored),
         "test_trajectory_array_read_count": 0,
         "test_label_array_read_count": 0,
         "model_context_received_by_phase_b": False,
@@ -1393,8 +1739,15 @@ def verify_g2b_calibration_receipt(output_root: str | Path) -> dict[str, Any]:
     if (
         receipt.get("version") != E018_P1_G2B_RESULT_VERSION
         or receipt.get("gate") != E018_P1_G2B_CAL_GATE
-        or receipt.get("status") not in {"complete-calibration-pass", "complete-calibration-no-go"}
-        or not isinstance(receipt.get("gate_passed"), bool)
+        or receipt.get("status")
+        not in {
+            "complete-calibration-pass",
+            "complete-calibration-no-go",
+            "complete-calibration-protocol-invalid",
+        }
+        or not isinstance(receipt.get("gate_evaluated"), bool)
+        or receipt.get("protocol_gate_evaluated") is not True
+        or not isinstance(receipt.get("protocol_valid"), bool)
         or receipt.get("prediction_frozen_before_validation_label") is not True
         or receipt.get("allowed_label_split") != "val"
         or any(
@@ -1412,8 +1765,22 @@ def verify_g2b_calibration_receipt(output_root: str | Path) -> dict[str, Any]:
         )
     ):
         raise RuntimeError("G2B CAL receipt scope/status 漂移")
-    if receipt["gate_passed"] != (receipt["status"] == "complete-calibration-pass"):
-        raise RuntimeError("G2B CAL receipt status/gate 不一致")
+    protocol_invalid = receipt["status"] == "complete-calibration-protocol-invalid"
+    if protocol_invalid:
+        if (
+            receipt["protocol_valid"] is not False
+            or receipt["gate_evaluated"] is not False
+            or receipt.get("gate_passed") is not None
+        ):
+            raise RuntimeError("G2B CAL-v2 protocol-invalid 三态不一致")
+    elif (
+        receipt["protocol_valid"] is not True
+        or receipt["gate_evaluated"] is not True
+        or not isinstance(receipt.get("gate_passed"), bool)
+        or receipt["gate_passed"]
+        != (receipt["status"] == "complete-calibration-pass")
+    ):
+        raise RuntimeError("G2B CAL-v2 protocol-valid gate 状态不一致")
     files = receipt.get("files")
     if not isinstance(files, list):
         raise TypeError("G2B CAL receipt files 必须是 list")
@@ -1430,10 +1797,26 @@ def verify_g2b_calibration_receipt(output_root: str | Path) -> dict[str, Any]:
             raise RuntimeError(f"G2B CAL artifact identity 漂移: {relative}")
     summary = _read_json(root / "calibration_summary.json", "G2B CAL summary")
     calibration = _read_json(root / "calibration.json", "G2B calibration")
+    cohort_audit = _read_json(root / "calibration_cohort_audit.json", "G2B cohort audit")
+    failed_v1_binding = _read_json(
+        root / "failed_v1_lineage_binding.json",
+        "G2B failed-v1 lineage binding",
+    )
     if (
         summary.get("gate_passed") != receipt["gate_passed"]
+        or summary.get("protocol_gate_evaluated")
+        != receipt["protocol_gate_evaluated"]
+        or summary.get("gate_evaluated") != receipt["gate_evaluated"]
+        or summary.get("protocol_valid") != receipt["protocol_valid"]
         or calibration.get("gate_passed") != receipt["gate_passed"]
+        or calibration.get("protocol_gate_evaluated")
+        != receipt["protocol_gate_evaluated"]
+        or calibration.get("gate_evaluated") != receipt["gate_evaluated"]
+        or calibration.get("protocol_valid") != receipt["protocol_valid"]
         or summary.get("calibration_identity_sha256") != receipt.get("calibration_identity_sha256")
+        or cohort_audit.get("audit_sha256") != receipt.get("cohort_audit_sha256")
+        or failed_v1_binding.get("binding_sha256")
+        != receipt.get("failed_v1_lineage_binding_sha256")
     ):
         raise RuntimeError("G2B CAL receipt/summary/calibration 绑定漂移")
     return receipt
@@ -1445,7 +1828,7 @@ def load_passed_covariance_calibration(
     root = Path(output_root)
     receipt = verify_g2b_calibration_receipt(root)
     if receipt["gate_passed"] is not True:
-        raise RuntimeError("G2B qualification 禁止使用 calibration-no-go artifact")
+        raise RuntimeError("G2B qualification 禁止使用未通过的 calibration artifact")
     payload = _read_json(root / "calibration.json", "G2B calibration")
     value = payload.get("calibration")
     if not isinstance(value, dict):
@@ -1494,6 +1877,7 @@ def run_e018_p1_g2b_calibration(
     config_path: str | Path,
     parent_g2a_config_path: str | Path,
     parent_g2a_receipt_path: str | Path,
+    failed_v1_output: str | Path,
     e016_config_path: str | Path,
     e013_deployable_root: str | Path,
     e016_fresh_deployable_root: str | Path,
@@ -1514,6 +1898,11 @@ def run_e018_p1_g2b_calibration(
     config_sha = canonical_sha256(config)
     parent_g2a = _read_json(Path(parent_g2a_config_path), "parent G2A config")
     repository = Path(repository_root)
+    failed_v1_binding = _verify_failed_v1_lineage(
+        Path(failed_v1_output),
+        config=config,
+    )
+    _verify_e018_p0_pregrasp_binding(repository, config=config)
     source_identity = _source_identity(
         repository,
         source_parent_git_commit=config["parents"]["source_parent_git_commit"],
@@ -1538,6 +1927,7 @@ def run_e018_p1_g2b_calibration(
     try:
         _atomic_json(output / "config_snapshot.json", config)
         _atomic_json(output / "source_identity.json", source_identity)
+        _atomic_json(output / "failed_v1_lineage_binding.json", failed_v1_binding)
         parent_receipt = _verify_g2a_parent_receipt(
             Path(parent_g2a_receipt_path),
             config=config,
@@ -1577,6 +1967,7 @@ def run_e018_p1_g2b_calibration(
             spec=context.spec,
             proprio_normalizer=context.proprio_normalizer,
             finger_force_normalizer=context.finger_force_normalizer,
+            calibration_data=data,
         )
         if len(dataset) != data["manifest_sample_count"]:
             raise RuntimeError("G2B CAL deployable valid sample count 与 manifest identity 漂移")
@@ -1592,7 +1983,7 @@ def run_e018_p1_g2b_calibration(
         freeze = freeze_calibration_prediction_ledger(
             output,
             rows=predictions,
-            config_sha256=config_sha,
+            config=config,
         )
         # Phase B 不接收 dataset/model/provider context，只从冻结 ledger 恢复预测。
         del predictions
@@ -1617,18 +2008,33 @@ def run_e018_p1_g2b_calibration(
             output_root=output,
             source_identity_sha256=source_identity["identity_sha256"],
         )
-        passed = bool(summary["gate_passed"])
+        passed = summary["gate_passed"]
+        receipt_status_by_summary = {
+            "calibration-pass": "complete-calibration-pass",
+            "calibration-no-go": "complete-calibration-no-go",
+            "calibration-protocol-invalid": "complete-calibration-protocol-invalid",
+        }
+        receipt_status = receipt_status_by_summary.get(summary["status"])
+        if receipt_status is None:
+            raise RuntimeError("G2B CAL-v2 summary status 无法冻结 receipt")
         receipt = {
             "version": E018_P1_G2B_RESULT_VERSION,
-            "status": ("complete-calibration-pass" if passed else "complete-calibration-no-go"),
+            "status": receipt_status,
             "gate": E018_P1_G2B_CAL_GATE,
-            "gate_evaluated": True,
+            "protocol_gate_evaluated": bool(summary["protocol_gate_evaluated"]),
+            "gate_evaluated": bool(summary["gate_evaluated"]),
             "gate_passed": passed,
+            "protocol_valid": bool(summary["protocol_valid"]),
             "config_sha256": config_sha,
             "source_identity_sha256": source_identity["identity_sha256"],
+            "failed_v1_lineage_binding_sha256": failed_v1_binding["binding_sha256"],
             "parent_g2a_receipt_internal_sha256": parent_receipt["receipt_sha256"],
             "validation_data_identity_sha256": summary["validation_data_identity_sha256"],
             "prediction_ledger_sha256": freeze["prediction_ledger_sha256"],
+            "phase_a_applicability_audit_sha256": freeze["applicability_audit"][
+                "audit_sha256"
+            ],
+            "cohort_audit_sha256": summary["cohort_audit_sha256"],
             "prediction_frozen_before_validation_label": True,
             "allowed_label_split": "val",
             "calibration_identity_sha256": summary["calibration_identity_sha256"],
@@ -2262,7 +2668,6 @@ def _score_qualification_after_prediction_freeze(
     import gymnasium as gym
     import sapien
     from mani_skill.utils import sapien_utils
-
     from robot_vla.precision.e018_p1_viewpoint_screen import (
         _capture_sensor_observation,
         _set_static_camera_pose,

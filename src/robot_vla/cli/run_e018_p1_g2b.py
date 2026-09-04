@@ -29,6 +29,7 @@ def _parse_args() -> argparse.Namespace:
     calibration = subparsers.add_parser("calibrate")
     _common(calibration)
     calibration.add_argument("--e016-fresh-label-root", required=True)
+    calibration.add_argument("--failed-v1-output", required=True)
 
     qualification = subparsers.add_parser("qualify")
     _common(qualification)
@@ -61,6 +62,7 @@ def main() -> None:
         result = run_e018_p1_g2b_calibration(
             **common,
             e016_fresh_label_root=args.e016_fresh_label_root,
+            failed_v1_output=args.failed_v1_output,
         )
     else:
         result = run_e018_p1_g2b_qualification(
