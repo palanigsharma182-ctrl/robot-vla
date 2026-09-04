@@ -1,0 +1,63 @@
+{
+  "version": "e017-p0-conservative-observability-public/v1",
+  "experiment": "E017-P0 conservative observability row fine-tuning",
+  "status": "failed",
+  "source_commit": "f3f50a8123dc6546b0d75440ac7bf60fe07e0821",
+  "hardware": "NVIDIA GeForce RTX 5080",
+  "parent": {
+    "checkpoint_sha256": "c0be8769f75e4b991daa3a71878df72d2e2aaad70b5139abb4190512d6110552",
+    "selected_epoch": 12,
+    "goal_unobservable_count": 558,
+    "goal_unobservable_false_positive_count": 3,
+    "goal_unobservable_false_positive_rate": 0.005376344086021506,
+    "goal_visibility_precision": 0.994661921708185,
+    "goal_visibility_recall": 0.9178981937602627,
+    "projection_accuracy": 0.9897172236503856,
+    "goal_observable_normalized_uv_mae": 0.014128103852272034,
+    "goal_mask_iou": 0.9754663137045069
+  },
+  "training": {
+    "config_sha256": "94264b34b470413aa9acc58f2f9bb4a3757475df12a61d36e6448893a0b526e9",
+    "initialization": "warm-start-e016-p1-selected-epoch-12",
+    "trainable_scope": "uncertainty-final-goal-visibility-and-projection-rows-only/v1",
+    "goal_negative_weight": 4.0,
+    "epochs": 8,
+    "total_optimizer_steps": 1200,
+    "formal_checkpoint_written": false,
+    "test_split_read": false,
+    "actuation_allowed": false
+  },
+  "validation_epochs": [
+    {"epoch": 1, "train_loss": 0.07460300635914607, "goal_unobservable_false_positive_rate": 0.025089605734767026, "goal_visibility_precision": 0.9765494137353434, "goal_visibility_recall": 0.9573070607553367, "eligible": false},
+    {"epoch": 2, "train_loss": 0.06981100159162153, "goal_unobservable_false_positive_rate": 0.025089605734767026, "goal_visibility_precision": 0.9766666666666667, "goal_visibility_recall": 0.9622331691297209, "eligible": false},
+    {"epoch": 3, "train_loss": 0.06862424818507959, "goal_unobservable_false_positive_rate": 0.02867383512544803, "goal_visibility_precision": 0.9735537190082645, "goal_visibility_recall": 0.9671592775041051, "eligible": false},
+    {"epoch": 4, "train_loss": 0.06815787963413164, "goal_unobservable_false_positive_rate": 0.02867383512544803, "goal_visibility_precision": 0.9735099337748344, "goal_visibility_recall": 0.9655172413793104, "eligible": false},
+    {"epoch": 5, "train_loss": 0.06764045984348145, "goal_unobservable_false_positive_rate": 0.02867383512544803, "goal_visibility_precision": 0.9735537190082645, "goal_visibility_recall": 0.9671592775041051, "eligible": false},
+    {"epoch": 6, "train_loss": 0.06756754369838429, "goal_unobservable_false_positive_rate": 0.02867383512544803, "goal_visibility_precision": 0.9735537190082645, "goal_visibility_recall": 0.9671592775041051, "eligible": false},
+    {"epoch": 7, "train_loss": 0.06726300178432659, "goal_unobservable_false_positive_rate": 0.02867383512544803, "goal_visibility_precision": 0.9735537190082645, "goal_visibility_recall": 0.9671592775041051, "eligible": false},
+    {"epoch": 8, "train_loss": 0.06684478345093858, "goal_unobservable_false_positive_rate": 0.02867383512544803, "goal_visibility_precision": 0.9735537190082645, "goal_visibility_recall": 0.9671592775041051, "eligible": false}
+  ],
+  "frozen_output_drift": {
+    "localization_metric_absolute_drift": 0.0,
+    "goal_mask_iou_absolute_drift": 0.0
+  },
+  "post_result_validation_diagnostic": {
+    "canonical_result": false,
+    "model_changed": false,
+    "test_read": false,
+    "candidate_visibility_threshold": 0.525,
+    "candidate_false_positive_count": 2,
+    "candidate_false_positive_rate": 0.0035842293906810036,
+    "candidate_precision": 0.9964221824686941,
+    "candidate_recall": 0.9146141215106732,
+    "requires_new_held_out": true
+  },
+  "private_artifact_sha256": {
+    "config_snapshot.json": "d9bd9e6fe8159e9bd85d0319a58b452863a8aedb125ea8fd6f16b1eff214e9e9",
+    "failure_receipt.json": "2fb1b09b6eea1107eab6b9132fc309e5c40a088465dcd83b4f30725d506b0699",
+    "metrics.jsonl": "24a5da622bb2400f999a430b38cf3c63d6a240f9c40cf76cf7cc44ae56c54541",
+    "parent_validation.json": "28231b4efd342011211b74d27697286fbfba87798414d1fef9f86cf97461201d",
+    "train_val_input_audit.json": "2c89dbb76d8f601d917be77783a4587849586ae68e9ce6be951a397499b85cf9"
+  },
+  "safe_for_actuator_promotion": false
+}
