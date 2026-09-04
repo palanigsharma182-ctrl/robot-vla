@@ -2426,7 +2426,7 @@ def load_frozen_prediction_ledger(
                     f"G2A frozen prediction ledger 第 {line_number} 行 JSON 无效"
                 ) from error
             if not isinstance(row, dict):
-                raise RuntimeError(
+                raise TypeError(
                     f"G2A frozen prediction ledger 第 {line_number} 行不是 object"
                 )
             rows.append(row)
@@ -2662,7 +2662,6 @@ def _score_after_prediction_freeze(
     """Phase B：只重载冻结预测，再读取 simulator GT 并离线评分。"""
 
     import gymnasium as gym
-    import mani_skill
     import sapien
     from mani_skill.utils import sapien_utils
 
@@ -2816,6 +2815,10 @@ def _report_markdown(summary: dict[str, Any]) -> str:
     primary_id = (
         None if summary.get("primary") is None else summary["primary"]["primitive_id"]
     )
+    table_header = (
+        "| viewpoint | status | P | R | XYZ p90 mm | XYZ max mm | accepted | "
+        + "unsafe | safe coverage | cov95 | cov n |"
+    )
     lines = [
         "# E018-P1 G2A front provider qualification",
         "",
@@ -2828,29 +2831,29 @@ def _report_markdown(summary: dict[str, Any]) -> str:
         "- live Memory reads/writes: `0 / 0`",
         "- runtime camera/arm/manipulation actuation: `0 / 0 / 0`",
         "",
-        "| viewpoint | status | P | R | XYZ p90 mm | XYZ max mm | accepted | "
-        "unsafe | safe coverage | cov95 | cov n |",
+        table_header,
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
-    for item in summary.get("viewpoint_summaries", []):
-        def number(name: str, scale: float = 1.0) -> str:
-            value = item.get(name)
-            return "n/a" if value is None else f"{float(value) * scale:.6f}"
 
+    def number(item: dict[str, Any], name: str, scale: float = 1.0) -> str:
+        value = item.get(name)
+        return "n/a" if value is None else f"{float(value) * scale:.6f}"
+
+    for item in summary.get("viewpoint_summaries", []):
         lines.append(
             "| {primitive} | {status} | {precision} | {recall} | {p90} | "
             "{maximum} | {accepted} | {unsafe} | {coverage} | {covariance} | "
             "{covariance_count} |".format(
                 primitive=item["primitive_id"],
                 status=item.get("status", "n/a"),
-                precision=number("visibility_precision"),
-                recall=number("visibility_recall"),
-                p90=number("observable_world_xyz_p90_m", 1000.0),
-                maximum=number("observable_world_xyz_max_m", 1000.0),
+                precision=number(item, "visibility_precision"),
+                recall=number(item, "visibility_recall"),
+                p90=number(item, "observable_world_xyz_p90_m", 1000.0),
+                maximum=number(item, "observable_world_xyz_max_m", 1000.0),
                 accepted=item["write_accepted_count"],
                 unsafe=item["unsafe_accepted_count"],
-                coverage=number("accepted_safe_coverage"),
-                covariance=number("covariance_95_coverage"),
+                coverage=number(item, "accepted_safe_coverage"),
+                covariance=number(item, "covariance_95_coverage"),
                 covariance_count=item["covariance_evaluable_count"],
             )
         )
@@ -2973,7 +2976,7 @@ def verify_g2a_receipt(output_root: str | Path) -> dict[str, Any]:
 
     file_records = receipt["files"]
     if not isinstance(file_records, list):
-        raise RuntimeError("G2A receipt files 必须是 list")
+        raise TypeError("G2A receipt files 必须是 list")
     by_path: dict[str, dict[str, Any]] = {}
     for index, value in enumerate(file_records):
         record = _require_keys(value, {"path", "sha256", "size_bytes"}, f"files[{index}]")
@@ -3312,9 +3315,9 @@ __all__ = [
     "NATIVE_WRIST_CONTROL_ID",
     "PER_SCENE_CAPTURE_ORDER",
     "PRIMARY_TIE_BREAK_FIELDS",
+    "assert_prediction_ledger_deployable_only",
     "audit_g2a_seed_disjointness",
     "audit_qualification_seed_sets",
-    "assert_prediction_ledger_deployable_only",
     "build_e013_wrist_pose_envelope",
     "camera_pose_ood_diagnostic",
     "canonical_sha256",
