@@ -1,0 +1,165 @@
+{
+  "version": "e018-p1-g2c-front-provider-data-development/v1",
+  "status": "development-only-data-protocol-no-formal-claim",
+  "scope": {
+    "gate": "G2C_FRONT_PROVIDER_ADAPTATION_DATA",
+    "test_manifest_metadata_read_allowed": true,
+    "test_trajectory_array_read_allowed": false,
+    "test_label_array_read_allowed": false,
+    "formal_claim_allowed": false,
+    "runtime_gt_control_allowed": false,
+    "runtime_camera_actuation_allowed": false,
+    "physical_camera_actuation_allowed": false,
+    "arm_actuation_allowed": false,
+    "memory_read_allowed": false,
+    "memory_write_allowed": false,
+    "manipulation_progression_allowed": false
+  },
+  "parents": {
+    "decision_id": "D036",
+    "g0c_config_version": "e018-p1-g0c-rotated-motion-development/v1",
+    "g0c_config_sha256": "c93bbfd48b6d9bc2fc75b5b87e4ded7161efebd7eda50cd81cc2ded47810e965",
+    "g0c_receipt_internal_sha256": "bf8232b620cd5ff8de8c0007391252b8829c3ebbac320a7d5a60507beaca258e",
+    "e016_config_sha256": "4b469e1abcab1cb2289a75797b683adb8719e5f510e23681a20a35d9ff10908b",
+    "e016_checkpoint_sha256": "c0be8769f75e4b991daa3a71878df72d2e2aaad70b5139abb4190512d6110552",
+    "e016_checkpoint_parameter_sha256": "0d84e3fbf56445a0b6cbfabf46643abce6b8ddd6c152e0534a1870b88eeeaed6",
+    "e016_checkpoint_provenance_sha256": "f25d876c2cf0b670b22e4c09aa561ff4190704411a4c053a089a9bc05804fed2",
+    "source_training_camera": "hand_camera",
+    "target_training_camera": "base_camera"
+  },
+  "data_identity": {
+    "e013_manifest_sha256": "c5c2925f46f0db0bbea3a32a8cd8de95616dc3ee7d542b8feb28a8cdbdb9faa7",
+    "e016_fresh_manifest_sha256": "47c8acfa2d5b867afc8d45638b30aae019fa9be57b2fc463a4216b9a802a1ff5",
+    "proprio_stats_sha256": "2a1061b3a56edfcfeb6e955a1910dc309ff9b776dc4eb355192661fe628de01e",
+    "proprio_normalizer_sha256": "eb39fa6750a80d4781559e465d694fca411e3a4c11f74cbd09423886735a219e",
+    "finger_force_stats_sha256": "fcc5b4b87aa13919ec261fc5e71a24e1b6446f47abdbc87d4b1bf4f93fe7a9e8",
+    "finger_force_normalizer_sha256": "6de38cb2a3d74c7da581a96712c1eafc974ccf52f4cefb5a339708c30b3e79d5"
+  },
+  "software": {
+    "expected_mani_skill_version": "3.0.1",
+    "expected_sapien_version": "3.0.3"
+  },
+  "environment": {
+    "environment_id": "RobotVLAPickCubeToRegion-v1",
+    "robot_uid": "panda_wristcam",
+    "external_camera_uid": "base_camera",
+    "obs_mode": "rgb+segmentation",
+    "control_mode": "pd_joint_delta_pos",
+    "num_envs": 1,
+    "control_hz": 20,
+    "image_shape_hwc": [128, 128, 3]
+  },
+  "sampling": {
+    "seed_policy": "four-disjoint-frozen-development-splits/v1",
+    "formal_splits": {
+      "train": {"start_seed": 76001, "end_seed": 76400, "seed_count": 400, "capture_mode": "static-render"},
+      "model_val": {"start_seed": 76501, "end_seed": 76600, "seed_count": 100, "capture_mode": "static-render"},
+      "calibration": {"start_seed": 76601, "end_seed": 76650, "seed_count": 50, "capture_mode": "static-render"},
+      "qualification": {"start_seed": 76701, "end_seed": 76750, "seed_count": 50, "capture_mode": "dynamic-roundtrip"}
+    },
+    "test_split": null,
+    "smoke_only_seeds": [76801, 76802, 76803, 76804],
+    "known_development_seed_groups": {
+      "g0": {"values": [71001, 71013, 71027, 71039]},
+      "g0b": {"start_seed": 72001, "end_seed": 72050},
+      "g0c": {"values": [73001, 73013, 73027, 73039]},
+      "g1a": {"values": [74101]},
+      "g2a": {"start_seed": 75001, "end_seed": 75050}
+    },
+    "require_pairwise_split_disjoint": true,
+    "require_disjoint_from_manifest_metadata": true,
+    "require_disjoint_from_inventory_registry": true,
+    "seed_replacement_allowed": false,
+    "row_deletion_allowed": false
+  },
+  "viewpoints": {
+    "library_source": "frozen-g0c-parent-config/v1",
+    "home_id": "HOME__CENTER",
+    "capture_order": [
+      "HOME__CENTER",
+      "LEFT_LOW__CENTER",
+      "LEFT_LOW__YAW_LEFT",
+      "LEFT_LOW__YAW_RIGHT",
+      "LEFT_LOW__PITCH_UP",
+      "LEFT_LOW__PITCH_DOWN",
+      "RIGHT_LOW__CENTER",
+      "RIGHT_LOW__YAW_LEFT",
+      "RIGHT_LOW__YAW_RIGHT",
+      "RIGHT_LOW__PITCH_UP",
+      "RIGHT_LOW__PITCH_DOWN"
+    ],
+    "expected_view_count": 11,
+    "non_home_view_count": 10
+  },
+  "capture": {
+    "raw_reset_observation_role": "reset-diagnostic-only-never-eligible/v1",
+    "reset_warmup_command": "safe-hold-open",
+    "reset_warmup_ticks": 5,
+    "reset_warmup_frequency_hz": 20,
+    "static_capture_policy": "set-pose-render-refresh-one-eligible-frame-no-environment-step/v1",
+    "actual_pose_source": "same-observation.sensor_param.base_camera.cam2world_gl/v1",
+    "frame_convention": "robot-base-from-opencv-optical-camera/v1",
+    "timestamp_source": "synchronous-capture-sequence/v1",
+    "maximum_rgb_pose_skew_s": 0.01,
+    "maximum_rotation_projection_error_frobenius": 0.000001,
+    "maximum_camera_position_tracking_error_m": 0.00001,
+    "maximum_camera_orientation_tracking_error_rad": 0.0001,
+    "maximum_geometry_roundtrip_error_m": 0.00001,
+    "support_radius_px": 2,
+    "geometric_motion_value": [0.0, 0.0, 0.0, 0.0],
+    "eligible_lifecycle_invariants": {
+      "object_center_base_z_m": 0.02,
+      "object_center_base_z_tolerance_m": 0.00001,
+      "require_not_grasped": true,
+      "require_finger_force_valid": true,
+      "maximum_finger_force_n": 0.01,
+      "minimum_raw_gripper_opening_ratio": 0.95,
+      "maximum_arm_joint_drift_rad": 0.00001,
+      "maximum_tcp_position_drift_m": 0.00001,
+      "maximum_tcp_orientation_drift_rad": 0.0001,
+      "maximum_robot_object_contact_force_n": 0.01,
+      "fail_whole_split": true
+    }
+  },
+  "dataset": {
+    "deployable_schema_version": "e018-p1-g2c-front-deployable-seed-bundle/v1",
+    "privileged_label_schema_version": "e018-p1-g2c-front-privileged-label-seed-bundle/v1",
+    "manifest_schema_version": "e018-p1-g2c-front-manifest/v1",
+    "privileged_sidecar_required": true,
+    "prediction_before_label_required_for": ["model_val", "calibration", "qualification"],
+    "data_receipt_must_precede_train_config": true,
+    "train_config_must_bind_data_receipt_sha256": true,
+    "data_and_train_identity_must_be_distinct": true
+  },
+  "engineering_smoke": {
+    "mode": "non-canonical-four-seed-no-checkpoint/v1",
+    "seed_count": 4,
+    "training_seeds": [76801, 76802, 76803],
+    "prediction_freeze_seed": 76804,
+    "expected_eligible_capture_count": 44,
+    "training_optimizer_steps_per_candidate": 2,
+    "candidate_ids": ["W", "S"],
+    "checkpoint_persistence_allowed": false,
+    "formal_split_consumed": false,
+    "canonical_data_receipt_allowed": false
+  },
+  "execution": {
+    "device": "cuda",
+    "use_bf16": true,
+    "batch_size": 32,
+    "num_workers": 0,
+    "full_data_collection_requires_r2_go": true,
+    "formal_training_allowed": false,
+    "formal_model_selection_allowed": false,
+    "formal_calibration_allowed": false,
+    "formal_qualification_allowed": false,
+    "runtime_camera_actuation_allowed": false,
+    "physical_camera_actuation_allowed": false,
+    "arm_motion_command_allowed": false,
+    "gripper_command_mode": "safe-hold-open",
+    "memory_read_allowed": false,
+    "memory_write_allowed": false,
+    "manipulation_progression_allowed": false,
+    "output_overwrite_allowed": false
+  }
+}
