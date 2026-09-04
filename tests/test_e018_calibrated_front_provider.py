@@ -10,7 +10,6 @@ from robot_vla.precision.calibrated_front_provider import (
     build_stable_camera_calibration_identity,
 )
 
-
 SHA_A = "a" * 64
 SHA_B = "b" * 64
 SHA_C = "c" * 64

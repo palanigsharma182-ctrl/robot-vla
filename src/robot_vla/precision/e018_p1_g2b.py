@@ -57,8 +57,8 @@ from robot_vla.precision.e018_p1_g2a import (
     _numpy,
     _report_markdown,
     _score_prediction,
-    _viewpoint_map,
     _verify_g0c_receipt,
+    _viewpoint_map,
     assert_prediction_ledger_deployable_only,
     audit_g2a_seed_disjointness,
     build_e013_wrist_pose_envelope,
@@ -634,7 +634,7 @@ def audit_g2b_calibration_manifests(
 
     val_entries = [entry for entry in deployable_entries if entry.split == "val"]
     val_seeds = {int(entry.randomization["seed"]) for entry in val_entries}
-    known = set(int(seed) for seed in parent_g2a_config["sampling"]["seeds"])
+    known = {int(seed) for seed in parent_g2a_config["sampling"]["seeds"]}
     for values in parent_g2a_config["sampling"]["known_development_seeds"].values():
         known.update(int(seed) for seed in values)
     known_overlap = sorted(val_seeds & known)
@@ -809,7 +809,7 @@ def fit_covariance_scale(
         raise ValueError("G2B chi-square threshold 漂移")
     values = np.asarray(scores, dtype=np.float64)
     support = int(values.size)
-    k = int(math.ceil((support + 1) * target_coverage))
+    k = math.ceil((support + 1) * target_coverage)
     reasons: list[str] = []
     if support < minimum_support_count:
         reasons.append("insufficient_support")
@@ -1283,9 +1283,11 @@ def _score_calibration_after_prediction_freeze(
     gate_reasons = list(fit["failure_reasons"])
     if selection_counts["geometry_valid_raw_covariance_invalid"]:
         gate_reasons.append("raw_provider_covariance_invalid")
-    if selection_counts["singular_nullspace_nonzero_error"]:
-        if "singular_nullspace_nonzero_error" not in gate_reasons:
-            gate_reasons.append("singular_nullspace_nonzero_error")
+    if (
+        selection_counts["singular_nullspace_nonzero_error"]
+        and "singular_nullspace_nonzero_error" not in gate_reasons
+    ):
+        gate_reasons.append("singular_nullspace_nonzero_error")
 
     maximum_calibrated_std: float | None = None
     calibrated_all_valid = False
@@ -1447,7 +1449,7 @@ def load_passed_covariance_calibration(
     payload = _read_json(root / "calibration.json", "G2B calibration")
     value = payload.get("calibration")
     if not isinstance(value, dict):
-        raise RuntimeError("G2B passed calibration 缺少 calibration payload")
+        raise TypeError("G2B passed calibration 缺少 calibration payload")
     expected_keys = {
         "scale_factor",
         "support_count",
@@ -2107,7 +2109,7 @@ def _load_qualification_calibration_binding(
         raise RuntimeError("G2B calibration binding internal SHA 漂移")
     value = binding.get("calibration")
     if not isinstance(value, dict):
-        raise RuntimeError("G2B calibration binding 缺少 calibration")
+        raise TypeError("G2B calibration binding 缺少 calibration")
     calibration = ScalarCovarianceCalibration(
         scale_factor=float(value["scale_factor"]),
         support_count=int(value["support_count"]),

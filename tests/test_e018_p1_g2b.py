@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import inspect
 import json
 import math
-import inspect
 from pathlib import Path
 
 import pytest
 
+from robot_vla.precision import e018_p1_g2b as g2b
 from robot_vla.precision.e018_p1_g2b import (
     E018_P1_G2B_CONFIG_VERSION,
     assert_calibration_prediction_ledger_deployable_only,
@@ -16,8 +17,6 @@ from robot_vla.precision.e018_p1_g2b import (
     load_frozen_calibration_prediction_ledger,
     run_e018_p1_g2b_qualification,
 )
-from robot_vla.precision import e018_p1_g2b as g2b
-
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = (
