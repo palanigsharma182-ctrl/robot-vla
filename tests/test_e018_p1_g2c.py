@@ -592,9 +592,9 @@ def test_w_kv0_resets_only_keypoint_log_variance_rows() -> None:
     assert torch.count_nonzero(final_layer.weight[:row_count]).item() == 0
     assert torch.count_nonzero(final_layer.bias[:row_count]).item() == 0
     for name, tensor in model.state_dict().items():
-        if name.endswith("uncertainty_head.2.weight"):
-            assert torch.equal(tensor[row_count:], before[name][row_count:])
-        elif name.endswith("uncertainty_head.2.bias"):
+        if name.endswith(
+            ("uncertainty_head.2.weight", "uncertainty_head.2.bias")
+        ):
             assert torch.equal(tensor[row_count:], before[name][row_count:])
         else:
             assert torch.equal(tensor, before[name])

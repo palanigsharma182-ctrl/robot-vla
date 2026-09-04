@@ -2039,7 +2039,7 @@ def _validate_g2c_manifest_seed_identity(
                 or not isinstance(seed, int)
                 or isinstance(seed, bool)
             ):
-                raise RuntimeError(f"G2C {name} manifest split/seed 类型漂移")
+                raise TypeError(f"G2C {name} manifest split/seed 类型漂移")
             pairs.append((split, seed))
         return tuple(pairs)
 
