@@ -1,0 +1,49 @@
+{
+  "version": "e017-p0-conservative-observability-finetune/v1",
+  "parent": {
+    "checkpoint_sha256": "c0be8769f75e4b991daa3a71878df72d2e2aaad70b5139abb4190512d6110552",
+    "provenance_sha256": "f25d876c2cf0b670b22e4c09aa561ff4190704411a4c053a089a9bc05804fed2",
+    "parameter_state_sha256": "0d84e3fbf56445a0b6cbfabf46643abce6b8ddd6c152e0534a1870b88eeeaed6",
+    "training_config_sha256": "4b469e1abcab1cb2289a75797b683adb8719e5f510e23681a20a35d9ff10908b",
+    "data_identity_sha256": "ff2ea55bdeac6a4567ec594f6afc201f61cefdfebc2fc70a01e2fb688689b4a9",
+    "corrected_data_identity_sha256": "8c1e82398232ea8a8d439355e113d41fba5a3a4398839a681e5350cc87d7f026",
+    "selected_epoch": 12,
+    "required_role": "formal-training"
+  },
+  "training": {
+    "seed": 17017,
+    "epochs": 8,
+    "batch_size": 32,
+    "learning_rate": 0.0001,
+    "weight_decay": 0.0,
+    "gradient_clip_norm": 1.0,
+    "use_bf16": true,
+    "cache_size": 32,
+    "heatmap_sigma_px": 1.5,
+    "goal_negative_weight": 4.0,
+    "scheduler": "cosine-annealing-eta-min-10-percent/v1",
+    "initialization": "warm-start-e016-p1-selected-epoch-12",
+    "trainable_scope": "uncertainty-final-goal-visibility-and-projection-rows-only/v1",
+    "loss_policy": "weighted-goal-visibility-plus-projection-bce/v1"
+  },
+  "validation_selection": {
+    "policy": "strict-validation-safety-improvement/v1",
+    "visibility_threshold": 0.5,
+    "projection_threshold": 0.5,
+    "goal_unobservable_false_positive_rate_max": 0.01,
+    "goal_visibility_precision_min": 0.99,
+    "goal_visibility_recall_min": 0.9,
+    "projection_accuracy_min": 0.98,
+    "localization_metric_absolute_drift_max": 1e-08,
+    "goal_mask_iou_absolute_drift_max": 1e-08,
+    "selection_order": "min-goal-unobservable-fpr-then-max-recall-then-earlier-epoch"
+  },
+  "execution": {
+    "device": "cuda",
+    "required_gpu": "NVIDIA GeForce RTX 5080",
+    "persist_selected_checkpoint_only": true,
+    "test_split_read_allowed": false,
+    "actuation_allowed": false,
+    "mode": "train-val-only-no-actuation"
+  }
+}
