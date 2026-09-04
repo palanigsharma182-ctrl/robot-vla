@@ -1,0 +1,203 @@
+{
+  "version": "e018-p1-g2a-front-provider-qualification-development/v1",
+  "status": "development-only-provider-qualification-no-formal-claim",
+  "scope": {
+    "gate": "G2A_FRONT_PROVIDER_QUALIFICATION",
+    "test_manifest_metadata_read_allowed": true,
+    "test_trajectory_array_read_allowed": false,
+    "test_label_array_read_allowed": false,
+    "formal_claim_allowed": false,
+    "runtime_gt_control_allowed": false,
+    "live_memory_read_allowed": false,
+    "live_memory_write_allowed": false,
+    "runtime_camera_actuation_allowed": false,
+    "arm_actuation_allowed": false,
+    "manipulation_progression_allowed": false
+  },
+  "parents": {
+    "g0c_config_version": "e018-p1-g0c-rotated-motion-development/v1",
+    "g0c_config_sha256": "c93bbfd48b6d9bc2fc75b5b87e4ded7161efebd7eda50cd81cc2ded47810e965",
+    "g0c_receipt_raw_sha256": "f51602d7504c346854a5512b568b0ec9bbebb4c698e674e80b0db4786dae1900",
+    "g0c_receipt_internal_sha256": "bf8232b620cd5ff8de8c0007391252b8829c3ebbac320a7d5a60507beaca258e",
+    "g0c_gate_passed": true,
+    "e016_config_sha256": "4b469e1abcab1cb2289a75797b683adb8719e5f510e23681a20a35d9ff10908b",
+    "checkpoint_receipt_raw_sha256": "cea7a80f4bb71e054aa5c9a1e776338dea048972420f085b637dfa4f0cfb8c77",
+    "checkpoint_sha256": "c0be8769f75e4b991daa3a71878df72d2e2aaad70b5139abb4190512d6110552",
+    "checkpoint_parameter_sha256": "0d84e3fbf56445a0b6cbfabf46643abce6b8ddd6c152e0534a1870b88eeeaed6",
+    "checkpoint_provenance_sha256": "f25d876c2cf0b670b22e4c09aa561ff4190704411a4c053a089a9bc05804fed2",
+    "model_config_sha256": "4a284a59c8c6d1865910d333597b565183f4d455af520e5edad5a79d5c67d053",
+    "selected_epoch": 12,
+    "source_training_camera": "hand_camera"
+  },
+  "data_identity": {
+    "e013_manifest_sha256": "c5c2925f46f0db0bbea3a32a8cd8de95616dc3ee7d542b8feb28a8cdbdb9faa7",
+    "e016_fresh_manifest_sha256": "47c8acfa2d5b867afc8d45638b30aae019fa9be57b2fc463a4216b9a802a1ff5",
+    "proprio_stats_sha256": "2a1061b3a56edfcfeb6e955a1910dc309ff9b776dc4eb355192661fe628de01e",
+    "proprio_normalizer_sha256": "eb39fa6750a80d4781559e465d694fca411e3a4c11f74cbd09423886735a219e",
+    "finger_force_stats_sha256": "fcc5b4b87aa13919ec261fc5e71a24e1b6446f47abdbc87d4b1bf4f93fe7a9e8",
+    "finger_force_normalizer_sha256": "6de38cb2a3d74c7da581a96712c1eafc974ccf52f4cefb5a339708c30b3e79d5",
+    "wrist_pose_envelope_source_splits": [
+      "train",
+      "val"
+    ],
+    "wrist_pose_envelope_policy": "componentwise-min-max-over-valid-e013-train-val/v1"
+  },
+  "software": {
+    "expected_mani_skill_version": "3.0.1",
+    "expected_sapien_version": "3.0.3"
+  },
+  "environment": {
+    "environment_id": "RobotVLAPickCubeToRegion-v1",
+    "robot_uid": "panda_wristcam",
+    "external_camera_uid": "base_camera",
+    "wrist_camera_uid": "hand_camera",
+    "obs_mode": "rgb+segmentation",
+    "control_mode": "pd_joint_delta_pos",
+    "num_envs": 1,
+    "image_shape_hwc": [
+      128,
+      128,
+      3
+    ],
+    "capture_mode": "static-render-only-no-environment-step/v1"
+  },
+  "sampling": {
+    "seed_policy": "contiguous-unused-development-range/v1",
+    "seeds": [
+      75001, 75002, 75003, 75004, 75005, 75006, 75007, 75008, 75009, 75010,
+      75011, 75012, 75013, 75014, 75015, 75016, 75017, 75018, 75019, 75020,
+      75021, 75022, 75023, 75024, 75025, 75026, 75027, 75028, 75029, 75030,
+      75031, 75032, 75033, 75034, 75035, 75036, 75037, 75038, 75039, 75040,
+      75041, 75042, 75043, 75044, 75045, 75046, 75047, 75048, 75049, 75050
+    ],
+    "known_development_seeds": {
+      "g0": [71001, 71013, 71027, 71039],
+      "g0b": [
+        72001, 72002, 72003, 72004, 72005, 72006, 72007, 72008, 72009, 72010,
+        72011, 72012, 72013, 72014, 72015, 72016, 72017, 72018, 72019, 72020,
+        72021, 72022, 72023, 72024, 72025, 72026, 72027, 72028, 72029, 72030,
+        72031, 72032, 72033, 72034, 72035, 72036, 72037, 72038, 72039, 72040,
+        72041, 72042, 72043, 72044, 72045, 72046, 72047, 72048, 72049, 72050
+      ],
+      "g0c": [73001, 73013, 73027, 73039],
+      "g1a": [74101]
+    },
+    "required_seed_count": 50,
+    "require_disjoint_from_all_manifest_splits": true
+  },
+  "viewpoints": {
+    "native_wrist_control_id": "WRIST_NATIVE",
+    "front_home_id": "HOME__CENTER",
+    "per_scene_capture_order": [
+      "WRIST_NATIVE",
+      "HOME__CENTER",
+      "LEFT_LOW__CENTER",
+      "LEFT_LOW__YAW_LEFT",
+      "LEFT_LOW__YAW_RIGHT",
+      "LEFT_LOW__PITCH_UP",
+      "LEFT_LOW__PITCH_DOWN",
+      "RIGHT_LOW__CENTER",
+      "RIGHT_LOW__YAW_LEFT",
+      "RIGHT_LOW__YAW_RIGHT",
+      "RIGHT_LOW__PITCH_UP",
+      "RIGHT_LOW__PITCH_DOWN"
+    ],
+    "front_qualification_ids": [
+      "HOME__CENTER",
+      "LEFT_LOW__CENTER",
+      "LEFT_LOW__YAW_LEFT",
+      "LEFT_LOW__YAW_RIGHT",
+      "LEFT_LOW__PITCH_UP",
+      "LEFT_LOW__PITCH_DOWN",
+      "RIGHT_LOW__CENTER",
+      "RIGHT_LOW__YAW_LEFT",
+      "RIGHT_LOW__YAW_RIGHT",
+      "RIGHT_LOW__PITCH_UP",
+      "RIGHT_LOW__PITCH_DOWN"
+    ],
+    "g0b_shortlist_order": [
+      "LEFT_LOW__YAW_LEFT",
+      "LEFT_LOW__PITCH_UP",
+      "RIGHT_LOW__YAW_RIGHT",
+      "RIGHT_LOW__YAW_LEFT"
+    ],
+    "primary_tie_break_fields": [
+      "shortlist_tier_ascending",
+      "accepted_safe_coverage_descending",
+      "observable_world_xyz_p90_m_ascending",
+      "observable_world_xyz_max_m_ascending",
+      "absolute_covariance_coverage_minus_0_95_ascending",
+      "visibility_recall_descending",
+      "frozen_shortlist_order_then_primitive_id_ascending"
+    ],
+    "primary_selection_policy": "qualified-then-shortlist-tier-coverage-p90-max-cov95-recall-frozen-order/v1"
+  },
+  "adapter": {
+    "version": "e018-p1-front-provider-role-adapter/v1",
+    "config_sha256": "cb30f6c2c75e57648681fc1f746693e201ffca33c01e6bdad36902ed0ea61d48",
+    "role_substitution_semantics": "base-camera-rgb-and-actual-external-pose-in-model-camera-slots/v1",
+    "frame_convention": "robot-base-from-opencv-optical-camera/v1",
+    "target_camera": "base_camera",
+    "actual_pose_source": "same-observation.sensor_param.base_camera.cam2world_gl/v1",
+    "maximum_rgb_pose_skew_s": 0.01,
+    "maximum_rotation_projection_error_frobenius": 0.000001,
+    "geometric_motion_provider_id": "safe-hold-commanded-tcp-target-delta/simulator-static-zero-measured/v1",
+    "geometric_motion_semantics": "commanded-tcp-target-delta/base-frame/m-rad/v1",
+    "geometric_motion_value": [0.0, 0.0, 0.0, 0.0],
+    "qualification_only": true
+  },
+  "geometry": {
+    "object_center_plane_base_z_m": 0.02,
+    "object_center_plane_tolerance_m": 0.00001,
+    "plane_source": "pick-cube-task-contract-not-runtime-gt/v1",
+    "provider": "same-frame-actual-camera-pose-intrinsic-plane-intersection/v1",
+    "covariance_policy": "xy-jacobian-sigma-95pct-chi-square-5.991/v1",
+    "covariance_chi_square_threshold": 5.991,
+    "maximum_position_std_m": 0.02
+  },
+  "observability": {
+    "support_radius_px": 2,
+    "visibility_threshold": 0.5,
+    "projection_threshold": 0.5,
+    "min_object_mask_probability": 0.5,
+    "max_goal_mask_probability": 0.5,
+    "prediction_rule": "object-visibility-head-threshold/v1",
+    "write_score_diagnostic_threshold": 0.6194030046463013,
+    "write_threshold_source": "e018-p0-development-wrist-calibration-diagnostic-only/v1"
+  },
+  "qualification": {
+    "native_wrist_control_required": true,
+    "front_results_if_native_fails": "inconclusive-native-wrist-control-failed",
+    "minimum_visibility_precision": 0.95,
+    "minimum_visibility_recall": 0.9,
+    "maximum_observable_world_xyz_p90_m": 0.005,
+    "maximum_observable_world_xyz_max_m": 0.02,
+    "safe_world_xyz_error_m": 0.005,
+    "catastrophic_world_xyz_error_m": 0.02,
+    "minimum_gripper_opening_ratio": 0.95,
+    "maximum_finger_contact_n": 0.01,
+    "maximum_unsafe_accepted_count": 0,
+    "maximum_catastrophic_accepted_count": 0,
+    "minimum_accepted_safe_coverage": 0.1,
+    "minimum_covariance_95_coverage": 0.9,
+    "minimum_covariance_evaluable_count": 30,
+    "wrist_pose_ood_is_diagnostic_only": true,
+    "prediction_before_gt_required": true,
+    "zero_qualified_front_policy": "freeze-negative-receipt-no-training/v1"
+  },
+  "execution": {
+    "device": "cuda",
+    "use_bf16": true,
+    "batch_size": 32,
+    "num_workers": 0,
+    "save_rgb": false,
+    "static_qualification_pose_configuration_allowed": true,
+    "environment_step_allowed": false,
+    "runtime_camera_actuation_allowed": false,
+    "provider_training_allowed": false,
+    "memory_read_allowed": false,
+    "memory_write_allowed": false,
+    "manipulation_progression_allowed": false,
+    "require_clean_worktree": true
+  }
+}

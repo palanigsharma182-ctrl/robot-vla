@@ -1,0 +1,71 @@
+{
+  "version": "e018-p1-g1-control-shadow-replay-development/v2",
+  "status": "development-only-stage1-shadow-no-live-consumers",
+  "scope": {
+    "gate": "G1_RESTRICTED_ACTIVE_CONTROL_CONTRACT",
+    "test_split_allowed": false,
+    "formal_claim_allowed": false,
+    "provider_inference_allowed": false,
+    "memory_read_allowed": false,
+    "memory_write_allowed": false,
+    "executive_integration_allowed": false,
+    "camera_actuation_allowed": false,
+    "arm_actuation_allowed": false
+  },
+  "parent_capability": {
+    "gate": "G1A_DYNAMIC_EXTERNAL_OBSERVATION_CAPABILITY",
+    "config_version": "e018-p1-g1a-dynamic-external-observation-probe/v2",
+    "config_sha256": "80a672bf63a43b9714d0757ba5e54bb491e85fa6a01368c4f77686ffa421c929",
+    "receipt_sha256": "afc8aa9cf91cd235136706a1d10c385e68b0fa6942a8a5c3041098a9ab7768dc",
+    "gate_passed": true
+  },
+  "supervisor": {
+    "version": "e018-p1-active-front-reobserve-supervisor/v2",
+    "enabled": true,
+    "selected_primitive_id": "LEFT_LOW__YAW_LEFT",
+    "consecutive_unusable_ticks": 3,
+    "cooldown_ticks": 20,
+    "maximum_attempts_per_episode": 1,
+    "home_v2_barrier_frames": 4,
+    "allowed_source_phases": ["acquire_track", "stabilize_pregrasp"],
+    "post_active_window_phases": [
+      "final_approach",
+      "close_until_contact",
+      "seat_and_balance",
+      "verify_grasp",
+      "lift_clearance",
+      "move_to_goal",
+      "align_for_deposit",
+      "stabilize_held",
+      "lower_to_support",
+      "confirm_support",
+      "release",
+      "retract",
+      "verify_settled"
+    ],
+    "candidate_mode": "shadow-only-no-provider-no-memory/v1"
+  },
+  "replay": {
+    "evidence_source": "synthetic-contract-evidence-no-provider/v1",
+    "success_source_phases": ["acquire_track", "stabilize_pregrasp"],
+    "failure_cases": [
+      "primitive_identity_mismatch",
+      "contact_during_motion",
+      "polluted_home_frame",
+      "source_invariant_failed",
+      "stale_action_history_resume",
+      "motion_timeout"
+    ],
+    "repeat_success_replays": 2
+  },
+  "execution": {
+    "device": "cpu",
+    "simulator_steps_allowed": false,
+    "physical_robot_actuation_allowed": false,
+    "simulated_camera_actuation_allowed": false,
+    "provider_inference_allowed": false,
+    "memory_read_allowed": false,
+    "memory_write_allowed": false,
+    "test_data_read_allowed": false
+  }
+}

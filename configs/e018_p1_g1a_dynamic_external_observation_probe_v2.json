@@ -1,0 +1,78 @@
+{
+  "version": "e018-p1-g1a-dynamic-external-observation-probe/v2",
+  "status": "development-only-g1a-no-provider-no-memory-no-formal-claim",
+  "scope": {
+    "gate": "G1A_DYNAMIC_EXTERNAL_OBSERVATION_CAPABILITY",
+    "test_split_allowed": false,
+    "formal_claim_allowed": false,
+    "runtime_gt_control_allowed": false,
+    "provider_inference_allowed": false,
+    "memory_read_allowed": false,
+    "memory_write_allowed": false,
+    "executive_mutation_allowed": false
+  },
+  "parent_motion": {
+    "gate": "G0C_ROTATED_POSE_MOTION_FEASIBILITY",
+    "config_version": "e018-p1-g0c-rotated-motion-development/v1",
+    "config_sha256": "c93bbfd48b6d9bc2fc75b5b87e4ded7161efebd7eda50cd81cc2ded47810e965",
+    "receipt_sha256": "bf8232b620cd5ff8de8c0007391252b8829c3ebbac320a7d5a60507beaca258e",
+    "gate_passed": true,
+    "library_status": "provisional-development-not-frozen"
+  },
+  "software": {
+    "expected_mani_skill_version": "3.0.1",
+    "expected_sapien_version": "3.0.3"
+  },
+  "environment": {
+    "environment_id": "RobotVLAPickCubeToRegion-v1",
+    "robot_uid": "panda_wristcam",
+    "camera_uid": "base_camera",
+    "obs_mode": "rgb+segmentation",
+    "control_mode": "pd_joint_delta_pos",
+    "num_envs": 1,
+    "control_hz": 20
+  },
+  "probe": {
+    "usage": "simulator-development-capability-probe-only/v1",
+    "seed": 74101,
+    "selected_primitive_id": "LEFT_LOW__YAW_LEFT",
+    "selection_policy": "fixed-before-probe-from-g0b-shortlist/v1",
+    "warmup_ticks": 5,
+    "move_duration_s": 2.0,
+    "settle_ticks": 4,
+    "repeat_capture_ticks": 4,
+    "home_barrier_ticks": 4,
+    "center_ray_support_radius_px": 2,
+    "save_rgb": true,
+    "offline_gt_diagnostics": true
+  },
+  "gates": {
+    "maximum_rgb_pose_skew_s": 0.0,
+    "minimum_alternate_rgb_mean_abs_difference": 5.0,
+    "maximum_intra_pose_rgb_mean_abs_difference": 0.1,
+    "maximum_return_home_rgb_mean_abs_difference": 0.1,
+    "camera_position_tracking_tolerance_m": 0.00001,
+    "camera_orientation_tracking_tolerance_rad": 0.0001,
+    "maximum_rotation_projection_error_frobenius": 0.000001,
+    "maximum_base_camera_round_trip_error_m": 1e-9,
+    "maximum_static_object_base_drift_m": 0.000001,
+    "minimum_center_ray_entity_fraction": 1.0,
+    "arm_joint_drift_max_rad": 0.00001,
+    "tcp_position_drift_max_m": 0.00001,
+    "tcp_orientation_drift_max_rad": 0.0001,
+    "minimum_open_finger_joint_position_m": 0.039,
+    "unexpected_finger_contact_max_n": 0.01
+  },
+  "execution": {
+    "device": "cuda",
+    "physical_robot_actuation_allowed": false,
+    "arm_motion_command_allowed": false,
+    "gripper_command_mode": "safe-hold-open",
+    "simulated_external_camera_motion_allowed": true,
+    "provider_inference_allowed": false,
+    "memory_read_allowed": false,
+    "memory_write_allowed": false,
+    "manipulation_progression_allowed": false,
+    "test_data_read_allowed": false
+  }
+}
