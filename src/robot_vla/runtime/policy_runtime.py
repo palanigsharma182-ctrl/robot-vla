@@ -8,11 +8,12 @@ from typing import Any
 import numpy as np
 import torch
 
-from robot_vla.adapters import ActionAdapter, ProprioNormalizer
+from robot_vla.adapters import ActionAdapter, FingerForceNormalizer, ProprioNormalizer
 from robot_vla.contracts import RobotSpec
 from robot_vla.execution.rtc import RTCConfig, RTCTrace, build_rtc_trace
-from robot_vla.model.policy import QwenVLAPolicy
+from robot_vla.model.policy import QwenVLAObservationV2Policy, QwenVLAPolicy
 from robot_vla.model.qwen_processor import QwenVLAProcessorAdapter
+from robot_vla.observation import ObservationV2Window
 
 
 @dataclass(frozen=True)
@@ -49,7 +50,7 @@ class SamplingTrace:
 class RuntimeActionChunk:
     normalized_action: np.ndarray
     physical_action: np.ndarray
-    visual_tokens_per_image: tuple[int, int]
+    visual_tokens_per_image: tuple[int, ...]
     context_length: int
     sampling: SamplingTrace
     rtc_trace: RTCTrace | None = None
@@ -65,6 +66,28 @@ def _move_model_inputs(value: Any, device: torch.device) -> Any:
     if isinstance(value, tuple):
         return tuple(_move_model_inputs(item, device) for item in value)
     return value
+
+
+def _validate_physical_proprio(value: np.ndarray, spec: RobotSpec) -> np.ndarray:
+    physical = np.asarray(value)
+    if physical.shape != (spec.proprio_dim,):
+        raise ValueError(
+            f"physical_proprio 应为 [{spec.proprio_dim}]，实际为 {physical.shape}"
+        )
+    if physical.dtype != np.float32 or not np.isfinite(physical).all():
+        raise ValueError("physical_proprio 必须是有限 float32 向量")
+    arm_q = physical[: spec.arm_dof]
+    arm_dq = physical[spec.arm_dof : spec.arm_dof * 2]
+    gripper = physical[-1]
+    position_limits = np.asarray(spec.joint_position_limits_rad, dtype=np.float32)
+    velocity_limits = np.asarray(spec.joint_velocity_limits_rad_s, dtype=np.float32)
+    if np.any(arm_q < position_limits[:, 0] - 1e-5) or np.any(
+        arm_q > position_limits[:, 1] + 1e-5
+    ):
+        raise ValueError("physical_proprio q 超出 Franka 关节位置限制")
+    if np.any(np.abs(arm_dq) > velocity_limits + 1e-5) or not 0.0 <= gripper <= 1.0:
+        raise ValueError("physical_proprio dq 或 gripper 超出 Franka 契约限制")
+    return physical
 
 
 class QwenVLARuntime:
@@ -136,25 +159,10 @@ class QwenVLARuntime:
         rtc_config: RTCConfig | None = None,
     ) -> RuntimeActionChunk:
         sampling = self._next_sampling_trace()
-        physical_proprio = np.asarray(observation.physical_proprio)
-        if physical_proprio.shape != (self.spec.proprio_dim,):
-            raise ValueError(
-                f"physical_proprio 应为 [{self.spec.proprio_dim}]，"
-                f"实际为 {physical_proprio.shape}"
-            )
-        if physical_proprio.dtype != np.float32 or not np.isfinite(physical_proprio).all():
-            raise ValueError("physical_proprio 必须是有限 float32 向量")
-        arm_q = physical_proprio[: self.spec.arm_dof]
-        arm_dq = physical_proprio[self.spec.arm_dof : self.spec.arm_dof * 2]
-        gripper = physical_proprio[-1]
-        position_limits = np.asarray(self.spec.joint_position_limits_rad, dtype=np.float32)
-        velocity_limits = np.asarray(self.spec.joint_velocity_limits_rad_s, dtype=np.float32)
-        if np.any(arm_q < position_limits[:, 0] - 1e-5) or np.any(
-            arm_q > position_limits[:, 1] + 1e-5
-        ):
-            raise ValueError("physical_proprio q 超出 Franka 关节位置限制")
-        if np.any(np.abs(arm_dq) > velocity_limits + 1e-5) or not 0.0 <= gripper <= 1.0:
-            raise ValueError("physical_proprio dq 或 gripper 超出 Franka 契约限制")
+        physical_proprio = _validate_physical_proprio(
+            observation.physical_proprio,
+            self.spec,
+        )
         normalized_proprio = self.proprio_normalizer.normalize(physical_proprio)
         processed = self.processor_adapter.encode(
             observation.rgb_external,
@@ -232,6 +240,158 @@ class QwenVLARuntime:
         physical_action = self.action_adapter.denormalize(normalized_action)
         if len(processed.visual_tokens_per_image) != 1 or len(processed.context_lengths) != 1:
             raise RuntimeError("Processor 返回的在线 batch metadata 无效")
+        return RuntimeActionChunk(
+            normalized_action=normalized_action.copy(),
+            physical_action=physical_action.copy(),
+            visual_tokens_per_image=processed.visual_tokens_per_image[0],
+            context_length=int(processed.context_lengths[0]),
+            sampling=sampling,
+            rtc_trace=rtc_trace,
+        )
+
+
+class QwenVLAObservationV2Runtime(QwenVLARuntime):
+    """消费四步同步 ObservationV2Window 的在线推理链路。"""
+
+    def __init__(
+        self,
+        policy: QwenVLAObservationV2Policy,
+        processor_adapter: QwenVLAProcessorAdapter,
+        proprio_normalizer: ProprioNormalizer,
+        finger_force_normalizer: FingerForceNormalizer,
+        spec: RobotSpec,
+        device: str | torch.device,
+        config: RuntimeConfig | None = None,
+    ) -> None:
+        if not isinstance(policy, QwenVLAObservationV2Policy):
+            raise TypeError("Observation V2 Runtime 必须使用 QwenVLAObservationV2Policy")
+        super().__init__(
+            policy,
+            processor_adapter,
+            proprio_normalizer,
+            spec,
+            device,
+            config,
+        )
+        self.policy: QwenVLAObservationV2Policy
+        self.finger_force_normalizer = finger_force_normalizer
+
+    @torch.no_grad()
+    def infer_action_chunk(
+        self,
+        observation: ObservationV2Window,
+        *,
+        rtc_previous_overlap: np.ndarray | None = None,
+        rtc_config: RTCConfig | None = None,
+    ) -> RuntimeActionChunk:
+        if not isinstance(observation, ObservationV2Window):
+            raise TypeError("Observation V2 Runtime 只接受 ObservationV2Window")
+        sampling = self._next_sampling_trace()
+        observation.validate(self.spec, require_current_complete=True)
+        if observation.history_length != self.policy.expert.config.history_length:
+            raise ValueError("Observation/Temporal Expert history_length 不一致")
+        _validate_physical_proprio(observation.physical_proprio[-1], self.spec)
+        normalized_proprio = np.zeros_like(observation.physical_proprio)
+        valid_proprio = observation.history_valid & observation.modality_valid[:, 2]
+        normalized_proprio[valid_proprio] = self.proprio_normalizer.normalize(
+            observation.physical_proprio[valid_proprio]
+        )
+        normalized_finger_force = np.zeros_like(observation.finger_force_n)
+        valid_finger_force = observation.history_valid & observation.modality_valid[:, 5]
+        normalized_finger_force[valid_finger_force] = (
+            self.finger_force_normalizer.normalize(
+                observation.finger_force_n[valid_finger_force]
+            )
+        )
+        state_history = observation.frame_state(
+            normalized_proprio,
+            normalized_finger_force,
+        )
+        controller_state = observation.controller_state()
+        processed = self.processor_adapter.encode_history(
+            observation.rgb_external,
+            observation.rgb_wrist,
+            observation.history_valid,
+            observation.instruction,
+        )
+        model_inputs = _move_model_inputs(processed.model_inputs, self.device)
+        state_tensor = torch.from_numpy(state_history).unsqueeze(0).to(self.device)
+        state_mask_tensor = torch.from_numpy(observation.history_valid).unsqueeze(0).to(
+            self.device
+        )
+        controller_tensor = torch.from_numpy(controller_state).unsqueeze(0).to(self.device)
+        generator = torch.Generator(device=self.device)
+        generator.manual_seed(sampling.seed)
+
+        self.policy.eval()
+        rtc_trace: RTCTrace | None = None
+        if rtc_previous_overlap is not None and rtc_config is None:
+            raise ValueError("提供 rtc_previous_overlap 时必须同时提供 rtc_config")
+        if rtc_config is not None and rtc_config.execution_horizon != self.spec.execute_steps:
+            raise ValueError("首版 RTC execution_horizon 必须等于 RobotSpec.execute_steps")
+        with torch.autocast(
+            device_type=self.device.type,
+            dtype=torch.bfloat16,
+            enabled=self.config.use_bf16,
+        ):
+            if rtc_config is not None and rtc_previous_overlap is not None:
+                previous = np.asarray(rtc_previous_overlap, dtype=np.float32)
+                expected_overlap = self.spec.action_horizon - self.spec.execute_steps
+                if previous.shape != (expected_overlap, self.spec.action_dim):
+                    raise ValueError(
+                        "rtc_previous_overlap 应为 "
+                        f"[{expected_overlap},{self.spec.action_dim}]"
+                    )
+                target = np.zeros(
+                    (self.spec.action_horizon, self.spec.action_dim),
+                    dtype=np.float32,
+                )
+                target[:expected_overlap] = previous
+                weights = rtc_config.slot_weights(self.spec.action_horizon)
+                rtc_sample = self.policy.sample_actions_rtc(
+                    model_inputs,
+                    state_tensor,
+                    torch.from_numpy(target).unsqueeze(0).to(self.device),
+                    torch.from_numpy(weights).unsqueeze(0).to(self.device),
+                    state_history_mask=state_mask_tensor,
+                    controller_state=controller_tensor,
+                    generator=generator,
+                    num_steps=self.config.num_flow_steps,
+                    max_guidance_weight=rtc_config.max_guidance_weight,
+                )
+                normalized_tensor = rtc_sample.guided_action
+                raw_tensor = rtc_sample.raw_action
+                guidance_coefficients = rtc_sample.guidance_coefficients
+            else:
+                normalized_tensor = self.policy.sample_actions(
+                    model_inputs,
+                    state_tensor,
+                    state_history_mask=state_mask_tensor,
+                    controller_state=controller_tensor,
+                    generator=generator,
+                    num_steps=self.config.num_flow_steps,
+                )
+                raw_tensor = normalized_tensor
+                guidance_coefficients = ()
+        normalized_action = normalized_tensor[0].float().cpu().numpy()
+        raw_action = raw_tensor[0].float().cpu().numpy()
+        expected_action = (self.spec.action_horizon, self.spec.action_dim)
+        if normalized_action.shape != expected_action or not np.isfinite(
+            normalized_action
+        ).all():
+            raise RuntimeError("Policy 返回的 normalized Action Chunk 无效")
+        if rtc_config is not None:
+            rtc_trace = build_rtc_trace(
+                rtc_config,
+                action_horizon=self.spec.action_horizon,
+                previous_overlap=rtc_previous_overlap,
+                raw_action=raw_action,
+                guided_action=normalized_action,
+                denoising_guidance_coefficients=guidance_coefficients,
+            )
+        physical_action = self.action_adapter.denormalize(normalized_action)
+        if len(processed.visual_tokens_per_image) != 1 or len(processed.context_lengths) != 1:
+            raise RuntimeError("Processor 返回的在线 V2 batch metadata 无效")
         return RuntimeActionChunk(
             normalized_action=normalized_action.copy(),
             physical_action=physical_action.copy(),

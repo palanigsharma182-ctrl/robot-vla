@@ -5,6 +5,7 @@ from robot_vla.model.qwen_processor import (
     QwenProcessorConfig,
     QwenVLAProcessorAdapter,
     build_qwen_conversation,
+    build_qwen_history_conversation,
 )
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "QwenProcessorConfig",
     "QwenVLAProcessorAdapter",
     "build_qwen_conversation",
+    "build_qwen_history_conversation",
 ]

@@ -6,6 +6,10 @@ from dataclasses import dataclass, replace
 
 import numpy as np
 
+from robot_vla.executive.shadow import (
+    ShadowExecutiveObservation,
+    ShadowExecutiveObserver,
+)
 from robot_vla.execution.chunk_executor import (
     ChunkExecutionResult,
     FrankaController,
@@ -37,6 +41,8 @@ class ReplanResult:
     ensemble_trace: TemporalEnsembleTrace | None = None
     anomaly_replan_count: int = 0
     inference_strategy: ChunkInferenceStrategy = ChunkInferenceStrategy.TEMPORAL_ENSEMBLE
+    shadow_observation: ShadowExecutiveObservation | None = None
+    shadow_error: str | None = None
 
 
 @dataclass(frozen=True)
@@ -56,6 +62,7 @@ class QwenVLAReplanLoop:
         recency_decay: float = 0.5,
         rtc_config: RTCConfig | None = None,
         max_anomaly_replans: int = 3,
+        shadow_observer: ShadowExecutiveObserver | None = None,
     ) -> None:
         if max_anomaly_replans < 0:
             raise ValueError("max_anomaly_replans 不能为负数")
@@ -79,14 +86,44 @@ class QwenVLAReplanLoop:
         self.control_step = 0
         self._consecutive_anomaly_replans = 0
         self._rtc_previous_chunk: _RTCStoredChunk | None = None
+        self.shadow_observer = shadow_observer
+        self._shadow_reset_error: str | None = None
 
     def reset(self) -> None:
         """清空跨 Chunk 历史；每个新 Episode 必须从普通 Flow 开始。"""
 
         self.ensembler.clear()
+        self.executor.reset()
         self._rtc_previous_chunk = None
         self.control_step = 0
         self._consecutive_anomaly_replans = 0
+        self._shadow_reset_error = None
+        if self.shadow_observer is not None:
+            try:
+                self.shadow_observer.reset()
+            except Exception as error:  # noqa: BLE001 - shadow 失败不得阻断 Runtime reset
+                self._shadow_reset_error = f"{type(error).__name__}: {error}"
+
+    def _observe_shadow(
+        self,
+        observation: object,
+        *,
+        control_step: int,
+    ) -> tuple[ShadowExecutiveObservation | None, str | None]:
+        if self.shadow_observer is None:
+            return None, None
+        if self._shadow_reset_error is not None:
+            return None, self._shadow_reset_error
+        try:
+            return (
+                self.shadow_observer.observe(
+                    observation,
+                    control_step=control_step,
+                ),
+                None,
+            )
+        except Exception as error:  # noqa: BLE001 - 最后一道 action-parity 隔离
+            return None, f"{type(error).__name__}: {error}"
 
     def _rtc_previous_overlap(self) -> np.ndarray | None:
         previous = self._rtc_previous_chunk
@@ -103,6 +140,7 @@ class QwenVLAReplanLoop:
         execution: ChunkExecutionResult,
     ) -> ChunkExecutionResult:
         self.ensembler.clear()
+        self.executor.reset()
         self._rtc_previous_chunk = None
         if self.max_anomaly_replans == 0:
             anomaly_kind = (
@@ -159,12 +197,18 @@ class QwenVLAReplanLoop:
                 error=error,
             )
             execution = self._handle_anomaly(execution)
+            shadow_observation, shadow_error = self._observe_shadow(
+                observation,
+                control_step=origin_control_step,
+            )
             return ReplanResult(
                 action_chunk=None,
                 execution=execution,
                 sampling=self.runtime.last_sampling_trace,
                 anomaly_replan_count=self._consecutive_anomaly_replans,
                 inference_strategy=self.inference_strategy,
+                shadow_observation=shadow_observation,
+                shadow_error=shadow_error,
             )
         ensemble = None
         ensembled_chunk = chunk
@@ -193,6 +237,10 @@ class QwenVLAReplanLoop:
                     origin_control_step=origin_control_step,
                     normalized_action=ensembled_chunk.normalized_action.copy(),
                 )
+        shadow_observation, shadow_error = self._observe_shadow(
+            observation,
+            control_step=origin_control_step,
+        )
         return ReplanResult(
             action_chunk=ensembled_chunk,
             execution=execution,
@@ -200,4 +248,6 @@ class QwenVLAReplanLoop:
             ensemble_trace=None if ensemble is None else ensemble.trace,
             anomaly_replan_count=self._consecutive_anomaly_replans,
             inference_strategy=self.inference_strategy,
+            shadow_observation=shadow_observation,
+            shadow_error=shadow_error,
         )

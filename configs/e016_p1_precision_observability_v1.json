@@ -1,0 +1,121 @@
+{
+  "version": "e016-p1-formal-precision/v1",
+  "prerequisite": {
+    "p0_version": "e016-p0-corrected-observability/v1",
+    "p0_receipt_sha256": "04ba46f10a3bc04c997597ac8906e277eb2c272778d2e0936c87d318dc1d0125",
+    "p0_training_config_sha256": "660126c3b2eac3ae8e920f3f76c02bf0b239499e7032e581b95e14a3bca28580",
+    "corrected_sidecar_audit_sha256": "39bbf9a5f3a8e381c63b79c74458c412e62e0a19ca5ba121b21facc6e20a5945",
+    "corrected_data_identity_sha256": "8c1e82398232ea8a8d439355e113d41fba5a3a4398839a681e5350cc87d7f026",
+    "require_p0_passed": true,
+    "require_p0_checkpoint_absent": true
+  },
+  "source": {
+    "allowed_splits": ["train", "val"],
+    "excluded_splits": ["test"],
+    "expected_trajectory_counts": {
+      "train": 24,
+      "val": 6
+    },
+    "expected_sample_counts": {
+      "train": 4776,
+      "val": 1167
+    },
+    "image_height": 128,
+    "image_width": 128,
+    "model_camera": "hand_camera",
+    "precision_dataset_version": "robot-vla-precision-rgb-dataset/v1",
+    "precision_label_schema_version": "robot-vla-precision-label-sidecar/v1",
+    "corrected_label_schema_version": "e016-corrected-observability-sidecar/v1"
+  },
+  "observability": {
+    "goal_exists_policy": "static-goal-present-every-frame/v1",
+    "semantics": "projected-center-ray-hits-own-goal-mask/v1",
+    "support_radius_px": 2,
+    "goal_localization_policy": "observable-only/v1",
+    "mask_supervision_policy": "visible-instance-pixels-independent-of-center/v1"
+  },
+  "loss": {
+    "heatmap_weight": 1.0,
+    "mask_weight": 0.5,
+    "mask_dice_weight": 1.0,
+    "coordinate_weight": 2.0,
+    "motion_weight": 1.0,
+    "uncertainty_weight": 0.1,
+    "visibility_weight": 1.0,
+    "projection_weight": 1.0,
+    "keypoint_temperature": 1.0
+  },
+  "formal_training": {
+    "seed": 16018,
+    "epochs": 20,
+    "batch_size": 32,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.0001,
+    "gradient_clip_norm": 1.0,
+    "use_bf16": true,
+    "num_workers": 0,
+    "cache_size": 32,
+    "heatmap_sigma_px": 1.5,
+    "scheduler": "cosine-annealing-eta-min-5-percent/v1",
+    "initialization": "random-from-scratch",
+    "motion_head_policy": "frozen-zero-shadow-only",
+    "selection_metric": "val_goal_observable_normalized_uv_mae",
+    "selection_tie_break": "earlier_epoch"
+  },
+  "validation_selection": {
+    "policy": "all-observability-guardrails-then-min-goal-uv-mae/v1",
+    "visibility_threshold": 0.5,
+    "projection_threshold": 0.5,
+    "goal_unobservable_false_positive_rate_max": 0.01,
+    "goal_visibility_precision_min": 0.99,
+    "goal_visibility_recall_min": 0.9,
+    "projection_accuracy_min": 0.98,
+    "goal_mask_iou_min": 0.5,
+    "require_all_guardrails": true
+  },
+  "fresh_held_out": {
+    "start_seed": 134000,
+    "max_candidates": 1000,
+    "collector_train_trajectories": 1,
+    "validation_trajectories": 20,
+    "test_trajectories": 100,
+    "validation_split": "val",
+    "test_split": "test",
+    "collector_train_usage": "collector-contract-only-never-training/v1",
+    "validation_usage": "write-threshold-and-memory-age-calibration-only/v1",
+    "test_policy": "single-claim-before-test-label-or-model-read/v1",
+    "legacy_e013_e015_test_reuse_allowed": false
+  },
+  "memory_replay": {
+    "safe_world_xy_error_m": 0.005,
+    "catastrophic_world_xy_error_m": 0.02,
+    "min_goal_mask_probability": 0.5,
+    "max_object_mask_probability": 0.5,
+    "score_semantics": "min-visibility-projection-goal-mask-not-object-not-entropy-inverse-sigma/v1",
+    "threshold_policy": "maximum-coverage-zero-unsafe-on-fresh-validation/v1",
+    "frame_semantics": "position/robot-base/m/v1",
+    "update_policy": "direct-replace-reliable-hold-occluded/v1",
+    "max_innovation_m": 0.01,
+    "max_position_std_m": 0.02,
+    "require_covariance": true,
+    "covariance_growth_m2_per_s": 0.0,
+    "max_unobserved_age_candidates_s": [0.25, 0.5, 1.0, 2.0, 5.0, 10.0],
+    "age_policy": "maximum-occluded-coverage-zero-catastrophic-on-fresh-validation/v1"
+  },
+  "success_criteria": {
+    "validation_unsafe_write_count_max": 0,
+    "test_unsafe_write_count_max": 0,
+    "test_memory_catastrophic_count_max": 0,
+    "episode_reset_leakage_count_max": 0,
+    "require_memory_unobservable_coverage_improvement": true,
+    "actuator_promotion_allowed": false
+  },
+  "execution": {
+    "device": "cuda",
+    "required_gpu": "NVIDIA GeForce RTX 4090",
+    "use_bf16": true,
+    "persist_selected_checkpoint_only": true,
+    "actuation_allowed": false,
+    "mode": "formal-train-then-shadow-replay"
+  }
+}

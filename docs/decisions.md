@@ -1309,6 +1309,253 @@ technical report 已生成。Stage A/repeat 2/Stage B/matched-state selected-pai
 
 **Status:** active
 
+## D028 — 最小可部署状态使用显式 Observation V2，Action 以 commanded target 为唯一标签语义
+
+**Decision:**
+
+保留 Expert 历史标签 `a_t = r_t - r_(t-1)`，其中 `r` 是 commanded joint target。Runtime 不再在每次
+Replan 时从 actual `q_t` 重新解释 Action；它跨 Replan 保存最后一次成功 command reference，先积分标签得到
+新 target，再以 `target - actual` 计算 controller correction。reset、hold、failure、tracking saturation 和
+anomaly 清空 reference。
+
+新建 `robot-vla-observation/v2` / `qwen_vla_temporal_state_fusion_v2`，固定输入为最近四个连续控制步的
+双相机图像、proprio、base-frame TCP pose、OpenCV optical wrist-camera pose、左右 finger–cube pairwise
+contact-force magnitude、时间/validity，以及 current controller state。Episode 起点使用前缀零 padding；
+当前六模态必须完整，历史缺失模态必须零化并显式标记。位姿在模型中用 position + Rotation-6D，在数据
+审计中保留可复算的 SE(3) 来源。
+
+`F_L/F_R` 只从 train split 的有效值拟合版本化 `log1p / positive-P95` 稳健尺度；零接触不去中心。该
+FingerForceStats 是 V2 checkpoint identity 的一部分。旧 D0 只有 aggregate force，不能复制成左右值；V2
+Dataset 对缺失状态 fail closed。V1 schema/checkpoint 继续可读，但不得与 V2 policy、stats 或 prompt 混用。
+
+**Reason:**
+
+旧 Runtime 把 command-relative Expert label 当成 actual-relative correction，跟踪滞后时会让相同 Action 在
+训练和执行指向不同 target。与此同时，单帧双图与关节状态无法显式观察末端几何、腕部视角运动、接触
+不对称和历史速度线索，controller lag 也与策略动作混在一起。先修 correctness，再以独立版本增加最小状态，
+可以避免把控制 bug、伪造数据或 checkpoint 兼容问题误归因为模型能力。
+
+**Alternatives considered:**
+
+- 把 Expert 标签改成 `target - actual`：会重写已采集监督语义，并把 controller dynamics 混入策略目标，拒绝。
+- 每次 Replan 从 actual q 重新锚定：正是现有不一致，拒绝。
+- 用旧 aggregate contact force 同时填 `F_L/F_R`：无法恢复接触不对称，属于伪造观测，拒绝。
+- 用首帧复制填满四步历史：制造不存在的静止历史，并改变 Episode 起点分布，拒绝。
+- 原地扩展 V1 checkpoint：状态 token、visual time embedding 和 force stats 都改变参数/输入身份，拒绝隐式兼容。
+
+**Implementation status:** command-reference executor、V2 schema/history/coordinate helpers、Dataset/Collator、
+Temporal Expert、八图 Processor、Runtime、ManiSkill adapter、train/eval CLI、force stats、checkpoint identity、
+TCP FK orientation diagnostic 和 fail-closed tests 已实现。当前轻依赖回归为 `313 passed, 18 skipped`；真实
+PyTorch/Qwen/ManiSkill GPU smoke、新 D0-V2 audit 和正式 paired training 尚未运行。
+
+**Status:** active
+
+## D029 — 2 mm 精定位从 VLA Action 中拆出，三头 U-Net Motion Head 先 shadow
+
+**Decision:**
+
+E013 在正式数据采集和训练开始前改为两时间尺度架构。低频 Qwen/VLA 继续负责指令、object/goal、技能、
+粗 ROI 和 coarse approach；进入 fine alignment 后由高频 precision layer 独占位置控制权。Precision layer
+直接读取腕部原始高分辨率 ROI，以三头 U-Net 输出稠密关键点/mask、base-frame 四维 TCP metric residual
+和逐关键点/逐轴不确定性；目标像素先经过冻结 OpenCV 相机模型与平面几何生成 geometry delta。
+
+新的笛卡尔动作语义固定为
+`commanded-tcp-target-delta/base-frame/m-rad/v1`，与 D028 的 commanded joint-target delta 明确隔离。
+Residual Head 最后一层零初始化；第一阶段只允许 `shadow`，正式候选命令等于 clipped geometry delta。
+只有独立 shadow/calibration gate 通过后，才能在新实验身份中启用每轴硬限幅的 bounded residual。
+四帧第一版在网络外对关键点、camera pose 和 timestamp 做状态估计；不把双相机八图继续送入 Qwen 或
+直接堆进 U-Net。`F_L/F_R` 只在 contact mode 参与接触、偏载和滑脱控制。
+
+**Reason:**
+
+E008 Layer 12 的 world-XY median/p90 为 `25.3/38.8 mm`，距离 2 mm p90 目标约 19 倍；Layer 24 更差。
+增加 Qwen 层、KV 或帧数不能恢复视觉 patch/merge 已丢失的空间带宽，也不能消除相机标定、TCP、控制
+跟踪和接触误差。当前任务是已知桌面平面和受限物体几何，专用高分辨率 dense perception + 显式几何
+可以分别验证 pixel、world、controller 和 final placement 误差。Shadow residual 保留学习系统偏差的能力，
+同时避免再次把 Action label、坐标变换和控制动态混进不可审计的端到端 head。
+
+**Alternatives considered:**
+
+- 继续 sweep Qwen Layer 12/24 或使用 24 层 KV：没有度量坐标约束，且现有证据离 2 mm 太远，拒绝作为
+  主精定位路径。
+- 四帧双相机八图继续进入 Frozen Qwen：增加计算但不改变原始空间采样，旧 E013 在执行前 supersede。
+- U-Net 直接输出不受限 Cartesian/Joint Action：重新混合感知、标签语义、IK 和控制误差，拒绝。
+- 第一版立即启用 learned residual：没有 shadow calibration 和闭环证据，拒绝。
+- 只使用单一 confidence sigmoid：无法区分遮挡、像素、投影和 motion uncertainty，拒绝。
+
+**Implementation status:** `robot_vla.precision` 已加入动作契约、OpenCV base-plane 几何、三头 U-Net、
+soft-argmax、heteroscedastic loss 和 fail-closed shadow/bounded-residual 仲裁；轻依赖合成测试已通过。
+当前本机缺少 PyTorch，模型 forward/backward 测试只可静态编译并明确 skip；ManiSkill camera receipt、
+oracle/HSV/RGB-only 数据、训练、Cartesian IK、四帧 filter、force controller 和 2 mm 闭环验证均未完成。
+
+**Status:** superseded by D030 before formal E013 data collection or evaluation
+
+## D030 — E013 以厘米级闭环精调为正式目标，工程可用档为底线
+
+**Decision:**
+
+保留 D029 的两时间尺度架构、三头 U-Net、显式几何、shadow residual、控制权互斥和 `F_L/F_R`
+contact 边界，但取消系统级 `p90 <= 2 mm` 的项目成败要求。E013 按同一最终 object→goal world-XY
+误差分三档：
+
+- engineering floor：p50 `<=15 mm` 且 p90 `<=25 mm`，是可接受底线；
+- recommended portfolio target：p50 `<=12 mm`、p90 `<=20 mm`，且 within-20-mm rate `>=90%`；
+- optional stretch：p50 `<=10 mm` 且 p90 `<=15 mm`，只作附加结果，不阻断项目完成。
+
+正式评估至少使用 100 个预注册 unseen paired Episode。任务失败有可测最终位置时必须进入误差统计；
+invalid projection、system/safety/tracking failure、控制器重叠或 stale-observation command 任一非零都阻断
+promotion。精调环最低要求为有效 `20 Hz` 和端到端 `p95 <=50 ms`；30 Hz 是可选性能目标，不要求
+60 Hz。E008 Layer-12 `25.3/38.8 mm` p50/p90 是线性空间 probe 的固定诊断参考，不是最终放置
+baseline；正式相对改善必须由相同 unseen paired seeds 上实际运行的 coarse-only control 复算，不在结果后
+替换 control 或误用 probe 代理。
+
+**Reason:**
+
+个位数毫米系统精度会把主要工作转化为计量级相机/TCP/手眼标定、机械回差与柔性补偿、高带宽实时控制
+和外部真值测量，超出当前求职项目的合理范围，也不是 π0.5 类基础操作系统通常用来证明语义泛化和长程
+任务能力的核心指标。`12/20 mm` 推荐档仍是严格的厘米级系统目标；相对效果必须与正式 coarse-only
+control 配对计算，并能充分展示粗到精控制、Observation V2、动作语义、动态相机几何、时间同步、
+uncertainty gate 和接触反馈。工程底线与推荐目标分开报告，避免为追求单一数字删除失败样本或临时
+放宽安全门禁。
+
+**Alternatives considered:**
+
+- 继续以 2 mm 为硬门槛：硬件、标定和真实测量成本过高，且会掩盖层级 VLA/闭环执行的求职价值，拒绝。
+- 完全删除精调层：无法验证相对正式 coarse-only control 的厘米级闭环改善，也失去控制语义和多速率
+  系统的核心工程贡献，拒绝。
+- 只报告平均误差或挑选成功 Episode：会隐藏长尾和系统失败，拒绝。
+- 因目标放宽而恢复旧八图 Layer-12 方案：旧 smoke 不是最终闭环，并且不解决控制权、相机几何或接触，
+  拒绝。
+
+**Implementation status:** RGB-only deployable/privileged Dataset、四时刻 Provider、formal-training
+checkpoint、confidence calibration、held-out perception 与 20 Hz no-actuation observer 已实现并正式运行。
+步骤 1–8 通过；100-seed 步骤 9 只形成 95 个 pair，并出现 5 个 Expert/collector rejection 与 7 次
+`>50 ms` deadline miss，因此 promotion 按冻结 gate 停止。Cartesian IK、force controller、Motion Head
+bounded residual、Precision actuator 和 final-placement 效果仍未实现或验证，不能把 offline GT-plane
+held-out XY 误差写成目标档位已达到。
+
+**Status:** active
+
+## D031 — v1.0 将层级执行与 E013 精度归因分离
+
+**Decision:**
+
+`qwen-vla-v1.0` 只在 E013 通过正式闭环门禁后开始效果实验，并以其冻结 Observation V2、状态估计、
+Precision、Force、Geometry 和 Controller 契约为不可变 parent。v1.0 使用一个共享 Action Expert、四个
+宏观子任务和一个横切恢复状态；确定性 Subtask Executive 是 phase transition 的唯一提交者，Qwen 只
+提供 schema 化 semantic proposal，Safety 保留动作否决权。第一正式 treatment 只引入 subtask/phase
+condition、显式 Executive、关键不可逆动作门控和有限恢复；control 使用参数量匹配的 null condition，
+两臂从同一 E013 checkpoint 派生并配对训练/评估。
+
+开发按契约回放、shadow、Expert condition、不可逆门控、完整 Executive、独立 paired evaluation 逐级
+推进。Runtime 不得读取仿真隐藏 GT；旧数据不得补造缺失的力、相机或 phase 字段。完整范围、Gate、
+资源和发布条件记录在 [`roadmap.md`](roadmap.md)。
+
+**Reason:**
+
+E008–E012 已显示空间表示改善、checkpoint 选择和 boundary recovery 都不能自动转化为完整任务提升，
+主要瓶颈集中在状态可观测性和阶段交接。若同时修改 E013 精调层、Qwen layer、数据和 hierarchy，就无法
+区分收益来源。四个宏观子任务保留接触与控制约束的真实边界，又避免把固定 Pick-and-Place 扩张成多个
+独立 policy 或伪装成 π0.5 规模基础模型。
+
+**Alternatives considered:**
+
+- 把 v1.0 合并进 E013：会混淆 Observation/precision 与 hierarchy 归因，拒绝。
+- 为 Reach/Grasp/Lift/Transport/Place 分别训练网络：数据量和维护成本上升，且增加 handoff，拒绝。
+- 让 Qwen 在控制循环中直接决定 phase 或 release：延迟、随机性和安全权责不可审计，拒绝。
+- 同时解冻 Qwen、加入 24-layer KV 或学习式力控：超出单一变量和求职项目范围，进入 Future Work。
+
+**Implementation status:** 项目计划与 Gate 已定义；`robot_vla.executive` 已实现 P0 的 semantic schema、
+Plan Compiler、四时刻 wrist detection/camera pose/time 到 base-frame track/velocity 的确定性融合、可部署
+State Estimate→Predicate/Snapshot adapter、shadow-only 状态机、有限恢复和 JSONL ledger replay，并有轻依赖
+负例测试。`QwenVLAReplanLoop` 已有默认关闭、Action 执行后调用的 observer hook；真实 detector/outcome
+monitor 尚未标定，也尚未接入 Qwen proposal、Action Expert condition、Precision/Force owner 或 actuator；
+未训练或运行正式闭环实验。
+
+**Status:** active
+
+## D032 — Shadow Executive 在当前 Action 执行后观察，replan cadence 不冒充 20 Hz 控制
+
+**Decision:**
+
+Observation V2 Window 保留原始 float64 frame/modality timestamp；四时刻融合禁止用 newest timestamp 减
+float32 age 重建采集时间。Precision decoded output 通过固定 adapter 形成 object/goal wrist detection，track
+confidence 定义为 keypoint visibility 与 projection validity 的最小值；peak、entropy 和 pixel sigma 原样
+进入诊断，未标定前不任意加权。
+
+`QwenVLAReplanLoop` 的 `shadow_observer` 默认是 `None`，Observer 自身还需显式 `enabled=true`。启用时先
+完成原有推理、ensemble/RTC 和当前 Action Chunk 执行，再把执行前 Observation 交给 Shadow Executive。
+Observer 的 decision、`requires_action_reset` 或异常都不调用 actuator/executor；意外异常只写入独立
+`shadow_error`。每 Episode reset 同时清空 observer 的内存 ledger，但调用方必须先冻结上一 Episode 记录。
+
+当前 hook cadence 固定为 `replan-boundary/pre-execution-observation/v1`，通常只有 5 Hz。它可以验证接口、
+ledger、错误隔离和当前 Chunk 的 Action parity，但不能测量正式 20 Hz phase delay/stability。同步 observer
+还会记录 latency；在异步隔离或时延门禁通过前，不把它加入正式 treatment rollout。
+
+**Reason:**
+
+在原有 Action 生成或执行前同步运行 detector/Executive，会改变当前命令延迟，把 instrumentation 影响混入
+hierarchy 归因。只保存 age 又会在 Episode 起点因 float32 舍入得到负时间，并掩盖图像—相机位姿错配。
+保留原始时间并在 Action 后观察，可以先验证数据链和 fail-closed 语义，同时明确暴露下一次 Replan 延迟。
+
+**Alternatives considered:**
+
+- 从 `control_step / control_hz` 推算绝对时间：真实硬件、重连和异步传感器下不成立，拒绝。
+- Observer 在当前 Action 前同步运行：可能改变当前 Chunk latency 和行为，拒绝作为 action-parity smoke。
+- 直接让 shadow decision reset/hold：会提前把 P1 观察升级成控制 treatment，拒绝。
+- 把 replan-boundary stability 写成 20 Hz 结果：cadence 不同，拒绝。
+
+**Implementation status:** 原始 timestamp、Precision detection adapter、episode-local Observer、ledger/error/
+latency record 与 `QwenVLAReplanLoop` 默认关闭 hook 已实现。RGB→冻结 U-Net 的 replay/shadow-only Provider
+接线已实现，但没有训练/标定 checkpoint，也未在当前环境运行 Torch forward；20 Hz control-tick observer、
+异步资源隔离和正式 shadow rollout 尚未实现或验证。
+
+**Status:** active
+
+## D033 — Precision Provider 要求显式 deployable geometry，四帧顺序推理不获得控制权
+
+**Decision:**
+
+新增 `PrecisionDetectionProvider`，默认 `enabled=false`，execution mode 固定为
+`replay-shadow-only/no-actuation/v1`。它只消费 Observation V2，按有效 history 的 oldest→newest 顺序、
+batch 1 运行 wrist RGB；padding 和缺失 wrist modality 返回 `None`，不会复制或补造图像。每个检测绑定
+该帧原始 wrist timestamp，不能使用当前帧时间解释历史图像。
+
+三头 U-Net forward 还需要结构化 frame state 和 `geometric_motion`。Provider 使用与 V2 Dataset/Runtime
+相同的 proprio 与 `F_L/F_R` normalization，并要求 geometric-motion callback 返回带 timestamp、固定 Cartesian
+semantics 和 `deployable_estimator` provenance 的输入；禁止用全零占位绕过接口，也拒绝 evaluator GT 和
+图像—geometry 时间漂移。U-Net 按单帧 current-frame 语义训练，因此每个历史行使用该时刻的真实物理
+state，但 forward 内的 frame-age feature 固定为 0；真实 freshness 只由原始 timestamp 和外部 estimator
+计算，避免把相对最新窗口的 age 当成模型训练输入。Provider 不提供内部默认零向量；合法 callback 在
+目标已经对齐时计算出的真实零 motion 仍然允许。
+
+Torch wrapper 在构造时切换到 frozen eval，记录 checkpoint SHA、实际 parameter-state SHA、model-config
+SHA、keypoint schema、预处理和设备类型；Provider 再绑定 RobotSpec、stats file SHA、实际 normalizer
+semantic SHA、geometry provider ID 和自身 config SHA。Episode reset 会重新核对 tensor/config identity。
+逐帧记录 timestamp、status、latency 和 confidence evidence，并提供 canonical JSONL/digest；不保存 RGB、
+完整 state、NPZ 或权重。
+Provider 只返回 `WristKeypointDetection | None`，没有 Action、executor 或 actuator 接口。
+
+**Reason:**
+
+Localization feature 虽是 image-only，当前 projection-validity 与 uncertainty head 仍显式依赖 state 和
+geometry。用零 geometry 完成 forward 会产生看似合法但语义错误的 confidence，破坏最直接归因。显式
+callback 和双重 identity 能先验证 RGB→检测→四帧 estimator 数据流，又不提前引入 controller treatment。
+
+**Alternatives considered:**
+
+- 固定传入零 geometric motion：projection-validity 输入与训练语义不一致，拒绝。
+- padding 复制最近图像：制造不存在的历史并伪造速度，拒绝。
+- 把四帧合成 batch 4：当前要求逐帧 latency、顺序错误定位和 batch-1 部署一致性，首版拒绝。
+- Provider 直接生成 geometry command：会越过 Shadow Executive/Precision owner gate，拒绝。
+- 每个正式记录保存 RGB/state：超出脱敏审计所需，增加数据泄漏风险，拒绝。
+
+**Implementation status:** 轻依赖 Provider、identity/record contract、Torch lazy wrapper、负例和时间顺序
+测试已实现。当前环境没有 PyTorch，真实 wrapper forward 只加入依赖型测试，尚未实际运行；训练 checkpoint、
+calibration、20 Hz latency 和 ManiSkill shadow rollout 仍未完成。
+
+**Status:** active
+
 ## 新决策模板
 
 ```markdown

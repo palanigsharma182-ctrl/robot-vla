@@ -1,4 +1,4 @@
-"""D017：以每次 Replan 的真实 q 为基准执行 Action Chunk 前缀。"""
+"""按 Expert commanded-target 增量语义执行 Action Chunk 前缀。"""
 
 from __future__ import annotations
 
@@ -41,11 +41,54 @@ class ChunkExecutionResult:
 
 
 class RecedingHorizonChunkExecutor:
-    """不保存旧 Chunk；每次调用只执行新 Chunk 的前 K 步。"""
+    """不保存旧 Chunk，但跨 Replan 保存最后一次成功发送的 commanded q。
+
+    Expert 标签是相邻 commanded target 的增量，而不是相对每次观测 actual q 的
+    增量。这里先从 command reference 积分出 target，再相对最新 actual q 计算控制器
+    correction，从而同时保持训练/执行语义一致和在线跟踪误差补偿。
+    """
 
     def __init__(self, spec: RobotSpec) -> None:
         self.spec = spec
         self.action_adapter = ActionAdapter(spec)
+        self._previous_command_q: np.ndarray | None = None
+        self._previous_action: np.ndarray | None = None
+
+    @property
+    def previous_command_q(self) -> np.ndarray | None:
+        """返回最后一次成功发送的 commanded q；调用方不能修改内部状态。"""
+
+        if self._previous_command_q is None:
+            return None
+        return self._previous_command_q.copy()
+
+    @property
+    def previous_action(self) -> np.ndarray | None:
+        """返回最后一次成功发送的 command-relative 物理 Action label。"""
+
+        if self._previous_action is None:
+            return None
+        return self._previous_action.copy()
+
+    def reset(self) -> None:
+        """清空跨 Chunk command reference；新 Episode/异常后必须调用。"""
+
+        self._previous_command_q = None
+        self._previous_action = None
+
+    def tracking_error(self, actual_q: np.ndarray) -> np.ndarray | None:
+        """返回 ``previous_command_q - actual_q``，尚无引用时返回 ``None``。"""
+
+        if self._previous_command_q is None:
+            return None
+        actual = np.asarray(actual_q)
+        if (
+            actual.shape != (self.spec.arm_dof,)
+            or actual.dtype != np.float32
+            or not np.isfinite(actual).all()
+        ):
+            raise ValueError("actual_q 必须是有限 float32 Franka arm 向量")
+        return (self._previous_command_q - actual).astype(np.float32, copy=False)
 
     def _validated_state(self, controller: FrankaController) -> FrankaControlState:
         state = controller.read_state()
@@ -72,6 +115,8 @@ class RecedingHorizonChunkExecutor:
         requested_correction_abs_max_rad: float | None = None,
         applied_correction_abs_max_rad: float | None = None,
     ) -> ChunkExecutionResult:
+        # hold/failure 之后控制器的有效 reference 不再可证明，下一次从 actual q 重建。
+        self.reset()
         if diagnostic is None and isinstance(error, ActionContractViolation):
             diagnostic = error.to_diagnostic()
         try:
@@ -113,9 +158,12 @@ class RecedingHorizonChunkExecutor:
                 stage="initial_observation",
                 error=error,
             )
+        command_reference = self._previous_command_q
+        if command_reference is None:
+            command_reference = initial_state.joint_positions.copy()
         try:
             commands = self.action_adapter.build_receding_horizon_commands(
-                initial_state.joint_positions,
+                command_reference,
                 physical_chunk,
             )
         except Exception as error:  # noqa: BLE001 - Chunk 校验错误必须触发 hold
@@ -202,8 +250,16 @@ class RecedingHorizonChunkExecutor:
                     requested_correction_abs_max_rad=requested_correction_abs_max_rad,
                     applied_correction_abs_max_rad=applied_correction_abs_max_rad,
                 )
+            self._previous_command_q = target_q.astype(np.float32, copy=True)
+            self._previous_action = np.asarray(
+                physical_chunk[chunk_step_index],
+                dtype=np.float32,
+            ).copy()
             executed_steps += 1
             if correction_saturation_steps > 0:
+                # 实际发送的是 clipped correction，不能再声称 target_q 是有效 command
+                # reference；异常重规划从下一次 actual q 重新建立引用。
+                self.reset()
                 return ChunkExecutionResult(
                     success=True,
                     executed_steps=executed_steps,

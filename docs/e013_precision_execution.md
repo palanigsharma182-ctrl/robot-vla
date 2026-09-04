@@ -1,0 +1,306 @@
+# E013 — 厘米级闭环精调执行层
+
+## 状态与边界
+
+**Status:** 正式步骤 1–8 已通过；100-seed、20 Hz、no-actuation shadow 已执行，但步骤 9 因
+`95/100` 干净 pairs、5 个 Expert/collector rejection 和 7 次 deadline miss 未通过，promotion 已停止。
+当前没有 Precision actuation 或 final-placement 效果证据。
+
+E013 在任何正式训练开始前由“八图 Frozen Qwen Layer 12 状态归因”修订为两时间尺度架构：低频
+VLA 只负责语义、技能和粗 ROI；闭环精调层直接读取腕部原始高分辨率 ROI，通过三头 U-Net、显式
+相机几何和视觉伺服生成小幅 TCP commanded-target delta。旧 E013 online geometry smoke 保留为历史
+Layer-12 粗定位诊断；它测量单帧表示，不是最终物体放置闭环门槛。
+
+本次修改没有运行或改写 E012 Dataset、checkpoint、evaluation 或其他冻结产物。新增代码只是可测试的
+模型/几何/控制边界，不能写成已经达到厘米级闭环效果。
+
+端到端验收按最终 object→goal 平面位置误差分档。推荐求职档是正式目标，工程可用档是可接受底线，
+个位数毫米只作可选挑战，不影响 E013 是否完成：
+
+```text
+E008 Layer-12 spatial-probe reference（不是闭环 placement baseline）
+  p50 decoded world-XY localization error = 0.0253 m
+  p90 decoded world-XY localization error = 0.0388 m
+
+engineering floor（可接受底线）
+  p50 final placement XY error <= 0.015 m
+  p90 final placement XY error <= 0.025 m
+
+recommended portfolio target（正式目标）
+  p50 final placement XY error <= 0.012 m
+  p90 final placement XY error <= 0.020 m
+  P(final placement XY error <= 0.020 m) >= 0.90
+
+optional stretch（不作为项目成败门槛）
+  p50 final placement XY error <= 0.010 m
+  p90 final placement XY error <= 0.015 m
+```
+
+正式评估至少包含 `100` 个预注册 unseen Episode，control/treatment 使用相同环境和采样 seed。有效任务
+失败只要存在可测最终位置就必须进入误差统计；invalid projection、system/safety/tracking failure、控制器
+重叠和 stale-observation command 均单独计数，任一非零都阻断 promotion，不能删除失败样本后复算。
+正式报告同时给出 bootstrap 95% 区间；区间用于披露不确定性，不在看到结果后改变上述点估计门槛。
+正式相对改善必须用这 100 个 paired seed 上实际运行的 coarse-only control 复算；不得把 E008 线性 probe
+的定位误差当成 final-placement control。Probe reference 只用于说明 Qwen 表示的空间上限和量级；当前
+`PrecisionEvaluationAssessment` 因此不输出“相对 probe 改善百分比”，相对效果留给正式 paired analyzer。
+
+## 两时间尺度架构
+
+```text
+2–5 Hz VLA
+  instruction + semantic view
+  -> object / goal / skill / coarse ROI / precision-mode request
+
+20 Hz required precision loop; 30 Hz optional stretch
+  current high-resolution wrist ROI
+  -> U-Net Localization Head
+  -> explicit camera geometry
+  -> geometry TCP delta
+  -> shadow Metric Residual Head
+  -> calibrated uncertainty gates
+  -> bounded commanded TCP target delta
+
+200–1000 Hz robot inner controller
+  Cartesian target / IK / impedance tracking
+  -> joint or torque command
+```
+
+VLA 与 precision layer 不能同时争夺位置控制权。`SEARCH/COARSE_APPROACH` 由 VLA 控制；进入
+`FINE_ALIGN` 后，VLA 只保留监督和 replan 权限；`CONTACT` 再加入 `F_L/F_R`。关键点丢失、投影无效、
+时间跳变或 uncertainty gate 失败时，precision layer 输出零命令并交还控制权，不能盲目继续。
+
+## 三头 U-Net
+
+模型身份固定为：
+
+```text
+precision_unet_three_head_v1
+```
+
+当前工程默认使用轻量 U-Net encoder channels `32/64/128/256`、GroupNorm 和 bilinear decoder。
+GroupNorm 避免 batch 1 高频推理时 BatchNorm 统计漂移。模型只处理当前腕部 RGB ROI；四帧历史在第一版
+由模型外的关键点/位姿状态估计器融合，避免让网络同时学习相机自运动。若该方案被证明确受遮挡限制，
+才预注册 pose-aware temporal feature fusion。
+
+### Head 1：Localization
+
+定位分支只读取图像 decoder feature，不读取 TCP、camera pose、force 或 controller state，避免通过机器人
+状态猜测目标位置：
+
+```text
+heatmap_logits       [B,K,H,W]
+mask_logits          [B,M,H,W]
+subpixel_offsets     [B,K,2,H,W], bounded to [-0.5,0.5] px
+```
+
+soft-argmax 同时输出 pixel UV、normalized UV、peak probability 与 normalized entropy。项目继续使用：
+
+```text
+normalized_u = (pixel_u + 0.5) / image_width
+normalized_v = (pixel_v + 0.5) / image_height
+```
+
+这与现有空间 probe 的像素中心约定一致。第一版 keypoint 为 object/goal center；角点可通过配置增加，
+但不能在正式结果后临时改变输出定义。
+
+### Head 2：MetricResidual
+
+Motion Head 不输出旧 VLA 的 7-DoF joint Action。它读取 U-Net global feature、当前结构化 V2 frame state
+和显式几何结果，输出四维 bounded residual：
+
+```text
+[delta_x_base_m, delta_y_base_m, delta_z_base_m, delta_yaw_base_rad]
+```
+
+动作语义固定为：
+
+```text
+commanded-tcp-target-delta/base-frame/m-rad/v1
+```
+
+它与 `command_target_delta_q[7] + gripper_target[1]` 的 VLA Action 契约显式隔离。从 Cartesian delta 到
+IK、关节 target 和底层 controller 的适配尚未接入现有 Runtime，不能通过复用 joint `ActionAdapter`
+隐式转换。
+
+当前 step/residual 安全上限只是工程默认值，不是效果阈值：
+
+| 分量 | 单 Tick geometry step limit | learned residual limit |
+|---|---:|---:|
+| base X | 1.00 mm | 0.25 mm |
+| base Y | 1.00 mm | 0.25 mm |
+| base Z | 0.50 mm | 0.20 mm |
+| base yaw | 0.20° | 0.05° |
+
+Residual Head 最后一层零初始化。第一阶段固定 `mode=shadow`：正式候选命令严格等于 clipped geometry
+命令；Motion Head 预测及其 motion uncertainty 只产生诊断 warning，不能阻断或改变 geometry 命令。
+只有 held-out shadow 证据通过新的预注册门槛后，才能以新实验身份启用 `bounded_residual`，并把 motion
+uncertainty 升级为执行门禁。
+
+### Head 3：Uncertainty
+
+不使用单一 confidence 标量。模型输出：
+
+```text
+keypoint_log_variance      [B,K,2]
+motion_log_variance        [B,4]
+visibility_logits          [B,K]
+projection_validity_logit  [B]
+```
+
+训练使用异方差 NLL；部署阈值必须在独立 calibration split 上换算为 pixel/metric uncertainty。最终
+控制门禁还必须组合 heatmap entropy、几何重投影残差、四帧 innovation、工作空间和 force 状态，不能
+只相信网络自报 confidence。
+
+## 显式几何
+
+当前实现使用 Observation V2 已冻结的 OpenCV optical `base_from_camera_cv`。像素射线为：
+
+```text
+r_camera = inverse(K) @ [u,v,1]
+r_base   = R_base_camera @ r_camera
+c_base   = t_base_camera
+```
+
+与平面 `n·X+d=0` 的交点为：
+
+```text
+lambda = -(n·c_base + d) / (n·r_base)
+X_base = c_base + lambda * r_base
+```
+
+`lambda <= 0`、平行射线、非 SE(3)、非有限输入和无效 intrinsic 均 fail closed。第一版提供已知
+`base z` 平面的 object/goal center 反投影，以及从目标点和当前 `base_from_tcp` 生成显式四维 TCP delta。
+输入图像必须与内参使用相同畸变校正；畸变处理不能被静默忽略。
+
+## 四帧与双相机
+
+第一版不把四帧堆成 12 通道，也不把双相机八图送进 precision U-Net：
+
+```text
+external current frame -> 全局 object/goal + coarse ROI
+wrist current frame    -> U-Net 精定位
+last four wrist detections + matching camera poses/timestamps
+                       -> world/TCP-frame temporal filter
+```
+
+每个历史检测必须绑定采集时刻的 camera pose。旧图不能使用当前 TCP/camera pose 解释。后续只有在单帧
+遮挡成为实测瓶颈后，才比较共享 encoder + pose-aware warp/ConvGRU；不能默认把更多图像当成毫米精度来源。
+
+## 监督与数据来源
+
+U-Net 不从 220 条 Expert Action 轨迹学习“怎么移动”。训练标签优先由随机 scene/view 采样生成：
+
+- actor segmentation 或 GT pose 只作为 oracle/训练标签；正式 RGB-only forward 不读取它们；
+- object/goal center、角点、visibility 和 mask 由仿真状态自动生成；
+- geometric motion target 来自冻结相机公式和确定性 controller；
+- residual target 只能来自 command→achieved 的可重复系统偏差，不使用语义不清的 historical action；
+- lighting、texture、occlusion、camera pose 和 calibration perturbation 在结果前冻结。
+
+损失包括 heatmap、mask、normalized-UV、motion residual、visibility/projection 和 heteroscedastic uncertainty。
+正式评价必须另报 world-XY error；低 pixel loss 不能替代毫米指标。
+
+## 渐进门禁
+
+1. **Action/coordinate gate：**Cartesian action frame/unit/semantics、图像时间戳、camera pose 和 TCP pose
+   round-trip 全部通过。
+2. **Oracle geometry gate：**privileged mask/GT pixel + 显式几何在固定 unseen states 上达到
+   `p90 <= 5 mm`，invalid=0。它是公式/标定 lower bound，不是最终效果声明。
+3. **RGB-only perception gate：**先比较 HSV/轮廓，再比较 U-Net；held-out world-XY `p90 <= 15 mm`
+   后才接控制器，不运行长 VLA 训练。
+4. **GT-pose controller gate：**使用 GT target 检查 Cartesian/IK/底层跟踪和接触达到
+   `p90 <= 10 mm`，为 RGB 感知误差保留预算。
+5. **Shadow gate：**Motion Head 不控制，只比较 geometry、prediction 和 achieved delta，并校准
+   uncertainty。
+6. **Bounded residual gate：**前五项通过后才以新身份允许 learned residual 进入命令。
+7. **完整 RGB-only closed loop：**最后按 engineering/recommended/stretch 三档评价端到端放置误差、
+   `within 20 mm` 成功率和全部 guardrail。
+
+所有 gate 使用固定 unseen seeds，不能删除失败帧或在结果后调整阈值。20–30 个 smoke state 只能发现
+工程错误；正式分档至少需要 100 个独立 paired Episode 和置信区间。闭环运行门槛固定为有效控制频率
+`>=20 Hz` 且端到端延迟 `p95 <= 50 ms`；30 Hz 只作可选性能结果，不要求 60 Hz。
+
+## 2026-09-01 GPU engineering smoke（非正式）
+
+在 Ubuntu 22.04、RTX 4090 24 GB、driver 570.153.02、PyTorch 2.11.0+cu128、BF16 环境完成了
+第一轮真实执行门禁。固定 runtime verifier 同时通过 CUDA、Qwen3.5-2B config 结构、NVIDIA Vulkan、
+ManiSkill `PickCube-v1` 环境与一帧渲染。SAPIEN 启动时报告系统 ICD 文件 warning，但自动 fallback 后
+Vulkan 与渲染实际成功；这不能替代正式 simulator throughput 或 GPU physics 验证。
+
+默认约 205 万参数 U-Net 在随机初始化、128×128 合成 wrist RGB、batch=1 下：
+
+- CUDA/BF16 单帧 forward latency：p50 `4.03 ms`、p95 `4.38 ms`；
+- 四次顺序 Predictor forward：p50 `16.09 ms`、p95 `17.05 ms`；该数值不含 Provider 状态编码、
+  geometry callback、detection adapter 或 estimator 开销；
+- peak allocated/reserved：约 `39.8/50.0 MiB`；
+- decoded keypoint、motion、visibility、projection validity 与 sigma 均为有限值，parameter identity 复核通过。
+
+固定 8 样本、64×64 合成 Gaussian keypoint batch 的 200-step BF16 debug overfit：
+
+- normalized-UV MAE：`0.16095 -> 0.000452`；
+- motion residual MAE：`1.20e-4 -> 8.06e-7`；
+- train step p50（前 20 步后）：约 `12.04 ms`；
+- peak allocated：约 `160.6 MiB`；
+- heatmap、mask、motion、uncertainty、visibility 与 projection 三类 head 均有梯度且 loss 下降。
+
+这些数字只证明 Torch/CUDA、三头 loss、优化器和固定 batch 记忆能力可运行。它们没有真实图像、相机
+分布、标签噪声、held-out state 或闭环控制，尤其不能把 `0.000452 normalized UV` 或 synthetic motion
+MAE 换算成毫米精度。正式结论仍必须来自冻结 Dataset、unseen states、confidence calibration 和 paired
+closed-loop Episode。
+
+同一完整环境中的 E013 定向回归为 `94 passed`；安装项目包后全仓回归为 `528 passed`。全仓仅出现
+12 条 ManiSkill `component.pose` 既有 deprecation warning，没有失败或 skip。checkpoint 子集进一步覆盖
+文件/config/parameter/provenance identity、禁止覆盖、payload 篡改拒绝与 frozen predictor round-trip。
+
+## 2026-09-02 正式执行结果
+
+正式 RGB-only Dataset 共 40 条完整成功 trajectory、7,987 ticks，train/val/test 为 `24/6/10` 条。
+Observation V2 六模态 coverage 为 1.0、invalid 为 0，Action semantic parity 为 `7987/7987`；模型只读取
+`rgb_wrist + structured_state + geometric_motion`，与独立 privileged labels 的字段 overlap 为空。
+
+64 个真实样本 overfit 通过后，Precision U-Net 完成 20 epochs、95,520 examples、3,000 optimizer steps。
+按预注册的最小 validation normalized-UV MAE、同分取较早 epoch，选择 epoch 4；checkpoint strict reload
+和 frozen-zero Motion Head 参数身份均通过。
+
+当前 canonical held-out v3 只测完整四帧 history：200/200 calls、800/800 frame predictions、Provider
+failure 0，p95 `18.84 ms`。Test split 条件 world-XY p50/p90 为 `0.370/1.517 mm`，但它依赖 offline GT
+z-plane 反投影，不能写成最终机器人 placement 精度；最大 outlier 为 `208.5 mm`。
+
+第二次 prewarmed 2-seed smoke 通过后，正式 seeds `132000..132099` 完整执行。Baseline/shadow 各接受
+95 条、失败 seed 集完全相同；95 个 pair 的 Action、commanded target 与 episode length 零 mismatch，
+Provider/observer failure 为 0。每臂仍有 4 个 MPlib trusted screw path failure 和 1 个 controller-correction
+safety rejection；19,100 calls 的 p50/p95 为 `18.34/20.77 ms`，另有 7 次单 call 超过 `50 ms`。
+正式 gate 要求 100/100 pairs、所有 failure 为 0、deadline miss 为 0，因此 `gate_passed=false`，未接入
+actuator。完整脱敏证据、SHA 和限制见 [`results/e013/README.md`](results/e013/README.md)。
+
+## 当前实现
+
+已实现：
+
+- `PrecisionMotionSpec` 的 frame/unit/step/residual 契约；
+- OpenCV pixel→base plane 和 base point→pixel round-trip；
+- 三头轻量 U-Net、亚像素 soft-argmax 和零初始化 residual；
+- heatmap/mask/coordinate/residual/heteroscedastic loss；
+- shadow/bounded-residual 仲裁与 visibility/entropy/uncertainty fail-closed gate；
+- Precision decoded keypoint 到部署 wrist detection 的版本化适配，保留 visibility、projection validity、
+  peak、entropy 与 pixel sigma；
+- 默认关闭的 replay/shadow-only RGB Provider：按 oldest→newest 顺序运行冻结 U-Net，使用训练一致的
+  proprio/force normalization、显式 deployable geometric motion、原始 wrist timestamp，并记录
+  checkpoint/parameter/config/stats identity、逐帧 latency 和 confidence evidence；
+- 版本化 weights-only checkpoint 保存/加载：拒绝覆盖，先核验文件 SHA，再以
+  `torch.load(weights_only=True)` 严格检查 model config、parameter state 与训练 provenance SHA，最后创建
+  frozen/eval Predictor；Predictor loader 强制调用方声明并匹配预期 `synthetic-debug/formal-training` role；
+- Window 原始 float64 frame/modality timestamp、四时刻 base-frame track/velocity/innovation 融合，以及
+  默认关闭的 replan-boundary Shadow Executive hook；
+- 合成几何、控制、checkpoint 与真实 Torch forward/backward 单元测试。
+
+尚未实现或验证：
+
+- 真实硬件相机畸变、hand-eye/TCP 标定和 tabletop metric receipt；
+- 逐 call phase latency telemetry、异步 GPU 隔离、frame cache 或其他零 deadline-miss 方案；
+- 能在全新预注册 100 seeds 上达到零 Expert/collector rejection 的 trusted planning/control 路径；
+- Cartesian IK、机器人底层接口和 force-contact controller；
+- Motion Head bounded residual promotion；
+- 任何 RGB-only Precision actuation、最终 placement error 或厘米级闭环效果证据。
+
+下一步必须使用新实验 ID 和全新 seeds，先解决实时极端尾部与 Expert/collector 完整性；不得复用当前
+formal seeds、删除 5 个失败 Episode、放宽 `50 ms` gate 或把 held-out GT-plane 感知误差当作闭环结果。

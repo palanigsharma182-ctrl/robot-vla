@@ -10,8 +10,12 @@ from statistics import mean
 
 import numpy as np
 
-from robot_vla.adapters import ProprioStats
-from robot_vla.contracts import OUTCOME_PREDICATE_VERSION, RobotSpec
+from robot_vla.adapters import FingerForceStats, ProprioStats
+from robot_vla.contracts import (
+    FINGER_FORCE_SENSOR_VERSION,
+    OUTCOME_PREDICATE_VERSION,
+    RobotSpec,
+)
 from robot_vla.data.events import (
     EVENT_TYPES,
     EventDetectionConfig,
@@ -46,6 +50,17 @@ class DatasetAuditReport:
     event_counts: dict[str, int]
     event_counts_by_split: dict[str, dict[str, int]]
     multi_event_step_count: int
+    observation_v2_trajectory_count: int
+    observation_v2_step_count: int
+    observation_v2_coverage_rate: float
+    observation_v2_valid_step_count: int
+    observation_v2_modality_invalid_counts: dict[str, int]
+    observation_v2_modality_max_age_s: dict[str, float | None]
+    finger_force_sensor_version: str | None
+    finger_force_stats_count: int
+    finger_force_positive_counts: dict[str, int]
+    finger_force_distribution_n: dict[str, dict[str, float] | None]
+    action_semantic_parity_step_count: int
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -57,6 +72,18 @@ def _sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _distribution(values: np.ndarray) -> dict[str, float] | None:
+    if values.size == 0:
+        return None
+    data = np.asarray(values, dtype=np.float64)
+    return {
+        "min": float(np.min(data)),
+        "median": float(np.median(data)),
+        "p95": float(np.quantile(data, 0.95)),
+        "max": float(np.max(data)),
+    }
 
 
 def audit_dataset(
@@ -91,6 +118,26 @@ def audit_dataset(
         for split in ("train", "val", "test")
     }
     multi_event_step_count = 0
+    observation_v2_trajectory_count = 0
+    observation_v2_step_count = 0
+    observation_v2_valid_step_count = 0
+    observation_v2_modality_invalid_counts = {
+        name: 0
+        for name in (
+            "rgb_external",
+            "rgb_wrist",
+            "proprio",
+            "tcp_pose",
+            "wrist_camera_pose",
+            "finger_force",
+        )
+    }
+    observation_v2_modality_ages: dict[str, list[np.ndarray]] = {
+        name: [] for name in observation_v2_modality_invalid_counts
+    }
+    train_finger_force: list[np.ndarray] = []
+    all_finger_force: list[np.ndarray] = []
+    action_semantic_parity_step_count = 0
 
     for meta in entries:
         arrays = store.get(meta)
@@ -101,6 +148,45 @@ def audit_dataset(
         lengths.append(arrays.num_steps)
         if meta.split == "train":
             train_proprio.append(arrays.proprio)
+        if arrays.observation_v2_available:
+            observation_v2_trajectory_count += 1
+            observation_v2_step_count += arrays.num_steps
+            observation_v2_valid_step_count += int(
+                np.count_nonzero(arrays.observation_v2_valid)
+            )
+            modality_fields = (
+                ("rgb_external", arrays.timestamp_external, arrays.external_valid),
+                ("rgb_wrist", arrays.timestamp_wrist, arrays.wrist_valid),
+                ("proprio", arrays.timestamp_proprio, arrays.proprio_valid),
+                ("tcp_pose", arrays.timestamp_tcp_pose, arrays.tcp_pose_valid),
+                (
+                    "wrist_camera_pose",
+                    arrays.timestamp_camera_pose,
+                    arrays.camera_pose_valid,
+                ),
+                (
+                    "finger_force",
+                    arrays.timestamp_finger_force,
+                    arrays.finger_force_valid,
+                ),
+            )
+            for name, timestamp, valid in modality_fields:
+                observation_v2_modality_invalid_counts[name] += int(
+                    arrays.num_steps - np.count_nonzero(valid)
+                )
+                ages = arrays.timestamp_action[valid] - timestamp[valid]
+                observation_v2_modality_ages[name].append(ages)
+            valid_force = arrays.finger_force_valid
+            force = np.column_stack(
+                (
+                    arrays.left_finger_force_n[valid_force],
+                    arrays.right_finger_force_n[valid_force],
+                )
+            ).astype(np.float32, copy=False)
+            all_finger_force.append(force)
+            if meta.split == "train":
+                train_finger_force.append(force)
+            action_semantic_parity_step_count += arrays.num_steps
 
         external_shapes.add(tuple(int(value) for value in arrays.rgb_external.shape[1:]))
         wrist_shapes.add(tuple(int(value) for value in arrays.rgb_wrist.shape[1:]))
@@ -135,6 +221,24 @@ def audit_dataset(
         raise ValueError(f"数据集存在零帧原子技能: {skill_counts}")
 
     stats = ProprioStats.fit(train_proprio, spec)
+    finger_force_stats = (
+        FingerForceStats.fit(train_finger_force, spec)
+        if observation_v2_trajectory_count > 0
+        else None
+    )
+    force_values = (
+        np.concatenate(all_finger_force, axis=0)
+        if all_finger_force
+        else np.empty((0, 2), dtype=np.float32)
+    )
+    modality_max_age = {
+        name: (
+            float(np.max(np.concatenate(chunks)))
+            if chunks and any(chunk.size > 0 for chunk in chunks)
+            else None
+        )
+        for name, chunks in observation_v2_modality_ages.items()
+    }
     canonical_payload = json.dumps(
         sorted(canonical_files, key=lambda item: str(item["meta"])),
         sort_keys=True,
@@ -165,9 +269,32 @@ def audit_dataset(
         event_counts=event_counts,
         event_counts_by_split=event_counts_by_split,
         multi_event_step_count=multi_event_step_count,
+        observation_v2_trajectory_count=observation_v2_trajectory_count,
+        observation_v2_step_count=observation_v2_step_count,
+        observation_v2_coverage_rate=observation_v2_step_count / sum(lengths),
+        observation_v2_valid_step_count=observation_v2_valid_step_count,
+        observation_v2_modality_invalid_counts=observation_v2_modality_invalid_counts,
+        observation_v2_modality_max_age_s=modality_max_age,
+        finger_force_sensor_version=(
+            FINGER_FORCE_SENSOR_VERSION if finger_force_stats is not None else None
+        ),
+        finger_force_stats_count=(
+            finger_force_stats.count if finger_force_stats is not None else 0
+        ),
+        finger_force_positive_counts={
+            "left": int(np.count_nonzero(force_values[:, 0] > 0.0)),
+            "right": int(np.count_nonzero(force_values[:, 1] > 0.0)),
+        },
+        finger_force_distribution_n={
+            "left": _distribution(force_values[:, 0]),
+            "right": _distribution(force_values[:, 1]),
+        },
+        action_semantic_parity_step_count=action_semantic_parity_step_count,
     )
     if write_artifacts:
         stats.to_json(root / "proprio_stats.json")
+        if finger_force_stats is not None:
+            finger_force_stats.to_json(root / "finger_force_stats.json")
         (root / "audit_report.json").write_text(
             json.dumps(report.to_dict(), indent=2, sort_keys=True, allow_nan=False) + "\n",
             encoding="utf-8",

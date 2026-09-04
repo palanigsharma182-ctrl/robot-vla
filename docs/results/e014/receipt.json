@@ -1,0 +1,20 @@
+{
+  "contains_model_weights": false,
+  "contains_raw_heatmaps": false,
+  "contains_raw_rgb": false,
+  "contains_sensitive_paths": false,
+  "files": {
+    "README.md": "0708205b74b588ea48d0c09ff09b3d79555eda87635d6cb661b4e658134f0f5e",
+    "distributions.json": "c920571bf65800fa98ab18761ddfc2aa8cac91c501c45387f1ee0003ce8c311b",
+    "sanitized_summary.json": "a6bab319c3a37f613e82815b0549d13dfc88e61a025ba68c80d8f4c3be494e16",
+    "verify_summary.py": "5dfeb992d2c69afdbc5d9a96710369ed5cd9696a694333ca4339b5d134bdf89e"
+  },
+  "original_private_receipt_sha256": "a17353125d9b342d31529aa1cbcfceb40fcebab900dc47b9f33939f1a354083c",
+  "original_public_receipt_sha256": "1211ca0f3647a1f4a2bb0fa67cae02cf02ab7031770300094b133f6aba074ff0",
+  "rules_sha256": "f2490a2a032bb6bc9ab36da84b5fa2698ba325436aca50e55a1e369dda18552b",
+  "status": "complete-supplemented",
+  "supplement_policy": "deterministic-postprocessing-no-model-forward/v1",
+  "supplement_source_tree_sha256": "1f055f6027ee4aef5fadb39ea35c368e2513a76fb6a1a23520e3c089e98a54d6",
+  "supplement_version": "e014-precision-long-tail-supplement/v1",
+  "version": "e014-precision-long-tail-diagnostic/v1"
+}

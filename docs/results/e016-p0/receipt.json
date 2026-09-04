@@ -1,0 +1,25 @@
+{
+  "canonical_private_artifacts": {
+    "config_snapshot.json": "b01ba762b35990cec50df0c96dbc3ae99a3fcfaaf7c4182a2c994db271337fa6",
+    "corrected_sidecar_audit.json": "39bbf9a5f3a8e381c63b79c74458c412e62e0a19ca5ba121b21facc6e20a5945",
+    "full_preflight.json": "26d7030bf7f59f235a853723b229aec1448b62ae2f08ac15e1f3df24d24564a1",
+    "loss_contract.json": "f3fa8eccf73d8c71f7601a8949ed5aec9b0ae0f29fc823d765247aa743125ae6",
+    "receipt.json": "04ba46f10a3bc04c997597ac8906e277eb2c272778d2e0936c87d318dc1d0125",
+    "stratified_overfit.json": "8ac51643ace639b50745ffc1bccbbf549c8bc602e8c58803417eb29855cf4656",
+    "stratified_subset.json": "2c3b5525ca77bb90f0989c7b21c0294c299fbd1a919fc1879ac78098891f385c"
+  },
+  "contains_corrected_label_arrays": false,
+  "contains_model_weights": false,
+  "contains_raw_masks": false,
+  "contains_raw_rgb": false,
+  "contains_sensitive_paths": false,
+  "contains_trajectory_identity": false,
+  "files": {
+    "README.md": "f7c9074201b692e50c6d0d5cc321e2cf45702df541c9d9f338d55ecbaf61dd16",
+    "sanitized_summary.json": "8ef97aac9df28fbb2a3efea4c4b48e8ed744d22c9e8251df7ffad5e53d460efc",
+    "verify_summary.py": "4c84102726dd12686cceae445eb2fb4988f433758bf7537a4b90cdc39768cd7d"
+  },
+  "source_commit": "d1481ba3ca669d799c450227398771779a470c4b",
+  "status": "complete",
+  "version": "e016-p0-corrected-observability-public/v1"
+}

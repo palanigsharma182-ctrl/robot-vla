@@ -1,0 +1,531 @@
+{
+  "surface": "report",
+  "manifest": {
+    "version": 1,
+    "surface": "report",
+    "title": "E013 Precision v1：感知通过，正式 shadow 停止 promotion",
+    "description": "E013 最小可部署状态、RGB-only Precision U-Net、held-out 感知、四帧 Provider latency 与 100-seed no-actuation shadow 的技术报告。",
+    "generatedAt": "2026-09-01T16:47:42Z",
+    "cards": [
+      {
+        "id": "steps_card",
+        "description": "九步流程中通过的步骤数；第 9 步已执行但 gate 失败。",
+        "dataset": "headline",
+        "sourceId": "e013_headline_projection",
+        "metrics": [
+          {"label": "通过步骤", "field": "steps_passed", "format": "number"},
+          {"label": "总步骤", "field": "steps_total", "format": "number"}
+        ]
+      },
+      {
+        "id": "perception_card",
+        "description": "模拟器 test split 上使用 offline GT z-plane 反投影的条件 world-XY p90；不是最终放置误差。",
+        "dataset": "headline",
+        "sourceId": "e013_headline_projection",
+        "metrics": [
+          {"label": "Held-out XY p90 (mm)", "field": "held_out_p90_mm", "format": "number"},
+          {"label": "感知 gate (mm)", "field": "perception_gate_mm", "format": "number"}
+        ]
+      },
+      {
+        "id": "paired_card",
+        "description": "100 个预注册 seeds 中 baseline 与 shadow 都被 collector 接受、可做 bitwise Action parity 的 pairs。",
+        "dataset": "headline",
+        "sourceId": "e013_headline_projection",
+        "metrics": [
+          {"label": "正式 paired episodes", "field": "paired_episodes", "format": "number"},
+          {"label": "要求", "field": "paired_required", "format": "number"}
+        ]
+      },
+      {
+        "id": "deadline_card",
+        "description": "19,100 次正式 Provider calls 中超过 50 ms 的单次调用；冻结 gate 要求为零。",
+        "dataset": "headline",
+        "sourceId": "e013_headline_projection",
+        "metrics": [
+          {"label": "Deadline misses", "field": "deadline_misses", "format": "number"},
+          {"label": "允许", "field": "deadline_allowed", "format": "number"}
+        ]
+      },
+      {
+        "id": "latency_card",
+        "description": "95 个 accepted shadow episodes 的完整 Provider call latency p95；它通过 50 ms 百分位预算，但不能覆盖零 miss gate。",
+        "dataset": "headline",
+        "sourceId": "e013_headline_projection",
+        "metrics": [
+          {"label": "Provider p95 (ms)", "field": "shadow_p95_ms", "format": "number"},
+          {"label": "预算 (ms)", "field": "latency_budget_ms", "format": "number"}
+        ]
+      }
+    ],
+    "charts": [
+      {
+        "id": "shadow_completion_chart",
+        "title": "正式 baseline/shadow completion 与冻结要求",
+        "subtitle": "相同 100 个预注册 seeds；两臂均有相同 5 个 Expert/collector rejection。",
+        "type": "bar",
+        "dataset": "shadow_completion",
+        "sourceId": "e013_shadow_completion_projection",
+        "valueFormat": "number",
+        "intent": "comparison",
+        "question": "100-seed no-actuation shadow 是否形成 100 个完整干净 pair？",
+        "rationale": "两臂 actual 与同一个固定要求使用相同 episode 单位，grouped bar 直接显示 95/100 缺口。",
+        "comparisonContext": {
+          "denominator": "100 preregistered environment seeds per arm",
+          "grain": "evaluation arm",
+          "unit": "accepted episodes",
+          "semanticFamily": "actual versus fixed gate requirement"
+        },
+        "palette": {"kind": "categorical", "name": "technical"},
+        "legend": {"interactive": false, "position": "bottom", "sort": "spec", "title": "Count"},
+        "labels": {"values": "all"},
+        "encodings": {
+          "x": {"field": "arm", "type": "nominal", "label": "Arm"},
+          "y": {"field": "episodes", "type": "quantitative", "label": "Episodes"},
+          "color": {"field": "measure", "type": "nominal", "label": "Measure"},
+          "tooltip": [
+            {"field": "arm", "type": "nominal", "label": "Arm"},
+            {"field": "measure", "type": "nominal", "label": "Measure"},
+            {"field": "episodes", "type": "quantitative", "label": "Episodes"},
+            {"field": "failure_count", "type": "quantitative", "label": "Rejected"},
+            {"field": "gate_status", "type": "text", "label": "Gate"}
+          ]
+        }
+      },
+      {
+        "id": "training_uv_chart",
+        "title": "Validation normalized-UV MAE by epoch",
+        "subtitle": "20 epochs；预注册规则选择最小 MAE，tie 时取较早 epoch，最终选择 epoch 4。",
+        "type": "line",
+        "dataset": "training_metrics",
+        "sourceId": "e013_training_projection",
+        "valueFormat": "number",
+        "intent": "trend",
+        "question": "完整 20-epoch training 中，哪个 checkpoint 按冻结 validation metric 被选中？",
+        "rationale": "20 个连续 epoch 足以显示 validation UV 误差的非单调轨迹和 epoch-4 最小值。",
+        "comparisonContext": {
+          "denominator": "1,167 validation samples per epoch",
+          "grain": "training epoch",
+          "unit": "normalized image coordinate MAE",
+          "semanticFamily": "checkpoint selection trajectory"
+        },
+        "palette": {"kind": "sequential", "name": "blue"},
+        "labels": {"values": "endpoints"},
+        "encodings": {
+          "x": {"field": "epoch", "type": "quantitative", "label": "Epoch"},
+          "y": {"field": "val_normalized_uv_mae", "type": "quantitative", "label": "Validation normalized-UV MAE"},
+          "tooltip": [
+            {"field": "epoch", "type": "quantitative", "label": "Epoch"},
+            {"field": "val_normalized_uv_mae", "type": "quantitative", "label": "UV MAE"},
+            {"field": "val_pixel_p90", "type": "quantitative", "label": "Pixel p90"},
+            {"field": "val_mask_iou", "type": "quantitative", "label": "Mask IoU"},
+            {"field": "selected", "type": "text", "label": "Selected"}
+          ]
+        }
+      }
+    ],
+    "tables": [
+      {
+        "id": "step_gate_table",
+        "title": "E013 1–9 步 gate 状态",
+        "subtitle": "步骤 1–8 通过；步骤 9 已执行并按冻结规则停止 promotion。",
+        "dataset": "step_gates",
+        "sourceId": "e013_step_gate_projection",
+        "defaultSort": {"field": "step", "direction": "asc"},
+        "columns": [
+          {"field": "step", "label": "Step", "format": "number"},
+          {"field": "stage", "label": "Stage", "type": "text"},
+          {"field": "status", "label": "Status", "type": "text"},
+          {"field": "evidence", "label": "Evidence", "type": "text"}
+        ]
+      },
+      {
+        "id": "perception_table",
+        "title": "Held-out RGB-only perception metrics",
+        "subtitle": "2,044 test samples、3,307 valid keypoints；world-XY 使用 offline GT z-plane，max outlier 单独保留。",
+        "dataset": "perception_metrics",
+        "sourceId": "e013_perception_projection",
+        "defaultSort": {"field": "order", "direction": "asc"},
+        "columns": [
+          {"field": "order", "label": "Order", "format": "number"},
+          {"field": "metric", "label": "Metric", "type": "text"},
+          {"field": "value", "label": "Value", "format": "number"},
+          {"field": "unit", "label": "Unit", "type": "text"},
+          {"field": "interpretation", "label": "Interpretation", "type": "text"}
+        ]
+      },
+      {
+        "id": "shadow_gate_table",
+        "title": "Formal shadow gate checks",
+        "subtitle": "No-actuation；Action 仍由 Expert 唯一产生。任一 fail 都阻断 promotion。",
+        "dataset": "shadow_checks",
+        "sourceId": "e013_shadow_checks_projection",
+        "defaultSort": {"field": "order", "direction": "asc"},
+        "columns": [
+          {"field": "order", "label": "Order", "format": "number"},
+          {"field": "check", "label": "Check", "type": "text"},
+          {"field": "actual", "label": "Actual", "type": "text"},
+          {"field": "required", "label": "Required", "type": "text"},
+          {"field": "result", "label": "Result", "type": "text"}
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "id": "e013_public_summary",
+        "label": "E013 Precision v1 compact public summary",
+        "path": "docs/results/e013/summary.json",
+        "description": "Reviewed, sanitized projection of Dataset/schema audits, real-sample overfit, 20-epoch training, held-out calibration/perception, full-history Provider latency, two smoke runs and the formal 100-seed no-actuation shadow. Each private upstream artifact is bound by SHA-256 in the same summary."
+      },
+      {
+        "id": "e013_headline_projection",
+        "label": "E013 headline metric projection",
+        "path": "docs/results/e013/summary.json",
+        "description": "Executable one-row projection of the report headline metrics.",
+        "query": {
+          "engine": "SQLite",
+          "id": "e013-headline-v1",
+          "language": "sql",
+          "executed_at": "2026-09-01T16:47:42Z",
+          "description": "Projects gate count, held-out p90, paired episodes, deadline misses and shadow latency budget.",
+          "sql": "WITH headline(steps_passed, steps_total, held_out_p90_mm, perception_gate_mm, paired_episodes, paired_required, deadline_misses, deadline_allowed, shadow_p95_ms, latency_budget_ms) AS (VALUES (8, 9, 1.5172345098108057, 15.0, 95, 100, 7, 0, 20.77493679944382, 50.0)) SELECT * FROM headline;"
+        }
+      },
+      {
+        "id": "e013_shadow_completion_projection",
+        "label": "E013 formal shadow completion projection",
+        "path": "docs/results/e013/summary.json",
+        "description": "Executable actual-versus-required projection for the two formal no-actuation arms.",
+        "query": {
+          "engine": "SQLite",
+          "id": "e013-shadow-completion-v1",
+          "language": "sql",
+          "executed_at": "2026-09-01T16:47:42Z",
+          "description": "Projects accepted and required episode counts for baseline and shadow.",
+          "sql": "WITH completion(arm, measure, episodes, failure_count, requested, gate_status) AS (VALUES ('Baseline', 'actual', 95, 5, 100, 'failed'), ('Baseline', 'required', 100, 5, 100, 'failed'), ('Shadow', 'actual', 95, 5, 100, 'failed'), ('Shadow', 'required', 100, 5, 100, 'failed')) SELECT * FROM completion ORDER BY arm, measure;"
+        }
+      },
+      {
+        "id": "e013_training_projection",
+        "label": "E013 20-epoch validation projection",
+        "path": "docs/results/e013/summary.json",
+        "description": "Executable 20-row projection of validation UV MAE, pixel p90, mask IoU and preregistered checkpoint selection.",
+        "query": {
+          "engine": "SQLite",
+          "id": "e013-training-metrics-v1",
+          "language": "sql",
+          "executed_at": "2026-09-01T16:47:42Z",
+          "description": "Projects all validation epochs used by the formal checkpoint-selection rule.",
+          "sql": "WITH metrics(epoch, val_normalized_uv_mae, val_pixel_p90, val_mask_iou, selected, validation_samples) AS (VALUES (1,0.0044671655632555485,1.8503186225891128,0.3999011055414509,'no',1167),(2,0.003761647269129753,1.052663540840149,0.6487063196326569,'no',1167),(3,0.004805410746484995,0.7879998445510864,0.8412452689067267,'no',1167),(4,0.0023873108439147472,0.705956780910492,0.8535739826940412,'yes',1167),(5,0.002604839624837041,0.8027371644973756,0.8570363478213432,'no',1167),(6,0.0025935284793376923,0.8529914617538453,0.8837964762061584,'no',1167),(7,0.0028075226582586765,0.647609281539917,0.8886643571552754,'no',1167),(8,0.0037623520474880934,0.8039200186729432,0.9282830580274642,'no',1167),(9,0.003361571580171585,0.6332054257392886,0.9347120096682943,'no',1167),(10,0.0030999176669865847,0.5914421319961548,0.942531484598138,'no',1167),(11,0.0036763898096978664,0.6091185927391055,0.947993423707561,'no',1167),(12,0.0032869544811546803,0.6371812224388137,0.9547684658920145,'no',1167),(13,0.0032096807844936848,0.5552153468132021,0.9617690533276667,'no',1167),(14,0.003103633178398013,0.6259275317192083,0.9663155229758871,'no',1167),(15,0.0031114115845412016,0.589998996257783,0.9657584128018278,'no',1167),(16,0.0030023688450455666,0.6072229027748113,0.9698896534119258,'no',1167),(17,0.0030854002106934786,0.5428955793380741,0.9705254241225805,'no',1167),(18,0.0029873140156269073,0.5441615819931032,0.9709476923462048,'no',1167),(19,0.002877146238461137,0.5421316981315613,0.9726151103290603,'no',1167),(20,0.0027801559772342443,0.49664641022682193,0.9730484617902583,'no',1167)) SELECT * FROM metrics ORDER BY epoch;"
+        }
+      },
+      {
+        "id": "e013_step_gate_projection",
+        "label": "E013 1–9 gate projection",
+        "path": "docs/results/e013/summary.json",
+        "description": "Executable ordered projection of the nine E013 gates and their compact evidence.",
+        "query": {
+          "engine": "SQLite",
+          "id": "e013-step-gates-v1",
+          "language": "sql",
+          "executed_at": "2026-09-01T16:47:42Z",
+          "description": "Projects ordered step status and evidence for the completed workflow.",
+          "sql": "WITH gates(step, stage, status, evidence) AS (VALUES (1,'Schema freeze','passed','Deployable and privileged roots separated'),(2,'Observation V2 collection','passed','40 trajectories and 7987 ticks complete'),(3,'Privileged-label isolation','passed','model_input_privileged_overlap is empty'),(4,'Time coordinate split audit','passed','7987 of 7987 Action parity and no scene overlap'),(5,'Real-sample overfit','passed','64 samples and Motion Head unchanged'),(6,'Formal training','passed','20 epochs and 3000 optimizer steps'),(7,'Formal checkpoint','passed','epoch 4 strict reload'),(8,'Held-out calibration latency','passed','1.517 mm p90 and 800 of 800 frames'),(9,'100-seed no-actuation shadow','failed','95 pairs 5 rejections 7 deadline misses')) SELECT * FROM gates ORDER BY step;"
+        }
+      },
+      {
+        "id": "e013_perception_projection",
+        "label": "E013 held-out perception projection",
+        "path": "docs/results/e013/summary.json",
+        "description": "Executable projection of held-out perception percentiles, outlier, pixel error and mask IoU.",
+        "query": {
+          "engine": "SQLite",
+          "id": "e013-held-out-perception-v1",
+          "language": "sql",
+          "executed_at": "2026-09-01T16:47:42Z",
+          "description": "Projects the exact metrics used by the held-out perception table.",
+          "sql": "WITH perception(\"order\", metric, value, unit, interpretation) AS (VALUES (1,'Combined world-XY p50',0.37036684807389975,'mm','Conditional simulator XY perception'),(2,'Combined world-XY p90',1.5172345098108057,'mm','Passes 15 mm perception gate'),(3,'Object world-XY p90',0.9968333295546474,'mm','Object center only'),(4,'Goal world-XY p90',2.312003681436181,'mm','Goal center only and fewer training labels'),(5,'Confidence-accepted p90',1.5752814593724914,'mm','93.20 percent coverage and 92.64 percent precision'),(6,'Maximum world-XY error',208.53787660598755,'mm','Long-tail outlier retained'),(7,'Pixel error p90',0.6834750533103944,'px','3307 valid keypoints'),(8,'Mask IoU',0.8573075017377152,'ratio','2044 test samples')) SELECT * FROM perception ORDER BY \"order\";"
+        }
+      },
+      {
+        "id": "e013_shadow_checks_projection",
+        "label": "E013 formal shadow gate-check projection",
+        "path": "docs/results/e013/summary.json",
+        "description": "Executable projection of each formal shadow requirement, observation and pass/fail result.",
+        "query": {
+          "engine": "SQLite",
+          "id": "e013-shadow-checks-v1",
+          "language": "sql",
+          "executed_at": "2026-09-01T16:47:42Z",
+          "description": "Projects formal completion, rejection, deadline, latency, parity, failure and no-actuation checks.",
+          "sql": "WITH checks(\"order\", \"check\", actual, required, result) AS (VALUES (1,'Baseline completed','95','100','fail'),(2,'Shadow completed','95','100','fail'),(3,'Collector failures per arm','5','0','fail'),(4,'Deadline misses','7 / 19100 calls','0','fail'),(5,'Provider latency p95','20.775 ms','less than or equal to 50 ms','pass'),(6,'Action mismatches','0','0','pass'),(7,'Commanded-target mismatches','0','0','pass'),(8,'Episode-length mismatches','0','0','pass'),(9,'Provider / observer failures','0 / 0','0 / 0','pass'),(10,'Actuation allowed','false','false','pass')) SELECT * FROM checks ORDER BY \"order\";"
+        }
+      }
+    ],
+    "blocks": [
+      {
+        "id": "title",
+        "type": "markdown",
+        "body": "# E013 Precision v1：感知通过，正式 shadow 停止 promotion"
+      },
+      {
+        "id": "technical_summary",
+        "type": "markdown",
+        "sourceId": "e013_public_summary",
+        "body": "## Technical summary｜技术摘要\n\n**E013 的最小可部署状态、GT 隔离、真实样本 overfit、20-epoch Precision U-Net 训练、formal checkpoint、held-out 感知、confidence calibration 和完整四帧 Provider latency 均通过；正式 100-seed no-actuation shadow 则按预注册 gate 失败并停止 promotion。**\n\n感知侧 test world-XY p90 为 `1.517 mm`，但这是使用 offline GT z-plane 的模拟器条件 XY 误差，不是最终 placement；同时存在 `208.5 mm` 最大 outlier。执行侧形成 95 个干净 pair，Action/commanded-target/episode-length mismatch 都为 0，Provider p95 为 `20.77 ms`；但 5 个相同 seeds 在两臂都被 Expert collector 拒绝，19,100 calls 中另有 7 次超过 `50 ms`。正式 gate 要求 100/100 pairs 和 deadline miss 为 0，所以当前不能接入 actuator，也不能宣称已经达到毫米或厘米级机器人放置精度。"
+      },
+      {
+        "id": "headline_metrics",
+        "type": "metric-strip",
+        "cardIds": ["steps_card", "perception_card", "paired_card", "deadline_card", "latency_card"]
+      },
+      {
+        "id": "shadow_result_heading",
+        "type": "markdown",
+        "body": "## 正式 shadow 的平均吞吐足够，但完整性和极端尾部都未通过"
+      },
+      {
+        "id": "shadow_result_interpretation",
+        "type": "markdown",
+        "sourceId": "e013_public_summary",
+        "body": "Baseline 与 shadow 使用相同 `132000..132099` seeds。两臂都在完全相同的 5 个 seeds 触发 rejection：4 个 trusted screw path 规划失败，1 个 controller correction 超出 safety limit，因此只形成 95 个 pair。独立只读复核确认这 95 个 pair 的 Action 与 commanded target 数组 bitwise 相等，说明 Observer 没有改变 Expert 路径；但这只证明 non-interference，不证明 Action 本身正确或 Precision 有效果。"
+      },
+      {"id": "shadow_completion_block", "type": "chart", "chartId": "shadow_completion_chart"},
+      {
+        "id": "deadline_interpretation",
+        "type": "markdown",
+        "sourceId": "e013_public_summary",
+        "body": "预热后的 2-seed smoke 曾得到 deadline miss `0`，但正式 19,100 calls 中仍有 7 个不同 Episode 各出现 1 次超时。p50/p95 `18.34/20.77 ms` 都低于 `50 ms`，说明主分布满足 20 Hz；零 miss gate 捕获的是 p95 看不到的约 `0.0366%` 极端尾部。当前只持久化 Episode miss count 和 record digest，不能把原因唯一归为 CUDA、GC、CPU scheduling、I/O 或 simulator 抢占。"
+      },
+      {"id": "shadow_gate_block", "type": "table", "tableId": "shadow_gate_table"},
+      {
+        "id": "perception_heading",
+        "type": "markdown",
+        "body": "## RGB-only 感知通过离线门槛，但长尾和误差定义阻止系统级宣称"
+      },
+      {
+        "id": "perception_interpretation",
+        "type": "markdown",
+        "sourceId": "e013_public_summary",
+        "body": "在 2,044 个 test samples、3,307 个有效 keypoints 上，world-XY p50/p90 为 `0.370/1.517 mm`，object/goal p90 为 `0.997/2.312 mm`，invalid backprojection 为 0。Confidence 接受约 `93.20%` 的 keypoints，accepted p90 为 `1.575 mm`；但 precision 只有 `92.64%`，且全体最大误差为 `208.5 mm`。因此 calibration 明显有用，却不是单独的执行授权。"
+      },
+      {"id": "perception_table_block", "type": "table", "tableId": "perception_table"},
+      {
+        "id": "training_heading",
+        "type": "markdown",
+        "body": "## 正式训练完整，checkpoint 选择没有追随后期 mask/pixel 改善"
+      },
+      {
+        "id": "training_interpretation",
+        "type": "markdown",
+        "sourceId": "e013_public_summary",
+        "body": "训练完成 20 epochs、95,520 examples、3,000 optimizer steps；预注册选模只最小化 validation normalized-UV MAE，并以较早 epoch 打破平局。Epoch 4 的 `0.002387` 是全程最低值，因此被保存为 formal checkpoint。到 epoch 20，mask IoU 和 pixel p90 继续改善到 `0.973` 与 `0.497 px`，但 UV MAE 为 `0.002780`，不能临时替换预注册 primary metric。Motion Head 始终与 seed-13013 的零初始化逐参数相同。"
+      },
+      {"id": "training_chart_block", "type": "chart", "chartId": "training_uv_chart"},
+      {
+        "id": "scope_definitions",
+        "type": "markdown",
+        "sourceId": "e013_public_summary",
+        "body": "## 范围、数据与指标定义\n\n- **Deployable state：**每 Tick 的 wrist RGB、TCP pose、动态 wrist-camera pose、F_L/F_R、proprio/controller state、timestamp 与 validity；历史长度固定 4。\n- **Privileged labels：**segmentation、GT object/goal base pose、projected UV、visibility 和 projection validity 位于独立 sibling root，只用于训练监督和离线评价。\n- **Model input：**仅 `rgb_wrist`、`structured_state`、`geometric_motion`；privileged overlap 为 `[]`。\n- **Held-out world-XY：**预测 UV 与 offline GT z-plane 的射线交点相对 GT XY 的误差；不含相机/TCP 标定、IK、tracking、接触和最终放置。\n- **Formal shadow：**同 seed Expert baseline 与加载 Observer 的 Expert shadow；`actuation_allowed=false`，所有 outcome 仍属于 Expert。\n- **Deadline：**单次完整 Provider 调用超过 `min(50 ms, 1/20 Hz)` 即记 miss；promotion 同时要求 p95 通过和 miss 数为 0。"
+      },
+      {
+        "id": "methodology",
+        "type": "markdown",
+        "sourceId": "e013_public_summary",
+        "body": "## 实验设计与完整性核验\n\n正式 Dataset 包含 40 条完整成功 trajectory、7,987 ticks，train/val/test 为 `24/6/10`；六个 Observation V2 模态 coverage 为 1.0、invalid 为 0，Action semantic parity 为 `7,987/7,987`，scene split 无重叠。64 个真实样本先通过 overfit gate，再以 seed 13013、BF16、batch 32 运行 20 epochs。Held-out v1 因 200 calls 只产生 `794/800` frames 被标记 superseded；v3 限制到完整历史后得到 `200/200` calls、`800/800` frames、p95 `18.84 ms`。Shadow 前使用 20 次无 GT、无 Action、四帧 synthetic Observation V2 预热并清空 ledger；正式运行仍保留所有 rejection 与超时。"
+      },
+      {"id": "step_gate_block", "type": "table", "tableId": "step_gate_table"},
+      {
+        "id": "limitations",
+        "type": "markdown",
+        "sourceId": "e013_public_summary",
+        "body": "## 限制、不确定性与稳健性边界\n\n- `1.517 mm` 是模拟器、GT-plane 条件 XY 感知误差，不是机器人 final placement error，也不是 2 mm 闭环精度。\n- 只有 24 条 train trajectories，场景、物体、光照和相机分布较窄；208.5 mm 最大 outlier 说明 held-out 均值/百分位不能覆盖全部状态。\n- Motion Head 保持 frozen-zero；Cartesian IK、force-contact controller、Precision actuator 和真实硬件 calibration 都未进入本轮。\n- F_L/F_R 是 ManiSkill 左右 finger 与目标物体的 pairwise contact-force magnitude，不是真实压力传感器的标定读数。\n- 5 个 Expert/collector rejection 与 7 次 deadline miss 都进入失败判定；当前没有统计模型或重采样可以把它们忽略。\n- E012 严格从 epoch-24 full-state 恢复后，结构状态、examples/steps/exposure/offsets 与冻结 identity 一致，但 CUDA loss/gradient 数值轨迹不再 bitwise reproducible。"
+      },
+      {
+        "id": "next_steps",
+        "type": "markdown",
+        "body": "## 由当前证据支持的下一步\n\n1. 保持本次 `gate_passed=false`、`promotion_stopped=true`，不复用 `132000..132099`，不启用 Motion Head residual 或 actuator。\n2. 以新实验 ID 加入脱敏逐 call latency bucket/phase telemetry，再预注册比较 frame cache、异步 GPU worker、固定内存、CUDA graph 或 CPU scheduling isolation；目标是解决零 miss，而不只是再次通过 p95。\n3. 在全新 seeds 前修复 MPlib trusted path robustness 与 controller-correction safety rejection；不得把当前 5 个困难 seeds 事后筛除。\n4. 新的 no-actuation gate 通过后，再分别测 camera/TCP calibration、Cartesian IK/tracking、接触和 final placement，建立可加总的系统误差预算。\n5. 只有完整 no-actuation、系统安全和控制门禁都通过，才允许新实验评估 bounded residual 或低幅 Cartesian actuation。"
+      },
+      {
+        "id": "further_questions",
+        "type": "markdown",
+        "body": "## 仍需回答的问题\n\n- 7 个单次超时发生在 CPU preprocessing、GPU inference、同步还是 simulator 阶段？新的持久化 phase telemetry 才能区分。\n- Goal p90 高于 object p90、并且 goal training label 更少；遮挡、投影不可用和 Dataset coverage 各贡献多少？\n- 208.5 mm outlier 是否能被 pose-aware temporal innovation、workspace gate 或多视角一致性在执行前稳定拒绝？\n- 当真实相机/TCP 标定、IK tracking 与接触误差加入后，离线 1–2 mm perception margin 能否仍满足 12/20 mm 求职目标或 15/25 mm 工程底线？"
+      }
+    ]
+  },
+  "snapshot": {
+    "version": 1,
+    "generatedAt": "2026-09-01T16:47:42Z",
+    "status": "ready",
+    "datasets": {
+      "headline": [
+        {
+          "steps_passed": 8,
+          "steps_total": 9,
+          "held_out_p90_mm": 1.5172345098108057,
+          "perception_gate_mm": 15,
+          "paired_episodes": 95,
+          "paired_required": 100,
+          "deadline_misses": 7,
+          "deadline_allowed": 0,
+          "shadow_p95_ms": 20.77493679944382,
+          "latency_budget_ms": 50
+        }
+      ],
+      "step_gates": [
+        {"step": 1, "stage": "Schema freeze", "status": "passed", "evidence": "Deployable inputs and privileged labels are separate"},
+        {"step": 2, "stage": "Observation V2 collection", "status": "passed", "evidence": "40 trajectories / 7,987 ticks / six modalities complete"},
+        {"step": 3, "stage": "Privileged-label isolation", "status": "passed", "evidence": "model_input_privileged_overlap=[]"},
+        {"step": 4, "stage": "Time/coordinate/split audit", "status": "passed", "evidence": "7,987/7,987 Action parity; no scene overlap"},
+        {"step": 5, "stage": "Real-sample overfit", "status": "passed", "evidence": "64 samples; UV MAE 0.000478; Motion Head unchanged"},
+        {"step": 6, "stage": "Formal training", "status": "passed", "evidence": "20 epochs / 95,520 examples / 3,000 steps"},
+        {"step": 7, "stage": "Formal checkpoint", "status": "passed", "evidence": "epoch 4 selected; strict reload passed"},
+        {"step": 8, "stage": "Held-out + calibration + latency", "status": "passed", "evidence": "XY p90 1.517 mm; 800/800 frames; p95 18.84 ms"},
+        {"step": 9, "stage": "100-seed no-actuation shadow", "status": "failed", "evidence": "95/100 pairs; 5 rejections; 7 deadline misses"}
+      ],
+      "shadow_completion": [
+        {"arm": "Baseline", "measure": "actual", "episodes": 95, "failure_count": 5, "requested": 100, "gate_status": "failed"},
+        {"arm": "Baseline", "measure": "required", "episodes": 100, "failure_count": 5, "requested": 100, "gate_status": "failed"},
+        {"arm": "Shadow", "measure": "actual", "episodes": 95, "failure_count": 5, "requested": 100, "gate_status": "failed"},
+        {"arm": "Shadow", "measure": "required", "episodes": 100, "failure_count": 5, "requested": 100, "gate_status": "failed"}
+      ],
+      "shadow_checks": [
+        {"order": 1, "check": "Baseline completed", "actual": "95", "required": "100", "result": "fail"},
+        {"order": 2, "check": "Shadow completed", "actual": "95", "required": "100", "result": "fail"},
+        {"order": 3, "check": "Collector failures per arm", "actual": "5", "required": "0", "result": "fail"},
+        {"order": 4, "check": "Deadline misses", "actual": "7 / 19,100 calls", "required": "0", "result": "fail"},
+        {"order": 5, "check": "Provider latency p95", "actual": "20.775 ms", "required": "<= 50 ms", "result": "pass"},
+        {"order": 6, "check": "Action mismatches", "actual": "0", "required": "0", "result": "pass"},
+        {"order": 7, "check": "Commanded-target mismatches", "actual": "0", "required": "0", "result": "pass"},
+        {"order": 8, "check": "Episode-length mismatches", "actual": "0", "required": "0", "result": "pass"},
+        {"order": 9, "check": "Provider / observer failures", "actual": "0 / 0", "required": "0 / 0", "result": "pass"},
+        {"order": 10, "check": "Actuation allowed", "actual": "false", "required": "false", "result": "pass"}
+      ],
+      "perception_metrics": [
+        {"order": 1, "metric": "Combined world-XY p50", "value": 0.37036684807389975, "unit": "mm", "interpretation": "Conditional simulator XY perception"},
+        {"order": 2, "metric": "Combined world-XY p90", "value": 1.5172345098108057, "unit": "mm", "interpretation": "Passes 15 mm perception gate"},
+        {"order": 3, "metric": "Object world-XY p90", "value": 0.9968333295546474, "unit": "mm", "interpretation": "Object center only"},
+        {"order": 4, "metric": "Goal world-XY p90", "value": 2.312003681436181, "unit": "mm", "interpretation": "Goal center only; fewer training labels"},
+        {"order": 5, "metric": "Confidence-accepted p90", "value": 1.5752814593724914, "unit": "mm", "interpretation": "93.20% coverage; 92.64% precision"},
+        {"order": 6, "metric": "Maximum world-XY error", "value": 208.53787660598755, "unit": "mm", "interpretation": "Long-tail outlier retained"},
+        {"order": 7, "metric": "Pixel error p90", "value": 0.6834750533103944, "unit": "px", "interpretation": "3,307 valid keypoints"},
+        {"order": 8, "metric": "Mask IoU", "value": 0.8573075017377152, "unit": "ratio", "interpretation": "2,044 test samples"}
+      ],
+      "training_metrics": [
+        {"epoch": 1, "val_normalized_uv_mae": 0.0044671655632555485, "val_pixel_p90": 1.8503186225891128, "val_mask_iou": 0.3999011055414509, "selected": "no", "validation_samples": 1167},
+        {"epoch": 2, "val_normalized_uv_mae": 0.003761647269129753, "val_pixel_p90": 1.052663540840149, "val_mask_iou": 0.6487063196326569, "selected": "no", "validation_samples": 1167},
+        {"epoch": 3, "val_normalized_uv_mae": 0.004805410746484995, "val_pixel_p90": 0.7879998445510864, "val_mask_iou": 0.8412452689067267, "selected": "no", "validation_samples": 1167},
+        {"epoch": 4, "val_normalized_uv_mae": 0.0023873108439147472, "val_pixel_p90": 0.705956780910492, "val_mask_iou": 0.8535739826940412, "selected": "yes", "validation_samples": 1167},
+        {"epoch": 5, "val_normalized_uv_mae": 0.002604839624837041, "val_pixel_p90": 0.8027371644973756, "val_mask_iou": 0.8570363478213432, "selected": "no", "validation_samples": 1167},
+        {"epoch": 6, "val_normalized_uv_mae": 0.0025935284793376923, "val_pixel_p90": 0.8529914617538453, "val_mask_iou": 0.8837964762061584, "selected": "no", "validation_samples": 1167},
+        {"epoch": 7, "val_normalized_uv_mae": 0.0028075226582586765, "val_pixel_p90": 0.647609281539917, "val_mask_iou": 0.8886643571552754, "selected": "no", "validation_samples": 1167},
+        {"epoch": 8, "val_normalized_uv_mae": 0.0037623520474880934, "val_pixel_p90": 0.8039200186729432, "val_mask_iou": 0.9282830580274642, "selected": "no", "validation_samples": 1167},
+        {"epoch": 9, "val_normalized_uv_mae": 0.003361571580171585, "val_pixel_p90": 0.6332054257392886, "val_mask_iou": 0.9347120096682943, "selected": "no", "validation_samples": 1167},
+        {"epoch": 10, "val_normalized_uv_mae": 0.0030999176669865847, "val_pixel_p90": 0.5914421319961548, "val_mask_iou": 0.942531484598138, "selected": "no", "validation_samples": 1167},
+        {"epoch": 11, "val_normalized_uv_mae": 0.0036763898096978664, "val_pixel_p90": 0.6091185927391055, "val_mask_iou": 0.947993423707561, "selected": "no", "validation_samples": 1167},
+        {"epoch": 12, "val_normalized_uv_mae": 0.0032869544811546803, "val_pixel_p90": 0.6371812224388137, "val_mask_iou": 0.9547684658920145, "selected": "no", "validation_samples": 1167},
+        {"epoch": 13, "val_normalized_uv_mae": 0.0032096807844936848, "val_pixel_p90": 0.5552153468132021, "val_mask_iou": 0.9617690533276667, "selected": "no", "validation_samples": 1167},
+        {"epoch": 14, "val_normalized_uv_mae": 0.003103633178398013, "val_pixel_p90": 0.6259275317192083, "val_mask_iou": 0.9663155229758871, "selected": "no", "validation_samples": 1167},
+        {"epoch": 15, "val_normalized_uv_mae": 0.0031114115845412016, "val_pixel_p90": 0.589998996257783, "val_mask_iou": 0.9657584128018278, "selected": "no", "validation_samples": 1167},
+        {"epoch": 16, "val_normalized_uv_mae": 0.0030023688450455666, "val_pixel_p90": 0.6072229027748113, "val_mask_iou": 0.9698896534119258, "selected": "no", "validation_samples": 1167},
+        {"epoch": 17, "val_normalized_uv_mae": 0.0030854002106934786, "val_pixel_p90": 0.5428955793380741, "val_mask_iou": 0.9705254241225805, "selected": "no", "validation_samples": 1167},
+        {"epoch": 18, "val_normalized_uv_mae": 0.0029873140156269073, "val_pixel_p90": 0.5441615819931032, "val_mask_iou": 0.9709476923462048, "selected": "no", "validation_samples": 1167},
+        {"epoch": 19, "val_normalized_uv_mae": 0.002877146238461137, "val_pixel_p90": 0.5421316981315613, "val_mask_iou": 0.9726151103290603, "selected": "no", "validation_samples": 1167},
+        {"epoch": 20, "val_normalized_uv_mae": 0.0027801559772342443, "val_pixel_p90": 0.49664641022682193, "val_mask_iou": 0.9730484617902583, "selected": "no", "validation_samples": 1167}
+      ]
+    },
+    "accessIssues": []
+  },
+  "sources": [
+    {
+      "id": "e013_public_summary",
+      "label": "E013 Precision v1 compact public summary",
+      "path": "docs/results/e013/summary.json",
+      "description": "Reviewed, sanitized projection of Dataset/schema audits, real-sample overfit, 20-epoch training, held-out calibration/perception, full-history Provider latency, two smoke runs and the formal 100-seed no-actuation shadow. Each private upstream artifact is bound by SHA-256 in the same summary."
+    },
+    {
+      "id": "e013_headline_projection",
+      "label": "E013 headline metric projection",
+      "path": "docs/results/e013/summary.json",
+      "description": "Executable one-row projection of the report headline metrics.",
+      "query": {
+        "engine": "SQLite",
+        "id": "e013-headline-v1",
+        "language": "sql",
+        "executed_at": "2026-09-01T16:47:42Z",
+        "description": "Projects gate count, held-out p90, paired episodes, deadline misses and shadow latency budget.",
+        "sql": "WITH headline(steps_passed, steps_total, held_out_p90_mm, perception_gate_mm, paired_episodes, paired_required, deadline_misses, deadline_allowed, shadow_p95_ms, latency_budget_ms) AS (VALUES (8, 9, 1.5172345098108057, 15.0, 95, 100, 7, 0, 20.77493679944382, 50.0)) SELECT * FROM headline;"
+      }
+    },
+    {
+      "id": "e013_shadow_completion_projection",
+      "label": "E013 formal shadow completion projection",
+      "path": "docs/results/e013/summary.json",
+      "description": "Executable actual-versus-required projection for the two formal no-actuation arms.",
+      "query": {
+        "engine": "SQLite",
+        "id": "e013-shadow-completion-v1",
+        "language": "sql",
+        "executed_at": "2026-09-01T16:47:42Z",
+        "description": "Projects accepted and required episode counts for baseline and shadow.",
+        "sql": "WITH completion(arm, measure, episodes, failure_count, requested, gate_status) AS (VALUES ('Baseline', 'actual', 95, 5, 100, 'failed'), ('Baseline', 'required', 100, 5, 100, 'failed'), ('Shadow', 'actual', 95, 5, 100, 'failed'), ('Shadow', 'required', 100, 5, 100, 'failed')) SELECT * FROM completion ORDER BY arm, measure;"
+      }
+    },
+    {
+      "id": "e013_training_projection",
+      "label": "E013 20-epoch validation projection",
+      "path": "docs/results/e013/summary.json",
+      "description": "Executable 20-row projection of validation UV MAE, pixel p90, mask IoU and preregistered checkpoint selection.",
+      "query": {
+        "engine": "SQLite",
+        "id": "e013-training-metrics-v1",
+        "language": "sql",
+        "executed_at": "2026-09-01T16:47:42Z",
+        "description": "Projects all validation epochs used by the formal checkpoint-selection rule.",
+        "sql": "WITH metrics(epoch, val_normalized_uv_mae, val_pixel_p90, val_mask_iou, selected, validation_samples) AS (VALUES (1,0.0044671655632555485,1.8503186225891128,0.3999011055414509,'no',1167),(2,0.003761647269129753,1.052663540840149,0.6487063196326569,'no',1167),(3,0.004805410746484995,0.7879998445510864,0.8412452689067267,'no',1167),(4,0.0023873108439147472,0.705956780910492,0.8535739826940412,'yes',1167),(5,0.002604839624837041,0.8027371644973756,0.8570363478213432,'no',1167),(6,0.0025935284793376923,0.8529914617538453,0.8837964762061584,'no',1167),(7,0.0028075226582586765,0.647609281539917,0.8886643571552754,'no',1167),(8,0.0037623520474880934,0.8039200186729432,0.9282830580274642,'no',1167),(9,0.003361571580171585,0.6332054257392886,0.9347120096682943,'no',1167),(10,0.0030999176669865847,0.5914421319961548,0.942531484598138,'no',1167),(11,0.0036763898096978664,0.6091185927391055,0.947993423707561,'no',1167),(12,0.0032869544811546803,0.6371812224388137,0.9547684658920145,'no',1167),(13,0.0032096807844936848,0.5552153468132021,0.9617690533276667,'no',1167),(14,0.003103633178398013,0.6259275317192083,0.9663155229758871,'no',1167),(15,0.0031114115845412016,0.589998996257783,0.9657584128018278,'no',1167),(16,0.0030023688450455666,0.6072229027748113,0.9698896534119258,'no',1167),(17,0.0030854002106934786,0.5428955793380741,0.9705254241225805,'no',1167),(18,0.0029873140156269073,0.5441615819931032,0.9709476923462048,'no',1167),(19,0.002877146238461137,0.5421316981315613,0.9726151103290603,'no',1167),(20,0.0027801559772342443,0.49664641022682193,0.9730484617902583,'no',1167)) SELECT * FROM metrics ORDER BY epoch;"
+      }
+    },
+    {
+      "id": "e013_step_gate_projection",
+      "label": "E013 1–9 gate projection",
+      "path": "docs/results/e013/summary.json",
+      "description": "Executable ordered projection of the nine E013 gates and their compact evidence.",
+      "query": {
+        "engine": "SQLite",
+        "id": "e013-step-gates-v1",
+        "language": "sql",
+        "executed_at": "2026-09-01T16:47:42Z",
+        "description": "Projects ordered step status and evidence for the completed workflow.",
+        "sql": "WITH gates(step, stage, status, evidence) AS (VALUES (1,'Schema freeze','passed','Deployable and privileged roots separated'),(2,'Observation V2 collection','passed','40 trajectories and 7987 ticks complete'),(3,'Privileged-label isolation','passed','model_input_privileged_overlap is empty'),(4,'Time coordinate split audit','passed','7987 of 7987 Action parity and no scene overlap'),(5,'Real-sample overfit','passed','64 samples and Motion Head unchanged'),(6,'Formal training','passed','20 epochs and 3000 optimizer steps'),(7,'Formal checkpoint','passed','epoch 4 strict reload'),(8,'Held-out calibration latency','passed','1.517 mm p90 and 800 of 800 frames'),(9,'100-seed no-actuation shadow','failed','95 pairs 5 rejections 7 deadline misses')) SELECT * FROM gates ORDER BY step;"
+      }
+    },
+    {
+      "id": "e013_perception_projection",
+      "label": "E013 held-out perception projection",
+      "path": "docs/results/e013/summary.json",
+      "description": "Executable projection of held-out perception percentiles, outlier, pixel error and mask IoU.",
+      "query": {
+        "engine": "SQLite",
+        "id": "e013-held-out-perception-v1",
+        "language": "sql",
+        "executed_at": "2026-09-01T16:47:42Z",
+        "description": "Projects the exact metrics used by the held-out perception table.",
+        "sql": "WITH perception(\"order\", metric, value, unit, interpretation) AS (VALUES (1,'Combined world-XY p50',0.37036684807389975,'mm','Conditional simulator XY perception'),(2,'Combined world-XY p90',1.5172345098108057,'mm','Passes 15 mm perception gate'),(3,'Object world-XY p90',0.9968333295546474,'mm','Object center only'),(4,'Goal world-XY p90',2.312003681436181,'mm','Goal center only and fewer training labels'),(5,'Confidence-accepted p90',1.5752814593724914,'mm','93.20 percent coverage and 92.64 percent precision'),(6,'Maximum world-XY error',208.53787660598755,'mm','Long-tail outlier retained'),(7,'Pixel error p90',0.6834750533103944,'px','3307 valid keypoints'),(8,'Mask IoU',0.8573075017377152,'ratio','2044 test samples')) SELECT * FROM perception ORDER BY \"order\";"
+      }
+    },
+    {
+      "id": "e013_shadow_checks_projection",
+      "label": "E013 formal shadow gate-check projection",
+      "path": "docs/results/e013/summary.json",
+      "description": "Executable projection of each formal shadow requirement, observation and pass/fail result.",
+      "query": {
+        "engine": "SQLite",
+        "id": "e013-shadow-checks-v1",
+        "language": "sql",
+        "executed_at": "2026-09-01T16:47:42Z",
+        "description": "Projects formal completion, rejection, deadline, latency, parity, failure and no-actuation checks.",
+        "sql": "WITH checks(\"order\", \"check\", actual, required, result) AS (VALUES (1,'Baseline completed','95','100','fail'),(2,'Shadow completed','95','100','fail'),(3,'Collector failures per arm','5','0','fail'),(4,'Deadline misses','7 / 19100 calls','0','fail'),(5,'Provider latency p95','20.775 ms','less than or equal to 50 ms','pass'),(6,'Action mismatches','0','0','pass'),(7,'Commanded-target mismatches','0','0','pass'),(8,'Episode-length mismatches','0','0','pass'),(9,'Provider / observer failures','0 / 0','0 / 0','pass'),(10,'Actuation allowed','false','false','pass')) SELECT * FROM checks ORDER BY \"order\";"
+      }
+    }
+  ]
+}

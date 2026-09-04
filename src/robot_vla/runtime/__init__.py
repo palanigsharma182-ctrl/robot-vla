@@ -4,6 +4,7 @@ from robot_vla.execution.rtc import ChunkInferenceStrategy, RTCConfig, RTCTrace
 from robot_vla.runtime.control_loop import QwenVLAReplanLoop, ReplanResult
 from robot_vla.runtime.policy_runtime import (
     OnlineObservation,
+    QwenVLAObservationV2Runtime,
     QwenVLARuntime,
     RuntimeActionChunk,
     RuntimeConfig,
@@ -13,6 +14,7 @@ from robot_vla.runtime.policy_runtime import (
 __all__ = [
     "ChunkInferenceStrategy",
     "OnlineObservation",
+    "QwenVLAObservationV2Runtime",
     "QwenVLAReplanLoop",
     "QwenVLARuntime",
     "RTCConfig",

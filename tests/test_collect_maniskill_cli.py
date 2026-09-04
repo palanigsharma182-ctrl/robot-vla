@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import json
+from argparse import Namespace
 from dataclasses import replace
 
 import pytest
 
 from robot_vla.cli.collect_maniskill import (
     _check_or_write_config,
+    _collection_config,
     _is_compatible_extension,
     _next_recovery_profile,
     _validate_existing_split_plan,
@@ -33,6 +35,15 @@ def test_dataset_extension_requires_same_split_ratio_and_seed_range() -> None:
         {**_config(80, 10, 10), "start_seed": 1},
     )
     assert not _is_compatible_extension(existing, _config(23, 3, 3))
+    deferred = {
+        **_config(24, 3, 3),
+        "precision_label_sidecar": True,
+        "precision_label_audit_deferred": True,
+    }
+    assert not _is_compatible_extension(
+        deferred,
+        {**deferred, "precision_label_audit_deferred": False},
+    )
     recovery = {**_config(80, 10, 10), "recovery_profiles": ["reach", "place"]}
     assert _is_compatible_extension(existing, recovery)
     assert not _is_compatible_extension(
@@ -92,3 +103,22 @@ def test_existing_manifest_must_keep_deterministic_scene_split(tmp_path, meta_fa
     )
     with pytest.raises(ValueError, match="split"):
         _validate_existing_split_plan(tmp_path, {entry.scene_id: "test"})
+
+
+def test_collection_config_records_deferred_precision_audit() -> None:
+    args = Namespace(
+        train=1,
+        val=20,
+        test=100,
+        start_seed=134000,
+        max_candidates=1000,
+        precision_label_output="labels",
+        defer_precision_label_audit=True,
+        recovery_profiles=(),
+        recovery_profile_targets=(),
+    )
+
+    config = _collection_config(args)
+
+    assert config["precision_label_sidecar"] is True
+    assert config["precision_label_audit_deferred"] is True

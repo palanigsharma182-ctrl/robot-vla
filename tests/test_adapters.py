@@ -4,6 +4,8 @@ import pytest
 from robot_vla.adapters import (
     ActionAdapter,
     ActionContractViolation,
+    FingerForceNormalizer,
+    FingerForceStats,
     FrankaObservationAdapter,
     ProprioNormalizer,
     ProprioStats,
@@ -105,7 +107,7 @@ def test_action_contract_violation_identifies_arm_and_gripper_dimensions() -> No
     assert diagnostic["physical_action"] == pytest.approx(physical.tolist())
 
 
-def test_receding_horizon_commands_reset_to_latest_observation() -> None:
+def test_receding_horizon_commands_integrate_from_supplied_command_reference() -> None:
     spec = RobotSpec()
     adapter = ActionAdapter(spec)
     chunk = np.zeros((spec.action_horizon, spec.action_dim), dtype=np.float32)
@@ -114,9 +116,9 @@ def test_receding_horizon_commands_reset_to_latest_observation() -> None:
     initial_q = np.asarray((0.0, -0.5, 0.0, -1.5, 0.0, 1.5, 0.0), dtype=np.float32)
 
     first = adapter.build_receding_horizon_commands(initial_q, chunk)
-    new_observation = initial_q.copy()
-    new_observation[0] = 0.005
-    second = adapter.build_receding_horizon_commands(new_observation, chunk)
+    next_command_reference = initial_q.copy()
+    next_command_reference[0] = 0.005
+    second = adapter.build_receding_horizon_commands(next_command_reference, chunk)
 
     np.testing.assert_allclose(first.joint_position_targets[:, 0], (0.01, 0.02, 0.03, 0.04))
     np.testing.assert_allclose(second.joint_position_targets[:, 0], (0.015, 0.025, 0.035, 0.045))
@@ -150,3 +152,38 @@ def test_proprio_stats_round_trip_and_clipping(tmp_path) -> None:
     np.testing.assert_allclose(normalizer.normalize(value), 0.0, atol=1e-6)
     extreme = value + np.asarray(stats.std, dtype=np.float32) * 100.0
     np.testing.assert_allclose(normalizer.normalize(extreme), 5.0)
+
+
+def test_finger_force_stats_are_train_fitted_versioned_and_round_trip(tmp_path) -> None:
+    spec = RobotSpec()
+    train_force = np.asarray(
+        ((0.0, 0.0), (1.0, 2.0), (3.0, 4.0), (1000.0, 2000.0)),
+        dtype=np.float32,
+    )
+    stats = FingerForceStats.fit((train_force,), spec, quantile=0.75, clip=1.5)
+    path = tmp_path / "finger_force_stats.json"
+    stats.to_json(path)
+    restored = FingerForceStats.from_json(path)
+    restored.validate(spec)
+    assert restored == stats
+    assert restored.count == 4
+    assert restored.positive_count == (3, 3)
+
+    normalizer = FingerForceNormalizer(restored, spec)
+    normalized = normalizer.normalize(train_force[:3])
+    assert normalized.dtype == np.float32
+    np.testing.assert_array_equal(normalized[0], (0.0, 0.0))
+    assert np.all(normalized >= 0.0)
+    assert np.all(normalized <= restored.clip)
+    np.testing.assert_allclose(
+        normalizer.denormalize(normalized[:2]),
+        train_force[:2],
+        atol=1e-6,
+    )
+
+
+def test_finger_force_stats_reject_missing_positive_finger() -> None:
+    spec = RobotSpec()
+    force = np.asarray(((0.0, 0.0), (1.0, 0.0)), dtype=np.float32)
+    with pytest.raises(ValueError, match="F_R"):
+        FingerForceStats.fit((force,), spec)

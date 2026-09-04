@@ -9,12 +9,17 @@ import torch
 from torch import nn
 
 from robot_vla.model.layers import FP32RMSNorm
+from robot_vla.model.qwen_processor import (
+    VLA_CONTEXT_VALID_MASK,
+    VLA_IMAGE_TIME_INDICES,
+)
 
 
 @dataclass(frozen=True)
 class QwenContext:
     tokens: torch.Tensor
     mask: torch.Tensor
+    image_time_indices: torch.Tensor | None = None
 
 
 class FrozenQwenContextEncoder(nn.Module):
@@ -52,9 +57,16 @@ class FrozenQwenContextEncoder(nn.Module):
         missing = required.difference(model_inputs)
         if missing:
             raise ValueError(f"Qwen model input 缺少字段: {sorted(missing)}")
+        image_time_indices = model_inputs.get(VLA_IMAGE_TIME_INDICES)
+        context_valid_mask = model_inputs.get(VLA_CONTEXT_VALID_MASK)
+        qwen_inputs = {
+            key: value
+            for key, value in model_inputs.items()
+            if key not in {VLA_IMAGE_TIME_INDICES, VLA_CONTEXT_VALID_MASK}
+        }
         self.qwen.eval()
         outputs = self.qwen.model(
-            **model_inputs,
+            **qwen_inputs,
             use_cache=False,
             output_hidden_states=True,
             return_dict=True,
@@ -71,7 +83,20 @@ class FrozenQwenContextEncoder(nn.Module):
         mask = model_inputs["attention_mask"].bool()
         if mask.shape != input_ids.shape:
             raise RuntimeError("Qwen context mask shape 必须与 input_ids 相同")
-        return QwenContext(tokens=tokens, mask=mask)
+        if context_valid_mask is not None:
+            if context_valid_mask.shape != mask.shape:
+                raise ValueError("V2 context_valid_mask shape 必须与 attention_mask 相同")
+            mask = mask & context_valid_mask.bool()
+        if image_time_indices is not None:
+            if image_time_indices.shape != mask.shape:
+                raise ValueError("V2 image_time_indices shape 必须与 attention_mask 相同")
+            if torch.any(image_time_indices < -1):
+                raise ValueError("V2 image_time_indices 不能小于 -1")
+        return QwenContext(
+            tokens=tokens,
+            mask=mask,
+            image_time_indices=image_time_indices,
+        )
 
 
 class FrozenQwenLayerContextEncoder(FrozenQwenContextEncoder):
@@ -96,9 +121,16 @@ class FrozenQwenLayerContextEncoder(FrozenQwenContextEncoder):
         missing = required.difference(model_inputs)
         if missing:
             raise ValueError(f"Qwen model input 缺少字段: {sorted(missing)}")
+        image_time_indices = model_inputs.get(VLA_IMAGE_TIME_INDICES)
+        context_valid_mask = model_inputs.get(VLA_CONTEXT_VALID_MASK)
+        qwen_inputs = {
+            key: value
+            for key, value in model_inputs.items()
+            if key not in {VLA_IMAGE_TIME_INDICES, VLA_CONTEXT_VALID_MASK}
+        }
         self.qwen.eval()
         outputs = self.qwen.model(
-            **model_inputs,
+            **qwen_inputs,
             use_cache=False,
             output_hidden_states=True,
             return_dict=True,
@@ -122,7 +154,20 @@ class FrozenQwenLayerContextEncoder(FrozenQwenContextEncoder):
         mask = model_inputs["attention_mask"].bool()
         if mask.shape != input_ids.shape:
             raise RuntimeError("Qwen context mask shape 必须与 input_ids 相同")
-        return QwenContext(tokens=tokens, mask=mask)
+        if context_valid_mask is not None:
+            if context_valid_mask.shape != mask.shape:
+                raise ValueError("V2 context_valid_mask shape 必须与 attention_mask 相同")
+            mask = mask & context_valid_mask.bool()
+        if image_time_indices is not None:
+            if image_time_indices.shape != mask.shape:
+                raise ValueError("V2 image_time_indices shape 必须与 attention_mask 相同")
+            if torch.any(image_time_indices < -1):
+                raise ValueError("V2 image_time_indices 不能小于 -1")
+        return QwenContext(
+            tokens=tokens,
+            mask=mask,
+            image_time_indices=image_time_indices,
+        )
 
 
 class QwenVLAAdapter(nn.Module):
@@ -132,8 +177,11 @@ class QwenVLAAdapter(nn.Module):
     hidden_dim = 1440
     output_dim = 720
 
-    def __init__(self) -> None:
+    def __init__(self, *, history_length: int = 1) -> None:
         super().__init__()
+        if history_length <= 0:
+            raise ValueError("history_length 必须为正整数")
+        self.history_length = history_length
         self.input_norm = FP32RMSNorm(self.input_dim, eps=1e-5)
         self.skip_projection = nn.Linear(self.input_dim, self.output_dim)
         self.main_projection = nn.Sequential(
@@ -142,6 +190,13 @@ class QwenVLAAdapter(nn.Module):
             nn.Linear(self.hidden_dim, self.output_dim),
         )
         self.output_norm = FP32RMSNorm(self.output_dim, eps=1e-5)
+        if history_length == 1:
+            self.register_parameter("visual_time_embedding", None)
+        else:
+            self.visual_time_embedding = nn.Parameter(
+                torch.empty(history_length, self.output_dim)
+            )
+            nn.init.normal_(self.visual_time_embedding, std=0.02)
 
     def forward(self, context: QwenContext) -> QwenContext:
         tokens = context.tokens
@@ -154,5 +209,25 @@ class QwenVLAAdapter(nn.Module):
         adapted = self.output_norm(
             self.skip_projection(normalized) + self.main_projection(normalized)
         )
+        time_indices = context.image_time_indices
+        if time_indices is not None:
+            if self.visual_time_embedding is None:
+                raise ValueError("V1 Adapter 不能消费带时间索引的 Observation V2 Context")
+            if time_indices.shape != mask.shape:
+                raise ValueError("image_time_indices 必须与 context mask 对齐")
+            if torch.any(time_indices < -1):
+                raise ValueError("image_time_indices 不能小于 -1")
+            if torch.any(time_indices >= self.history_length):
+                raise ValueError("image_time_indices 超出 Adapter history_length")
+            visual = time_indices >= 0
+            safe_indices = time_indices.clamp_min(0)
+            time_embedding = self.visual_time_embedding[safe_indices]
+            adapted = adapted + time_embedding * visual.unsqueeze(-1).to(
+                dtype=adapted.dtype
+            )
         adapted = adapted * mask.unsqueeze(-1).to(dtype=adapted.dtype)
-        return QwenContext(tokens=adapted, mask=mask)
+        return QwenContext(
+            tokens=adapted,
+            mask=mask,
+            image_time_indices=time_indices,
+        )

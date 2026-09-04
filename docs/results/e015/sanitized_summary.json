@@ -1,0 +1,174 @@
+{
+  "aggregation_correction": {
+    "cause": "age-none-uninitialized-rows-were-excluded/v1",
+    "corrected_value": 9253,
+    "field": "stale_or_uninitialized_occluded_count",
+    "model_forward_repeated": false,
+    "original_value": 0,
+    "test_rules_changed": false
+  },
+  "coverage_improved_while_unobservable": true,
+  "e015_a_observability_audit": {
+    "frame_count": 20197,
+    "goal_exists_count": 20197,
+    "goal_in_fov_count": 13553,
+    "goal_observable_count": 10281,
+    "goal_projection_valid_count": 20197,
+    "legacy_contract_mismatch_count": 4689,
+    "legacy_goal_visible_count": 14970,
+    "occlusion_type_counts": {
+      "object_occlusion": 2730,
+      "observable": 10281,
+      "other_occlusion_or_background": 542,
+      "out_of_frame": 6644
+    },
+    "semantics": "projected-center-ray-hits-own-goal-mask/v1"
+  },
+  "e015_b_memory_replay": {
+    "accepted_memory_update_count": 343,
+    "actuation_allowed": false,
+    "current_measurement_catastrophic_count": 0,
+    "current_measurement_coverage": 0.016982720205971184,
+    "current_measurement_error": {
+      "count": 343,
+      "max_mm": 1.5377021509519666,
+      "p50_mm": 0.5266862461913688,
+      "p90_mm": 0.9412434124759042
+    },
+    "current_measurement_valid_count": 343,
+    "current_valid_while_gt_unobservable_count": 2,
+    "episode_count": 100,
+    "episode_reset_leakage_count": 0,
+    "frame_count": 20197,
+    "gt_unobservable_count": 9916,
+    "held_valid_memory_count": 2283,
+    "measurement_conflict_count": 0,
+    "memory_catastrophic_count": 0,
+    "memory_coverage": 0.13001930979848492,
+    "memory_error": {
+      "count": 2626,
+      "max_mm": 1.5377021509519666,
+      "p50_mm": 0.5415147724904191,
+      "p90_mm": 1.0777760440509285
+    },
+    "memory_error_while_gt_unobservable": {
+      "count": 663,
+      "max_mm": 1.5377021509519666,
+      "p50_mm": 0.5601078197048289,
+      "p90_mm": 1.4230783184342872
+    },
+    "memory_previously_initialized_but_invalid_while_gt_unobservable_count": 0,
+    "memory_unavailable_while_gt_unobservable_count": 9253,
+    "memory_uninitialized_while_gt_unobservable_count": 9253,
+    "memory_unobservable_coverage": 0.06686163775716014,
+    "memory_valid_count": 2626,
+    "memory_valid_while_gt_unobservable_count": 663,
+    "stale_or_uninitialized_occluded_count": 9253,
+    "version": "e015-goal-memory-replay/v1"
+  },
+  "e015_b_write_measurements": {
+    "accepted_catastrophic_count": 0,
+    "accepted_count": 343,
+    "accepted_error_max_mm": 1.5377021509519666,
+    "accepted_error_p50_mm": 0.5266862461913688,
+    "accepted_error_p90_mm": 0.9412434124759042,
+    "accepted_unsafe_count": 2,
+    "accepted_while_gt_unobservable_count": 2,
+    "frame_count": 20197,
+    "structurally_eligible_count": 9760
+  },
+  "engineering_gate_passed": false,
+  "evaluation_protocol_scope": {
+    "all_split_integrity_audit_before_calibration": true,
+    "integrity_audit_used_test_predictions": false,
+    "test_model_forward_evaluation_count": 1,
+    "test_once_claim_scope": "model-forward-and-shadow-replay/v1",
+    "test_used_for_rule_selection": false
+  },
+  "experiment": "E015 \u2014 explicit geometric goal state memory",
+  "fresh_dataset": {
+    "calibration_trajectory_count": 20,
+    "candidate_count": 1000,
+    "dataset_identity_sha256": "d03d17b21eb931e1633735dccf35950b075f4c6ad562d95257d013baab02b25e",
+    "evaluation_trajectory_count": 100,
+    "seed_identity_sha256": "35be7b2584ece36ddae343bcf7f57c75d1c19ae12473e14f81490b94cc458856",
+    "seed_range_start": 133000
+  },
+  "frozen_conditions": {
+    "actuation_allowed": false,
+    "checkpoint_changed": false,
+    "checkpoint_sha256": "3930573f30275608004160c87f9c33ec5f3da8eb49c689cbc2b048edf2573ac7",
+    "memory_age_selected_on": "fresh-validation-only",
+    "temperature": 1.0,
+    "test_evaluated_once": true,
+    "test_once_claim_sha256": "fa850090018c0e365dff6e5e17a71a72fbfb28b89e2c2349c6962a4d61faa50b",
+    "training_performed": false,
+    "write_threshold_selected_on": "fresh-validation-only"
+  },
+  "memory_availability_audit": {
+    "episode_count": 100,
+    "initialized_episode_count": 35,
+    "initialized_episode_frame_count": 7081,
+    "initialized_episode_memory_valid_frame_count": 2626,
+    "initialized_episode_memory_valid_while_gt_unobservable_count": 663,
+    "initialized_episode_unobservable_frame_count": 3351,
+    "memory_coverage_within_initialized_episodes": 0.3708515746363508,
+    "memory_previously_initialized_but_invalid_while_gt_unobservable_count": 0,
+    "memory_unavailable_while_gt_unobservable_count": 9253,
+    "memory_uninitialized_while_gt_unobservable_count": 9253,
+    "memory_unobservable_coverage_within_initialized_episodes": 0.19785138764547897,
+    "never_initialized_episode_count": 65
+  },
+  "memory_config": {
+    "covariance_growth_m2_per_s": 0.0,
+    "frame_semantics": "position/robot-base/m/v1",
+    "max_innovation_m": 0.01,
+    "max_position_std_m": 0.02,
+    "max_unobserved_age_s": 5.0,
+    "require_covariance": true,
+    "update_policy": "direct-replace-reliable-hold-occluded/v1"
+  },
+  "original_public_receipt_sha256": "f72565fb7492c1de1fb5f6e89db34076f3d9a70c71885daf18de72db759cffa7",
+  "rules_sha256": "6a47f534b1f90f8f0365458d5912da3b6163bc12700993afef6bdc07b9e0357d",
+  "safe_for_actuator_promotion": false,
+  "status": "complete-supplemented",
+  "supplement_policy": "deterministic-postprocessing-no-model-forward/v1",
+  "supplement_source_tree_sha256": "0f1b961373e690f8aafcea7c176757a1ca3353b7b3bcbb5d963143f315dd5ab4",
+  "supplement_version": "e015-precision-memory-supplement/v1",
+  "test_split_status_after_e015": "consumed-for-evaluation",
+  "unsafe_write_audit": {
+    "catastrophic_count": 0,
+    "center_inside_goal_mask_count": 0,
+    "center_inside_object_mask_count": 0,
+    "count": 2,
+    "legacy_visible_count": 2,
+    "local_goal_visible_fraction_max": 0.4,
+    "local_goal_visible_fraction_min": 0.2,
+    "occlusion_type_counts": {
+      "other_occlusion_or_background": 2
+    },
+    "rate_among_accepted": 0.0058309037900874635,
+    "rate_overall": 9.902460761499233e-05,
+    "score_margin_over_threshold_max": 0.0006791949272155762,
+    "score_margin_over_threshold_min": 0.0004891157150268555,
+    "visibility_probability_max": 0.9978843331336975,
+    "visibility_probability_min": 0.9976032376289368,
+    "world_xy_error_max_mm": 1.4230783184342872,
+    "world_xy_error_p50_mm": 1.0215145988116647,
+    "world_xy_error_p90_mm": 1.3427655745097626
+  },
+  "version": "e015-precision-goal-memory-public/v1",
+  "write_calibration": {
+    "accepted_count": 42,
+    "accepted_unsafe_count": 0,
+    "enabled": true,
+    "oracle_safe_count": 2020,
+    "safe_coverage": 0.020792079207920793,
+    "score_semantics": "min-visibility-projection-goal-mask-not-object-not-entropy-inverse-sigma/v1",
+    "structurally_eligible_count": 2004,
+    "threshold": 0.618484616279602,
+    "threshold_policy": "maximum-coverage-zero-unsafe-on-fresh-validation/v1",
+    "validation_frame_count": 4043,
+    "version": "e015-goal-write-calibration/v1"
+  }
+}

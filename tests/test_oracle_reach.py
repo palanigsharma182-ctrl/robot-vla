@@ -10,6 +10,7 @@ from robot_vla.adapters import ProprioNormalizer, ProprioStats
 from robot_vla.contracts import RobotSpec
 from robot_vla.data.events import EVENT_STATE_CONTRACT_VERSION
 from robot_vla.diagnostics.oracle_reach import (
+    FrankaTCPForwardKinematics,
     OracleGeometryContextEncoder,
     OracleGeometryPolicy,
     OracleReachCollator,
@@ -205,3 +206,55 @@ def test_expert_initialization_hash_and_predefined_case_boundaries() -> None:
     assert oracle_case(2) == "case_3"
     assert oracle_case(1) == "case_2"
     assert oracle_case(0) == "case_2"
+
+
+def test_franka_fk_exposes_complete_base_and_world_pose_without_breaking_position_api() -> None:
+    class FakePose:
+        def __init__(self, transform: np.ndarray) -> None:
+            self.transform = transform
+
+        def to_transformation_matrix(self) -> np.ndarray:
+            return self.transform.copy()
+
+    class FakeModel:
+        def __init__(self, transform: np.ndarray) -> None:
+            self.transform = transform
+            self.last_q = None
+
+        def compute_forward_kinematics(self, q: np.ndarray) -> None:
+            self.last_q = q.copy()
+
+        def get_link_pose(self, index: int) -> FakePose:
+            assert index == 3
+            return FakePose(self.transform)
+
+    spec = RobotSpec()
+    base_from_tcp = np.asarray(
+        (
+            (0.0, -1.0, 0.0, 0.4),
+            (1.0, 0.0, 0.0, 0.1),
+            (0.0, 0.0, 1.0, 0.5),
+            (0.0, 0.0, 0.0, 1.0),
+        ),
+        dtype=np.float64,
+    )
+    fk = FrankaTCPForwardKinematics.__new__(FrankaTCPForwardKinematics)
+    fk.spec = spec
+    fk.base_position_world_m = np.asarray((-0.615, 0.0, 0.0), dtype=np.float64)
+    fk.world_from_base = np.eye(4, dtype=np.float64)
+    fk.world_from_base[:3, 3] = fk.base_position_world_m
+    fk._model = FakeModel(base_from_tcp)
+    fk._tcp_link_index = 3
+    q = np.linspace(0.0, 0.6, spec.arm_dof, dtype=np.float32)
+
+    observed_base = fk.pose_base(q)
+    observed_world = fk.pose_world(q)
+
+    np.testing.assert_allclose(observed_base, base_from_tcp, atol=1e-7)
+    np.testing.assert_allclose(
+        observed_world,
+        fk.world_from_base @ base_from_tcp,
+        atol=1e-7,
+    )
+    np.testing.assert_allclose(fk(q), observed_world[:3, 3], atol=1e-7)
+    assert fk._model.last_q.shape == (len(spec.active_joint_names),)

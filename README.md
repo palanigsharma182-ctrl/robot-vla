@@ -4,7 +4,8 @@
 Franka Panda 双相机 VLA 链路：
 
 ```text
-External/front RGB + Wrist RGB + Language + Proprioception [15]
+4-step External/front RGB + Wrist RGB + Language
+  + Proprioception + TCP/Wrist-camera pose + F_L/F_R + Controller state
   -> Frozen Qwen3.5-2B
   -> QwenVLAAdapter
   -> SmolVLA-style standalone Action Expert
@@ -14,8 +15,9 @@ External/front RGB + Wrist RGB + Language + Proprioception [15]
 ```
 
 旧的单相机 ResNet-18 + DistilBERT + Smooth L1 确定性 Baseline 已经删除，不再作为
-可运行实现或兼容目标。新的模型架构标识固定为 `qwen_vla_late_fusion_v1`，数据格式固定为
-`robot-vla-trajectory/v2`。
+可运行实现或兼容目标。V1 模型架构标识为 `qwen_vla_late_fusion_v1`；最小可部署状态 amendment
+使用显式不兼容的 `qwen_vla_temporal_state_fusion_v2`。两者共用 `robot-vla-trajectory/v2`
+容器，但 V2 observation 必须由额外的版本化数组和统计身份声明，不能从旧数据推断。
 
 ## 当前状态
 
@@ -36,6 +38,13 @@ External/front RGB + Wrist RGB + Language + Proprioception [15]
 - Stage 1 AdamW/warmup/cosine、BF16、有效 Action 加权的 Gradient Accumulation；
 - 固定 seed 验证，以及包含完整契约、训练状态和 RNG 的 latest/periodic/best Checkpoint；
 - 在线 Runtime、独立可追踪采样 seed、D017 前 4 步滚动执行和失败 hold；
+- Action 标签/执行统一为 commanded-target 增量，并跨 Replan 保存 command reference；
+- Observation V2：TCP 完整位姿、OpenGL→OpenCV→base 相机变换、四步双图、`F_L/F_R`、
+  时间/validity 和 controller state，以及 train-only force stats/checkpoint identity；
+- E013 的厘米级闭环精调架构：低频 VLA + 20 Hz 三头 U-Net、显式 base-plane 几何、逐轴不确定性和
+  shadow-only metric residual 控制契约；RGB-only Dataset、正式训练、held-out/calibration、完整四帧
+  latency 和 100-seed no-actuation shadow 已执行，步骤 9 因 5 个 Expert rejection 和 7 次 deadline miss
+  停止 promotion；正式目标仍为 `p50<=12 mm/p90<=20 mm`，当前没有 actuation 或闭环 placement 证据；
 - ManiSkill 单环境 Franka `pd_joint_delta_pos` Controller Adapter；
 - reach/grasp/lift/transport/place Outcome Predicate、原子技能状态机和完整组合任务；
 - 目标双相机可见、必须松爪并稳定放置的 `RobotVLAPickCubeToRegion-v1` 环境；
@@ -109,17 +118,30 @@ Checkpoint 或闭环产物。Qwen、ManiSkill、SAPIEN 及其他第三方组件�
 - 机器人：ManiSkill Franka Panda，7DoF Arm + 平行双指夹爪；
 - 相机顺序：external/front 在前，wrist 在后，不得交换；
 - 状态：`q[7] + dq[7] + g[1]`，共 15 维；
-- 动作：`delta_q[7] + gripper_target[1]`，共 8 维；
+- V2 历史：最近 4 个连续控制步，oldest-to-newest；Episode 开头零 padding，不复制首帧；
+- V2 位姿：`base_from_tcp` 与 `base_from_wrist_camera_cv`，模型使用 position + Rotation-6D；
+- V2 接触：左右 finger–cube pairwise force magnitude `F_L/F_R`；它是仿真近似，不是真实应变片；
+- 动作：`command_target_delta_q[7] + gripper_target[1]`，共 8 维；controller correction 是独立的
+  `commanded_target - actual_q`；
+- 精密层动作：`commanded TCP target delta [base dx/dy/dz meter + dyaw radian]`；与 VLA joint Action
+  隔离，Motion Head 第一阶段只允许 shadow；
 - 控制频率：20 Hz；Action Horizon：16；每次执行前 4 步；
 - Qwen：`Qwen/Qwen3.5-2B`，固定 revision
   `15852e8c16360a2fea060d615a32b45270f8a8fc`；
-- Prompt：`qwen-vla-prompt/v1`；
+- Prompt：V1 为 `qwen-vla-prompt/v1`，V2 为 `qwen-vla-prompt/v2-history4`；
 - Dataset：`robot-vla-trajectory/v2`；
 - 模型：`qwen_vla_late_fusion_v1`；
 - 第一阶段冻结 Qwen，只训练 Adapter、State/Action Token、Action Expert 和输出头。
 
-详细边界见 [`docs/architecture.md`](docs/architecture.md) 和
-[`docs/decisions.md`](docs/decisions.md)。D008–D019 是新实现的直接依据。
+最小可部署状态、坐标公式、Action 等式、迁移与验证门禁见
+[`docs/minimum_deployable_state.md`](docs/minimum_deployable_state.md)。其他边界见
+[`docs/architecture.md`](docs/architecture.md) 和 [`docs/decisions.md`](docs/decisions.md)。
+厘米级闭环精调层的实现边界和正式负结果见
+[`docs/e013_precision_execution.md`](docs/e013_precision_execution.md) 与
+[`docs/results/e013/README.md`](docs/results/e013/README.md)。
+E013 之后候选的 `qwen-vla-v1.0` 分层子任务、阶段控制与渐进验证事项见
+[`docs/roadmap.md`](docs/roadmap.md)。当前 `robot_vla.executive` 只实现 P0 的 shadow-only 主体契约、
+Plan Compiler、状态机和 ledger replay；尚未接入 Runtime、训练或形成效果结论。
 
 ## 环境验证
 
