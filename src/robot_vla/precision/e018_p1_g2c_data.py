@@ -74,6 +74,13 @@ G2C_VIEW_ORDER = (FRONT_HOME_ID, *FRONT_ALTERNATE_IDS)
 G2C_STATIC_SPLITS = ("train", "model_val", "calibration")
 G2C_ALL_SPLITS = (*G2C_STATIC_SPLITS, "qualification")
 G2C_SMOKE_SPLIT = "engineering_smoke"
+G2C_STATIC_CAPTURE_SIMULATION_CONTROL_TIME_S = 0.25
+G2C_RAW_RESET_DIAGNOSTIC_PHASE = "raw-reset-return-before-warmup/v1"
+G2C_POST_WARMUP_DIAGNOSTIC_PHASE = "post-five-safe-hold-open-warmup/v1"
+G2C_RESET_DIAGNOSTIC_PHASES = (
+    G2C_RAW_RESET_DIAGNOSTIC_PHASE,
+    G2C_POST_WARMUP_DIAGNOSTIC_PHASE,
+)
 
 _SHA256 = re.compile(r"[0-9a-f]{64}")
 _SOURCE_FILES = (
@@ -241,6 +248,7 @@ def load_e018_p1_g2c_data_config(
             "e016_checkpoint_sha256",
             "e016_checkpoint_parameter_sha256",
             "e016_checkpoint_provenance_sha256",
+            "e016_checkpoint_model_config_sha256",
             "source_training_camera",
             "target_training_camera",
         },
@@ -253,10 +261,11 @@ def load_e018_p1_g2c_data_config(
         "e016_checkpoint_sha256",
         "e016_checkpoint_parameter_sha256",
         "e016_checkpoint_provenance_sha256",
+        "e016_checkpoint_model_config_sha256",
     ):
         _require_sha256(parents[name], f"parents.{name}")
     if (
-        parents["decision_id"] != "D036"
+        parents["decision_id"] != "D037"
         or parents["g0c_config_version"]
         != "e018-p1-g0c-rotated-motion-development/v1"
         or parents["source_training_camera"] != "hand_camera"
@@ -439,13 +448,19 @@ def load_e018_p1_g2c_data_config(
         or capture["reset_warmup_command"] != "safe-hold-open"
         or capture["reset_warmup_ticks"] != 5
         or capture["reset_warmup_frequency_hz"] != 20
+        or (
+            float(capture["reset_warmup_ticks"])
+            / float(capture["reset_warmup_frequency_hz"])
+            != G2C_STATIC_CAPTURE_SIMULATION_CONTROL_TIME_S
+        )
         or capture["static_capture_policy"]
         != "set-pose-render-refresh-one-eligible-frame-no-environment-step/v1"
         or capture["actual_pose_source"]
         != "same-observation.sensor_param.base_camera.cam2world_gl/v1"
         or capture["frame_convention"]
         != "robot-base-from-opencv-optical-camera/v1"
-        or capture["timestamp_source"] != "synchronous-capture-sequence/v1"
+        or capture["timestamp_source"]
+        != "post-warmup-simulation-control-time-shared-no-step-static/v1"
         or float(capture["maximum_rgb_pose_skew_s"]) != 0.01
         or float(capture["maximum_rotation_projection_error_frobenius"]) != 1e-6
         or float(capture["maximum_camera_position_tracking_error_m"]) != 1e-5
@@ -542,7 +557,7 @@ def load_e018_p1_g2c_data_config(
         "prediction_freeze_seed": 76804,
         "expected_eligible_capture_count": 44,
         "training_optimizer_steps_per_candidate": 2,
-        "candidate_ids": ["W", "S"],
+        "candidate_ids": ["W-KV0", "S"],
         "checkpoint_persistence_allowed": False,
         "formal_split_consumed": False,
         "canonical_data_receipt_allowed": False,
@@ -1115,6 +1130,69 @@ def _reset_diagnostic(
     }
 
 
+def _validate_reset_diagnostic_rows(
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    expected_seeds: Sequence[int],
+) -> dict[str, int]:
+    """验证每个 seed 的 raw/post-warmup diagnostic 恰好各一条。"""
+
+    seeds = tuple(expected_seeds)
+    if (
+        not seeds
+        or any(
+            not isinstance(seed, int) or isinstance(seed, bool) for seed in seeds
+        )
+        or len(set(seeds)) != len(seeds)
+    ):
+        raise ValueError("G2C reset diagnostic expected seeds 必须非空且唯一")
+    expected_seed_set = set(seeds)
+    pairs: Counter[tuple[int, str]] = Counter()
+    usage_fields = (
+        "used_for_training",
+        "used_for_selection",
+        "used_for_calibration",
+        "used_for_qualification",
+    )
+    for row in rows:
+        seed = row.get("seed")
+        phase = row.get("phase")
+        if (
+            not isinstance(seed, int)
+            or isinstance(seed, bool)
+            or seed not in expected_seed_set
+            or phase not in G2C_RESET_DIAGNOSTIC_PHASES
+            or row.get("version") != E018_P1_G2C_DATA_RESULT_VERSION
+            or row.get("role") != "reset-diagnostic-only-never-eligible/v1"
+            or row.get("eligible_capture") is not False
+            or any(row.get(name) is not False for name in usage_fields)
+        ):
+            raise RuntimeError("G2C reset diagnostic phase/role/usage 漂移")
+        pairs[(seed, str(phase))] += 1
+    expected_pairs = Counter(
+        (seed, phase)
+        for seed in seeds
+        for phase in G2C_RESET_DIAGNOSTIC_PHASES
+    )
+    if pairs != expected_pairs:
+        raise RuntimeError("G2C reset diagnostic 缺 seed、缺 phase 或存在重复")
+    raw_count = sum(
+        count
+        for (_, phase), count in pairs.items()
+        if phase == G2C_RAW_RESET_DIAGNOSTIC_PHASE
+    )
+    post_count = sum(
+        count
+        for (_, phase), count in pairs.items()
+        if phase == G2C_POST_WARMUP_DIAGNOSTIC_PHASE
+    )
+    return {
+        "raw_reset_diagnostic_count": raw_count,
+        "post_warmup_diagnostic_count": post_count,
+        "reset_diagnostic_count": len(rows),
+    }
+
+
 def _project_labels(
     *,
     object_position: np.ndarray,
@@ -1291,11 +1369,9 @@ def _capture_static_view(
         goal_mask=goal_mask,
         support_radius_px=int(config["capture"]["support_radius_px"]),
     )
-    timestamp = (
-        float(config["capture"]["reset_warmup_ticks"])
-        / float(config["capture"]["reset_warmup_frequency_hz"])
-        + sample_index * 1e-6
-    )
+    # 11 个 static-render view 之间没有 environment step；它们共享 warmup
+    # 完成后的真实 simulation-control-time，采集顺序只由 sample_index 表达。
+    timestamp = G2C_STATIC_CAPTURE_SIMULATION_CONTROL_TIME_S
     deployable = {
         "sample_index": np.int64(sample_index),
         "seed": np.int64(seed),
@@ -1454,6 +1530,17 @@ def validate_g2c_seed_bundle(
     expected_index = np.arange(count, dtype=np.int64)
     if not np.array_equal(deployable["sample_index"], expected_index):
         raise ValueError("G2C sample_index 必须完整覆盖 0..V-1")
+    expected_timestamp = np.full(
+        count,
+        G2C_STATIC_CAPTURE_SIMULATION_CONTROL_TIME_S,
+        dtype=np.float64,
+    )
+    if not np.array_equal(
+        deployable["rgb_timestamp_s"], expected_timestamp
+    ) or not np.array_equal(deployable["pose_timestamp_s"], expected_timestamp):
+        raise ValueError(
+            "G2C static view 必须共享 post-warmup simulation-control-time"
+        )
     if not np.array_equal(labels["source_sample_index"], expected_index):
         raise ValueError("G2C source_sample_index 与 deployable 不对齐")
     if not np.all(deployable["seed"] == expected_seed) or not np.array_equal(
@@ -1633,7 +1720,7 @@ def _collect_one_seed(
             base_env=base_env,
             spec=spec,
             maximum_projection_error=maximum_projection,
-            phase="raw-reset-return-before-warmup/v1",
+            phase=G2C_RAW_RESET_DIAGNOSTIC_PHASE,
         )
     ]
     home, home_orientation = viewpoint_by_id[FRONT_HOME_ID]
@@ -1662,7 +1749,7 @@ def _collect_one_seed(
             base_env=base_env,
             spec=spec,
             maximum_projection_error=maximum_projection,
-            phase="post-five-safe-hold-open-warmup/v1",
+            phase=G2C_POST_WARMUP_DIAGNOSTIC_PHASE,
         )
     )
     qpos = _numpy(base_env.agent.robot.get_qpos())
@@ -1905,6 +1992,80 @@ def _resolve_artifact_file(root: Path, relative: str) -> Path:
     return path
 
 
+def _validate_g2c_manifest_seed_identity(
+    deployable_rows: Sequence[Mapping[str, Any]],
+    label_rows: Sequence[Mapping[str, Any]],
+    *,
+    config: Mapping[str, Any],
+    receipt: Mapping[str, Any],
+) -> dict[str, Any]:
+    """按 receipt mode 冻结 manifest split/seed、canonical 与 diagnostic 数量。"""
+
+    mode = receipt.get("mode")
+    if mode == "smoke":
+        expected_pairs = tuple(
+            (G2C_SMOKE_SPLIT, seed)
+            for seed in config["sampling"]["smoke_only_seeds"]
+        )
+        expected_canonical = False
+        expected_statuses = {
+            "complete-engineering-smoke-pass",
+            "complete-engineering-smoke-protocol-invalid",
+        }
+    elif mode == "full":
+        formal = g2c_split_seeds(config)
+        expected_pairs = tuple(
+            (split, seed)
+            for split in G2C_STATIC_SPLITS
+            for seed in formal[split]
+        )
+        expected_canonical = True
+        expected_statuses = {
+            "complete-data-pass",
+            "complete-data-protocol-invalid",
+        }
+    else:
+        raise RuntimeError("G2C data receipt mode 漂移")
+
+    def manifest_pairs(
+        rows: Sequence[Mapping[str, Any]], name: str
+    ) -> tuple[tuple[str, int], ...]:
+        pairs = []
+        for row in rows:
+            split = row.get("split")
+            seed = row.get("seed")
+            if (
+                not isinstance(split, str)
+                or not isinstance(seed, int)
+                or isinstance(seed, bool)
+            ):
+                raise RuntimeError(f"G2C {name} manifest split/seed 类型漂移")
+            pairs.append((split, seed))
+        return tuple(pairs)
+
+    if (
+        manifest_pairs(deployable_rows, "deployable") != expected_pairs
+        or manifest_pairs(label_rows, "label") != expected_pairs
+        or receipt.get("seed_count") != len(expected_pairs)
+        or receipt.get("canonical_data_receipt") is not expected_canonical
+        or receipt.get("status") not in expected_statuses
+    ):
+        raise RuntimeError(
+            "G2C manifest 缺 seed、重复 seed、split、mode 或 canonical identity 漂移"
+        )
+    expected_seed_count = len(expected_pairs)
+    return {
+        "mode": mode,
+        "canonical_data_receipt": expected_canonical,
+        "formal_split_consumed": mode == "full",
+        "seed_count": expected_seed_count,
+        "expected_pairs": expected_pairs,
+        "raw_reset_diagnostic_count": expected_seed_count,
+        "post_warmup_diagnostic_count": expected_seed_count,
+        "reset_diagnostic_count": expected_seed_count * 2,
+    }
+
+
 def verify_g2c_data_receipt(
     output_root: str | Path,
     *,
@@ -1970,13 +2131,21 @@ def verify_g2c_data_receipt(
     )
     if len(deployable_rows) != len(label_rows) or not deployable_rows:
         raise RuntimeError("G2C deployable/label manifest 数量不一致")
+    expected_identity = _validate_g2c_manifest_seed_identity(
+        deployable_rows,
+        label_rows,
+        config=config,
+        receipt=receipt,
+    )
     total_samples = 0
     split_counts: Counter[str] = Counter()
     lifecycle_passed = True
+    manifest_seeds: list[int] = []
     for deployable_meta, label_meta in zip(
         deployable_rows, label_rows, strict=True
     ):
         seed = int(deployable_meta["seed"])
+        manifest_seeds.append(seed)
         split = str(deployable_meta["split"])
         if (
             label_meta["seed"] != seed
@@ -2020,15 +2189,45 @@ def verify_g2c_data_receipt(
     diagnostics = _read_jsonl(
         root / "reset_diagnostic.jsonl", "G2C reset diagnostics"
     )
-    if (
-        len(diagnostics) != 2 * len(deployable_rows)
-        or any(row.get("eligible_capture") is not False for row in diagnostics)
-        or any(
-            row.get("role") != "reset-diagnostic-only-never-eligible/v1"
-            for row in diagnostics
+    diagnostic_counts = _validate_reset_diagnostic_rows(
+        diagnostics,
+        expected_seeds=manifest_seeds,
+    )
+    data_summary = json.loads(
+        (root / "data_summary.json").read_text(encoding="utf-8")
+    )
+    timestamp_identity = {
+        "static_capture_timestamp_source": (
+            "post-warmup-simulation-control-time-shared-no-step-static/v1"
+        ),
+        "static_capture_simulation_control_time_s": (
+            G2C_STATIC_CAPTURE_SIMULATION_CONTROL_TIME_S
+        ),
+        "static_capture_sequence_field": "sample_index",
+        "static_views_share_timestamp_without_environment_step": True,
+    }
+    if any(
+        receipt.get(name) != count or data_summary.get(name) != count
+        for name, count in diagnostic_counts.items()
+    ) or any(
+        diagnostic_counts[name] != expected_identity[name]
+        for name in (
+            "raw_reset_diagnostic_count",
+            "post_warmup_diagnostic_count",
+            "reset_diagnostic_count",
         )
+    ) or any(
+        receipt.get(name) != value or data_summary.get(name) != value
+        for name, value in timestamp_identity.items()
+    ) or (
+        data_summary.get("mode") != expected_identity["mode"]
+        or data_summary.get("canonical_data_receipt")
+        is not expected_identity["canonical_data_receipt"]
+        or data_summary.get("formal_split_consumed")
+        is not expected_identity["formal_split_consumed"]
+        or data_summary.get("seed_count") != expected_identity["seed_count"]
     ):
-        raise RuntimeError("G2C reset diagnostic lifecycle 漂移")
+        raise RuntimeError("G2C diagnostic/timestamp summary/receipt identity 漂移")
     result = {
         "version": E018_P1_G2C_DATA_RESULT_VERSION,
         "status": receipt["status"],
@@ -2039,6 +2238,8 @@ def verify_g2c_data_receipt(
         "data_identity_sha256": receipt["data_identity_sha256"],
         "seed_bundle_count": len(deployable_rows),
         "eligible_capture_count": total_samples,
+        **diagnostic_counts,
+        **timestamp_identity,
         "split_capture_counts": dict(sorted(split_counts.items())),
         "lifecycle_gate_passed": lifecycle_passed,
         "test_trajectory_array_read_count": 0,
@@ -2125,6 +2326,18 @@ def run_e018_p1_g2c_data(
             force_normalizer=force,
         )
     )
+    diagnostic_counts = _validate_reset_diagnostic_rows(
+        diagnostics,
+        expected_seeds=[seed for _, seed, _, _ in bundles],
+    )
+    timestamp_identity = {
+        "static_capture_timestamp_source": config["capture"]["timestamp_source"],
+        "static_capture_simulation_control_time_s": (
+            G2C_STATIC_CAPTURE_SIMULATION_CONTROL_TIME_S
+        ),
+        "static_capture_sequence_field": "sample_index",
+        "static_views_share_timestamp_without_environment_step": True,
+    }
     deployable_manifest, label_manifest, lifecycle_audit = _write_seed_bundles(
         output_root=output,
         bundles=bundles,
@@ -2205,7 +2418,8 @@ def run_e018_p1_g2c_data(
         "view_count": len(G2C_VIEW_ORDER),
         "eligible_capture_count": capture_count,
         "expected_eligible_capture_count": expected,
-        "reset_diagnostic_count": len(diagnostics),
+        **diagnostic_counts,
+        **timestamp_identity,
         "lifecycle_audit": lifecycle_audit,
         "permissions": permissions,
         "normalizer_identity": normalizer_identity,
@@ -2253,6 +2467,8 @@ def run_e018_p1_g2c_data(
         "data_identity_sha256": data_identity,
         "seed_count": len(bundles),
         "eligible_capture_count": capture_count,
+        **diagnostic_counts,
+        **timestamp_identity,
         "artifact_sha256": _artifact_hashes(output, artifact_names),
         **permissions,
     }

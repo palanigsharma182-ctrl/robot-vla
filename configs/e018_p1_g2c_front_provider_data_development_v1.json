@@ -16,7 +16,7 @@
     "manipulation_progression_allowed": false
   },
   "parents": {
-    "decision_id": "D036",
+    "decision_id": "D037",
     "g0c_config_version": "e018-p1-g0c-rotated-motion-development/v1",
     "g0c_config_sha256": "c93bbfd48b6d9bc2fc75b5b87e4ded7161efebd7eda50cd81cc2ded47810e965",
     "g0c_receipt_internal_sha256": "bf8232b620cd5ff8de8c0007391252b8829c3ebbac320a7d5a60507beaca258e",
@@ -24,6 +24,7 @@
     "e016_checkpoint_sha256": "c0be8769f75e4b991daa3a71878df72d2e2aaad70b5139abb4190512d6110552",
     "e016_checkpoint_parameter_sha256": "0d84e3fbf56445a0b6cbfabf46643abce6b8ddd6c152e0534a1870b88eeeaed6",
     "e016_checkpoint_provenance_sha256": "f25d876c2cf0b670b22e4c09aa561ff4190704411a4c053a089a9bc05804fed2",
+    "e016_checkpoint_model_config_sha256": "4a284a59c8c6d1865910d333597b565183f4d455af520e5edad5a79d5c67d053",
     "source_training_camera": "hand_camera",
     "target_training_camera": "base_camera"
   },
@@ -99,7 +100,7 @@
     "static_capture_policy": "set-pose-render-refresh-one-eligible-frame-no-environment-step/v1",
     "actual_pose_source": "same-observation.sensor_param.base_camera.cam2world_gl/v1",
     "frame_convention": "robot-base-from-opencv-optical-camera/v1",
-    "timestamp_source": "synchronous-capture-sequence/v1",
+    "timestamp_source": "post-warmup-simulation-control-time-shared-no-step-static/v1",
     "maximum_rgb_pose_skew_s": 0.01,
     "maximum_rotation_projection_error_frobenius": 0.000001,
     "maximum_camera_position_tracking_error_m": 0.00001,
@@ -138,7 +139,7 @@
     "prediction_freeze_seed": 76804,
     "expected_eligible_capture_count": 44,
     "training_optimizer_steps_per_candidate": 2,
-    "candidate_ids": ["W", "S"],
+    "candidate_ids": ["W-KV0", "S"],
     "checkpoint_persistence_allowed": false,
     "formal_split_consumed": false,
     "canonical_data_receipt_allowed": false

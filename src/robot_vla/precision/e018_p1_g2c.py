@@ -52,8 +52,8 @@ E018_P1_G2C_TRAIN_PROTOCOL_VERSION = (
 E018_P1_G2C_SMOKE_RESULT_VERSION = (
     "e018-p1-g2c-front-provider-engineering-smoke-result/v1"
 )
-G2C_CANDIDATE_IDS = ("W", "S")
-G2C_CANDIDATE_INITIALIZATION_SEEDS = {"W": 18021, "S": 18022}
+G2C_CANDIDATE_IDS = ("W-KV0", "S")
+G2C_CANDIDATE_INITIALIZATION_SEEDS = {"W-KV0": 18021, "S": 18022}
 G2C_SHARED_SAMPLER_SEED = 18020
 G2C_CANDIDATE_EPOCHS = (5, 10, 15, 20)
 
@@ -76,9 +76,20 @@ def g2c_training_protocol() -> dict[str, Any]:
                 "diagnostic_only": True,
                 "eligible_for_selection": False,
             },
-            "W": {
+            "diagnostic_W": {
+                "id": "W",
                 "architecture": "PrecisionThreeHeadUNet",
                 "initialization": "e016-selected-epoch12-warm-start",
+                "diagnostic_only": True,
+                "eligible_for_selection": False,
+                "superseded_by": "W-KV0",
+            },
+            "W-KV0": {
+                "architecture": "PrecisionThreeHeadUNet",
+                "initialization": (
+                    "e016-selected-epoch12-warm-start-then-zero-"
+                    "keypoint-logvariance-rows/v1"
+                ),
                 "initialization_seed": 18021,
             },
             "S": {
@@ -130,7 +141,7 @@ def g2c_training_protocol() -> dict[str, Any]:
                 "corresponding_max_ascending",
                 "validation_loss_ascending",
                 "epoch_ascending",
-                "candidate_W_before_S",
+                "candidate_W_KV0_before_S",
             ],
             "zero_eligible_policy": "selected-null-protocol-valid-negative/v1",
         },
@@ -259,7 +270,7 @@ def select_g2c_checkpoint(
     *,
     validation_losses: Mapping[tuple[str, int], float],
 ) -> dict[str, Any]:
-    """按冻结 model-val 排序选择 W/S checkpoint；support<30 只淘汰 viewpoint。"""
+    """按冻结 model-val 排序选择 W-KV0/S；support<30 只淘汰 viewpoint。"""
 
     grouped: dict[tuple[str, int, str], list[Mapping[str, Any]]] = defaultdict(list)
     for row in rows:
@@ -275,7 +286,7 @@ def select_g2c_checkpoint(
         for epoch in G2C_CANDIDATE_EPOCHS
     }
     if set(validation_losses) != expected_candidates:
-        raise ValueError("G2C validation loss identity 必须完整覆盖 W/S×4 epochs")
+        raise ValueError("G2C validation loss identity 必须完整覆盖 W-KV0/S×4 epochs")
     candidates = []
     for candidate, epoch in sorted(expected_candidates):
         loss = float(validation_losses[(candidate, epoch)])
@@ -661,6 +672,87 @@ def _build_supervision(batch: Mapping[str, Any]) -> Any:
     )
 
 
+def _zero_warm_start_keypoint_log_variance_rows(model: Any) -> dict[str, Any]:
+    """只清零 uncertainty 最终 Linear 的 keypoint log-variance 输出行。"""
+
+    import torch
+
+    from robot_vla.precision.checkpoint import precision_parameter_state_sha256
+
+    final_layer = model.uncertainty_head[-1]
+    if not isinstance(final_layer, torch.nn.Linear):
+        raise TypeError("G2C W-KV0 要求 uncertainty_head 最后一层是 Linear")
+    row_count = int(model.config.keypoint_count) * 2
+    if row_count <= 0 or final_layer.out_features <= row_count:
+        raise ValueError("G2C W-KV0 keypoint log-variance row layout 漂移")
+    module_names = [
+        name for name, module in model.named_modules() if module is final_layer
+    ]
+    if len(module_names) != 1:
+        raise RuntimeError("G2C W-KV0 无法唯一定位 uncertainty final Linear")
+    weight_name = f"{module_names[0]}.weight"
+    bias_name = f"{module_names[0]}.bias"
+    before = {
+        name: tensor.detach().clone() for name, tensor in model.state_dict().items()
+    }
+    if weight_name not in before or bias_name not in before:
+        raise RuntimeError("G2C W-KV0 uncertainty final Linear state 缺失")
+
+    def target_slice(state: Mapping[str, Any]) -> dict[str, Any]:
+        return {
+            "keypoint_logvariance_weight": state[weight_name][:row_count],
+            "keypoint_logvariance_bias": state[bias_name][:row_count],
+        }
+
+    def non_target_state(state: Mapping[str, Any]) -> dict[str, Any]:
+        result = {
+            name: tensor
+            for name, tensor in state.items()
+            if name not in {weight_name, bias_name}
+        }
+        result[f"{weight_name}.non_keypoint_rows"] = state[weight_name][row_count:]
+        result[f"{bias_name}.non_keypoint_rows"] = state[bias_name][row_count:]
+        return result
+
+    parameter_before = precision_parameter_state_sha256(before)
+    target_before = precision_parameter_state_sha256(target_slice(before))
+    non_target_before = precision_parameter_state_sha256(non_target_state(before))
+    motion_before = precision_parameter_state_sha256(model.motion_head.state_dict())
+    with torch.no_grad():
+        final_layer.weight[:row_count].zero_()
+        final_layer.bias[:row_count].zero_()
+    after = model.state_dict()
+    target_after = precision_parameter_state_sha256(target_slice(after))
+    non_target_after = precision_parameter_state_sha256(non_target_state(after))
+    motion_after = precision_parameter_state_sha256(model.motion_head.state_dict())
+    rows_zero = bool(
+        torch.count_nonzero(final_layer.weight[:row_count]).item() == 0
+        and torch.count_nonzero(final_layer.bias[:row_count]).item() == 0
+    )
+    if not rows_zero or non_target_after != non_target_before:
+        raise RuntimeError("G2C W-KV0 修改超出 keypoint log-variance rows")
+    if motion_after != motion_before:
+        raise RuntimeError("G2C W-KV0 reset 改变了 frozen Motion Head")
+    return {
+        "policy": "zero-final-uncertainty-linear-keypoint-logvariance-rows/v1",
+        "row_indices": list(range(row_count)),
+        "row_count": row_count,
+        "weight_shape": list(final_layer.weight[:row_count].shape),
+        "bias_shape": list(final_layer.bias[:row_count].shape),
+        "parameter_sha256_before": parameter_before,
+        "parameter_sha256_after": precision_parameter_state_sha256(after),
+        "keypoint_logvariance_rows_sha256_before": target_before,
+        "keypoint_logvariance_rows_sha256_after": target_after,
+        "keypoint_logvariance_rows_all_zero_after": rows_zero,
+        "non_target_parameter_sha256_before": non_target_before,
+        "non_target_parameter_sha256_after": non_target_after,
+        "non_target_parameters_unchanged": non_target_before == non_target_after,
+        "motion_head_sha256_before": motion_before,
+        "motion_head_sha256_after": motion_after,
+        "motion_head_unchanged": motion_before == motion_after,
+    }
+
+
 def _load_candidate_model(
     *,
     candidate_id: str,
@@ -679,14 +771,14 @@ def _load_candidate_model(
     from robot_vla.precision.e016_training import load_e016_p1_config
 
     if candidate_id not in G2C_CANDIDATE_IDS:
-        raise ValueError("G2C candidate 必须是 W/S")
+        raise ValueError("G2C candidate 必须是 W-KV0/S")
     protocol = g2c_training_protocol()
     init_seed = G2C_CANDIDATE_INITIALIZATION_SEEDS[candidate_id]
     _seed_everything(init_seed)
     e016 = load_e016_p1_config(e016_config_path)
     if e016.sha256 != config["parents"]["e016_config_sha256"]:
         raise RuntimeError("G2C E016 config identity 漂移")
-    if candidate_id == "W":
+    if candidate_id == "W-KV0":
         loaded = load_precision_checkpoint(
             training_output / "precision-formal.pt",
             expected_checkpoint_sha256=config["parents"]["e016_checkpoint_sha256"],
@@ -699,14 +791,28 @@ def _load_candidate_model(
             loaded.receipt.parameter_state_sha256
             != config["parents"]["e016_checkpoint_parameter_sha256"]
         ):
-            raise RuntimeError("G2C W warm-start parameter identity 漂移")
+            raise RuntimeError("G2C W-KV0 warm-start parameter identity 漂移")
+        if (
+            loaded.receipt.model_config_sha256
+            != config["parents"]["e016_checkpoint_model_config_sha256"]
+        ):
+            raise RuntimeError("G2C W-KV0 warm-start model config identity 漂移")
         model = loaded.model.to(torch.device("cuda"))
+        keypoint_variance_reset = _zero_warm_start_keypoint_log_variance_rows(
+            model
+        )
+        if (
+            keypoint_variance_reset["parameter_sha256_before"]
+            != loaded.receipt.parameter_state_sha256
+        ):
+            raise RuntimeError("G2C W-KV0 reset parent parameter identity 漂移")
         initialization = {
-            "kind": "e016-selected-epoch12-warm-start",
+            "kind": "e016-selected-epoch12-warm-start-keypoint-variance-zero",
             "source_checkpoint_sha256": loaded.receipt.checkpoint_sha256,
             "source_parameter_sha256": loaded.receipt.parameter_state_sha256,
             "source_provenance_sha256": loaded.receipt.provenance_sha256,
             "model_config_sha256": loaded.receipt.model_config_sha256,
+            "keypoint_logvariance_reset": keypoint_variance_reset,
         }
     else:
         model, _ = new_e016_frozen_motion_model(torch.device("cuda"))
@@ -716,6 +822,7 @@ def _load_candidate_model(
             "source_parameter_sha256": None,
             "source_provenance_sha256": None,
             "model_config_sha256": canonical_sha256(model.config),
+            "keypoint_logvariance_reset": None,
         }
     model.motion_head.requires_grad_(False)
     motion_hash = precision_parameter_state_sha256(model.motion_head.state_dict())
@@ -807,19 +914,80 @@ def _train_candidate_smoke(
         )
         if not bool(torch.isfinite(gradient_norm)):
             raise RuntimeError(f"G2C {candidate_id} smoke gradient NaN/Inf")
+        post_clip_squared = sum(
+            float(torch.sum(parameter.grad.detach().float().square()).item())
+            for parameter in parameters
+            if parameter.grad is not None
+        )
+        post_clip_gradient_norm = math.sqrt(post_clip_squared)
+        if (
+            not math.isfinite(post_clip_gradient_norm)
+            or post_clip_gradient_norm
+            > float(training["gradient_clip_norm"]) + 1e-5
+        ):
+            raise RuntimeError(f"G2C {candidate_id} post-clip gradient 漂移")
+        keypoint_log_variance = (
+            output.keypoint_log_variance.detach().float().reshape(-1)
+        )
+        if not bool(torch.isfinite(keypoint_log_variance).all()):
+            raise RuntimeError(
+                f"G2C {candidate_id} keypoint log-variance NaN/Inf"
+            )
+        loss_components = {
+            name: float(getattr(loss, name).detach().float().item())
+            for name in (
+                "loss",
+                "heatmap_loss",
+                "mask_loss",
+                "coordinate_loss",
+                "motion_loss",
+                "uncertainty_loss",
+                "visibility_loss",
+                "projection_loss",
+            )
+        }
+        loss_components["weighted_keypoint_localization_loss"] = (
+            loss_values["heatmap_weight"] * loss_components["heatmap_loss"]
+            + loss_values["coordinate_weight"]
+            * loss_components["coordinate_loss"]
+        )
+        loss_components["weighted_uncertainty_loss"] = (
+            loss_values["uncertainty_weight"]
+            * loss_components["uncertainty_loss"]
+        )
+        if any(not math.isfinite(value) for value in loss_components.values()):
+            raise RuntimeError(f"G2C {candidate_id} loss component NaN/Inf")
         optimizer.step()
         trace.append(
             {
                 "candidate_id": candidate_id,
                 "optimizer_step": step,
                 "batch_size": int(moved["image"].shape[0]),
-                "loss": float(loss.loss.detach().float().item()),
+                "loss": loss_components["loss"],
+                "loss_components": loss_components,
                 "gradient_norm": float(gradient_norm.detach().float().item()),
+                "gradient_norm_pre_clip": float(
+                    gradient_norm.detach().float().item()
+                ),
+                "gradient_norm_post_clip": post_clip_gradient_norm,
+                "keypoint_log_variance": {
+                    "min": float(keypoint_log_variance.min().item()),
+                    "p50": float(
+                        torch.quantile(keypoint_log_variance, 0.5).item()
+                    ),
+                    "max": float(keypoint_log_variance.max().item()),
+                },
                 "learning_rate": float(optimizer.param_groups[0]["lr"]),
             }
         )
     scheduler.step()
     final_motion_hash = precision_parameter_state_sha256(model.motion_head.state_dict())
+    first_log_variance = trace[0]["keypoint_log_variance"]
+    initial_front_keypoint_log_variance_all_zero = all(
+        float(first_log_variance[name]) == 0.0 for name in ("min", "p50", "max")
+    )
+    if candidate_id == "W-KV0" and not initial_front_keypoint_log_variance_all_zero:
+        raise RuntimeError("G2C W-KV0 初始 front keypoint log-variance 不为零")
     result = {
         "candidate_id": candidate_id,
         "optimizer_step_count": optimizer_steps,
@@ -829,6 +997,9 @@ def _train_candidate_smoke(
             model.state_dict()
         ),
         "post_smoke_motion_head_parameter_sha256": final_motion_hash,
+        "initial_front_keypoint_log_variance_all_zero": (
+            initial_front_keypoint_log_variance_all_zero
+        ),
         "scheduler_step_count": 1,
         "checkpoint_persisted": False,
     }
@@ -1156,6 +1327,194 @@ def verify_g2c_smoke_receipt(output_root: str | Path) -> dict[str, Any]:
             raise RuntimeError(f"G2C smoke artifact SHA-256 漂移: {name}")
     data_verification = verify_g2c_data_receipt(root / "data")
     summary = json.loads((root / "smoke_summary.json").read_text(encoding="utf-8"))
+    diagnostic_count_names = (
+        "raw_reset_diagnostic_count",
+        "post_warmup_diagnostic_count",
+        "reset_diagnostic_count",
+    )
+    timestamp_identity_names = (
+        "static_capture_timestamp_source",
+        "static_capture_simulation_control_time_s",
+        "static_capture_sequence_field",
+        "static_views_share_timestamp_without_environment_step",
+    )
+    provider_root = root / "provider_smoke"
+    protocol = json.loads(
+        (provider_root / "training_protocol_snapshot.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    initializations = json.loads(
+        (provider_root / "candidate_initializations.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    traces = json.loads(
+        (provider_root / "training_trace.json").read_text(encoding="utf-8")
+    )
+    candidate_results = json.loads(
+        (provider_root / "candidate_results.json").read_text(encoding="utf-8")
+    )
+    sampler_orders = json.loads(
+        (provider_root / "sampler_orders.json").read_text(encoding="utf-8")
+    )
+    expected_candidates = set(G2C_CANDIDATE_IDS)
+    if (
+        canonical_sha256(protocol) != canonical_sha256(g2c_training_protocol())
+        or set(initializations) != expected_candidates
+        or set(traces) != expected_candidates
+        or set(candidate_results) != expected_candidates
+        or set(sampler_orders) != expected_candidates
+        or summary.get("candidate_initializations") != initializations
+        or summary.get("candidate_results") != candidate_results
+    ):
+        raise RuntimeError("G2C smoke protocol/candidate artifact identity 漂移")
+
+    config = json.loads(
+        (root / "data" / "config_snapshot.json").read_text(encoding="utf-8")
+    )
+    warm = initializations["W-KV0"]
+    scratch = initializations["S"]
+    reset = warm.get("keypoint_logvariance_reset")
+    sha_fields = (
+        "parameter_sha256_before",
+        "parameter_sha256_after",
+        "keypoint_logvariance_rows_sha256_before",
+        "keypoint_logvariance_rows_sha256_after",
+        "non_target_parameter_sha256_before",
+        "non_target_parameter_sha256_after",
+        "motion_head_sha256_before",
+        "motion_head_sha256_after",
+    )
+    if (
+        warm.get("candidate_id") != "W-KV0"
+        or warm.get("initialization_seed") != 18021
+        or warm.get("shared_sampler_seed") != G2C_SHARED_SAMPLER_SEED
+        or warm.get("kind")
+        != "e016-selected-epoch12-warm-start-keypoint-variance-zero"
+        or warm.get("source_checkpoint_sha256")
+        != config["parents"]["e016_checkpoint_sha256"]
+        or warm.get("source_parameter_sha256")
+        != config["parents"]["e016_checkpoint_parameter_sha256"]
+        or warm.get("source_provenance_sha256")
+        != config["parents"]["e016_checkpoint_provenance_sha256"]
+        or warm.get("model_config_sha256")
+        != config["parents"]["e016_checkpoint_model_config_sha256"]
+        or not isinstance(reset, dict)
+        or reset.get("policy")
+        != "zero-final-uncertainty-linear-keypoint-logvariance-rows/v1"
+        or reset.get("row_count") != 4
+        or reset.get("row_indices") != [0, 1, 2, 3]
+        or reset.get("keypoint_logvariance_rows_all_zero_after") is not True
+        or reset.get("non_target_parameters_unchanged") is not True
+        or reset.get("motion_head_unchanged") is not True
+        or reset.get("parameter_sha256_before")
+        != warm.get("source_parameter_sha256")
+        or reset.get("parameter_sha256_after")
+        != warm.get("initial_parameter_sha256")
+        or reset.get("parameter_sha256_before")
+        == reset.get("parameter_sha256_after")
+        or reset.get("keypoint_logvariance_rows_sha256_before")
+        == reset.get("keypoint_logvariance_rows_sha256_after")
+        or reset.get("non_target_parameter_sha256_before")
+        != reset.get("non_target_parameter_sha256_after")
+        or reset.get("motion_head_sha256_before")
+        != reset.get("motion_head_sha256_after")
+        or reset.get("motion_head_sha256_after")
+        != warm.get("initial_motion_head_parameter_sha256")
+        or any(
+            not isinstance(reset.get(name), str)
+            or re.fullmatch(r"[0-9a-f]{64}", reset[name]) is None
+            for name in sha_fields
+        )
+        or scratch.get("candidate_id") != "S"
+        or scratch.get("initialization_seed") != 18022
+        or scratch.get("shared_sampler_seed") != G2C_SHARED_SAMPLER_SEED
+        or scratch.get("kind") != "random"
+        or scratch.get("keypoint_logvariance_reset") is not None
+    ):
+        raise RuntimeError("G2C smoke W-KV0/S initialization audit 漂移")
+
+    if (
+        sampler_orders["W-KV0"] != sampler_orders["S"]
+        or len(sampler_orders["W-KV0"]) != 33
+    ):
+        raise RuntimeError("G2C smoke shared sampler order 漂移")
+    loss_component_names = {
+        "loss",
+        "heatmap_loss",
+        "mask_loss",
+        "coordinate_loss",
+        "motion_loss",
+        "uncertainty_loss",
+        "visibility_loss",
+        "projection_loss",
+        "weighted_keypoint_localization_loss",
+        "weighted_uncertainty_loss",
+    }
+    for candidate_id in G2C_CANDIDATE_IDS:
+        initialization = initializations[candidate_id]
+        candidate_result = candidate_results[candidate_id]
+        candidate_trace = traces[candidate_id]
+        if (
+            candidate_result.get("candidate_id") != candidate_id
+            or candidate_result.get("optimizer_step_count") != 2
+            or candidate_result.get("examples_seen") != 33
+            or candidate_result.get("shared_sampler_seed")
+            != G2C_SHARED_SAMPLER_SEED
+            or candidate_result.get("scheduler_step_count") != 1
+            or candidate_result.get("checkpoint_persisted") is not False
+            or candidate_result.get("post_smoke_motion_head_parameter_sha256")
+            != initialization.get("initial_motion_head_parameter_sha256")
+            or len(candidate_trace) != 2
+            or [row.get("optimizer_step") for row in candidate_trace] != [1, 2]
+            or sum(int(row.get("batch_size", -1)) for row in candidate_trace)
+            != 33
+        ):
+            raise RuntimeError(f"G2C smoke {candidate_id} result/trace 漂移")
+        for row in candidate_trace:
+            components = row.get("loss_components")
+            log_variance = row.get("keypoint_log_variance")
+            numeric_values = (
+                row.get("loss"),
+                row.get("gradient_norm"),
+                row.get("gradient_norm_pre_clip"),
+                row.get("gradient_norm_post_clip"),
+                row.get("learning_rate"),
+            )
+            if (
+                row.get("candidate_id") != candidate_id
+                or not isinstance(components, dict)
+                or set(components) != loss_component_names
+                or not isinstance(log_variance, dict)
+                or set(log_variance) != {"min", "p50", "max"}
+                or any(
+                    isinstance(value, bool)
+                    or not isinstance(value, (int, float))
+                    or not math.isfinite(float(value))
+                    for value in (
+                        *numeric_values,
+                        *components.values(),
+                        *log_variance.values(),
+                    )
+                )
+                or row.get("loss") != components.get("loss")
+                or row.get("gradient_norm")
+                != row.get("gradient_norm_pre_clip")
+                or float(row["gradient_norm_post_clip"]) > 1.0 + 1e-5
+            ):
+                raise RuntimeError(
+                    f"G2C smoke {candidate_id} finite loss/gradient audit 漂移"
+                )
+    if (
+        candidate_results["W-KV0"].get(
+            "initial_front_keypoint_log_variance_all_zero"
+        )
+        is not True
+        or traces["W-KV0"][0].get("keypoint_log_variance")
+        != {"min": 0.0, "p50": 0.0, "max": 0.0}
+    ):
+        raise RuntimeError("G2C smoke W-KV0 首批 keypoint log-variance 漂移")
     if (
         summary.get("status") != receipt["status"]
         or summary.get("prediction_before_label", {}).get("passed") is not True
@@ -1164,6 +1523,16 @@ def verify_g2c_smoke_receipt(output_root: str | Path) -> dict[str, Any]:
         or list(root.rglob("*.pt"))
         or list(root.rglob("*.pth"))
         or list(root.rglob("*.ckpt"))
+        or any(
+            summary.get(name) != data_verification[name]
+            or receipt.get(name) != data_verification[name]
+            for name in diagnostic_count_names
+        )
+        or any(
+            summary.get(name) != data_verification[name]
+            or receipt.get(name) != data_verification[name]
+            for name in timestamp_identity_names
+        )
     ):
         raise RuntimeError("G2C smoke summary/no-checkpoint invariant 漂移")
     result = {
@@ -1176,6 +1545,8 @@ def verify_g2c_smoke_receipt(output_root: str | Path) -> dict[str, Any]:
         "prediction_ledger_sha256": summary["prediction_before_label"][
             "prediction_ledger_sha256"
         ],
+        **{name: data_verification[name] for name in diagnostic_count_names},
+        **{name: data_verification[name] for name in timestamp_identity_names},
         "checkpoint_file_count": 0,
     }
     result["verification_sha256"] = canonical_sha256(result)
@@ -1196,7 +1567,7 @@ def run_e018_p1_g2c_smoke(
     repository_root: str | Path,
     output_root: str | Path,
 ) -> dict[str, Any]:
-    """运行唯一获批的 4-seed / W+S / no-checkpoint engineering smoke。"""
+    """运行唯一获批的 4-seed / W-KV0+S / no-checkpoint engineering smoke。"""
 
     import gc
 
@@ -1280,9 +1651,25 @@ def run_e018_p1_g2c_smoke(
         del eval_dataset, training_dataset, model
         gc.collect()
         torch.cuda.empty_cache()
-    sampler_order_identical = sample_orders["W"] == sample_orders["S"]
+    sampler_order_identical = sample_orders["W-KV0"] == sample_orders["S"]
     if not sampler_order_identical:
-        raise RuntimeError("G2C W/S 未使用完全相同 sampler order")
+        raise RuntimeError("G2C W-KV0/S 未使用完全相同 sampler order")
+    warm_start_initialization = candidate_initializations["W-KV0"]
+    warm_start_reset = warm_start_initialization.get(
+        "keypoint_logvariance_reset"
+    )
+    if (
+        not isinstance(warm_start_reset, dict)
+        or warm_start_reset.get("keypoint_logvariance_rows_all_zero_after")
+        is not True
+        or warm_start_reset.get("non_target_parameters_unchanged") is not True
+        or warm_start_reset.get("motion_head_unchanged") is not True
+        or candidate_results["W-KV0"].get(
+            "initial_front_keypoint_log_variance_all_zero"
+        )
+        is not True
+    ):
+        raise RuntimeError("G2C W-KV0 初始化审计未通过")
     _atomic_json(provider_root / "candidate_initializations.json", candidate_initializations)
     _atomic_json(provider_root / "training_trace.json", traces)
     _atomic_json(provider_root / "candidate_results.json", candidate_results)
@@ -1370,6 +1757,25 @@ def run_e018_p1_g2c_smoke(
         "prediction_freeze_seed": evaluation_seed,
         "view_order": list(G2C_VIEW_ORDER),
         "eligible_capture_count": data_result["eligible_capture_count"],
+        "raw_reset_diagnostic_count": data_result[
+            "raw_reset_diagnostic_count"
+        ],
+        "post_warmup_diagnostic_count": data_result[
+            "post_warmup_diagnostic_count"
+        ],
+        "reset_diagnostic_count": data_result["reset_diagnostic_count"],
+        "static_capture_timestamp_source": data_result[
+            "static_capture_timestamp_source"
+        ],
+        "static_capture_simulation_control_time_s": data_result[
+            "static_capture_simulation_control_time_s"
+        ],
+        "static_capture_sequence_field": data_result[
+            "static_capture_sequence_field"
+        ],
+        "static_views_share_timestamp_without_environment_step": data_result[
+            "static_views_share_timestamp_without_environment_step"
+        ],
         "sampler_seed": G2C_SHARED_SAMPLER_SEED,
         "sampler_order_identical": sampler_order_identical,
         "prediction_before_label": {
@@ -1426,6 +1832,25 @@ def run_e018_p1_g2c_smoke(
         ],
         "data_identity_sha256": summary["data_identity_sha256"],
         "prediction_ledger_sha256": freeze["prediction_ledger_raw_sha256"],
+        "raw_reset_diagnostic_count": summary[
+            "raw_reset_diagnostic_count"
+        ],
+        "post_warmup_diagnostic_count": summary[
+            "post_warmup_diagnostic_count"
+        ],
+        "reset_diagnostic_count": summary["reset_diagnostic_count"],
+        "static_capture_timestamp_source": summary[
+            "static_capture_timestamp_source"
+        ],
+        "static_capture_simulation_control_time_s": summary[
+            "static_capture_simulation_control_time_s"
+        ],
+        "static_capture_sequence_field": summary[
+            "static_capture_sequence_field"
+        ],
+        "static_views_share_timestamp_without_environment_step": summary[
+            "static_views_share_timestamp_without_environment_step"
+        ],
         "artifact_sha256": {
             name: file_sha256(root / name) for name in artifact_names
         },

@@ -76,8 +76,8 @@ def _bundles(seed: int = 76801) -> tuple[dict[str, np.ndarray], dict[str, np.nda
         "base_from_external_camera_cv": matrices.copy(),
         "actual_world_from_external_camera_gl": matrices.copy(),
         "external_intrinsic_cv": intrinsic,
-        "rgb_timestamp_s": np.arange(count, dtype=np.float64) * 1e-6 + 0.25,
-        "pose_timestamp_s": np.arange(count, dtype=np.float64) * 1e-6 + 0.25,
+        "rgb_timestamp_s": np.full(count, 0.25, dtype=np.float64),
+        "pose_timestamp_s": np.full(count, 0.25, dtype=np.float64),
         "finger_force_n": np.zeros((count, 2), dtype=np.float32),
         "finger_force_valid": np.ones(count, dtype=np.bool_),
         "raw_gripper_opening_ratio": np.ones(count, dtype=np.float32),
@@ -166,7 +166,7 @@ def _metric_rows(
     *,
     count: int,
     error: float = 0.001,
-    candidate_id: str = "W",
+    candidate_id: str = "W-KV0",
     epoch: int = 5,
 ) -> list[dict]:
     return [
@@ -232,6 +232,111 @@ def test_seed_bundle_has_disjoint_model_and_privileged_arrays() -> None:
     assert all(count == 0 for count in audit["violation_counts"].values())
 
 
+@pytest.mark.parametrize("timestamp_name", ["rgb_timestamp_s", "pose_timestamp_s"])
+def test_seed_bundle_requires_shared_post_warmup_timestamp(
+    timestamp_name: str,
+) -> None:
+    deployable, labels = _bundles()
+    validate_g2c_seed_bundle(deployable, labels, expected_seed=76801)
+    assert np.array_equal(
+        deployable["sample_index"], np.arange(len(G2C_VIEW_ORDER), dtype=np.int64)
+    )
+    assert np.all(deployable["rgb_timestamp_s"] == 0.25)
+    assert np.all(deployable["pose_timestamp_s"] == 0.25)
+
+    deployable[timestamp_name][1] += 1e-6
+    with pytest.raises(ValueError, match="共享 post-warmup"):
+        validate_g2c_seed_bundle(deployable, labels, expected_seed=76801)
+
+
+def _reset_diagnostic_rows(seeds: list[int]) -> list[dict[str, object]]:
+    return [
+        {
+            "version": g2c_data.E018_P1_G2C_DATA_RESULT_VERSION,
+            "role": "reset-diagnostic-only-never-eligible/v1",
+            "phase": phase,
+            "seed": seed,
+            "eligible_capture": False,
+            "used_for_training": False,
+            "used_for_selection": False,
+            "used_for_calibration": False,
+            "used_for_qualification": False,
+        }
+        for seed in seeds
+        for phase in g2c_data.G2C_RESET_DIAGNOSTIC_PHASES
+    ]
+
+
+def test_reset_diagnostic_requires_exactly_two_frozen_phases_per_seed() -> None:
+    seeds = [76801, 76802, 76803, 76804]
+    rows = _reset_diagnostic_rows(seeds)
+    assert g2c_data._validate_reset_diagnostic_rows(
+        rows, expected_seeds=seeds
+    ) == {
+        "raw_reset_diagnostic_count": 4,
+        "post_warmup_diagnostic_count": 4,
+        "reset_diagnostic_count": 8,
+    }
+
+    invalid_variants = []
+    invalid_variants.append(rows[:-1])
+    invalid_variants.append([*rows, deepcopy(rows[0])])
+    illegal_phase = deepcopy(rows)
+    illegal_phase[0]["phase"] = "unexpected-reset-phase/v1"
+    invalid_variants.append(illegal_phase)
+    training_use = deepcopy(rows)
+    training_use[0]["used_for_training"] = True
+    invalid_variants.append(training_use)
+    eligible = deepcopy(rows)
+    eligible[0]["eligible_capture"] = True
+    invalid_variants.append(eligible)
+
+    for invalid in invalid_variants:
+        with pytest.raises(RuntimeError, match="reset diagnostic"):
+            g2c_data._validate_reset_diagnostic_rows(
+                invalid, expected_seeds=seeds
+            )
+
+
+def test_manifest_seed_identity_is_frozen_by_receipt_mode() -> None:
+    config = _config()
+    seeds = config["sampling"]["smoke_only_seeds"]
+    rows = [
+        {"split": G2C_SMOKE_SPLIT, "seed": seed}
+        for seed in seeds
+    ]
+    receipt = {
+        "mode": "smoke",
+        "status": "complete-engineering-smoke-pass",
+        "seed_count": 4,
+        "canonical_data_receipt": False,
+    }
+    identity = g2c_data._validate_g2c_manifest_seed_identity(
+        rows, rows, config=config, receipt=receipt
+    )
+    assert identity["seed_count"] == 4
+    assert identity["raw_reset_diagnostic_count"] == 4
+    assert identity["post_warmup_diagnostic_count"] == 4
+    assert identity["reset_diagnostic_count"] == 8
+
+    invalid_rows = (
+        rows[:-1],
+        [*rows, deepcopy(rows[0])],
+        [{**rows[0], "split": "train"}, *rows[1:]],
+    )
+    for invalid in invalid_rows:
+        with pytest.raises(RuntimeError, match="manifest"):
+            g2c_data._validate_g2c_manifest_seed_identity(
+                invalid, invalid, config=config, receipt=receipt
+            )
+
+    wrong_receipt = {**receipt, "canonical_data_receipt": True}
+    with pytest.raises(RuntimeError, match="manifest"):
+        g2c_data._validate_g2c_manifest_seed_identity(
+            rows, rows, config=config, receipt=wrong_receipt
+        )
+
+
 def test_lifecycle_is_fail_whole_and_does_not_delete_bad_row() -> None:
     deployable, labels = _bundles()
     labels["is_grasped"][0] = True
@@ -260,7 +365,7 @@ def test_training_dataset_rejects_model_val_before_prediction_freeze(tmp_path: P
 
 
 def test_prediction_ledger_freezes_before_privileged_fields(tmp_path: Path) -> None:
-    rows = [{"candidate_id": "W", "seed": 76804, "prediction": 0.8}]
+    rows = [{"candidate_id": "W-KV0", "seed": 76804, "prediction": 0.8}]
     marker = freeze_g2c_prediction_ledger(
         tmp_path,
         rows=rows,
@@ -312,7 +417,15 @@ def test_phase_b_signature_cannot_receive_model_or_in_memory_predictions() -> No
 def test_training_protocol_separates_init_rng_from_shared_sampler_rng() -> None:
     protocol = g2c_training_protocol()
     assert protocol["training"]["shared_sampler_seed"] == 18020
-    assert protocol["candidates"]["W"]["initialization_seed"] == 18021
+    assert protocol["candidates"]["diagnostic_W"] == {
+        "id": "W",
+        "architecture": "PrecisionThreeHeadUNet",
+        "initialization": "e016-selected-epoch12-warm-start",
+        "diagnostic_only": True,
+        "eligible_for_selection": False,
+        "superseded_by": "W-KV0",
+    }
+    assert protocol["candidates"]["W-KV0"]["initialization_seed"] == 18021
     assert protocol["candidates"]["S"]["initialization_seed"] == 18022
     assert protocol["training"]["require_identical_per_epoch_shuffle"] is True
     assert protocol["model_validation"][
@@ -361,7 +474,7 @@ def test_checkpoint_selection_prefers_more_eligible_views_then_p90() -> None:
             losses[(candidate, epoch)] = 1.0
             for viewpoint in G2C_VIEW_ORDER:
                 error = 0.03
-                if candidate == "W" and epoch == 5 and viewpoint in {
+                if candidate == "W-KV0" and epoch == 5 and viewpoint in {
                     "LEFT_LOW__CENTER",
                     "RIGHT_LOW__CENTER",
                 }:
@@ -378,7 +491,7 @@ def test_checkpoint_selection_prefers_more_eligible_views_then_p90() -> None:
                     )
                 )
     result = select_g2c_checkpoint(rows, validation_losses=losses)
-    assert result["selected"]["candidate_id"] == "W"
+    assert result["selected"]["candidate_id"] == "W-KV0"
     assert result["selected"]["epoch"] == 5
     assert result["selected"]["eligible_non_home_view_count"] == 2
 
@@ -451,3 +564,46 @@ def test_full_data_runner_requires_new_r2_exit_before_opening_inputs(tmp_path: P
             mode="full",
             decision_exit_go=False,
         )
+
+
+def test_w_kv0_resets_only_keypoint_log_variance_rows() -> None:
+    torch = pytest.importorskip("torch")
+
+    from robot_vla.precision.checkpoint import precision_parameter_state_sha256
+    from robot_vla.precision.model import PrecisionThreeHeadUNet
+
+    model = PrecisionThreeHeadUNet()
+    final_layer = model.uncertainty_head[-1]
+    row_count = model.config.keypoint_count * 2
+    final_layer.weight.data[:row_count].fill_(1.25)
+    final_layer.bias.data[:row_count].fill_(-0.75)
+    before = {
+        name: tensor.detach().clone() for name, tensor in model.state_dict().items()
+    }
+    motion_before = precision_parameter_state_sha256(model.motion_head.state_dict())
+
+    audit = g2c._zero_warm_start_keypoint_log_variance_rows(model)
+
+    assert audit["row_indices"] == list(range(row_count))
+    assert audit["keypoint_logvariance_rows_all_zero_after"] is True
+    assert audit["non_target_parameters_unchanged"] is True
+    assert audit["motion_head_sha256_before"] == motion_before
+    assert audit["motion_head_sha256_after"] == motion_before
+    assert torch.count_nonzero(final_layer.weight[:row_count]).item() == 0
+    assert torch.count_nonzero(final_layer.bias[:row_count]).item() == 0
+    for name, tensor in model.state_dict().items():
+        if name.endswith("uncertainty_head.2.weight"):
+            assert torch.equal(tensor[row_count:], before[name][row_count:])
+        elif name.endswith("uncertainty_head.2.bias"):
+            assert torch.equal(tensor[row_count:], before[name][row_count:])
+        else:
+            assert torch.equal(tensor, before[name])
+
+    model.eval()
+    with torch.inference_mode():
+        output = model(
+            torch.zeros(2, model.config.input_channels, 32, 32),
+            torch.zeros(2, model.config.structured_state_dim),
+            torch.zeros(2, model.config.motion_spec.motion_dim),
+        )
+    assert torch.count_nonzero(output.keypoint_log_variance).item() == 0
