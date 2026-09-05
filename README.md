@@ -65,6 +65,13 @@ External/front RGB + Wrist RGB + Language + Proprioception [15]
 主要瓶颈是 reach 泛化，其次是 transport/release 的连续组合。后续迭代应继续从数据覆盖和监督分布
 解决这些学习问题，而不是加入 stable-grasp、release-hold 或 settle 等任务语义状态机。
 
+### World Model / Critic V0 候选分支
+
+`codex/world-model-critic-v0` 额外包含一个不继承 E018 的 development-only 候选：22,543 参数的
+四步 proprio structured dynamics，以及零参数 Action Chunk consistency critic。候选默认不训练、
+不接 Planner、不改变 Action、不授予 actuator 权限；完整设计、已知 main 基线限制和定向测试命令见
+[`docs/world_model_critic_v0_candidate.md`](docs/world_model_critic_v0_candidate.md)。
+
 ## 快速开始
 
 基础开发和单元测试使用 Python 3.10 及以上版本：

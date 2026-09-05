@@ -1,0 +1,116 @@
+{
+  "schema_version": "world-model-critic-candidate-config/v0",
+  "candidate_id": "wmc-v0-main-20260906",
+  "status": "development_only",
+  "base": {
+    "ref": "origin/main",
+    "commit": "1508f2c0f8d07373cbdeac22167dd5ff38574967",
+    "inherits_e018": false
+  },
+  "authorization": {
+    "offline_implementation": true,
+    "shadow_observation": true,
+    "candidate_reranking": false,
+    "hold_or_reobserve": false,
+    "actuation_allowed": false
+  },
+  "hypothesis": "一个显式4步、约2.2万参数的proprio动力学基线和零参数Action一致性critic，足以先验证时间、动作、mask、reset及sim-to-real shadow接口，而无需引入视频生成、MPC或离线RL。",
+  "world_model": {
+    "architecture": "tiny-structured-world-model/v0",
+    "state_semantics": "normalized q[7] + dq[7] + gripper_opening[1]",
+    "state_dim": 15,
+    "command_semantics": "normalized absolute commanded joint target[7] generated from the same replan controller q and Action Adapter as execution",
+    "command_dim": 7,
+    "action_semantics": "normalized delta_q[7] + absolute_gripper_target[1]",
+    "action_dim": 8,
+    "rollout_horizon": 4,
+    "control_hz": 20.0,
+    "hidden_dim": 128,
+    "normalized_state_abs_limit": 5.0,
+    "normalized_action_abs_limit": 1.0,
+    "rms_norm_eps": 0.00001,
+    "config_sha256": "dd15873a6cad15282da903c2e53fc46d530f906f8a78b9344ff0c458a60b0bf2",
+    "transition": "shared-weight autoregressive residual MLP",
+    "predicts_rgb": false,
+    "predicts_object_state": false,
+    "predicts_task_success": false,
+    "expected_trainable_parameters": 22543,
+    "checkpoint": "untrained:state-hold",
+    "trained": false
+  },
+  "critic": {
+    "version": "action-consistency-critic/v0",
+    "trainable_parameters": 0,
+    "input_chunk": "raw normalized policy proposal [16,8]",
+    "execution_prefix_steps": 4,
+    "features": [
+      "arm_tce_mse_normalized",
+      "gripper_tce_mse_normalized",
+      "arm_acm_rms_normalized",
+      "gripper_transition_rms_opening_ratio"
+    ],
+    "arm_gripper_scored_separately": true,
+    "first_replan_status": "warmup",
+    "score_thresholds": null,
+    "calibration_id": null
+  },
+  "data_boundary": {
+    "observation_schema_id": "franka-normalized-proprio-command/v0",
+    "action_schema_id": "franka-normalized-delta-q-absolute-gripper/v1",
+    "runtime_inputs": [
+      "normalized_proprio",
+      "normalized_arm_command_target_prefix",
+      "observed_gripper_opening_ratio",
+      "raw_normalized_action",
+      "effective_normalized_action",
+      "timestamps_and_identity"
+    ],
+    "runtime_forbidden_inputs": [
+      "command_target_recomputed_from_stale_observation_q",
+      "simulator_hidden_state",
+      "object_ground_truth",
+      "contact_ground_truth",
+      "success_or_failure_label"
+    ],
+    "canonical_trajectory_package_present_on_base": false,
+    "training_dataset": null,
+    "fresh_test_consumed": false
+  },
+  "validation": {
+    "implemented_scope": [
+      "shape_dtype_range_contracts",
+      "four_step_causality",
+      "controller_reference_conditioning",
+      "prefix_mask_semantics",
+      "masked_state_mse",
+      "action_overlap_alignment",
+      "episode_reset_and_warmup",
+      "shadow_receipt_no_actuation"
+    ],
+    "not_claimed": [
+      "trained_world_model_accuracy",
+      "object_or_task_outcome_prediction",
+      "critic_failure_detection_quality",
+      "sim_to_real_transfer",
+      "closed_loop_improvement",
+      "actuator_safety"
+    ]
+  },
+  "resource_budget": {
+    "implementation_training_gpu_hours_used": 0,
+    "planned_first_pilot_gpu": "single RTX 4090 24GB or CPU",
+    "planned_trainable_parameter_ceiling": 100000,
+    "stop_on": [
+      "nonfinite_loss_or_prediction",
+      "action_or_time_contract_mismatch",
+      "episode_boundary_leakage",
+      "shadow_action_parity_failure"
+    ]
+  },
+  "references": {
+    "td_mpc2": "https://github.com/nicklashansen/tdmpc2",
+    "robotic_world_model_lite": "https://github.com/leggedrobotics/robotic_world_model_lite",
+    "actprobe": "https://github.com/air-embodied-brain/actprobe",
+    "sentinel_stac": "https://github.com/agiachris/sentinel"
+  }
+}
