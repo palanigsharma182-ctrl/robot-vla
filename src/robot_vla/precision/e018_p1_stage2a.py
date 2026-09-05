@@ -980,6 +980,9 @@ class WristCapabilityEvidenceRecord:
     def _payload(self) -> dict[str, Any]:
         value = asdict(self)
         value["source_phase"] = self.source_phase.value
+        value["memory_unavailable_reasons"] = list(
+            self.memory_unavailable_reasons
+        )
         value["memory_state"] = json.loads(value.pop("memory_state_canonical_json"))
         value["home_observation_payload"] = json.loads(
             value.pop("home_observation_payload_canonical_json")

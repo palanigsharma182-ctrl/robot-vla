@@ -433,6 +433,27 @@ def test_three_plus_one_capability_records_replay_without_visual_failure_claim()
     assert all(value.frame_evaluated is False for value in (*triggers, source))
 
 
+def test_trigger_records_replay_after_json_round_trip() -> None:
+    episode_id = "stage2a-trigger-json-round-trip"
+    transaction, _ = _trigger_transaction(episode_id)
+    transaction = json.loads(json.dumps(transaction))
+    replay = _new_stage2a_replay_controller(
+        load_e018_p1_stage2a_config(STAGE2_CONFIG),
+        episode_id=episode_id,
+    )
+
+    triggers, _ = _verify_stage2a_trigger_replay(
+        transaction,
+        controller=replay,
+        episode_id=episode_id,
+    )
+
+    assert transaction["trigger_wrist_capability"] == triggers[-1].to_dict()
+    assert isinstance(
+        triggers[-1].to_dict()["memory_unavailable_reasons"], list
+    )
+
+
 def test_trigger_alias_tamper_is_rejected_even_when_record_is_resigned() -> None:
     episode_id = "stage2a-trigger-tamper"
     transaction, _ = _trigger_transaction(episode_id)
