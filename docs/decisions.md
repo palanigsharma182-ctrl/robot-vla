@@ -2387,6 +2387,10 @@ input，并在正确 identity 下重新签发 TRAIN-only GO。等待 D040 docs c
 
 ## D041 — 修复 0-D optimizer-state identity，并从全新 output 重启 G2C formal TRAIN
 
+> **Execution outcome（D042）：** D041 FORMAL TRAIN 已通过独立 verifier 与 R2：W-KV0/S 各 20 epochs，
+> 共 8 checkpoint、8 companion，全部禁止计数为零。该 PASS 只授权进入 D042 deployable-only Phase A，
+> 不代表任何 checkpoint 已通过 model validation 或获得 provider 资格。
+
 **Decision:**
 
 D040 formal TRAIN 按正确 identity 启动后，W-KV0 完成 epoch 1 的 138 个 batch，在生成 epoch trace 与
@@ -2539,6 +2543,156 @@ canonical runtime 或 actuator。formal TRAIN 完成后必须先由 Decision Age
 
 **Implementation status:** repair source 与 exact-source Gate 已通过；等待 D041 docs-only commit/push 和工程
 Agent 明确确认后，在全新 output 重启 formal TRAIN。Phase A 及后续阶段保持 HOLD。
+
+**Status:** formal-training-pass / handed-off-to-D042
+
+## D042 — 放行 G2C model-validation 的 deployable-only Phase A prediction freeze
+
+**Decision:**
+
+依据 D041 FORMAL TRAIN 的独立 verifier 与 R2，放行 `E018-P1-G2C-MODEL-VAL-PHASE-A/v1`。本 Gate 只允许：
+
+1. 用 role-specific `prepare-model-val-deployable-input` 准备 model-validation deployable-only view；
+2. 对冻结的 8 个 candidate checkpoints 和诊断 CONTROL 运行 Phase A inference；
+3. 完整写入、`fsync`、关闭模型/推理上下文并冻结 prediction/loss-output ledgers；
+4. 运行只读 Phase A verifier。
+
+本 Gate 没有 privileged label path/API 参数，不允许准备 `model-val-privileged` input，也不允许 Phase B
+score/select。Phase A 只建立“在看 label 前预测已经不可变”的时间与身份边界，不产生效果结论。
+
+D041 accepted training parent 绑定为：
+
+```text
+execution source git commit:
+  5bf05da5a22a07b8fabfc22b1f32da86fce40ba1
+source_tree_sha256:
+  13fe6ec20cc26e33ff56357fafd082c15f77710aae109511e56b08e971df55b6
+formal TRAIN identity:
+  95b0fb26db8585decb9488ce0086ef1f9f6c8bc2a6496797e3d9681b89f2af05
+TRAIN config internal SHA:
+  6719acdfb95b1780bb6779ff48471bf78823ea062abb3f097d2564bcd0e203ab
+DATA identity:
+  07919f413224fba797d4c12df25e2d5aec8ded8213e3283a07feed282701cfa3
+
+training output artifact ID:
+  g2c-formal-train-d041-5bf05da-20260905-v1
+training output exact tree:
+  32 regular files / 0 symlink / 0 hardlink / 243592032 bytes
+TRAIN receipt raw/internal SHA:
+  243630ce62e03f561138fdc191e3651357d233f912c27ab006ac7d251b3af033
+  c8d8d08ba8e6c240a2fffd98bc9b64c399cb347c70961c29c24128d283d50071
+TRAIN verification SHA:
+  5ca4ea6e88cfaf839e527cd7e2e164c73b6d03c5f7fb3875fad076d4049449d5
+checkpoint inventory SHA:
+  19173911e8592421829ee0d69c541f5fd5e0c899d7fe835bde9e1c2eb04346ad
+```
+
+冻结 checkpoint file SHA 按 candidate/epoch 顺序为：
+
+```text
+W-KV0/05  6bf8c002bc7795f6444cc30a021cc00b0e33bf48ed1ede6d612546fd6ad4566d
+W-KV0/10  6b1e27e211f337e71b929870562ccdad9b98802dc7da596ccd303da43ca04c26
+W-KV0/15  97e3b7289911bc73f67755a8d9c3598c50b6c80ef01e1af13cec698ec59d3d77
+W-KV0/20  c89263c04c3058cc6853c2f03df6688b31cc8bd1d9532c4b292b9ead122daa9a
+S/05      bd988cc3f8a62b0a5d7e75da5e019ae69c626ddf84ec900058dd66baeea1ecb7
+S/10      fbacdaea1d170744f8659e5b66f934d90df5f7705cdccb00b0b39c058d4af58f
+S/15      e10eefe5f0d891ae8513e89a874032d96749c805e9327b0e33350f2c6b4a56e5
+S/20      8612a8f5a742c0c9a8ce33a8905b40ba5bf28205d8267f9274007eb73fb5b8b7
+```
+
+Phase A 必须把上述 training output artifact root 当只读 parent。路径名称本身不替代 verifier；开始 inference
+前必须重新验证 receipt、32-file exact tree、checkpoint inventory 和每个 checkpoint/parameter/provenance
+identity。不得混入 D040 artifact、其他 checkpoint、额外 epoch 或后续产生的模型。包含 D042 的 docs commit
+仍只是决策记录，不能作为 execution source。
+
+model-validation deployable input 只允许读取 DATA split `76501..76600`：100 seeds、1100 rows，固定
+deployable inventory SHA 为
+`bee09be0c104cc6d538b6961761647cf5ff8375f7e91917e97a25c461c8f30d9`。input view 的角色必须是
+`model-val-deployable`，只含 100 个 deployable bundles 与 manifest；`privileged_included=false`、
+`source_identity_sha256=null`、privileged label array open count=0、test read=0。禁止 combined staging，禁止
+出现 `privileged_labels/`、calibration、qualification、test、symlink、hardlink 或额外文件。
+
+Phase A 输出计数冻结为：
+
+```text
+candidate checkpoint count:                 8
+candidate prediction ledgers/rows:          8 / 8800
+candidate loss-output shards:               280  (8 x 35 batches)
+diagnostic CONTROL prediction ledgers/rows: 1 / 1100
+diagnostic CONTROL loss-output shards:      0
+total prediction ledgers/rows:              9 / 9900
+per-model batch sizes:                      34 x 32 + 1 x 12
+model-val unique deployable bundles:        100
+deployable bundle opens/sample reads:       900 / 9900
+privileged label opens before freeze:       0
+```
+
+CONTROL 固定为 `CONTROL-E016-EPOCH12`，必须绑定 exact E016 selected epoch-12 checkpoint 及其
+checkpoint/parameter/provenance/model-config SHA。CONTROL 只生成 1100-row diagnostic prediction ledger，
+`eligible_for_selection=false`、validation loss count=0、loss-output shard count=0；永不参与 eligibility、ranking
+或 selected checkpoint。8 个 candidates 才生成 float32 loss-output shards，但这些只是不含 GT 的 deployable
+model outputs；本 Gate 不计算 validation loss。
+
+每个 checkpoint 与 CONTROL 必须按相同 1100-row 顺序和相同 35-batch identity 推理。每个 ledger/shard、
+prediction/control/loss inventory 和 checkpoint inventory 必须先以不可覆盖原子写落盘并 `fsync`；随后销毁
+model、Dataset 与 inference context、清理 CUDA context，最后才写 `prediction_freeze.json` 和 parent directory
+`fsync`。freeze marker 必须绑定 training receipt、source、config、DATA、checkpoint、全部 artifact SHA/bytes、
+计数和 `privileged_label_open_count_before_freeze=0`。完整 artifact 仍受 20 GiB 上限约束。
+
+以下任一条件立即停止并保留现场，禁止删除失败 output、补写缺失 ledger、覆盖重跑或越过 Gate：
+
+- source、training receipt/tree、checkpoint inventory 或任一 checkpoint identity 漂移；
+- model-val deployable input role、seed/row/order/inventory/regular-file tree 漂移；
+- output 已存在，或 Phase A 试图写入 training/input parent；
+- 预测出现 nonfinite、shape/dtype/channel/sample identity 漂移；
+- 9 ledgers、9900 rows、280 candidate shards、CONTROL 0 shard 或 35-batch 规则不精确；
+- CONTROL 计算 loss、进入候选池或获得 selection eligibility；
+- 在 freeze marker 完整验证前打开/准备任何 privileged label；
+- model/inference context 未在 freeze 前销毁，或 artifact 未完整 `fsync`；
+- model-val privileged、calibration、qualification、test、Memory 或 actuator 任一禁止计数非零；
+- artifact 超过 20 GiB，或独立 Phase A verifier 非零退出。
+
+若失败发生在任何 label 打开前，它是 deployable-only Phase A 工程失败；仍必须冻结失败 artifact/console 和
+消费边界，由新 Decision/source/output 决定是否重跑。不得以“尚未看 label”为由静默删除和重复运行。
+
+精确 GO 文句为：
+
+> GO — 工程 Agent 可以在美国 RTX 6000 Ada worker 上，以 detached exact-clean
+> `5bf05da5a22a07b8fabfc22b1f32da86fce40ba1`、source-tree identity
+> `13fe6ec20cc26e33ff56357fafd082c15f77710aae109511e56b08e971df55b6` 和 formal identity
+> `95b0fb26db8585decb9488ce0086ef1f9f6c8bc2a6496797e3d9681b89f2af05`，先在全新、拒绝覆盖目录执行
+> `prepare-model-val-deployable-input`，验收为 `model-val-deployable` 后，在另一个全新、拒绝覆盖目录只运行
+> Phase A prediction freeze 与只读 verifier。只允许冻结的 8 candidate checkpoints 和
+> `CONTROL-E016-EPOCH12`；除此之外全部 HOLD。
+
+本 GO 只有在包含 D042 的 docs-only commit 提交并推送、且工程 Agent 在消息边界确认 source、training
+receipt、checkpoint inventory、deployable-only/no-label 和 new-output 边界后才生效。
+
+Phase A PASS 只允许声明：“8 个 candidate checkpoints 与诊断 CONTROL 在冻结 model-validation deployable
+inputs 上的预测和 candidate loss outputs 已在 privileged label 打开前完整冻结。”不得声明任何 checkpoint
+eligible、validation loss、front provider 精度、资格、Active 优势、Memory 收益、闭环或 actuator 安全。
+
+Phase A 完成后必须由 Decision Agent 独立 R2 验证 exact file tree、9/9900/280 计数、所有 ledger/shard SHA、
+training/source/input identity、CONTROL 隔离、context-destroyed 与 label-open=0。只有新的显式 Phase B GO 才能
+运行 `prepare-model-val-privileged-input` 和一次性 score/select；calibration、qualification、fresh test、
+Memory、closed-loop、canonical runtime 和 actuator 继续 HOLD。
+
+**Reason:**
+
+D041 已把候选 checkpoint、恢复状态和 provenance 完整冻结；此时先运行不接 label path 的 Phase A，可以把
+模型输出与之后的 GT scoring 建立不可逆的单向边界。把 deployable staging、inference 和冻结作为一个
+no-label Gate，同时继续阻断 privileged staging，能在不消费正式 validation labels 的情况下发现 checkpoint、
+input、shape、batch、CONTROL 或 artifact 工程问题。
+
+**Alternatives considered:**
+
+- 同时准备 deployable 与 privileged input：扩大 label 可达面并破坏单向 Gate，拒绝。
+- 只对 epoch-20 或训练 loss 最低 checkpoint 推理：会在看 validation 前擅自缩小冻结候选池，拒绝。
+- 给 CONTROL 生成 loss shard：CONTROL 不参与 selection，增加泄漏和误用面，拒绝。
+- Phase A 成功后同一进程直接读取 label：无法证明 model/inference context 已销毁，拒绝。
+
+**Implementation status:** D041 FORMAL TRAIN 已通过 R2；等待 D042 docs commit/push 和工程确认后执行
+deployable-only Phase A。Phase B 及后续全部 HOLD。
 
 **Status:** active
 

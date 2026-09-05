@@ -1,11 +1,11 @@
 # E018-P1-G2C Front Provider Adaptation 实验计划书
 
-> 状态：`formal-train-repair-rerun-go / model-validation-hold / development-only`
+> 状态：`formal-train-pass / phase-a-go / phase-b-hold / development-only`
 > 日期：2026-09-05
 > Experiment ID：`E018-P1-G2C-FRONT-PROVIDER-ADAPTATION-DEVELOPMENT/v1`
 > Data identity：`E018-P1-G2C-DATA/v1`
 > Train identity：`E018-P1-G2C-TRAIN/v1`
-> Decision Gate：[`D036`、`D037`、`D038`、`D039`、`D040`、`D041`](decisions.md)
+> Decision Gate：[`D036`、`D037`、`D038`、`D039`、`D040`、`D041`、`D042`](decisions.md)
 > 上位计划：[`E018-P1 三阶段主动视觉闭环`](e018_p1_three_stage_active_vision_closed_loop_plan.md)
 
 > 2026-09-05 DATA Gate：`E018-P1-G2C-DATA/v1` 已通过独立 verifier 与 R2，接受为 canonical
@@ -34,6 +34,12 @@
 > `95b0fb26db8585decb9488ce0086ef1f9f6c8bc2a6496797e3d9681b89f2af05`。D040 output 冻结且禁止 resume；
 > D041 允许复用已重验的 `train-paired` input，但必须在全新 output 从 W-KV0 epoch 1 开始完整重跑。D040
 > 已消费 10.46814069100219 s 继续计入 10 h 总预算；所有 model-validation 与后续阶段仍 HOLD。
+
+> 2026-09-05 Phase A Gate：D041 FORMAL TRAIN 已通过 verifier 与 R2，产生 8 个冻结 checkpoints 与 8 个
+> companions。D042 只允许准备 model-validation deployable-only input，并冻结 8 candidate ledgers + 1
+> diagnostic CONTROL ledger（9900 rows）与 280 个 candidate loss-output shards；privileged label open 必须为
+> 0。Phase A 不计算 validation loss、不做 eligibility/ranking；Phase B、calibration、qualification、fresh test、
+> Memory、closed-loop 和 actuator 继续 HOLD。
 
 本实验是 E018 Stage 2 的上游 provider 资格实验。它只回答“受限动态 front 视角是否能产生可部署语义的
 object measurement”，不评价 Active 相对 Passive 的任务收益，也不授予 canonical runtime、机械臂、夹爪、
