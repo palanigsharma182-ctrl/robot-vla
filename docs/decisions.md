@@ -2084,6 +2084,10 @@ receipt 被机械绑定，避免训练代码在 label 可达性、checkpoint fre
 
 ## D039 — 放行 G2C-TRAIN/v1 的正式训练，并保持后续单向 Gate 冻结
 
+> **Erratum（D040）：** D039 把 C1′ smoke 的 G2C DATA collector identity `a7944bf...` 误写为 formal
+> TRAIN runner identity。该错误 identity 及 D039 的原 GO 文句已由 D040 显式 supersede；D039 的其余冻结
+> 协议继续有效。错误 GO 未被 formal TRAIN 消费。
+
 **Decision:**
 
 依据 D035 的 B 级代决授权、D036–D038 冻结协议、C1′ exact-clean source 的独立 R2 审查、完整测试和
@@ -2264,6 +2268,116 @@ exit 0。因此正式 TRAIN 的剩余风险已能由冻结输入、预算、arti
 
 **Implementation status:** D039/C2 仅记录 TRAIN-only GO；等待工程 Agent 在 exact source 上执行并返回 formal
 receipt。Phase A 及所有后续阶段保持 HOLD。
+
+**Status:** superseded-in-part-by-D040
+
+## D040 — 修正 G2C formal TRAIN source identity，并重新签发 TRAIN-only GO
+
+**Decision:**
+
+D039 的 execution commit `46e816469661ad7485f6ac7de534c031d70a6138` 正确，但其中
+`a7944bf488dba91302173cf3865861a7b049d0692aaa6549fd4d17ab649674a3` 来自 C1′ smoke 的
+`data/source_identity.json`，属于 G2C DATA collector identity，不是
+`e018_p1_g2c_training._git_source_identity()` 计算的 formal TRAIN runner identity。D040 仅显式 supersede
+D039 的错误 execution-source identity、由其派生的精确 GO 文句和对应状态；D039 的 hypothesis、
+control/treatment、config/DATA/model-parent identity、seed、预算、checkpoint、隔离、停止条件、engineering
+gate、允许结论与后续 Phase HOLD 全部继续有效。
+
+Decision Agent、工程 Agent 与主协调分别复核 exact commit 后，canonical 计算链为：
+
+```text
+git_commit:
+  46e816469661ad7485f6ac7de534c031d70a6138
+raw git tree (git rev-parse HEAD^{tree}):
+  f453f3d2e29db25c4c9f69108a28c24d070e1968
+source_tree_sha256 = canonical_sha256({git_commit, git_tree}):
+  4215a93b1bd47780f136d59cdf659eb01cb080d1d176081292db5e35595fdaae
+formal TRAIN identity = canonical_sha256({git_commit, source_tree_sha256}):
+  368f30cf66d2c2b8802707449bf79b12e48f0bce3ea4ce6619800be9ff30a539
+```
+
+复算直接使用 exact `46e8164` 中 `robot_vla.precision.training.source_tree_sha256()` 与
+`robot_vla.precision.e018_p1_g2c_training._git_source_identity()` 的 canonical JSON 语义。worker exact-clean
+checkout 上的函数实测返回上述 commit/source-tree/identity 三元组；不得使用当前分支、D039/D040 docs commit、
+目录名、DATA receipt 或 smoke receipt 替代 runner 自身的 identity。
+
+D039 错误 GO 被发现时 formal TRAIN 尚未启动。独立只读检查确认：
+
+```text
+formal optimizer step count:  0
+formal checkpoint write count: 0
+formal resume/receipt count:   0
+model-val/calibration/qualification/test consumption: 0
+```
+
+D039 后提前完成的 train input view 不删除、不覆盖，也不冒充 formal TRAIN。它不携带错误 identity：v2
+`train-paired` 角色的 `source_identity_sha256` 按冻结语义必须为 null。Decision Agent 已从 exact `46e8164`
+checkout 重新打开全部 bundle 并独立运行 `validate_g2c_input_view(..., verify_bundle_bytes=True)`，接受该 input
+view 供 D040 formal TRAIN 复用：
+
+```text
+role/status: train-paired / complete-input-view-pass
+seed/sample count: 400 / 4400
+deployable/privileged bundle count: 400 / 400
+regular file count: 803
+symlink/hardlink count: 0 / 0
+total regular-file bytes: 140667035
+forbidden named paths: none
+privileged label array open count: 0
+test array read count: 0
+
+deployable inventory SHA:
+  580503b63ee3ac9a6af373b23f95d69fc5fd90dcde993a8c3df4a041887b7400
+privileged inventory SHA:
+  29dc518643b8e8021278660f9a23ca4c6b856602f1c18ed142d500cb113c1727
+paired inventory SHA:
+  58f27e09067f9aaf73cc966059c3fe917525e8ead825f71223dcbf6f2760979d
+receipt raw/internal SHA:
+  69af12bd31fe83ba86001a183e88c55e0a95c682610560e07ccaf31c32538062
+  19eb1c1eea5fcf87f8e560bb14536285447795733d256929bc875621adf52c91
+independent verification SHA:
+  302f0d905785598250bcad7661b23104d3fa686da67db8b87d1f62fae8ea95bf
+```
+
+重新签发的精确 GO 文句为：
+
+> GO — 工程 Agent 可以在美国 RTX 6000 Ada worker 的全新、拒绝覆盖 formal TRAIN 运行目录中，以
+> detached exact-clean `46e816469661ad7485f6ac7de534c031d70a6138`、source-tree identity
+> `4215a93b1bd47780f136d59cdf659eb01cb080d1d176081292db5e35595fdaae` 和 formal TRAIN identity
+> `368f30cf66d2c2b8802707449bf79b12e48f0bce3ea4ce6619800be9ff30a539`，复用 D040 已重新验收的
+> `train-paired` input view，仅对 `W-KV0` 与 `S` 执行 `E018-P1-G2C-TRAIN/v1` FORMAL TRAIN，并运行
+> 只读 formal verifier。除此之外全部 HOLD。
+
+本 GO 生效前，D040 docs-only commit 必须由主协调提交并推送，工程 Agent 必须在消息边界确认收到正确的
+commit/source-tree/formal identity 三元组。D040 docs commit 仍只是决策记录，绝不是 execution source。
+FORMAL TRAIN 启动后继续执行 D039 的全部停止条件；运行 receipt、checkpoint provenance、companion、resume
+和 verifier 必须绑定 `4215a93b...` / `368f30cf...`，任何出现 `a7944bf...`、其他 source identity 或其他
+commit/tree 的正式 artifact 均 fail closed。
+
+本修正不放行 `prepare-model-val-deployable-input`、Phase A prediction freeze、
+`prepare-model-val-privileged-input`、Phase B score/select、calibration、qualification、fresh test、Memory、
+closed-loop、canonical runtime 或 actuator。formal TRAIN 后仍必须先由 Decision Agent 做独立 R2，才可签发
+新的 Phase A Gate。
+
+**Reason:**
+
+source identity 是 formal checkpoint provenance、resume 和后续 prediction freeze 的主键。即使 commit 正确，
+把 DATA collector identity 写成 training runner identity 仍会使文档、运行 receipt 和 verifier 的预期不一致，
+因此必须在第一个 optimizer step 前 fail closed。通过新的 Decision ID 显式保留错误、零消费证据与修正链，
+可以避免静默改写已推送的 D039；复用已经逐文件验证且 identity 字段按角色为 null 的 train input，则避免
+无信息增益的数据复制，同时不降低隔离强度。
+
+**Alternatives considered:**
+
+- 直接修改已推送 D039 中的 hash：会抹掉已发生的治理错误和撤回过程，拒绝。
+- 因命名含 D039 而删除/重建 train input：artifact 内容与 receipt 不依赖错误 identity，重复制没有信息增益，
+  且删除会破坏审计链，拒绝。
+- 允许 runner 接受 `a7944bf...`：需要改源码或伪造 source identity，违反 checkpoint provenance，拒绝。
+- 因 formal consumption 为零而不记录修正：错误 GO 已公开并产生 input artifact，仍必须留下可追踪 erratum，
+  拒绝。
+
+**Implementation status:** D039 错误 identity 在 formal TRAIN 消费前被停止；D040 接受已重新验证的 train
+input，并在正确 identity 下重新签发 TRAIN-only GO。等待 D040 docs commit/push 与工程侧确认后启动。
 
 **Status:** active
 

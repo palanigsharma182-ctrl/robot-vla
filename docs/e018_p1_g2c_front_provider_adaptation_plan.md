@@ -5,7 +5,7 @@
 > Experiment ID：`E018-P1-G2C-FRONT-PROVIDER-ADAPTATION-DEVELOPMENT/v1`
 > Data identity：`E018-P1-G2C-DATA/v1`
 > Train identity：`E018-P1-G2C-TRAIN/v1`
-> Decision Gate：[`D036`、`D037`、`D038`、`D039`](decisions.md)
+> Decision Gate：[`D036`、`D037`、`D038`、`D039`、`D040`](decisions.md)
 > 上位计划：[`E018-P1 三阶段主动视觉闭环`](e018_p1_three_stage_active_vision_closed_loop_plan.md)
 
 > 2026-09-05 DATA Gate：`E018-P1-G2C-DATA/v1` 已通过独立 verifier 与 R2，接受为 canonical
@@ -16,12 +16,16 @@
 > `0b52c3f1463087ad04275237c4567e656e698ab1043991b11d6c41d6711aa383`。当前允许 Drive 持久化和 TRAIN
 > runner 实现；正式训练仍需新 source R2 GO。
 
-> 2026-09-05 TRAIN Gate：C1′ exact-clean source 已通过独立 R2；D039 只放行 `prepare-train-input` 与
+> 2026-09-05 TRAIN Gate：C1′ exact-clean source 已通过独立 R2；D040 显式修正并部分 supersede D039 的
+> execution-source identity，当前只放行 `prepare-train-input` 与
 > W-KV0/S FORMAL TRAIN。唯一 execution source 是
-> `46e816469661ad7485f6ac7de534c031d70a6138`，source identity 是
-> `a7944bf488dba91302173cf3865861a7b049d0692aaa6549fd4d17ab649674a3`。包含 D039 的 C2 docs commit 只记录
-> 决策，不能作为执行 source。`prepare-model-val-deployable-input`、Phase A、privileged staging、Phase B、
-> calibration、qualification、fresh test、Memory、closed-loop 和 actuator 全部继续 HOLD。
+> `46e816469661ad7485f6ac7de534c031d70a6138`；source-tree identity 是
+> `4215a93b1bd47780f136d59cdf659eb01cb080d1d176081292db5e35595fdaae`；formal TRAIN identity 是
+> `368f30cf66d2c2b8802707449bf79b12e48f0bce3ea4ce6619800be9ff30a539`。D039 中的 `a7944bf...` 是
+> smoke DATA collector identity，错误 GO 在 formal TRAIN 消费前已撤回。包含 D039/D040 的 docs commit 只
+> 记录决策，不能作为执行 source。提前准备的 `train-paired` input view 已由 D040 独立逐文件重验并接受；
+> `prepare-model-val-deployable-input`、Phase A、privileged staging、Phase B、calibration、qualification、
+> fresh test、Memory、closed-loop 和 actuator 全部继续 HOLD。
 
 本实验是 E018 Stage 2 的上游 provider 资格实验。它只回答“受限动态 front 视角是否能产生可部署语义的
 object measurement”，不评价 Active 相对 Passive 的任务收益，也不授予 canonical runtime、机械臂、夹爪、
