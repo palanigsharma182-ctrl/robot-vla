@@ -6,17 +6,16 @@
 > Memory parent：[`E018-P0 抓取前 Dual Memory 实验计划书`](e018_p0_dual_memory_plan.md)
 > 运动 parent：[`E018-P1 G0C rotated-motion findings`](e018_p1_g0c_rotated_motion_findings_20260905.md)
 > 授权与推进决策：[`D034 — E018 仿真 development 三阶段闭环`](decisions.md)
-> 当前 provider Gate：[`D036`](decisions.md)；独立协议见
+> 当前 provider/Stage 2 Gate：[`D048`、`D049`](decisions.md)；独立协议见
 > [`E018-P1-G2C Front Provider Adaptation`](e018_p1_g2c_front_provider_adaptation_plan.md)
 
 > 2026-09-05 执行状态：Stage 1 dynamic observation 与 supervisor/replay 已通过 development-only Gate。
-> G2A 证明原 E016 wrist provider 不能直接替代 front provider；G2B-CAL-v1/v2 已分别按数据生命周期不匹配
-> 和 reset-first-frame contact-cache transient 冻结为协议性负结果。G2C static calibration 已通过；D047
-> dynamic qualification preflight 的 capture 完成，但 public verifier 暴露了 raw pose 与 canonical SO(3)
-> pose 的 representation-boundary bug，已冻结为不含 provider claim 的工程负结果。当前按 D047A 只修复该
-> verifier 并以相同 noncanonical seed/view 做一次新 identity smoke；正式 `76701..76750` qualification 仍
-> HOLD。在 G2C 至少一个 non-HOME viewpoint 正式通过前，Stage 2 live Object Memory commit 和
-> Active-vs-Passive 对照保持关闭。
+> G2A 证明原 E016 wrist provider 不能直接替代 front provider；G2B-CAL-v1/v2 和 D047 preflight 的负结果均已
+> 冻结并完成归因。D048 formal dynamic qualification 已一次性通过：10 个 non-HOME alternate 中 7 个合格，
+> PRIMARY 为 `LEFT_LOW__PITCH_UP`；全局 4 次 unsafe accepted 只发生在 HOME 和 3 个已淘汰视角，7 个合格
+> 视角均为零。D049 现只放行 Stage 2 版本化 contract/tests 和 integration smoke；首个 live Object Memory
+> 闭环 PRIMARY-only，其余 6 个合格视角先做 information-gain shadow。fresh test、canonical runtime 和全部
+> physical/manipulation actuator 继续 HOLD。
 
 本文件把 E018-P1 的总实验协议收敛成三个连续、可编码、可测试的实施阶段：
 
@@ -68,7 +67,7 @@ dual uncertainty detected
 
 | 能力 | 当前事实 | 本计划中的处理 |
 |---|---|---|
-| 相机离散动作空间 | 25 个静态位姿已筛选，10 个低位姿通过静态门禁 | 保留 10 个 development 候选，不继续扩容 |
+| 相机离散动作空间 | 25 个静态位姿已筛选，10 个低位姿通过运动门禁，D048 中 7 个通过 provider 资格 | PRIMARY-only write，7-view shadow，不继续扩容 |
 | 相机动态运动 | 10 个低位姿、40/40 路线通过 G0C v2 | 继承运动限制和 v2 identity，不重做无关轨迹实验 |
 | 相机写入时机 | `measurement_write_eligible()` 只允许 settled `COLLECT` | 作为不可绕过的第一层写入门禁 |
 | Object candidate | 已有连续帧、timestamp、spread、covariance 和 provenance 检查 | 复用，不另造宽松 candidate 判定 |
@@ -97,8 +96,8 @@ dynamic external observation contract
 - `ACQUIRE_TRACK` 和 `STABILIZE_PREGRASP` 两个来源阶段；
 - object-only active recovery；Goal Memory 保持冻结，不在本切片中改变；
 - 当前 wrist、当前 HOME front、Object Memory 全部不可用后的主动触发；
-- 10 个已通过 G0C 的低位 development candidate pool；
-- 一个由 config 决定的确定性 viewpoint schedule；
+- D048 已通过 provider 资格的 7 个 development candidate；
+- 首个可写闭环固定 `LEFT_LOW__PITCH_UP`，其余 6 个只作 shadow；
 - 每 Episode 最多一次 active attempt；
 - `hold -> move -> settle -> collect -> validate -> return-home -> verify -> commit -> resume`；
 - matched-time/frame Passive HOME 对照；
@@ -436,164 +435,140 @@ no-write resume；阶段二通过 provider 和信息门禁后才允许 live comm
 让 alternate-view settled frames 形成一个来源明确、几何正确、跨帧一致的 object candidate；只有相对被动基线
 确有信息改善，且相机已返回 HOME、机械臂仍保持时，才允许原子更新 Object Memory 并恢复来源阶段。
 
-### 7.2 工作包 2A：front provider qualification
+### 7.2 已完成上游：D048 provider qualification
 
-正式接受任何 active measurement 前，逐 viewpoint 评估冻结 provider：
+D048 已按一次性协议完成 500 条动态路线。7 个 non-HOME 视角通过，PRIMARY 冻结为
+`LEFT_LOW__PITCH_UP`；其 formal XYZ p90/max 为 `1.753/2.213 mm`，47 次 accepted 全部 oracle-safe，
+unsafe/catastrophic accepted 均为零。HOME 和 `LEFT_LOW__YAW_LEFT`、`RIGHT_LOW__YAW_LEFT`、
+`RIGHT_LOW__PITCH_UP` 各发生一次 unsafe accepted，因此四者不得用于 Memory write。
 
-- object observability precision/recall；
-- base-frame XYZ error p50/p90/max；
-- covariance calibration；
-- unsafe acceptance；
-- source camera、primitive、checkpoint 和 calibration identity；
-- HOME 与每个 candidate 的分层结果；
-- camera-pose OOD 检查。
+Stage 2A 的 exact provenance 固定为：`base_camera`、`LEFT_LOW__PITCH_UP`、W-KV0 epoch 15 checkpoint
+`97e3b7289911bc73f67755a8d9c3598c50b6c80ef01e1af13cec698ec59d3d77`、calibration identity
+`fcc5531ad989172a124c2cb16ee60283fdac36334c905ae9604f814bb323ca97`、scale `1.0` 和 write threshold
+`0.6127982139587402`。实现必须核对完整 provider/schema/config identity；不能只比较字符串 camera name。
 
-10 个低位姿是运动合格池，不是 provider 合格池。某个位姿 provider qualification 失败，就从可运行 schedule
-移除并继续评估其余候选；如果没有候选通过，则冻结 provider-qualification 负结果，建立独立上游 provider
-adaptation/training identity，冻结新 parent 后重新进入阶段二。不得用 GT 替代 provider，也不得在查看
-Active-vs-Passive 结果后微调 provider 并沿用同一实验身份。
+### 7.3 Stage 2A：PRIMARY candidate 与信息增益
 
-首版 Object Memory active write 只接受冻结的精确 provenance pair：
-
-```text
-(source_camera, primitive_id, provider_identity, calibration_identity)
-```
-
-不能把 P0 的单一 source check 放宽为任意 front camera。若需支持 wrist 和多个 front primitive，应新增 P1
-版本化 allowlist/policy，且 P0 默认 contract 和测试保持不变。
-
-### 7.3 工作包 2B：信息增益契约
-
-触发前保存同一 request 的被动基线：
+触发前冻结同一 request 的被动基线：
 
 ```text
 PassiveBaselineEvidence
-  wrist_evidence
-  front_home_evidence
-  object_memory_resolution
-  baseline_timestamp_s
-  baseline_provider_identity
+  wrist evidence and identity
+  HOME-front ObjectWriteEvidence and provider identity
+  Object Memory resolution/age/source
+  baseline timestamp and digest
 ```
 
-alternate view 使用已有 `ObjectWriteEvidence` 形成部署侧分数，并通过已有
-`ObjectCandidateWindowVerifier` 检查连续帧。接受条件分为三层：
+alternate view 的三个 settled COLLECT frame 全部必须通过 actual-pose、timestamp、provider、structural、write
+threshold、covariance 和安全检查。前两帧只证明连续稳定，第三帧是唯一实际 measurement；不平均 position，
+不把 covariance 除以 3。冻结 candidate 参数为：连续 3 帧、frame gap `<=0.075 s`、base-frame position
+spread `<=0.005 m`、innovation `<=0.010 m`、maximum calibrated std `<=0.020 m`、sensor skew
+`<=0.010 s`、covariance required。
+
+相对增益只比较同一 G2C front provider 和同一 score semantics 下的 HOME score 与 alternate 三帧最低分：
 
 ```text
-structural_gate =
-    motion_state == COLLECT
-    and settled
-    and actual_pose_valid
-    and timestamp_skew_within_budget
-    and provider/provenance qualified
-    and object measurement structurally eligible
-
-absolute_gate =
-    candidate window verified
-    and score >= frozen_active_write_threshold
-    and covariance/std/innovation within frozen limits
-
-relative_gain_gate =
-    candidate improves the best computable passive baseline
-    by at least frozen_min_information_gain
+all alternate frame scores >= 0.6127982139587402
+min(alternate frame scores) - frozen HOME score >= min_information_gain
+min_information_gain candidates = [0.02, 0.05, 0.10]
 ```
 
-若被动基线结构上不可计算，不把它偷偷设为零；使用单独 reason
-`BASELINE_UNAVAILABLE_CANDIDATE_ABSOLUTELY_VALID`，并要求更严格的绝对阈值。所有阈值只能在
-train/development/fresh validation 上冻结，runtime 与正式 test 不读取 GT。
+wrist score 和 Memory validity 参与触发，但不与 front score 做数值相减。HOME baseline 不可计算时不能设为零，
+首版只记录 `BASELINE_UNAVAILABLE_SHADOW_ONLY` 且禁止 commit。selection split 先要求零 unsafe、catastrophic 和
+false recovery，再最大化 oracle-recoverable recovery coverage；同 coverage 选择更大的 gain。D048 labels 不得
+用于选择。
 
-至少记录以下信息增益分量，而不是只保留一个最终布尔值：
+至少记录 score 的 visibility/projection/object-mask/goal-mask/entropy/radial-sigma 分量、covariance、spread、
+innovation 和每层 rejection reason，避免把“分数提高”误写成“状态一定正确”。
 
-- `ObjectWriteEvidence.score` 改善；
-- visibility/projection/object-mask 分量；
-- normalized entropy 下降；
-- radial sigma 下降；
-- covariance trace/max-std 下降；
-- multi-frame position spread；
-- 相对旧 Memory 的 innovation；
-- candidate accepted/rejected reason。
+### 7.4 Stage 2A：延迟原子 Memory commit
 
-### 7.4 工作包 2C：两阶段 Memory commit
-
-阶段二使用如下顺序：
+P1 pending candidate 与 live Memory 分离，生命周期固定为：
 
 ```text
-COLLECT settled window
-  -> verify PendingActiveViewCandidate
-  -> freeze candidate digest
+EMPTY -> COLLECTING -> VERIFIED_PENDING -> RETURNING_HOME
+      -> HOME_BARRIER_PASSED -> SOURCE_RECHECK_PASSED -> COMMITTED
+      -> REJECTED | EXPIRED | RESET_CLEARED
+```
+
+pending 绑定 episode/generation/request/window、来源阶段、三帧 identity/timestamp、actual pose、provider/
+checkpoint/calibration/primitive、baseline、final measurement、score/spread/covariance/innovation、age 和 digest。
+Stage 2 使用如下顺序：
+
+```text
+freeze VERIFIED_PENDING digest
   -> RETURN_HOME
-  -> verify HOME + arm hold + latch still open
-  -> accumulate four fresh HOME-only Observation V2 frames
-  -> re-evaluate candidate age and source invariants
-  -> atomic Object Memory commit
-  -> emit commit receipt
+  -> verify HOME + arm/TCP/gripper hold + no contact + latch
+  -> four fresh HOME-only Observation V2 frames
+  -> recheck age/provenance/source/current direct evidence
+  -> exactly one atomic position-only Object Memory commit
+  -> emit pre/post-state commit receipt
   -> resolve NAVIGATION state
-  -> rebuild observation and resume source phase
+  -> generate a new shadow Action generation
+  -> resume original source phase with stability reset
 ```
 
-任一检查失败：
+final COLLECT 到 commit 的 pending age 和 P1 Memory maximum unobserved age 均为 `2.5 s`。这是为 2.0 s return
+加四帧 HOME barrier 新建的 active-path B 参数，不追认 P0 的探索性 2.0 s。提交后的
+`last_observed_timestamp_s` 仍是 alternate final frame，`state_timestamp_s` 是 HOME commit 时刻，且
+`observable_now=false`；Memory-only resolution 必须是 `NAVIGATION`、`contact_authorized=false`。
 
-- candidate 不提交；
-- Object Memory 保持提交前版本或按既有安全规则失效；
-- 不允许部分字段更新；
-- 不允许恢复旧 Action Chunk；
-- 进入 SafeHold/Abort，并记录唯一 failure reason。
+如果 HOME 后出现新的可靠 wrist/HOME direct evidence，旧 pending 以
+`SUPERSEDED_BY_FRESH_DIRECT_EVIDENCE` 丢弃，并将直接证据恢复单独计数。其他任一检查失败都不提交、不部分
+更新、不恢复旧 Action Chunk，进入 SafeHold/Abort。Episode reset 必须清 request、lease、candidate、pending、
+HOME barrier 和 attempt；同一 digest 重复提交必须 fail closed。
 
-`STABILIZE_PREGRASP` 的特殊限制：active candidate 最多恢复 navigation/pregrasp state。返回 HOME 后如果没有
-新的 current direct object evidence，不能进入 `FINAL_APPROACH`；控制器应继续 SafeHold、调整 pregrasp 或终止，
-不能把刚才 alternate-view 的 Memory 当作 contact-ready evidence。
+### 7.5 Stage 2B：七视角 information-gain shadow
 
-### 7.5 工作包 2D：确定性 viewpoint schedule
-
-development pool 保留全部 10 个 G0C 通过位姿：
+Stage 2B 的候选固定为：
 
 ```text
 LEFT_LOW__CENTER
-LEFT_LOW__YAW_LEFT
 LEFT_LOW__YAW_RIGHT
 LEFT_LOW__PITCH_UP
 LEFT_LOW__PITCH_DOWN
 RIGHT_LOW__CENTER
-RIGHT_LOW__YAW_LEFT
 RIGHT_LOW__YAW_RIGHT
-RIGHT_LOW__PITCH_UP
 RIGHT_LOW__PITCH_DOWN
 ```
 
-首轮运行 schedule 只从已通过 provider qualification 的候选中产生，并满足：
+每个 seed 对每个视角独立 reset；只比较 HOME baseline 与三个 COLLECT frames，并按 trigger reason/viewpoint
+报告 score、covariance、spread、innovation、oracle safety 和 PRIMARY 失败时是否存在有效替代。Stage 2B
+不写 Memory、不在线选视角、不修改 checkpoint/threshold，也不使用 hidden GT 做 runtime selection。若结果支持
+替代 schedule，只能在新 Decision/config/seed identity 中冻结一个 deterministic fallback。
 
-- 相同 trigger evidence、attempt index 和 config identity 得到相同 primitive；
-- 每 Episode 最多一次 attempt；
-- 不读取 object/goal GT；
-- 不做 alternate-to-alternate 路径；
-- 优先评估 G0B 四个 shortlist；
-- 主对照前冻结一个 `PRIMARY_ALTERNATE`；
-- 其余合格位姿保留为开发消融，不在主对照中动态挑最好结果。
+### 7.6 实施、split 与预算
 
-这样先回答“真实平移基线是否有净收益”，把多视角在线选择留给后续 E018-P2。
+预计最小修改：
 
-### 7.6 阶段二预计修改范围
+- 版本化扩展 `active_front_reobserve.py` 的 pending/commit/resume receipt；
+- 新增 P1 front-provider-to-ObjectMeasurement adapter，禁止 qualification-only adapter 直接写；
+- 以 P1 policy 延迟提交 `object_memory.py`，不改变 P0 默认 contract；
+- 新增两个 config：`e018_p1_stage2a_primary_memory_development_v1.json` 和
+  `e018_p1_stage2b_information_gain_shadow_development_v1.json`；
+- 增加 candidate、time semantics、atomic commit、reset、information gain 和 runner tests。
 
-- 扩展 `src/robot_vla/precision/active_front_reobserve.py` 的 candidate/receipt；
-- 复用或小幅扩展 `src/robot_vla/precision/object_observability.py`；
-- 以版本化 P1 policy 扩展 `src/robot_vla/precision/object_memory.py`，不改变 P0 默认值；
-- 增加 front provider adapter/qualification runner；
-- 新增 `configs/e018_p1_g1_active_closed_loop_development_v1.json`；
-- 新增 provider、information-gain、atomic-commit 单元测试；
-- 新增 qualification findings 和冻结 identity receipt。
+seed 身份固定为：`76901..76910` integration smoke，`77001..77025` rule selection，`77026..77050` frozen
+development evaluation，`77101..77150` seven-view shadow；`77201..77250` 只保留给 Stage 3。S2B 最多
+`50 x 7 = 350` routes。总硬上限为 `7,200 s GPU/wall / 8 GiB`，按 smoke `900 s/1 GiB`、selection
+`1,800 s/2 GiB`、evaluation `1,800 s/2 GiB`、S2B `2,700 s/3 GiB` 分项记录。prediction/decision 先冻结，
+privileged label 后开且只作离线评分；全程 test reads=0。
 
 ### 7.7 阶段二退出门禁
 
-- 至少一个 G0C 合格位姿通过 front provider qualification；
-- runtime candidate 不依赖 GT；
-- commanded/actual pose、frame convention、timestamp identity 全部可回放；
-- motion/settle/return frame 不能生成 verified candidate；
-- candidate 必须同时通过 structural、absolute 和适用的 relative gate；
-- HOME/arm verify 前 Memory commit count = 0；
-- HOME/arm verify 后只允许一次原子 commit；
-- provider、pose、config 或 candidate digest 漂移均 fail closed；
-- Memory-only resolution 的 `contact_authorized=false`；
-- resume 后 Action Chunk generation 更新且 phase stability 从零累计；
-- test reads = 0。
+- runtime candidate 不依赖 GT，commanded/actual pose、frame、timestamp 和 identity 全部可回放；
+- route/HOME/SafeHold success=`100%`，motion/settle/return frame verified candidate=`0`；
+- unsafe/catastrophic accepted、false recovery、illegal camera/arm/gripper/contact、HOME 前 write、partial/
+  duplicate commit、stale Action resume 和 test read 全为零；
+- accepted-for-commit candidate 到 exactly-one commit=`100%`，commit 到 new Action generation=`100%`；
+- Memory state 时间语义正确，Memory-only `contact_authorized=false`，source-phase stability 从零重新累计；
+- frozen development evaluation 至少有 10 个 oracle-recoverable triggers，并恢复其中 `>=70%`。
+
+低于 70% 且安全项全为零时冻结 effect negative，完成 S2B 和预定 fallback 判断，不放宽阈值或删除 seed；
+support<10 时冻结 inconclusive 并继续 S2B；零容忍项非零则冻结 safety no-go 并修复后以新 identity 重验。
+`oracle-recoverable` 只由预测/决策冻结后打开的离线标签判断：三帧 object 均存在、own-mask observable 且无
+contact/object motion；denominator 不得按 provider acceptance 或 commit 结果筛选。D049 的详细执行边界以
+[`decisions.md`](decisions.md) 为准。
 
 ## 8. 阶段三：安全、回归与 development-only 对照
 

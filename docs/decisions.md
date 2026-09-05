@@ -3484,6 +3484,286 @@ public execution 做只读 `verify-execution`，exit 0、`verified=true`，verif
 
 **Status:** repair-implemented / d047a-one-shot-smoke-go-after-final-source-r2 / formal-hold
 
+## D048 — G2C dynamic front-provider formal qualification 通过
+
+**Decision:**
+
+在 D047A representation-boundary repair、同 seed/same-view one-shot preflight、exact-source R2 和三个
+公开 verifier 均通过后，唯一 formal execution
+`E018-P1-G2C-FORMAL-DYNAMIC-QUALIFICATION` /
+`g2c-formal-dynamic-qualification-d048-c2eb57a-20260905-v1` 已按 D048 receipt 一次性完成。执行 source
+固定为 commit `c2eb57a693085232067b9ef39a91d5f050161769`；50 个 seed `76701..76750` 对 10 个 non-HOME
+alternate 各做一次独立 reset，共 500 条 `HOME -> alternate -> HOME` 路线。capture、execution verify、
+one-shot score、result verify 和 combined-artifact verify 均 exit 0；capture/scoring attempt 均为 1，
+`SCORING_CONSUMED` 已落盘，同 identity 禁止重跑。
+
+固定执行计数全部符合协议：500 routes、46,000 motion-ledger rows、48,500 camera pose-set、40,000 moving
+interpolation commands、48,000 SafeHold-open simulator steps、550 provider predictions/private labels/prediction
+commits。test read、runtime goal-GT read、Object/Goal Memory read/write、canonical/physical camera actuation、
+nonzero arm command、gripper close、manipulation progression、checkpoint write 和 object contact 全部为零。
+
+结果是 `protocol_valid=true`、`gate_passed=true`，10 个 non-HOME alternate 中 7 个通过 provider gate：
+
+```text
+LEFT_LOW__CENTER
+LEFT_LOW__YAW_RIGHT
+LEFT_LOW__PITCH_UP
+LEFT_LOW__PITCH_DOWN
+RIGHT_LOW__CENTER
+RIGHT_LOW__YAW_RIGHT
+RIGHT_LOW__PITCH_DOWN
+```
+
+冻结 PRIMARY 为 `LEFT_LOW__PITCH_UP`。其 50 条 formal rows 中 accepted/oracle-safe=`47/47`，accepted-safe
+coverage=`1.0`，unsafe/catastrophic accepted=`0/0`，raw catastrophic=`0`，visibility precision/recall=
+`1.0/1.0`，world-XYZ p90/max=`0.00175348036887351/0.0022126730094180844 m`，covariance-95=
+`0.9787234042553191`（support 47），maximum calibrated position std=`0.014684461485486511 m`。
+
+以下四个视角禁止进入任何 active Memory write allowlist：
+
+```text
+HOME__CENTER                  unsafe accepted；maximum std 0.020766537508688353 m
+LEFT_LOW__YAW_LEFT            unsafe accepted
+RIGHT_LOW__YAW_LEFT           unsafe accepted
+RIGHT_LOW__PITCH_UP           unsafe accepted
+```
+
+全局 4 次 unsafe accepted 各自只发生在上述四个淘汰视角；7 个 qualified 视角均为零。全局 5 条 raw
+catastrophic measurement 全部来自失败的 HOME 且被 write gate 拒绝，catastrophic accepted 仍为零。后续不得
+只报告 7 个合格视角而隐藏上述尾部；同时也不得把淘汰视角的 unsafe 错误错误归因给 PRIMARY。
+
+公开验证身份冻结为：execution verification internal SHA
+`d5c7cdc08dc230018ba46d3f232120a1711feb0d6958691ecde69dc8cf67ecc4`，result verification internal SHA
+`def73934b80de33acc63a8419463d7c10ae2b994f3a72f7b37cd1cb852ffae79`，combined verification internal SHA
+`32a60d713d54a551719e8c9cf4cc7fe05e1faf981a674c8e3a5b19742ced2690`。本轮 capture wall/GPU 为
+`771.242876578006 s`，combined artifact 为 `345,644,906 B`；含 D047 full-cap reserve 后累计 conservative
+actual-accounted upper 为 `26,132.762952266014 s / 5,715,087,442 B`，低于 D036 的
+`36,000 s / 20 GiB` 上限。
+
+D048 PASS 只把上述 7 个离散视角提升为 `simulation development-only front object provider` 候选，并允许
+建立 Stage 2 no-test Gate。首个 Memory-write 闭环必须 PRIMARY-only；其余 6 个合格视角只能在独立
+information-gain shadow 中评估。fresh test、canonical runtime、物理相机、arm/gripper/manipulation actuator、
+learned/continuous NBV 和 contact 后 Memory 继续 HOLD。关键 artifact 在完成 immutable Drive 与本机双重校验
+前不得删除唯一 worker source 或 staging。
+
+**Reason:**
+
+正式动态结果证明 front-trained provider 在真实逐帧 actual external pose、冻结运动轨迹和一次性评分协议下，
+确有多个安全合格 alternate；因此不再需要继续停留在 provider qualification。但 HOME 和三个 alternate 暴露的
+unsafe tail 说明“模型整体通过”不是合法边界，后续必须使用逐视角 allowlist，并以零 unsafe 的 PRIMARY 建立
+最小闭环。
+
+**Alternatives considered:**
+
+- 允许 7 个合格视角在线选择最好一个：当前没有部署侧选择规则，会引入 qualification 后选择偏差，拒绝。
+- 将失败 HOME 或其他失败视角用于 Memory write：正式出现 unsafe accepted，拒绝。
+- 因全局存在 4 次 unsafe 而否决所有合格视角：错误混淆逐视角 Gate；保留全局负结果并隔离淘汰视角。
+- 用 qualification labels 调整 checkpoint、threshold 或视角：破坏一次性边界，拒绝。
+
+**Status:** complete-dynamic-qualification-pass / provider-qualified-for-stage2-development-only
+
+## D049 — Stage 2 PRIMARY Object Memory 闭环与七视角信息增益 shadow
+
+**Decision:**
+
+在 D048 通过的 parent 上放行 E018 Stage 2 的两个分离 identity：
+
+```text
+E018-P1-S2A-PRIMARY-MEMORY-DEVELOPMENT/v1
+E018-P1-S2B-SEVEN-VIEW-INFORMATION-GAIN-SHADOW/v1
+```
+
+二者仍限定为 isolated ManiSkill、development-only、no fresh test、no canonical runtime、no physical camera、
+no arm/gripper/manipulation actuator。Stage 2A 首先完成 PRIMARY-only pending candidate、HOME 后原子 Object
+Memory commit 和 shadow replan；Stage 2B 只对 7 个 qualified view 做信息增益与失败分层，不写 Memory、
+不在线选视角。Stage 2A 没有通过前不得启动 Stage 3 matched comparison；Stage 2B 可在 2A 工程链成立后执行。
+
+### Parent、PRIMARY 与 allowlist
+
+Stage 2A 唯一可写 provenance 固定为：
+
+```text
+source_camera:          base_camera
+primitive:              LEFT_LOW__PITCH_UP
+checkpoint:             W-KV0 epoch 15
+checkpoint SHA:         97e3b7289911bc73f67755a8d9c3598c50b6c80ef01e1af13cec698ec59d3d77
+calibration identity:   fcc5531ad989172a124c2cb16ee60283fdac36334c905ae9604f814bb323ca97
+covariance scale:       1.0
+write threshold:        0.6127982139587402
+```
+
+实现必须从 D048/D046 冻结 artifact 机械导入完整 provider/checkpoint/calibration/primitive/schema identity，而
+不是只比较上面的短字段。`HOME__CENTER` 和三个失败 alternate 永久拒绝 write；其余 6 个 qualified alternate
+仅进入 S2B shadow。现有 `qualification_only` adapter 不得直接写 Memory，必须新增默认关闭的版本化 P1
+adapter/policy；P0 `ObjectMemoryConfig` 默认行为和 frozen tests 保持不变。
+
+### Object Memory 对象与生命周期
+
+Memory 仍只保存 `FREE_STATIC` object 的 base-frame position，不扩成 pose、orientation、held-relative 或 learned
+state。提交后的对象字段保持：`position_base_m[3]`、`covariance_base_m2[3,3]`、measurement confidence、
+`last_observed_timestamp_s`、`state_timestamp_s`、`observable_now`、valid/mode、accepted-update count、完整复合
+source identity 和 invalid reasons。复合 `source_model_identity` 必须绑定上述 provider/checkpoint/calibration/
+primitive；commit receipt 另行展开这些字段以便审计。
+
+P1 pending 对象独立于 live Memory，至少绑定：episode/generation/request/window、source/resume phase、三个
+COLLECT frame sequence/timestamp、actual camera-pose/schema identity、final measurement digest、provider/
+checkpoint/calibration/primitive、被动基线 digest、逐帧 score、minimum candidate score、position spread、
+covariance、innovation、candidate-created time、maximum age 和自身 digest。生命周期固定为：
+
+```text
+EMPTY -> COLLECTING -> VERIFIED_PENDING -> RETURNING_HOME
+      -> HOME_BARRIER_PASSED -> SOURCE_RECHECK_PASSED -> COMMITTED
+      -> REJECTED | EXPIRED | RESET_CLEARED
+```
+
+`VERIFIED_PENDING` 不等于 Memory write。Episode reset 必须原子清空 request、camera lease、candidate window、
+pending commit、HOME barrier 和 attempt budget；同一 digest 最多 commit 一次，duplicate/partial commit
+fail closed。提交发生在 HOME 和 source recheck 后，因此提交后的 `last_observed_timestamp_s` 仍是最后一个
+alternate COLLECT frame，`state_timestamp_s` 是 commit 时刻，`observable_now=false`；不得把旧 alternate
+measurement 在 HOME 时伪装成当前直接可观察。只有 age/covariance 仍有效时才能得到 navigation resolution，
+且 `memory_only=true`、`contact_authorized=false`。
+
+### Candidate、信息增益与延迟提交
+
+冻结首版数值：
+
+```text
+consecutive trigger ticks:              3
+min candidate frames:                   3
+max candidate frame gap:                0.075 s
+max candidate position spread:          0.005 m
+max innovation:                         0.010 m
+max calibrated position std:            0.020 m
+max sensor skew:                         0.010 s
+require covariance:                     true
+max pending candidate age:               2.5 s
+P1 Object Memory max unobserved age:     2.5 s
+HOME Observation V2 barrier:             4 fresh HOME-only frames
+maximum attempts per Episode:            1
+```
+
+`2.5 s` 是新的 active-path B 级参数，不追认 P0 recorded-validation 的探索性 `2.0 s`。理由是 final COLLECT
+到 2.0 s RETURN_HOME 加四帧 HOME barrier 约需 2.2 s；旧上限会让全部 candidate 在合法提交点前必然过期。
+该值只支持返回后的立即 shadow replan，不证明长期 Memory hold。
+
+三帧全部做结构、阈值、timestamp、actual pose、source 和安全检查；窗口的实际 measurement 固定为第三个/
+最后一个 frame，前两帧只作稳定性证据。不得平均 XYZ 后声称仍与 D048 final-frame qualification 等价，也不得
+把 covariance 除以 3；position spread 单独进入 Gate。
+
+触发前冻结 `PassiveBaselineEvidence`。数值相对增益只比较同一个 G2C front provider、同一 score semantics 下
+的 HOME score 与 alternate 三帧最低 score；wrist score 和 Object Memory validity 只作触发/结构证据，
+不与 front score 相减。development-selection 候选固定为 `min_information_gain={0.02,0.05,0.10}`：
+
+```text
+all three alternate scores >= 0.6127982139587402
+min(alternate scores) - frozen HOME score >= selected min_information_gain
+```
+
+HOME baseline score 不可计算、identity 不匹配或 timestamp/pose 无效时，首版只记录
+`BASELINE_UNAVAILABLE_SHADOW_ONLY`，不得 live commit；它不能被偷偷替换成零。selection 先要求 unsafe/
+catastrophic/false recovery 全为零，再最大化 oracle-recoverable recovery coverage，同 coverage 取更大的
+min-information-gain。D048 qualification label 不得用于该选择。
+
+### 闭环顺序与 control/treatment
+
+Treatment 顺序冻结为：
+
+```text
+3-tick dual uncertainty + Memory unavailable in allowed source phase
+  -> invalidate Action Chunk / temporal ensemble / RTC / command reference
+  -> arm+gripper SafeHold
+  -> HOME -> LEFT_LOW__PITCH_UP -> HOME
+  -> three settled COLLECT frames -> VERIFIED_PENDING
+  -> HOME + arm/gripper/no-contact/latch verification
+  -> four fresh HOME-only Observation V2 frames
+  -> candidate age/provenance/source/direct-evidence recheck
+  -> exactly one atomic position-only Memory commit
+  -> new shadow Action generation -> resume original source phase with stability reset
+```
+
+若返回 HOME 后出现新的可靠 current wrist/HOME direct evidence，pending 标记
+`SUPERSEDED_BY_FRESH_DIRECT_EVIDENCE` 且不写入较旧 alternate measurement；可以用该 current evidence 形成新的
+shadow replan，但必须单独计数，不能记为 active Memory recovery。任一其他检查失败，pending 丢弃、Memory
+保持提交前状态、不恢复旧 Action Chunk并进入 SafeHold/Abort。
+
+Control 与 Treatment 使用相同 seed、初始 arm/object/goal state、trigger tick、provider/config、HOME frame 与
+wall-clock budget、Flow sampling seed和失败定义：
+
+```text
+Control:   HOME SafeHold + matched passive HOME evidence；无 alternate candidate commit
+Treatment: 一次 PRIMARY roundtrip + pending/HOME atomic commit + new shadow replan
+```
+
+两臂均可使用等待期间自然出现的 current direct evidence；Control 不得获得 alternate RGB，Treatment 不得获得
+额外时间或额外 sampling。runtime 决策只读 deployable evidence；oracle label 只能在全部 prediction/decision
+ledger 原子冻结和 context 销毁后离线评分。
+
+### Split、Stage 2B 与预算
+
+所有 seed 与既有 `71001..76804` disjoint：
+
+```text
+76901..76910  engineering integration smoke; no effect claim
+77001..77025  S2A development rule selection
+77026..77050  S2A frozen one-shot development evaluation
+77101..77150  S2B seven-view information-gain shadow
+77201..77250  reserved for Stage 3; Stage 2 may not read
+```
+
+S2B 每个 seed 对 7 个 qualified view 独立 env reset，最多 `50 x 7 = 350` routes；保存相同 HOME baseline 和
+三个 alternate COLLECT frames，只做 per-trigger/per-view score、covariance、spread、innovation、oracle safety
+和 PRIMARY-failure alternative 分层。它不得写 Memory、不得更改 Stage 2A threshold/checkpoint、不得使用
+hidden GT 在线选视角，也不得按 Stage 2A 失败 seed 临时挑最好视角。若 PRIMARY 未达到 coverage，但 S2B
+发现零 unsafe 的稳定替代，只能由新 Decision/config/seed identity 放行一个确定性 fallback；不能回写当前
+evaluation。
+
+Stage 2 新独立硬上限为 `7,200 s GPU/wall / 8 GiB combined artifacts`，分项 cap 为：integration smoke
+`900 s/1 GiB`、S2A selection `1,800 s/2 GiB`、S2A evaluation `1,800 s/2 GiB`、S2B shadow
+`2,700 s/3 GiB`。任一分项超限或 consumption 后协议失败都冻结该 identity；不得靠覆盖 output、替换 seed、
+增加 attempt 或静默挪用下一阶段 seed 重跑。
+
+### Stage 2 Gate
+
+进入 Stage 3 前必须同时满足：targeted/integration/P0 regression 全过；route/HOME/SafeHold success=`100%`；
+unsafe/catastrophic accepted、false recovery、禁止阶段 camera command、latch-close 后 camera command、active
+期间 arm/TCP command、gripper close/contact、HOME 前 Memory write、partial/duplicate commit、stale Action
+resume、test read 全为零；accepted-for-commit candidate 到 exactly-one commit=`100%`；commit 到 new Action
+generation=`100%`；Memory-only `contact_authorized=false`。S2A frozen development evaluation 的预声明效果
+目标是至少恢复 `70%` 的 oracle-recoverable trigger episodes；oracle 定义和 label open 顺序必须在 runner
+执行前冻结。这里 `oracle-recoverable` 只由 prediction/decision freeze 后打开的离线标签定义：route/protocol/
+safety 有效，三个 PRIMARY COLLECT frame 中 object 均存在、按 D048 own-mask 语义可观察，且无 contact/
+object-motion event；不得用 provider acceptance 或最终是否 commit 筛 denominator。`recovered` 要求 exactly-one
+commit、post-commit NAVIGATION available、新 Action generation，且提交 position 的离线 XYZ error
+`<=0.005 m`；commit 到不可观察或 error `>0.005 m` 计 false/unsafe recovery，`>0.020 m` 另计 catastrophic。
+evaluation 至少要有 10 个 oracle-recoverable triggers；不足时分类为 insufficient-support/inconclusive，不得按
+小样本比例 PASS，并继续执行 S2B 诊断。
+
+低于 70% 但零容忍项全为零时，结果分类为 effect negative，不得放宽阈值或删除 seed；完成 S2B 后按上述
+新 identity fallback 规则继续，或以证据化 Stage 2 负结果进入只验证安全/失败原因的 Stage 3。任一零容忍项
+非零则是 safety no-go，必须先冻结、归因和修复，不能因 recovery 高而 promotion。
+
+当前立即放行范围仅为：版本化 P1 contract/adapter、config、targeted tests 和 `76901..76910` engineering
+smoke。D048 关键 artifact 至少达到 Drive verified 后才能消费 GPU smoke，达到 `REPLICATED` 且工程证据通过
+后才能消费 `77001..77150`。fresh test、canonical runtime 和全部 physical/manipulation actuator 继续 HOLD。
+
+**Reason:**
+
+PRIMARY-only 把首次闭环归因限制为一个已经在 formal dynamic qualification 中零 unsafe 的离散视角；延迟
+原子 commit 保持“相机移动只获取信息、机械臂不动、回 HOME 后才接回规划”的核心假设。七视角 shadow 同时
+保留后续改进空间，但不会把离线最好视角偷偷变成在线策略。P1 独立 age 和完整 pending lifecycle 解决了
+P0 API 无法表达“alternate 已观测、HOME 时延迟提交”的时间语义，而不改变 P0 默认行为。
+
+**Alternatives considered:**
+
+- 一开始允许 7-view online selection：缺少部署侧选择策略且会混淆 PRIMARY 因果效应，拒绝。
+- 三帧平均并将 covariance 除以 3：帧间误差不独立，且 D048 只资格化 final frame，拒绝。
+- 继续使用 P0 的 2.0 s age：在合法 HOME barrier 前系统性过期，拒绝。
+- baseline unavailable 时把分数设为零：会把证据缺失伪装成最大增益，拒绝。
+- alternate 处直接写 Memory 或继续 manipulation：破坏 HOME barrier 和控制权隔离，拒绝。
+- 仅因 Memory commit 成功就授权 `FINAL_APPROACH`：Memory 是 navigation state，不是当前接触证据，拒绝。
+
+**Status:** stage2-contract-and-engineering-smoke-go / development-selection-hold-until-persistence-and-exit-review
+
 ## 新决策模板
 
 ```markdown

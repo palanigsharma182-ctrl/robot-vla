@@ -1,11 +1,11 @@
 # E018-P1-G2C Front Provider Adaptation 实验计划书
 
-> 状态：`calibration-pass / D047-preflight-verification-negative / D047A-repair-go / formal-qualification-hold / development-only`
+> 状态：`formal-dynamic-qualification-pass / provider-qualified-for-stage2-development-only`
 > 日期：2026-09-05
 > Experiment ID：`E018-P1-G2C-FRONT-PROVIDER-ADAPTATION-DEVELOPMENT/v1`
 > Data identity：`E018-P1-G2C-DATA/v1`
 > Train identity：`E018-P1-G2C-TRAIN/v1`
-> Decision Gate：[`D036`、`D037`、`D038`、`D039`、`D040`、`D041`、`D042`、`D043`、`D044`、`D045`、`D046`、`D047`、`D047A`](decisions.md)
+> Decision Gate：[`D036`、`D037`、`D038`、`D039`、`D040`、`D041`、`D042`、`D043`、`D044`、`D045`、`D046`、`D047`、`D047A`、`D048`、`D049`](decisions.md)
 > 上位计划：[`E018-P1 三阶段主动视觉闭环`](e018_p1_three_stage_active_vision_closed_loop_plan.md)
 
 > 2026-09-05 DATA Gate：`E018-P1-G2C-DATA/v1` 已通过独立 verifier 与 R2，接受为 canonical
@@ -95,6 +95,15 @@
 > 相同 noncanonical seed `76801`、相同 `LEFT_LOW__CENTER` 上以全新 source/output 执行一次 repair smoke；
 > 失败 D047 按完整 `900 s / 1 GiB` cap 纳入 D048 v2 累计预算。formal qualification、fresh test、Memory、
 > active loop、canonical runtime 与 actuator 继续 HOLD。
+
+> 2026-09-05 formal dynamic qualification outcome：D047A one-shot repair smoke 和 D048 exact-source Gate 通过
+> 后，formal `76701..76750` 已一次性完成。500/500 独立 reset routes、550/550 provider predictions 与
+> labels、46,000 motion rows、48,500 camera pose-set、40,000 moving commands 和 48,000 SafeHold-open steps
+> 全部符合协议；capture/score attempt=`1/1`，三个 public verifier 均通过。7/10 non-HOME alternate 合格，
+> PRIMARY=`LEFT_LOW__PITCH_UP`。全局 4 次 unsafe accepted 只来自 HOME 和三个淘汰 alternate，7 个 qualified
+> view 均为零；5 条 raw catastrophic 全部来自 HOME 且均被 write gate 拒绝。D048 因此只授权进入 D049
+> Stage 2 development/no-test：PRIMARY-only Memory write，其余 6 个 qualified view 只作 information-gain
+> shadow。fresh test、canonical runtime、physical camera 与 arm/gripper/manipulation actuator 继续 HOLD。
 
 本实验是 E018 Stage 2 的上游 provider 资格实验。它只回答“受限动态 front 视角是否能产生可部署语义的
 object measurement”，不评价 Active 相对 Passive 的任务收益，也不授予 canonical runtime、机械臂、夹爪、
@@ -440,6 +449,37 @@ native-wrist parent-health 不阻断这个 front-trained provider；Control 结�
 qualification 只运行一次。无 eligible checkpoint、无可校准 viewpoint、零 qualified alternate、预算超限或
 任何 protocol violation 都必须冻结 negative/protocol-invalid receipt；不得现场改阈值、加 epoch、补 seed
 或切模型。
+
+### 8.1 D048 冻结结果
+
+正式运行 `protocol_valid=true`、`gate_passed=true`。qualified non-HOME allowlist 为：
+
+```text
+LEFT_LOW__CENTER
+LEFT_LOW__YAW_RIGHT
+LEFT_LOW__PITCH_UP
+LEFT_LOW__PITCH_DOWN
+RIGHT_LOW__CENTER
+RIGHT_LOW__YAW_RIGHT
+RIGHT_LOW__PITCH_DOWN
+```
+
+PRIMARY `LEFT_LOW__PITCH_UP` 的 accepted/oracle-safe=`47/47`、accepted-safe coverage=`1.0`、
+unsafe/catastrophic accepted=`0/0`、visibility precision/recall=`1.0/1.0`、XYZ p90/max=
+`0.00175348036887351/0.0022126730094180844 m`、covariance-95=`0.9787234042553191`（N=47）、maximum
+calibrated std=`0.014684461485486511 m`。其 write threshold、scale、calibration identity 分别为
+`0.6127982139587402`、`1.0`、`fcc5531ad989172a124c2cb16ee60283fdac36334c905ae9604f814bb323ca97`。
+
+以下视角不合格且禁止后续 write：HOME、`LEFT_LOW__YAW_LEFT`、`RIGHT_LOW__YAW_LEFT`、
+`RIGHT_LOW__PITCH_UP`。每个视角各有 1 次 unsafe accepted；HOME 还因 maximum calibrated std
+`0.020766537508688353 m` 失败，并承载全部 5 条 raw catastrophic measurement。所有 catastrophic raw
+measurement 均被拒绝，所以 catastrophic accepted=0。这些全局负结果必须与 qualified-view 结果同时保留。
+
+公开 verifier internal SHA 为 execution
+`d5c7cdc08dc230018ba46d3f232120a1711feb0d6958691ecde69dc8cf67ecc4`、result
+`def73934b80de33acc63a8419463d7c10ae2b994f3a72f7b37cd1cb852ffae79`、combined artifact
+`32a60d713d54a551719e8c9cf4cc7fe05e1faf981a674c8e3a5b19742ced2690`。该结果关闭 provider qualification
+Gate；后续阈值、checkpoint 和合格集合保持只读。
 
 ## 9. 实施顺序与审查点
 
