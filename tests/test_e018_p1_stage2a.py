@@ -17,8 +17,12 @@ from robot_vla.observation import (
     ObservationV2History,
     opengl_camera_to_opencv,
 )
-from robot_vla.precision.active_front_camera import ExternalCameraMotionState
+from robot_vla.precision.active_front_camera import (
+    ExternalCameraMotionState,
+    rotation_angular_distance_rad,
+)
 from robot_vla.precision.active_front_memory_provider import (
+    ACTIVE_FRONT_HOME_BASE_FROM_EXTERNAL_CAMERA_CV,
     ACTIVE_FRONT_HOME_PRIMITIVE_ID,
     ACTIVE_FRONT_PRIMARY_PRIMITIVE_ID,
 )
@@ -46,7 +50,9 @@ from robot_vla.precision.e018_p1_stage2a import (
     _new_stage2a_replay_controller,
     _normalize_stage2a_motion_row_viewpoint,
     _record_stage2a_failure_evidence,
+    _stage2a_camera_at_home,
     _stage2a_episode_id,
+    _stage2a_pose_at_home,
     _stage2a_safety_evidence_record,
     _verify_stage2a_camera_authorization,
     _verify_stage2a_controller_receipt,
@@ -716,6 +722,89 @@ def test_resigned_reset_sentinel_tamper_is_rejected() -> None:
     tampered["audit_sha256"] = canonical_sha256(primitive)
     with pytest.raises(ValueError, match="ready sentinel"):
         verify_stage2a_action_history_audit(tampered)
+
+
+def test_float32_home_witness_self_distance_is_zero_but_real_offset_fails() -> None:
+    home = np.asarray(
+        ACTIVE_FRONT_HOME_BASE_FROM_EXTERNAL_CAMERA_CV,
+        dtype=np.float64,
+    )
+    assert rotation_angular_distance_rad(
+        home[:3, :3],
+        home[:3, :3],
+    ) == pytest.approx(0.0, abs=1e-12)
+    frame_87 = {
+        "camera_motion_state": ExternalCameraMotionState.RETURN_HOME.value,
+        "actual_base_from_external_camera_cv": home.tolist(),
+    }
+    assert _stage2a_pose_at_home(frame_87) is True
+    frame_88 = {
+        "camera_motion_state": (
+            ExternalCameraMotionState.VERIFY_HOME_AND_ARM_HOLD.value
+        ),
+        "actual_base_from_external_camera_cv": home.tolist(),
+    }
+    assert _stage2a_camera_at_home(frame_88) is True
+
+    angle_rad = 5e-4
+    cosine = np.cos(angle_rad)
+    sine = np.sin(angle_rad)
+    yaw_delta = np.asarray(
+        (
+            (cosine, -sine, 0.0),
+            (sine, cosine, 0.0),
+            (0.0, 0.0, 1.0),
+        ),
+        dtype=np.float64,
+    )
+    outside = home.copy()
+    outside[:3, :3] = home[:3, :3] @ yaw_delta
+    assert rotation_angular_distance_rad(
+        home[:3, :3],
+        outside[:3, :3],
+    ) > 1e-4
+    frame_87["actual_base_from_external_camera_cv"] = outside.tolist()
+    assert _stage2a_pose_at_home(frame_87) is False
+    frame_88["actual_base_from_external_camera_cv"] = outside.tolist()
+    assert _stage2a_camera_at_home(frame_88) is False
+
+
+def test_resigned_tcp_orientation_raw_witness_tamper_is_rejected() -> None:
+    episode_id = "stage2a-tcp-orientation-tamper"
+    controller, _ = _requested_controller(episode_id)
+    row: dict[str, object] = {
+        "frame_index": 0,
+        "arm_joint_max_drift_rad": 0.0,
+        "tcp_position_drift_m": 0.0,
+        "tcp_orientation_drift_rad": 0.0,
+        "minimum_finger_joint_position_m": 0.04,
+        "finger_object_contact_force_n": 0.0,
+        "arm_anchor_q_rad": [0.0] * 7,
+        "arm_current_q_rad": [0.0] * 7,
+        "tcp_anchor_world": np.eye(4).tolist(),
+        "tcp_current_world": np.eye(4).tolist(),
+        "finger_joint_positions_m": [0.04, 0.04],
+        "finger_force_left_n": 0.0,
+        "finger_force_right_n": 0.0,
+    }
+    evidence = _stage2a_safety_evidence_record(row, controller=controller)
+    tcp = np.eye(4, dtype=np.float64)
+    angle_rad = 5e-4
+    tcp[:3, :3] = np.asarray(
+        (
+            (np.cos(angle_rad), -np.sin(angle_rad), 0.0),
+            (np.sin(angle_rad), np.cos(angle_rad), 0.0),
+            (0.0, 0.0, 1.0),
+        ),
+        dtype=np.float64,
+    )
+    row["tcp_current_world"] = tcp.tolist()
+    evidence["motion_row_sha256"] = canonical_sha256(row)
+    primitive = dict(evidence)
+    primitive.pop("evidence_sha256")
+    evidence["evidence_sha256"] = canonical_sha256(primitive)
+    with pytest.raises(ValueError, match="raw witness"):
+        _verify_stage2a_safety_record(row, evidence, controller=controller)
 
 
 def test_resigned_raw_safety_witness_tamper_is_rejected() -> None:

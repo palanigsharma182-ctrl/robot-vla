@@ -35,7 +35,10 @@ from robot_vla.observation import (
 )
 from robot_vla.precision import e018_p1_g0 as _g0
 from robot_vla.precision import e018_p1_g0c as _g0c
-from robot_vla.precision.active_front_camera import ExternalCameraMotionState
+from robot_vla.precision.active_front_camera import (
+    ExternalCameraMotionState,
+    rotation_angular_distance_rad,
+)
 from robot_vla.precision.active_front_memory import (
     ActiveFrontSourceRecheckEvidence,
     ActiveFrontStage2MemoryOrchestrator,
@@ -1908,12 +1911,6 @@ def _stage2a_capture_identity(
     }
 
 
-def _rotation_distance_rad(left: np.ndarray, right: np.ndarray) -> float:
-    relative = left.T @ right
-    cosine = float(np.clip((np.trace(relative) - 1.0) * 0.5, -1.0, 1.0))
-    return float(math.acos(cosine))
-
-
 def _stage2a_camera_at_home(row: Mapping[str, Any]) -> bool:
     actual = np.asarray(row["actual_base_from_external_camera_cv"], dtype=np.float64)
     expected = np.asarray(
@@ -1927,7 +1924,7 @@ def _stage2a_camera_at_home(row: Mapping[str, Any]) -> bool:
         and np.isfinite(actual).all()
         and float(np.linalg.norm(actual[:3, 3] - expected[:3, 3]))
         <= ACTIVE_FRONT_HOME_POSITION_TOLERANCE_M + 1e-12
-        and _rotation_distance_rad(expected[:3, :3], actual[:3, :3])
+        and rotation_angular_distance_rad(expected[:3, :3], actual[:3, :3])
         <= ACTIVE_FRONT_HOME_ORIENTATION_TOLERANCE_RAD + 1e-12
     )
 
@@ -1945,7 +1942,7 @@ def _stage2a_pose_at_home(row: Mapping[str, Any]) -> bool:
         and np.isfinite(actual).all()
         and float(np.linalg.norm(actual[:3, 3] - expected[:3, 3]))
         <= ACTIVE_FRONT_HOME_POSITION_TOLERANCE_M + 1e-12
-        and _rotation_distance_rad(expected[:3, :3], actual[:3, :3])
+        and rotation_angular_distance_rad(expected[:3, :3], actual[:3, :3])
         <= ACTIVE_FRONT_HOME_ORIENTATION_TOLERANCE_RAD + 1e-12
     )
 
@@ -4801,7 +4798,7 @@ def _verify_stage2a_safety_record(
         "tcp_position_drift_m": float(
             np.linalg.norm(tcp_current[:3, 3] - tcp_anchor[:3, 3])
         ),
-        "tcp_orientation_drift_rad": _rotation_distance_rad(
+        "tcp_orientation_drift_rad": rotation_angular_distance_rad(
             tcp_anchor[:3, :3], tcp_current[:3, :3]
         ),
         "minimum_finger_joint_position_m": float(np.min(finger_positions)),
