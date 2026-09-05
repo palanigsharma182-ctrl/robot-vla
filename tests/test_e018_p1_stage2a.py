@@ -459,17 +459,24 @@ def test_trigger_records_replay_after_json_round_trip() -> None:
 
 
 def test_object_state_snapshot_and_commit_receipt_keep_distinct_digest_domains() -> None:
-    snapshot = _object_state_snapshot(
-        _valid_state("stage2a-state-digest-domain", timestamp_s=4.65)
+    snapshots = (
+        _object_state_snapshot(
+            _uninitialized_state("stage2a-state-digest-domain-pre")
+        ),
+        _object_state_snapshot(
+            _valid_state("stage2a-state-digest-domain-post", timestamp_s=4.65)
+        ),
     )
-    full_snapshot_digest = canonical_sha256(snapshot)
-    receipt_domain = dict(snapshot)
-    receipt_domain.pop("frame_semantics")
-    receipt_digest = _object_state_receipt_digest_from_snapshot(snapshot)
+    for snapshot in snapshots:
+        full_snapshot_digest = canonical_sha256(snapshot)
+        receipt_domain = dict(snapshot)
+        receipt_domain.pop("frame_semantics")
+        receipt_digest = _object_state_receipt_digest_from_snapshot(snapshot)
 
-    assert receipt_digest == canonical_sha256(receipt_domain)
-    assert receipt_digest != full_snapshot_digest
+        assert receipt_digest == canonical_sha256(receipt_domain)
+        assert receipt_digest != full_snapshot_digest
 
+    snapshot = snapshots[-1]
     for key in ("frame_semantics", "version"):
         missing = dict(snapshot)
         missing.pop(key)
