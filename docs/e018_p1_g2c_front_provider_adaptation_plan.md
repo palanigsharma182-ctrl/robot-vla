@@ -1,11 +1,11 @@
 # E018-P1-G2C Front Provider Adaptation 实验计划书
 
-> 状态：`model-selection-pass / calibration-phase-a-go / calibration-phase-b-hold / development-only`
+> 状态：`model-selection-pass / calibration-phase-a-pass / calibration-phase-b-go / qualification-hold / development-only`
 > 日期：2026-09-05
 > Experiment ID：`E018-P1-G2C-FRONT-PROVIDER-ADAPTATION-DEVELOPMENT/v1`
 > Data identity：`E018-P1-G2C-DATA/v1`
 > Train identity：`E018-P1-G2C-TRAIN/v1`
-> Decision Gate：[`D036`、`D037`、`D038`、`D039`、`D040`、`D041`、`D042`、`D043`、`D044`、`D045`](decisions.md)
+> Decision Gate：[`D036`、`D037`、`D038`、`D039`、`D040`、`D041`、`D042`、`D043`、`D044`、`D045`、`D046`](decisions.md)
 > 上位计划：[`E018-P1 三阶段主动视觉闭环`](e018_p1_three_stage_active_vision_closed_loop_plan.md)
 
 > 2026-09-05 DATA Gate：`E018-P1-G2C-DATA/v1` 已通过独立 verifier 与 R2，接受为 canonical
@@ -67,6 +67,16 @@
 > `76601..76650` 的 50 个 deployable bundles staging、冻结 checkpoint 的 550-row Phase A inference、
 > no-label verifier 和 Phase A Drive 持久化。privileged staging/label open、Phase B calibration、
 > qualification、fresh test、Object Memory、active loop、canonical runtime 和全部 actuator 继续 HOLD。
+
+> 2026-09-05 calibration Phase A outcome：D045 已完成并通过决策 Agent 独立 no-label
+> R2。selected checkpoint load=1，deployable bundles unique/open=`50/50`，prediction rows=550，forward
+> batches=`17x32+6`，elapsed=`2.981 s`，context 已销毁；10-file freeze 为 `1,424,436 B`，
+> privileged/test/Memory/actuation/checkpoint-write 均为 0。freeze raw/internal 为
+> `bb9a20b4...eb55a` / `f739d35b...3a7a6`，public verification 为 `fcf35fee...46d2`。Drive 三次
+> check 为 `(10,0)/(10,0)/(1,0)`，persistence receipt raw/internal 为 `07a2e201...064da` /
+> `2bca66da...3f10b`，verification 为 `89a373a4...9e602`；freeze 与 8-file control evidence 均已完成
+> 本机 checksum 复核，主 artifact 达到 `REPLICATED`。D046 现在只放行 privileged staging 与一次性
+> Phase B score/calibrate；qualification 及其后续仍 HOLD。
 
 本实验是 E018 Stage 2 的上游 provider 资格实验。它只回答“受限动态 front 视角是否能产生可部署语义的
 object measurement”，不评价 Active 相对 Passive 的任务收益，也不授予 canonical runtime、机械臂、夹爪、

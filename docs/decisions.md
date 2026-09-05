@@ -3069,9 +3069,140 @@ checkpoint、CUDA、artifact 或 persistence 问题，并为后续一次性 Phas
 - 在 Phase A 查看部分 privileged row 来“确认值正常”：提前消费 calibration evidence 并引入
   选择性重跑，拒绝。
 
-**Implementation status:** exact-source R2 pass；formal deployable-only Phase A 待执行。
+**Implementation status:** formal deployable-only Phase A 已完成。Decision Agent 已在 exact-clean worker 上
+独立重跑 freeze/persistence 两个 no-label verifier，并逐文件、逐行复算 identity、计数、hash、
+顺序与零禁止计数。Drive 和本机持久副本均已验证，主 artifact 达到 `REPLICATED`。
 
-**Status:** calibration-phase-a-execution-go / calibration-phase-b-hold
+**Status:** calibration-phase-a-pass / handed-off-to-D046
+
+## D046 — 放行 G2C calibration 的一次性 privileged Phase B score/calibrate
+
+**Decision:**
+
+D045 `E018-P1-G2C-CALIBRATION-PHASE-A/v1` 是 protocol-valid positive。决策 Agent 已在冻结
+execution source `4158a02c081635ef6753c49372c460151d6cfa0a` 上独立重跑两个 no-label
+verifier，并用独立脚本复算 exact tree、逐行 identity/order、artifact SHA、三份 Drive check、
+marker/receipt 自校验和时间序。冻结 Phase A 证据为：
+
+```text
+deployable staging:             50 seeds / 50 bundles / 550 rows
+selected checkpoint loads:      1
+forward batches:                18 = 17x32 + 6
+prediction rows:                550
+inference elapsed:              2.981 s
+prediction-freeze files/bytes:  10 / 1,424,436
+freeze raw/internal SHA:        bb9a20b4...eb55a / f739d35b...3a7a6
+freeze public verification SHA: fcf35fee...46d2
+Drive checks:                   (10 files, 0 diff) / (10, 0) / (1 marker, 0)
+persistence receipt raw/int:    07a2e201...064da / 2bca66da...3f10b
+persistence verification SHA:   89a373a4...9e602
+privileged/test/Memory/actuation/checkpoint writes: 0
+```
+
+10-file freeze 和 8-file persistence control evidence 又已回传本机并通过 checksum dry-run，主
+artifact 达到 `REPLICATED`。冻结 source identity 继续为 `646ff1da...648`，config internal
+SHA 继续为 `98a57277...aa74`；D046 docs-only commit 不是 execution source。
+
+因此放行 `E018-P1-G2C-CALIBRATION-PHASE-B/v1`，且只授权以下严格单向链路：
+
+1. 用 `prepare-privileged-input` 从已冻结 `G2C-DATA/v1` calibration split 复制恰好
+   50 个 privileged bundles。staging 只允许字节复制/hash 验证，`np.load` 与 privileged
+   label array open 必须为 0；不得夹带 RGB/deployable bundles；
+2. staging receipt 必须绑定 50/550、privileged inventory `24205efa...53f2`、Phase A
+   freeze `f739d35b...3a7a6`、source `646ff1da...648`、persistence receipt
+   `07a2e201...064da` / `2bca66da...3f10b` 与 remote identity hash，并在打开 label 前完整
+   验证 exact role/file/SHA；
+3. `score-calibrate` 只接 config/training-config、frozen prediction root、privileged input、source identity
+   和 Phase A persistence receipt；不接 model/checkpoint/canonical DATA root/test path。它必须在 label
+   打开前重验 Phase A freeze/persistence/source，并把 550 条 frozen predictions 完整读入当前
+   进程；
+4. 在任何 privileged array open 之前，必须以原子写先持久化
+   `phase_state=pre-label-freeze-verified`，再持久化 `label-consumption-started`、
+   `label_array_consumed=true`、`rerun_under_same_identity_allowed=false`；
+5. 仅在上述状态落盘后一次性打开恰好 50 个 privileged bundle arrays，生成恰好
+   550 条 scoring rows，每个 viewpoint 固定 50 rows，对 11 个 viewpoint 各生成一个
+   covariance/write-threshold calibration；
+6. 完成 result receipt 后运行 public verifier。该 verifier 只从冻结 prediction 与 scoring
+   ledger 重算 derived booleans、每视角 calibration、summary、artifact SHA 和消费状态；不接
+   privileged input/label/model/checkpoint/DATA path，label reopen 必须为 0；
+7. 不论结果 PASS 还是 protocol-valid negative，都必须冻结并对私有 Drive 做 immutable
+   copy/check，且在本机验证副本前不得释放 worker 或删除唯一源。
+
+Phase B 不允许重新推理或重选 checkpoint。冻结统计语义继续完全遵循 D044：
+
+- covariance cohort 仅含 GT observable、geometry/error finite 且 raw covariance finite/symmetric/PSD 的行，
+  `N>=30`；`alpha=0.05`、target=0.95、chi-square=`5.991`、
+  `k=min(ceil((N+1)*0.95),N)`、`scale=max(1,q_k/5.991)`；
+- 任意一个 nonfinite conformity score 使该 viewpoint 成为 protocol-valid calibration no-go，不得让
+  1/50 的 `inf` 隐藏在 alpha tail；singular PSD 仅在零方差方向误差也为零时可用；
+- write-threshold cohort 必须包含该 viewpoint 全部 50 条 scoring rows。`oracle_safe_measurement`
+  独立于 predicted observable/threshold，且 accepted-safe coverage 分母只能是
+  `oracle_safe_count`；
+- threshold 要求 unsafe accepted=0 且 coverage `>=0.10`，tie 选更高、更保守阈值；
+  calibrated maximum position std `<=0.020 m`；world-XYZ error `>0.020 m` 记 catastrophic。
+
+固定计数为：
+
+```text
+privileged source bundle copies during staging: 50
+privileged label array opens during staging:    0
+privileged label bundle array opens in Phase B: 50
+prediction rows consumed:                       550
+calibration scoring rows:                       550
+viewpoint calibrations / rows each:              11 / 50
+label bundle SHA verified:                      50
+label reopen by public verifier:                0
+test/Memory/actuation/checkpoint writes:         0
+```
+
+从 `label-consumption-started` 首次落盘起，该 calibration identity 永久 consumed。任何异常都必须
+生成 `consumed_failure.json`、保留已打开 bundle 计数，并维持
+`rerun_under_same_identity_allowed=false`；不得在同 identity 下重跑、删行、补 seed、换视角、改阈值或
+手工修补 result。若异常发生在首次 label open 之前，仍必须保留现场并返回 Decision
+Gate，不得覆盖 output 后自行重试。
+
+整体 calibration PASS 仍要求至少一个 non-HOME viewpoint 同时通过 covariance 与
+write-threshold。若 10 个 non-HOME 全部 no-go，必须冻结
+`complete-calibration-protocol-valid-negative`，不得选“最不坏”视角或进入 qualification。若存在
+PASS viewpoint，只允许建立新 Decision Gate 考虑使用 `76701..76750` 做一次性 dynamic
+qualification；D046 本身不放行任何相机运动。
+
+任一身份/manifest/SHA/50/550/11 计数漂移、Phase A/persistence 验证失败、早于
+`label-consumption-started` 打开 label、privileged array open 不等于 50、test/Memory/runtime/
+camera/arm/gripper/manipulation/checkpoint-write 计数非零、artifact 超过 5 GiB，或 public verifier
+非零退出，都必须 fail closed。
+
+本 Gate 的精确 GO 文句为：
+
+> GO — 工程 Agent 可以且只可以在 exact-clean `4158a02c081635ef6753c49372c460151d6cfa0a`
+> source 上，先以零 `np.load`/零 label-open 准备 seeds `76601..76650` 的 50 个
+> privileged-only bundles；完整重验 D045 freeze/persistence/source 并持久化
+> `label-consumption-started` 后，一次性打开恰好 50 个 label bundle arrays，对冻结的 550 条
+> predictions 生成 550 条 scoring rows 和 11 个 per-view calibrations，运行零 label-reopen 的
+> public verifier，并持久化 PASS 或 protocol-valid negative 结果。qualification、fresh test、Object Memory、
+> active loop、canonical runtime 和全部 actuator 仍然 HOLD。
+
+本 Gate 完成后允许的结论只是“至少一个/没有 non-HOME 冻结视角在静态
+development-only calibration split 上通过 covariance 与 write-safety gate”。不得声称任何
+viewpoint 已通过动态运动资格、Active 优于 Passive、Memory 有收益、闭环成功或可部署。
+
+**Reason:**
+
+Phase A 已在 label 不可达时冻结 selected checkpoint 的所有 predictions，并完成 Drive/本机
+双副本验证；此时 privileged labels 只作为对不可变预测的一次性校准依据，不再能
+反馈 checkpoint、mean 或候选视角。一次性状态先于 array open 落盘，同时 public verifier 只使用
+已冻结 ledger 重算，能同时保留可审计性与 test-once/selection-bias 边界。
+
+**Alternatives considered:**
+
+- 在打开 labels 后修改 threshold/covariance 统计语义：读取结果后调参，拒绝。
+- 只打开部分 seed/view 并看结果决定是否继续：形成顺序选择偏差，拒绝。
+- 忽略失败的 viewpoint 或以全部 evaluable rows 作 coverage 分母：破坏冻结安全语义，拒绝。
+- Phase B 失败后换 output 路径或重跑同一 identity：消费证据后的选择性重试，拒绝。
+
+**Implementation status:** D045 Phase A pass/replicated；one-shot privileged Phase B 待执行。
+
+**Status:** calibration-phase-b-execution-go / qualification-hold
 
 ## 新决策模板
 
