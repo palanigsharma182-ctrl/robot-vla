@@ -4,6 +4,7 @@ import copy
 import json
 import os
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -16,7 +17,9 @@ from robot_vla.observation import (
     ObservationV2History,
     opengl_camera_to_opencv,
 )
+from robot_vla.precision.active_front_camera import ExternalCameraMotionState
 from robot_vla.precision.active_front_memory_provider import (
+    ACTIVE_FRONT_HOME_PRIMITIVE_ID,
     ACTIVE_FRONT_PRIMARY_PRIMITIVE_ID,
 )
 from robot_vla.precision.active_front_reobserve import (
@@ -37,9 +40,11 @@ from robot_vla.precision.e018_p1_stage2a import (
     STAGE2A_INTEGRATION_SMOKE_GO,
     Stage2AActionHistoryRuntime,
     Stage2AExecutionProgress,
+    Stage2ARouteTransaction,
     _array_sha256,
     _build_observation_v2_window_identity,
     _new_stage2a_replay_controller,
+    _normalize_stage2a_motion_row_viewpoint,
     _record_stage2a_failure_evidence,
     _stage2a_episode_id,
     _stage2a_safety_evidence_record,
@@ -782,6 +787,144 @@ def test_pre_command_authorization_requires_current_controller_transition() -> N
         selected_primitive_id=ACTIVE_FRONT_PRIMARY_PRIMITIVE_ID,
     )
     _verify_stage2a_camera_authorization(row, record, controller=controller)
+
+
+def test_home_motion_identity_maps_physical_anchor_before_authorization() -> None:
+    episode_id = _stage2a_episode_id(76901)
+    controller, request = _requested_controller(episode_id)
+    runtime = Stage2AActionHistoryRuntime(episode_id)
+    reset, _ = runtime.invalidate_for_active_request(request)
+    controller.begin(reset)
+    safety = ActiveFrontSafetyEvidence()
+    controller.advance(ActiveFrontSignal.CAMERA_LEASE_ACQUIRED, safety=safety)
+    controller.advance(
+        ActiveFrontSignal.FROZEN_PRIMITIVE_SELECTED,
+        safety=safety,
+        selected_primitive_id=ACTIVE_FRONT_PRIMARY_PRIMITIVE_ID,
+    )
+    controller.advance(ActiveFrontSignal.MOVE_COMPLETE, safety=safety)
+    controller.advance(ActiveFrontSignal.SETTLE_COMPLETE, safety=safety)
+    controller.advance(ActiveFrontSignal.COLLECTION_COMPLETE, safety=safety)
+    candidate = Stage2MemoryCandidateReceipt(
+        request_id=request.request_id,
+        candidate_digest="b" * 64,
+        commit_eligible=False,
+        rejection_reasons=("integration-smoke-rejected-candidate",),
+        memory_write_deferred=False,
+        live_memory_write_executed=False,
+        provider_forward_count=3,
+        collect_frame_digests=("1" * 64, "2" * 64, "3" * 64),
+    )
+    controller.advance(
+        ActiveFrontSignal.SHADOW_CANDIDATE_STAGED,
+        safety=safety,
+        shadow_candidate_receipt=candidate,
+    )
+    assert controller.state is ActiveFrontReobserveState.RETURN_HOME
+
+    progress = Stage2AExecutionProgress()
+    progress.begin_seed(76901)
+    transaction = object.__new__(Stage2ARouteTransaction)
+    transaction.seed = 76901
+    transaction.episode_id = episode_id
+    transaction._request = request
+    transaction.trigger_controller = controller
+    transaction.orchestrator = SimpleNamespace(
+        camera_lease_held=True,
+        state=SimpleNamespace(value="returning_home_no_commit"),
+        memory_write_count=0,
+    )
+    transaction.provider_records = []
+    transaction._return_marked = True
+    transaction.camera_command_authorizations = []
+    transaction.execution_progress = progress
+
+    physical_row = {
+        "camera_motion_state": ExternalCameraMotionState.RETURN_HOME.value,
+        "viewpoint_primitive_id": "HOME",
+    }
+    assert (
+        _normalize_stage2a_motion_row_viewpoint(physical_row)
+        == ACTIVE_FRONT_HOME_PRIMITIVE_ID
+    )
+    assert physical_row["viewpoint_primitive_id"] == ACTIVE_FRONT_HOME_PRIMITIVE_ID
+
+    transaction.pre_command_hook(
+        ExternalCameraMotionState.RETURN_HOME,
+        48,
+        "HOME",
+    )
+    authorization = transaction.camera_command_authorizations[-1]
+    assert authorization["viewpoint_primitive_id"] == ACTIVE_FRONT_HOME_PRIMITIVE_ID
+    return_row = {
+        "frame_index": 48,
+        "camera_motion_state": ExternalCameraMotionState.RETURN_HOME.value,
+        "viewpoint_primitive_id": ACTIVE_FRONT_HOME_PRIMITIVE_ID,
+        "request_id": request.request_id,
+        "camera_command_sequence_id": request.camera_command_sequence_id,
+    }
+    _verify_stage2a_camera_authorization(
+        return_row,
+        authorization,
+        controller=controller,
+    )
+
+    with pytest.raises(RuntimeError, match="physical motion viewpoint"):
+        transaction.pre_command_hook(
+            ExternalCameraMotionState.RETURN_HOME,
+            49,
+            ACTIVE_FRONT_HOME_PRIMITIVE_ID,
+        )
+    with pytest.raises(RuntimeError, match="physical motion viewpoint"):
+        _normalize_stage2a_motion_row_viewpoint(
+            {
+                "camera_motion_state": ExternalCameraMotionState.RETURN_HOME.value,
+                "viewpoint_primitive_id": ACTIVE_FRONT_HOME_PRIMITIVE_ID,
+            }
+        )
+
+    tampered_row = dict(return_row)
+    tampered_row["viewpoint_primitive_id"] = "HOME"
+    with pytest.raises(ValueError, match="authorization"):
+        _verify_stage2a_camera_authorization(
+            tampered_row,
+            authorization,
+            controller=controller,
+        )
+    tampered_authorization = dict(authorization)
+    tampered_authorization["viewpoint_primitive_id"] = "HOME"
+    primitive = dict(tampered_authorization)
+    primitive.pop("authorization_sha256")
+    tampered_authorization["authorization_sha256"] = canonical_sha256(primitive)
+    with pytest.raises(ValueError, match="authorization"):
+        _verify_stage2a_camera_authorization(
+            return_row,
+            tampered_authorization,
+            controller=controller,
+        )
+
+    controller.advance(ActiveFrontSignal.RETURN_HOME_COMPLETE, safety=safety)
+    assert controller.state is ActiveFrontReobserveState.VERIFY_HOME_AND_ARM_HOLD
+    transaction.pre_command_hook(
+        ExternalCameraMotionState.VERIFY_HOME_AND_ARM_HOLD,
+        88,
+        "HOME",
+    )
+    verify_authorization = transaction.camera_command_authorizations[-1]
+    verify_row = {
+        "frame_index": 88,
+        "camera_motion_state": (
+            ExternalCameraMotionState.VERIFY_HOME_AND_ARM_HOLD.value
+        ),
+        "viewpoint_primitive_id": ACTIVE_FRONT_HOME_PRIMITIVE_ID,
+        "request_id": request.request_id,
+        "camera_command_sequence_id": request.camera_command_sequence_id,
+    }
+    _verify_stage2a_camera_authorization(
+        verify_row,
+        verify_authorization,
+        controller=controller,
+    )
 
 
 def test_complete_controller_chain_and_cross_receipt_replay() -> None:

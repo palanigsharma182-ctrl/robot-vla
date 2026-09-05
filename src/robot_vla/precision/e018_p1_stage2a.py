@@ -164,6 +164,33 @@ STAGE2A_PROVIDER_FRAME_INDICES = (0, *STAGE2A_COLLECT_FRAME_INDICES)
 STAGE2A_TRIGGER_WARMUP_INDICES = (2, 3, 4)
 STAGE2A_SOURCE_PHASE = PhaseId.ACQUIRE_TRACK
 STAGE2A_CAMERA_OWNER = "ACTIVE_REOBSERVE_STAGE2A_INTEGRATION_SMOKE"
+_STAGE2A_PHYSICAL_HOME_MOTION_VIEWPOINT_ID = "HOME"
+_STAGE2A_MOTION_VIEWPOINT_IDENTITIES = {
+    ExternalCameraMotionState.HOME_ANCHOR: (
+        _STAGE2A_PHYSICAL_HOME_MOTION_VIEWPOINT_ID,
+        ACTIVE_FRONT_HOME_PRIMITIVE_ID,
+    ),
+    ExternalCameraMotionState.MOVE_TO_VIEW: (
+        ACTIVE_FRONT_PRIMARY_PRIMITIVE_ID,
+        ACTIVE_FRONT_PRIMARY_PRIMITIVE_ID,
+    ),
+    ExternalCameraMotionState.SETTLE_AT_VIEW: (
+        ACTIVE_FRONT_PRIMARY_PRIMITIVE_ID,
+        ACTIVE_FRONT_PRIMARY_PRIMITIVE_ID,
+    ),
+    ExternalCameraMotionState.COLLECT: (
+        ACTIVE_FRONT_PRIMARY_PRIMITIVE_ID,
+        ACTIVE_FRONT_PRIMARY_PRIMITIVE_ID,
+    ),
+    ExternalCameraMotionState.RETURN_HOME: (
+        _STAGE2A_PHYSICAL_HOME_MOTION_VIEWPOINT_ID,
+        ACTIVE_FRONT_HOME_PRIMITIVE_ID,
+    ),
+    ExternalCameraMotionState.VERIFY_HOME_AND_ARM_HOLD: (
+        _STAGE2A_PHYSICAL_HOME_MOTION_VIEWPOINT_ID,
+        ACTIVE_FRONT_HOME_PRIMITIVE_ID,
+    ),
+}
 _D049_GATE_COMMIT = "de48f1305098c86d7d49ab4a487eb1f36aea544c"
 _D049_HOME_CLARIFICATION_COMMIT = "22d2719c2614dee2b02ebf396a55817b644810aa"
 _D050_ABSENT_WRIST_CAPABILITY_COMMIT = (
@@ -2586,6 +2613,39 @@ def verify_stage2a_action_history_audit(
     return receipt
 
 
+def _stage2a_logical_viewpoint_from_physical_motion(
+    state: ExternalCameraMotionState,
+    physical_viewpoint_id: str,
+) -> str:
+    """把冻结 G0 运动锚点映射到 Stage2A 的逻辑 provider primitive。"""
+
+    if not isinstance(state, ExternalCameraMotionState):
+        raise TypeError("Stage 2A camera motion state 类型错误")
+    if not isinstance(physical_viewpoint_id, str) or not physical_viewpoint_id:
+        raise TypeError("Stage 2A physical motion viewpoint id 类型错误")
+    expected_physical, logical = _STAGE2A_MOTION_VIEWPOINT_IDENTITIES[state]
+    if physical_viewpoint_id != expected_physical:
+        raise RuntimeError(
+            "Stage 2A physical motion viewpoint 与冻结 route identity 不匹配"
+        )
+    return logical
+
+
+def _normalize_stage2a_motion_row_viewpoint(row: dict[str, Any]) -> str:
+    """校验 G0 physical id 后，把 Stage2A row 规范为 logical primitive。"""
+
+    try:
+        state = ExternalCameraMotionState(row.get("camera_motion_state"))
+    except (TypeError, ValueError) as error:
+        raise RuntimeError("Stage 2A motion row camera state 非法") from error
+    logical = _stage2a_logical_viewpoint_from_physical_motion(
+        state,
+        row.get("viewpoint_primitive_id"),
+    )
+    row["viewpoint_primitive_id"] = logical
+    return logical
+
+
 class Stage2ARouteTransaction:
     """把单条 92-frame route 接到 trigger→Memory→fresh shadow Action。"""
 
@@ -2743,6 +2803,10 @@ class Stage2ARouteTransaction:
 
         self.execution_progress.current_frame_index = frame_index
         self._sync_execution_progress()
+        logical_viewpoint_id = _stage2a_logical_viewpoint_from_physical_motion(
+            state,
+            viewpoint_id,
+        )
 
         expected = {
             ExternalCameraMotionState.MOVE_TO_VIEW: (
@@ -2777,7 +2841,7 @@ class Stage2ARouteTransaction:
             is ExternalCameraControllerOwner.ACTIVE_REOBSERVE
             and self.trigger_controller.active_window_open
             and self.orchestrator.camera_lease_held
-            and viewpoint_id == expected_viewpoint
+            and logical_viewpoint_id == expected_viewpoint
             and (state is not ExternalCameraMotionState.RETURN_HOME or self._return_marked)
         )
         if not authorized:
@@ -2788,7 +2852,7 @@ class Stage2ARouteTransaction:
             "version": "e018-p1-stage2a-camera-command-authorization/v1",
             "frame_index": frame_index,
             "camera_motion_state": state.value,
-            "viewpoint_primitive_id": viewpoint_id,
+            "viewpoint_primitive_id": logical_viewpoint_id,
             "controller_state_before_command": self.trigger_controller.state.value,
             "external_camera_owner": (
                 self.trigger_controller.external_camera_owner.value
@@ -2904,6 +2968,7 @@ class Stage2ARouteTransaction:
         self.execution_progress.current_frame_index = frame_index
         self._sync_execution_progress()
         try:
+            _normalize_stage2a_motion_row_viewpoint(row)
             self._process_frame(row, rgb, observation)
         except Exception:
             self._sync_execution_progress()
