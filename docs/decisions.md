@@ -3662,7 +3662,9 @@ min(alternate scores) - frozen HOME score >= selected min_information_gain
 HOME baseline score 不可计算、identity 不匹配或 timestamp/pose 无效时，首版只记录
 `BASELINE_UNAVAILABLE_SHADOW_ONLY`，不得 live commit；它不能被偷偷替换成零。selection 先要求 unsafe/
 catastrophic/false recovery 全为零，再最大化 oracle-recoverable recovery coverage，同 coverage 取更大的
-min-information-gain。D048 qualification label 不得用于该选择。
+min-information-gain。HOME 在 D048 未通过 provider qualification，因此其有限 raw score 在这里只是比较基线，
+不能构成 `measurement_usable`、Memory write、直接状态解析或 contact evidence。D048 qualification label 不得
+用于该选择。
 
 ### 闭环顺序与 control/treatment
 
@@ -3681,10 +3683,11 @@ Treatment 顺序冻结为：
   -> new shadow Action generation -> resume original source phase with stability reset
 ```
 
-若返回 HOME 后出现新的可靠 current wrist/HOME direct evidence，pending 标记
+若返回 HOME 后出现新的、具有独立写入资格的 current direct evidence，pending 标记
 `SUPERSEDED_BY_FRESH_DIRECT_EVIDENCE` 且不写入较旧 alternate measurement；可以用该 current evidence 形成新的
-shadow replan，但必须单独计数，不能记为 active Memory recovery。任一其他检查失败，pending 丢弃、Memory
-保持提交前状态、不恢复旧 Action Chunk并进入 SafeHold/Abort。
+shadow replan，但必须单独计数，不能记为 active Memory recovery。当前 D048 parent 下 HOME 未获资格，所以
+HOME raw score 不能走这条 supersede 路径；只有合格 wrist direct evidence 等独立合格来源可以。任一其他检查
+失败，pending 丢弃、Memory 保持提交前状态、不恢复旧 Action Chunk 并进入 SafeHold/Abort。
 
 Control 与 Treatment 使用相同 seed、初始 arm/object/goal state、trigger tick、provider/config、HOME frame 与
 wall-clock budget、Flow sampling seed和失败定义：
@@ -3694,9 +3697,9 @@ Control:   HOME SafeHold + matched passive HOME evidence；无 alternate candida
 Treatment: 一次 PRIMARY roundtrip + pending/HOME atomic commit + new shadow replan
 ```
 
-两臂均可使用等待期间自然出现的 current direct evidence；Control 不得获得 alternate RGB，Treatment 不得获得
-额外时间或额外 sampling。runtime 决策只读 deployable evidence；oracle label 只能在全部 prediction/decision
-ledger 原子冻结和 context 销毁后离线评分。
+两臂均可使用等待期间自然出现且具有独立资格的 current direct evidence；当前 HOME raw output 只能记分，不能
+解析状态。Control 不得获得 alternate RGB，Treatment 不得获得额外时间或额外 sampling。runtime 决策只读
+deployable evidence；oracle label 只能在全部 prediction/decision ledger 原子冻结和 context 销毁后离线评分。
 
 ### Split、Stage 2B 与预算
 

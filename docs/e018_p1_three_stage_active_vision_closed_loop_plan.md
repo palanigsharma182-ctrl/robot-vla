@@ -476,7 +476,8 @@ min_information_gain candidates = [0.02, 0.05, 0.10]
 wrist score 和 Memory validity 参与触发，但不与 front score 做数值相减。HOME baseline 不可计算时不能设为零，
 首版只记录 `BASELINE_UNAVAILABLE_SHADOW_ONLY` 且禁止 commit。selection split 先要求零 unsafe、catastrophic 和
 false recovery，再最大化 oracle-recoverable recovery coverage；同 coverage 选择更大的 gain。D048 labels 不得
-用于选择。
+用于选择。D048 的 HOME 本身未通过 provider qualification，所以其 raw score 只能用于比较，不能形成 usable
+measurement、Memory write、直接状态解析或 contact evidence。
 
 至少记录 score 的 visibility/projection/object-mask/goal-mask/entropy/radial-sigma 分量、covariance、spread、
 innovation 和每层 rejection reason，避免把“分数提高”误写成“状态一定正确”。
@@ -513,10 +514,11 @@ final COLLECT 到 commit 的 pending age 和 P1 Memory maximum unobserved age �
 `last_observed_timestamp_s` 仍是 alternate final frame，`state_timestamp_s` 是 HOME commit 时刻，且
 `observable_now=false`；Memory-only resolution 必须是 `NAVIGATION`、`contact_authorized=false`。
 
-如果 HOME 后出现新的可靠 wrist/HOME direct evidence，旧 pending 以
+如果 HOME 后出现新的、具有独立写入资格的 direct evidence，旧 pending 以
 `SUPERSEDED_BY_FRESH_DIRECT_EVIDENCE` 丢弃，并将直接证据恢复单独计数。其他任一检查失败都不提交、不部分
-更新、不恢复旧 Action Chunk，进入 SafeHold/Abort。Episode reset 必须清 request、lease、candidate、pending、
-HOME barrier 和 attempt；同一 digest 重复提交必须 fail closed。
+更新、不恢复旧 Action Chunk，进入 SafeHold/Abort。当前 D048 parent 下 HOME raw output 没有这项资格，只有
+合格 wrist 等独立合格来源可以 supersede。Episode reset 必须清 request、lease、candidate、pending、HOME
+barrier 和 attempt；同一 digest 重复提交必须 fail closed。
 
 ### 7.5 Stage 2B：七视角 information-gain shadow
 
