@@ -1,11 +1,11 @@
 # E018-P1-G2C Front Provider Adaptation 实验计划书
 
-> 状态：`model-selection-pass / calibration-phase-a-pass / calibration-phase-b-go / qualification-hold / development-only`
+> 状态：`calibration-pass / qualification-runner-implementation-go / formal-qualification-hold / development-only`
 > 日期：2026-09-05
 > Experiment ID：`E018-P1-G2C-FRONT-PROVIDER-ADAPTATION-DEVELOPMENT/v1`
 > Data identity：`E018-P1-G2C-DATA/v1`
 > Train identity：`E018-P1-G2C-TRAIN/v1`
-> Decision Gate：[`D036`、`D037`、`D038`、`D039`、`D040`、`D041`、`D042`、`D043`、`D044`、`D045`、`D046`](decisions.md)
+> Decision Gate：[`D036`、`D037`、`D038`、`D039`、`D040`、`D041`、`D042`、`D043`、`D044`、`D045`、`D046`、`D047`](decisions.md)
 > 上位计划：[`E018-P1 三阶段主动视觉闭环`](e018_p1_three_stage_active_vision_closed_loop_plan.md)
 
 > 2026-09-05 DATA Gate：`E018-P1-G2C-DATA/v1` 已通过独立 verifier 与 R2，接受为 canonical
@@ -77,6 +77,15 @@
 > `2bca66da...3f10b`，verification 为 `89a373a4...9e602`；freeze 与 8-file control evidence 均已完成
 > 本机 checksum 复核，主 artifact 达到 `REPLICATED`。D046 现在只放行 privileged staging 与一次性
 > Phase B score/calibrate；qualification 及其后续仍 HOLD。
+
+> 2026-09-05 calibration Phase B outcome：D046 已一次性消费并通过决策 Agent 独立
+> public R2。label bundle open=50、scoring rows=550、viewpoint calibrations=11，public verifier
+> reopen=0，`rerun_under_same_identity_allowed=false`。10/10 non-HOME 视角均通过静态
+> covariance/write gate；unsafe/catastrophic accepted=`0/0`，accepted/oracle-safe=`497/499`，最大校准
+> position std 范围 `1.618..16.503 mm`，threshold 范围 `0.612144..0.617298`。但原始
+> catastrophic measurement 仍有 10 条，只是全被 write gate 拒绝；这是后续动态 qualification 的
+> 显式尾部风险。D047 只放行 qualification runner/CLI/verifier 实现和 noncanonical smoke；
+> `76701..76750` 正式路线仍 HOLD。
 
 本实验是 E018 Stage 2 的上游 provider 资格实验。它只回答“受限动态 front 视角是否能产生可部署语义的
 object measurement”，不评价 Active 相对 Passive 的任务收益，也不授予 canonical runtime、机械臂、夹爪、

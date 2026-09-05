@@ -3200,9 +3200,188 @@ Phase A 已在 label 不可达时冻结 selected checkpoint 的所有 prediction
 - 忽略失败的 viewpoint 或以全部 evaluable rows 作 coverage 分母：破坏冻结安全语义，拒绝。
 - Phase B 失败后换 output 路径或重跑同一 identity：消费证据后的选择性重试，拒绝。
 
-**Implementation status:** D045 Phase A pass/replicated；one-shot privileged Phase B 待执行。
+**Implementation status:** one-shot privileged Phase B 已完成并通过决策 Agent 独立 public R2。
+calibration identity 已永久 consumed，同 identity 不允许重跑。结果私有 Drive/本机持久化
+尚在执行；worker 与唯一 source 保留。
 
-**Status:** calibration-phase-b-execution-go / qualification-hold
+**Status:** calibration-pass / handed-off-to-D047
+
+## D047 — 冻结 G2C dynamic qualification 语义，放行 runner implementation
+
+**Decision:**
+
+D046 一次性 calibration 是 protocol-valid positive。决策 Agent 在 exact-clean
+`4158a02c081635ef6753c49372c460151d6cfa0a` 上独立重跑不接 label path 的 public verifier，
+并逐文件/逐行复算 result tree、receipt、550 行身份顺序、11 个 calibration、消费状态与
+权限计数。冻结结果为：
+
+```text
+status / protocol / gate:      complete-calibration-pass / true / true
+result files / bytes:          9 / 763,767
+receipt raw/internal SHA:      16b377e8...698a9 / 6e67503d...6c837
+public verification SHA:       f8c8c8fb...c8ed7
+label opens / verifier reopen: 50 / 0
+prediction/scoring/views:      550 / 550 / 11
+qualified non-HOME:            10 / 10
+accepted / oracle-safe:        497 / 499
+unsafe/catastrophic accepted:  0 / 0
+raw catastrophic measurements:10
+maximum calibrated std:        1.618..16.503 mm
+write threshold:               0.612144..0.617298
+covariance support:            40..48
+nonfinite conformity scores:   0
+```
+
+`phase_state` 冻结 `label_array_consumed=true`、open=50、
+`rerun_under_same_identity_allowed=false`，没有 `consumed_failure.json`。所有 unsafe/catastrophic
+accepted 与 test/Memory/runtime/camera/arm/gripper/manipulation/checkpoint-write 计数为 0。这个正结果
+只证明静态 calibration；10 条原始 `>20 mm` 尾部虽被阈值拒绝，仍必须在动态路线中
+继续审计，不得被“10/10 PASS”隐藏。
+
+当前 execution source 只实现 `g2c_dynamic_qualification_plan` 和 total-counter validator；没有
+500-route runner、动态 deployable capture/provider path、prediction-before-GT journal、一次性 privileged
+scorer、public verifier、CLI 或 persistence chain。因此 D047 **只放行实现与 noncanonical
+smoke**，不放行 formal qualification seeds `76701..76750`。
+
+最小实现边界为：
+
+1. 新增独立 qualification config/module/CLI/tests，优先复用 G0C-v2 的 route engine、G2C selected
+   checkpoint loader、D046 per-view calibration 与已有 geometry/write-evidence primitives；不复制一套
+   相机运动或坐标转换逻辑；
+2. 若必须为 G0C route engine 增加 capture hook，只允许添加默认为 `None` 的局部参数，
+   旧 G0/G0C 调用和 frozen result 语义必须字节/测试等价；
+3. config 机械绑定 G0C config/receipt `c93bbfd...e965` / `bf8232b...258e`、D046
+   receipt/public verification `16b377e8...698a9` / `f8c8c8fb...c8ed7`、selected checkpoint 全身份、
+   Phase A freeze `f739d35b...3a7a6`、冻结 seed/view/order/门槛与 calibration values；运行时
+   从 D046 result 加载并重验 calibration，不手写或重拟 scale/threshold；
+4. 仅对 object provider 资格评分；Goal Head、Goal Memory、Object Memory、Executive、Action
+   Expert 和 manipulation consumer 都不得接入。
+
+正式 runner 必须预实现下列不可改变的路线，但 D047 阶段不得对其执行：
+
+```text
+50 seeds x 10 non-HOME alternates = 500 independent-reset routes
+per route:
+  initial pose-set 1
+  HOME warmup 5 SafeHold-open ticks (not in ledger)
+  HOME anchor 1 ledger frame
+  outbound 40 ticks / 2.0 s
+  alternate settle 4 ticks
+  collect 3 ticks; score only the third/final frame
+  return HOME 40 ticks / 2.0 s
+  HOME verify 4 ticks
+```
+
+HOME provider 只在每个 seed 的首条 `LEFT_LOW__CENTER` route anchor 评分一次，共50；每条
+route 只评分最后 COLLECT，共500。固定总计数为：
+
+```text
+route count:                          500
+simulator camera pose-set:            48,500
+moving interpolation commands:        40,000
+simulator SafeHold-open steps:         48,000
+motion/safety ledger frames:           46,000
+provider forwards / prediction rows:      550 / 550
+HOME / alternate scored frames:            50 / 500
+canonical runtime/physical actuation:        0 / 0
+arm motion/gripper close/manipulation:       0 / 0 / 0
+Object/Goal Memory reads/writes:             0 / 0
+test reads:                                  0
+```
+
+### Prediction-before-GT 与一次性语义
+
+为了在不把 500 条路线双跑成 1000 条、不改写 D036 运动计数的前提下保持
+prediction-before-label，正式 runner 必须使用 **per-scored-frame commit-before-GT**：
+
+```text
+deployable RGB/state/actual pose
+  -> frozen selected provider + frozen per-view calibration/threshold
+  -> atomic prediction-row commit + file/parent fsync + row SHA
+  -> only now read that frame's simulator GT/segmentation
+  -> private write-only label journal
+```
+
+首次 privileged GT 读取前必须先落盘 `qualification-consumption-started`、
+`rerun_under_same_identity_allowed=false`。每个 prediction row 必须使用唯一原子 commit（或等价的
+不可覆盖 append/fsync hash-chain），且 `prediction_committed_at < privileged_captured_at`。路线顺序、
+运动、provider、calibration 和 threshold 必须与任何已捕获 GT 隔离；GT 只能进入 write-only
+private journal，在500 条路线结束前不得计算逐视角指标、PRIMARY 或改变后续执行。
+
+全部路线完成后，必须先冻结 prediction journal/ledger 与路线安全证据、销毁 model/
+simulator/capture context，再在独立 scorer 中一次性读取 private label journal。scorer 不接
+model/checkpoint/simulator/camera/runtime/Memory，只产生 550 scoring rows、11 个 viewpoint summaries 与
+PRIMARY selection。任何消费开始后的失败都必须冻结 `consumed_failure`，同 identity 不重跑。
+
+### 指标、PRIMARY 与公开 verifier
+
+每个 viewpoint 仍必须同时满足：visibility precision/recall `>=0.95/0.90`，observable
+XYZ p90/max `<=0.005/0.020 m`，unsafe/catastrophic accepted=0，accepted-safe coverage
+`>=0.10`，calibrated covariance-95 coverage `>=0.90` 且 support `>=30`，maximum calibrated
+std `<=0.020 m`。任一 route safety/identity/lifecycle/termination/truncation 失败使整轮
+protocol-invalid；不删 route、不重试。
+
+若至少一个 non-HOME 合格，PRIMARY 只能在 qualified 集中按 frozen shortlist tier、coverage
+降序、p90/max 升序、`|cov95-0.95|` 升序、recall 降序与 frozen pose order 选择。若零
+qualified，冻结 protocol-valid negative，不选“最不坏”。public verifier 必须重算 motion
+counters/safety、prediction/GT commit order、scoring derived fields、逐视角指标、PRIMARY、artifact SHA 和
+consumption state，且签名不接 label journal/model/checkpoint/simulator/DATA/test path。
+
+D047 实现验收至少要覆盖：
+
+- config 的 parent/seed/view/route/指标与 D046 calibration 绑定；
+- 97/96/92 每路线计数、HOME-only-first-route 和 final-COLLECT-only 评分；
+- GT-access sentinel：任何 GT/segmentation 在 prediction commit/fsync 前被读取必须失败；
+- 先写 consumption state、逐行 commit<GT 时序、早期 GT 不得改变后续 route/provider；
+- D046 scale 必须到达 measurement covariance，per-view threshold 必须到达 write acceptance；
+- 安全但被拒绝不得改小 coverage 分母，原始 catastrophic row 不得被 accepted；
+- consumed failure、额外/链接文件、计数/hash/derived bool/PRIMARY tamper 的反例；
+- G0/G0C 旧路由回归与 no-test/no-Memory/no-canonical-actuator 权限。
+
+允许的 smoke 只使用明确 noncanonical seed，最多 1 seed x 1 route，必须是
+`preflight/no-qualification-claim`；GPU 不超过 15 分钟、artifact 不超过 1 GiB、checkpoint write=0。
+smoke 可以移动 isolated simulator RenderCamera，但 runtime/canonical 和 physical camera actuation 仍为 0。
+
+D047 期间明确 HOLD：canonical qualification seed `76701..76750` 的 reset/route/GT read，任何
+500-route 执行，fresh test，Object/Goal Memory，information-gain/active-loop integration，canonical
+runtime 和全部 physical/manipulation actuator。正式 execution 只能在 D046 result 达到
+`REPLICATED`、新 source 通过 regression/smoke/exact-source R2 且新 Decision GO 后进行。
+
+本 Gate 的精确 GO 文句为：
+
+> GO — 工程 Agent 可以实现 G2C dynamic qualification 的独立 config/runner/CLI/tests/public
+> verifier，复用 G0C-v2 500-route contract 与 D046 冻结 provider/calibration，实现逐 scored-frame
+> atomic prediction commit-before-GT、write-only private label journal、一次性 offline scoring、安全/指标/
+> PRIMARY 重算和 consumed-failure 语义。只允许 targeted tests 与最多 1 seed x 1 route 的
+> noncanonical preflight smoke。formal seeds `76701..76750`、500 routes、fresh test、Memory、active loop、
+> canonical runtime 和全部 actuator 继续 HOLD，直至新 exact-source R2 与显式 execution GO。
+
+当前允许的结论只是：“10 个 non-HOME 视角获得静态 calibration PASS，动态资格执行链
+进入实现。”不得声称任何视角已动态 qualified、Active 优于 Passive、Memory 有收益、闭环
+成功或可部署。
+
+**Reason:**
+
+静态 calibration 的 10/10 PASS 说明没有必要立即更换 provider 路线，但 10 条原始 catastrophic
+measurement 说明动态尾部仍是主要未知项。现有 G0C 只验证了运动，现有 G2A/G2B 只是
+static-render provider path，不能把两个 PASS 直接拼成动态资格。先实现可审计的 route-provider-label
+单向链和 public verifier，可以在不消费唯一 qualification seeds 的情况下发现时间、状态、
+坐标、calibration 传递或权限问题。
+
+**Alternatives considered:**
+
+- 直接复用 static G2A/G2B qualification：没有动态路线、actual-pose 和 SafeHold 证据，拒绝。
+- 先跑 500 条路线再补 runner/verifier：唯一 qualification identity 无法审计且会被消费，拒绝。
+- 用 hidden GT 在路线中选视角、早停或决定后续执行：破坏可部署语义与固定顺序，拒绝。
+- 全局双跑 deployable/privileged 1000 条路线：会改变 D036 已冻结的 500-route 成本与运动
+  计数，且新增 replay-drift confounder，本 Gate 不采用。
+- 把 early GT 直接保留在 provider/controller context：存在反馈泄漏，拒绝；只允许 commit 后写入隔离的
+  private journal，并在全路线完成后才评分。
+
+**Implementation status:** D046 calibration public R2 pass；Phase B persistence 执行中；dynamic qualification
+runner 尚未实现。
+
+**Status:** qualification-runner-implementation-go / formal-qualification-hold
 
 ## 新决策模板
 
