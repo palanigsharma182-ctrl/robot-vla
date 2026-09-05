@@ -1770,6 +1770,10 @@ def _deserialize_request(value: Mapping[str, Any]) -> ActiveFrontReobserveReques
 
 
 def _serialize_home_score(value: PassiveHomeScoreEvidence) -> dict[str, Any]:
+    score_components = asdict(value.score_components)
+    score_components["object_sigma_xy_px"] = list(
+        value.score_components.object_sigma_xy_px
+    )
     return {
         "episode_id": value.episode_id,
         "episode_generation": value.episode_generation,
@@ -1781,7 +1785,7 @@ def _serialize_home_score(value: PassiveHomeScoreEvidence) -> dict[str, Any]:
         "viewpoint_primitive_id": value.viewpoint_primitive_id,
         "camera_motion_state": value.camera_motion_state.value,
         "settled": value.settled,
-        "score_components": asdict(value.score_components),
+        "score_components": score_components,
         "stored_write_score": value.stored_write_score,
         "geometry_valid": value.geometry_valid,
         "control_timestamp_s": value.control_timestamp_s,
@@ -1903,6 +1907,10 @@ def _deserialize_baseline(value: Mapping[str, Any]) -> PassiveBaselineEvidence:
 
 
 def _serialize_primary_frame(value: ActiveFrontStage2FrameEvidence) -> dict[str, Any]:
+    score_components = asdict(value.score_components)
+    score_components["object_sigma_xy_px"] = list(
+        value.score_components.object_sigma_xy_px
+    )
     return {
         "episode_id": value.episode_id,
         "episode_generation": value.episode_generation,
@@ -1929,7 +1937,7 @@ def _serialize_primary_frame(value: ActiveFrontStage2FrameEvidence) -> dict[str,
         ),
         "measurement_confidence": value.measurement_confidence,
         "write_score": value.write_score,
-        "score_components": asdict(value.score_components),
+        "score_components": score_components,
         "projection_valid": value.projection_valid,
         "in_fov": value.in_fov,
         "observable": value.observable,

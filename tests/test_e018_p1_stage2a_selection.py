@@ -714,6 +714,57 @@ def test_captured_route_public_round_trip_preserves_replay_digest() -> None:
     ]
 
 
+def test_captured_route_real_sigma_values_survive_json_round_trip() -> None:
+    """回归正式首行暴露的 tuple -> JSON list -> tuple 类型差异。"""
+
+    captured = _captured_route(raw_gain=0.03)
+    home = captured.passive_baseline.home_front
+    assert home is not None
+    observed_sigmas = (
+        (1.7152010202407837, 1.4219516515731812),
+        (0.11672089248895645, 0.11672089248895645),
+    )
+    home_components = replace(
+        home.score_components,
+        object_sigma_xy_px=observed_sigmas[0],
+    )
+    home = replace(
+        home,
+        score_components=home_components,
+        stored_write_score=home_components.to_object_write_evidence(
+            geometry_valid=home.geometry_valid
+        ).score,
+    )
+    primary_frames = []
+    for frame in captured.primary_frames:
+        components = replace(
+            frame.score_components,
+            object_sigma_xy_px=observed_sigmas[1],
+        )
+        score = components.to_object_write_evidence(
+            geometry_valid=frame.geometry_valid
+        ).score
+        primary_frames.append(
+            replace(
+                frame,
+                score_components=components,
+                measurement_confidence=score,
+                write_score=score,
+            )
+        )
+    captured = replace(
+        captured,
+        passive_baseline=replace(captured.passive_baseline, home_front=home),
+        primary_frames=tuple(primary_frames),
+    )
+    public = json.loads(json.dumps(captured.to_public_dict()))
+
+    restored = CapturedSelectionRoute.from_public_dict(public)
+
+    assert restored.route_evidence_digest == captured.route_evidence_digest
+    assert restored.to_public_dict() == public
+
+
 def test_resigned_raw_candidate_digest_tamper_is_rejected_by_replay() -> None:
     captured = _captured_route(raw_gain=0.03)
     tampered = replace(
