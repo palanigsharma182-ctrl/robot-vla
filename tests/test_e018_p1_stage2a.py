@@ -51,6 +51,7 @@ from robot_vla.precision.e018_p1_stage2a import (
     _normalize_stage2a_motion_row_viewpoint,
     _record_stage2a_failure_evidence,
     _stage2a_camera_at_home,
+    _stage2a_float32_position_matches_pose_translation,
     _stage2a_episode_id,
     _stage2a_pose_at_home,
     _stage2a_safety_evidence_record,
@@ -788,6 +789,24 @@ def test_float32_home_witness_self_distance_is_zero_but_real_offset_fails() -> N
     assert _stage2a_pose_at_home(frame_87) is False
     frame_88["actual_base_from_external_camera_cv"] = outside.tolist()
     assert _stage2a_camera_at_home(frame_88) is False
+
+
+def test_float32_position_and_pose_witnesses_require_exact_native_value() -> None:
+    position = np.asarray((0.3, 0.0, 0.6), dtype=np.float64)
+    pose_translation = position.astype(np.float32).astype(np.float64)
+    assert _stage2a_float32_position_matches_pose_translation(
+        position,
+        pose_translation,
+    )
+
+    tampered = position.copy()
+    tampered[0] = float(
+        np.nextafter(np.float32(tampered[0]), np.float32(np.inf))
+    )
+    assert not _stage2a_float32_position_matches_pose_translation(
+        tampered,
+        pose_translation,
+    )
 
 
 def test_resigned_tcp_orientation_raw_witness_tamper_is_rejected() -> None:

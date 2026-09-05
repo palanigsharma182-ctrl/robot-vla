@@ -4375,6 +4375,23 @@ def _verify_stage2a_exact_file_tree(root: Path) -> None:
         )
 
 
+def _stage2a_float32_position_matches_pose_translation(
+    position: Any,
+    pose_translation: Any,
+) -> bool:
+    """按 SAPIEN 原生 float32 精度做 exact witness 绑定，不引入公差。"""
+
+    position_f32 = np.asarray(position, dtype=np.float32)
+    translation_f32 = np.asarray(pose_translation, dtype=np.float32)
+    return bool(
+        position_f32.shape == (3,)
+        and translation_f32.shape == (3,)
+        and np.isfinite(position_f32).all()
+        and np.isfinite(translation_f32).all()
+        and np.array_equal(position_f32, translation_f32)
+    )
+
+
 def _verify_stage2a_camera_row_identity(
     value: Mapping[str, Any],
     *,
@@ -4529,17 +4546,13 @@ def _verify_stage2a_camera_row_identity(
     if (
         intrinsic.shape != (3, 3)
         or not np.isfinite(intrinsic).all()
-        or not np.allclose(
+        or not _stage2a_float32_position_matches_pose_translation(
             parsed_vectors["commanded_external_position_world_m"],
             matrices["commanded_world_from_external_camera_gl"][:3, 3],
-            rtol=0.0,
-            atol=1e-9,
         )
-        or not np.allclose(
+        or not _stage2a_float32_position_matches_pose_translation(
             parsed_vectors["actual_external_position_world_m"],
             matrices["actual_world_from_external_camera_gl"][:3, 3],
-            rtol=0.0,
-            atol=1e-9,
         )
         or not np.allclose(
             matrices["commanded_base_from_external_camera_cv"],
