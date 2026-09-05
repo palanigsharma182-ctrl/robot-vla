@@ -2548,6 +2548,10 @@ Agent 明确确认后，在全新 output 重启 formal TRAIN。Phase A 及后续
 
 ## D042 — 放行 G2C model-validation 的 deployable-only Phase A prediction freeze
 
+> **Execution outcome（D043）：** Phase A 已通过独立 verifier 与 R2；9 个 prediction ledgers、9900 rows、
+> 280 个 candidate loss-output shards 均在首次 privileged label array open 前冻结。该 PASS 只允许进入 D043
+> 一次性 Phase B score/select，不代表任何 checkpoint 已合格。
+
 **Decision:**
 
 依据 D041 FORMAL TRAIN 的独立 verifier 与 R2，放行 `E018-P1-G2C-MODEL-VAL-PHASE-A/v1`。本 Gate 只允许：
@@ -2693,6 +2697,147 @@ input、shape、batch、CONTROL 或 artifact 工程问题。
 
 **Implementation status:** D041 FORMAL TRAIN 已通过 R2；等待 D042 docs commit/push 和工程确认后执行
 deployable-only Phase A。Phase B 及后续全部 HOLD。
+
+**Status:** phase-a-pass / handed-off-to-D043
+
+## D043 — 放行 G2C model-validation 的一次性 privileged Phase B score/select
+
+**Decision:**
+
+依据 D042 deployable-only Phase A 的独立 verifier 与 R2，放行
+`E018-P1-G2C-MODEL-VAL-PHASE-B/v1`。本 Gate 只授权：
+
+1. 以 `prepare-model-val-privileged-input` 复制并验收 100 个 model-validation privileged bundles；
+2. 在全新、拒绝覆盖 output 中执行一次 `score-select`；
+3. 在不接 label path 的公开 verifier 中复核 selection artifact。
+
+Phase A parent 冻结为：
+
+```text
+execution source git commit:
+  5bf05da5a22a07b8fabfc22b1f32da86fce40ba1
+source_tree/formal identity:
+  13fe6ec20cc26e33ff56357fafd082c15f77710aae109511e56b08e971df55b6
+  95b0fb26db8585decb9488ce0086ef1f9f6c8bc2a6496797e3d9681b89f2af05
+config/data identity:
+  6719acdfb95b1780bb6779ff48471bf78823ea062abb3f097d2564bcd0e203ab
+  07919f413224fba797d4c12df25e2d5aec8ded8213e3283a07feed282701cfa3
+
+Phase A artifact ID:
+  g2c-phase-a-prediction-freeze-d042-5bf05da-20260905-v1
+exact tree:
+  298 regular files / 0 symlink / 0 hardlink / 0 privileged-named path
+  509612637 bytes
+freeze raw/internal SHA:
+  6ed7a880c41abbfc4bda3865f609a739d31be9be74538fdd782e59dc5b1cb7fd
+  e9afee15af889b769000c168c90b4f251d63e67da0e5ef2736ed50df38ea7ac2
+Phase A verification SHA:
+  763ed7f29cf5f9f7deaef2e3a2b875f9152fc521d561157c3a947c4a8c168380
+artifact inventory SHA:
+  71e9b5a13ff4e1295e32c740530502dee2d764b6f1b0a791f8dec9ef41ff9fe5
+```
+
+Phase A verifier 已重算 8 candidate ledgers/8800 rows、CONTROL 1 ledger/1100 rows、280 candidate shards、
+CONTROL 0 loss/shards、900 deployable bundle opens、9900 sample reads，并确认 model/inference context 在 freeze
+前销毁、privileged label/test/Memory/actuation count 全为零。D043 开始前必须再次验证上述 exact tree、freeze、
+D041 TRAIN receipt `243630ce...` / `c8d8d08b...`、checkpoint inventory `19173911...` 和 model-val deployable
+input receipt `cfc919e6...` / `dd9364b5...`；Phase A parent 全程只读。
+
+privileged staging 只允许 DATA model-validation split `76501..76600`：100 bundles、1100 rows，固定 privileged
+inventory SHA 为 `5c750db79b1a0b8b0c4c5a616cd6a51cd6f86317c560629fcda0890077e85896`。role 必须为
+`model-val-privileged`，`deployable_included=false`，且 receipt 必须绑定 Phase A internal SHA
+`e9afee15...` 与 source identity `95b0fb26...`。staging 只复制并 SHA 验证 bytes，不 decode arrays；固定
+`privileged_source_bundle_copy_count=100`、`privileged_label_array_open_count=0`、test read=0，禁止出现 RGB、
+deployable bundle、其他 split、symlink、hardlink 或额外文件。
+
+privileged staging 可以与 Phase A 持久化并行；但首次 label array open 前，Phase A freeze 必须完成 Drive
+immutable copy、`rclone check --one-way` 零差异和 completion marker。worker 上的 Phase A、privileged input
+和 DATA source 在 Phase B 完成前均不得删除。
+
+Phase B 是该 validation identity 的一次性消费：所有 preflight、Phase A verifier、source/label metadata binding、
+至少 1 GiB free disk 和全新 output 必须先通过；随后先持久化 `phase_state=pre-label-freeze-verified`，再持久化
+`label-consumption-started`，之后才允许 decode。固定且仅允许 100 个 privileged bundle array opens，产生
+1100 label rows。自首次 array open 起，`rerun_under_same_identity_allowed=false`；任何异常必须写
+`consumed_failure.json` 并保留现场，不得删除、改 seed 或重跑。
+
+冻结 score/select 计数为：
+
+```text
+candidate prediction/scoring rows:          8800 / 8800
+diagnostic CONTROL prediction/scoring rows: 1100 / 1100
+total prediction/scoring rows:              9900 / 9900
+candidate loss-output shards:               280
+validation losses:                          8
+validation loss evidence rows:              280 batch + 8 aggregate
+diagnostic CONTROL validation losses:       0
+privileged label bundle array opens:         100
+test/Memory/actuation counts:                0
+```
+
+8 个 validation loss 只从冻结 float32 shards 和首次读取的 GT 按
+`sum(batch_loss * actual_batch_size) / 1100` 计算；禁止重新运行模型、checkpoint 或 deployable Dataset。
+candidate scoring ledger 的 8800 rows 必须逐行绑定 frozen prediction；CONTROL 的 1100 rows 只作诊断，
+`validation_loss_computed=false`、`eligible_for_selection=false`、`used_for_formal_selection=false`。
+
+checkpoint eligibility 与排名完全沿用 D036/D037：至少一个 G0C-qualified non-HOME view 同时满足 visibility
+precision `>=0.95`、recall `>=0.90`、observable-positive support `>=30`、world-XYZ p90 `<=0.005 m`、max
+`<=0.020 m` 和 geometry finite 才 eligible；排名依次为 eligible alternate 数、最佳 p90、对应 max、validation
+loss、较早 epoch、最后 W-KV0。若 8 个候选均不 eligible，必须 `selected=null` 并收口为
+`complete-model-val-protocol-valid-negative`；不得选择“最不坏”checkpoint。
+
+成功 output 只能包含冻结的 11 个 selection artifacts、`selection_receipt.json` 与 `phase_state.json`。公开
+`verify` 接口只接 config、Phase A freeze 和 Phase B output，不接 privileged input；其
+`label_bundle_reopen_count_for_verification` 必须为零。无论 selected 非空或 null，verifier 都必须重算 8 个
+loss、9900-row scoring、CONTROL 排除、selection 和 exact 13-file tree。
+
+以下任一条件立即停止并按是否已打开 label 分类：
+
+- Phase A/source/TRAIN/checkpoint/input identity 或 exact tree 漂移；
+- privileged staging 的 role、100/1100、inventory、freeze/source binding 或零-open receipt 漂移；
+- label 在 `phase_state` 或完整 Phase A preflight 前打开，或打开数不等于 100；
+- Phase B API 接触 model/checkpoint/RGB/deployable Dataset，或 CONTROL 被用于 loss/selection；
+- 8 loss、288 loss-evidence rows、8800/1100/9900 scoring count、逐行 prediction binding 或 frozen UV override
+  漂移；
+- selection 不符合冻结 eligibility/ranking，或 zero-eligible 时 selected 非 null；
+- test、calibration、qualification、Memory、runtime 或 actuator 任一禁止计数非零；
+- consumed 后异常未写 `consumed_failure.json`，或 verifier 非零退出。
+
+精确 GO 文句为：
+
+> GO — 工程 Agent 可以在美国 RTX 6000 Ada worker 上，以 detached exact-clean
+> `5bf05da5a22a07b8fabfc22b1f32da86fce40ba1` 和 formal identity
+> `95b0fb26db8585decb9488ce0086ef1f9f6c8bc2a6496797e3d9681b89f2af05`，先在全新目录执行
+> `prepare-model-val-privileged-input`；在其 full-byte verifier、Phase A Drive verification 和全部 preflight
+> 通过后，只在另一个全新目录执行一次 `score-select`，随后运行不接 label path 的只读 verifier。除此之外
+> 全部 HOLD。
+
+本 GO 只有在包含 D043 的 docs-only commit 提交并推送，且工程 Agent 在消息边界确认 Phase A/privileged
+identity、one-shot/consumed-failure 和后续 HOLD 后才生效。D043 docs commit 不是 execution source。
+
+Phase B 若 selected 非空，只允许声明“一个 checkpoint 按冻结 model-validation rule 被选中，可进入独立
+calibration Gate”；若 selected 为 null，只允许声明当前 W-KV0/S 路线是 protocol-valid model-selection
+negative，并建立新的 provider Experiment ID。两种结果都不证明 provider qualification、Active 优于 Passive、
+Memory 收益、闭环或 actuator 安全。
+
+calibration、qualification、fresh test、Object Memory、active-loop integration、canonical runtime、相机/机械臂/
+夹爪 actuator 全部继续 HOLD。Phase B 完成后必须先由 Decision Agent 独立 R2；单条候选路线负结果不会终止
+E018 的其余工作，但不能绕过 provider qualification 启动 Stage 3。
+
+**Reason:**
+
+Phase A 已在 label 不可达时冻结全部候选输出，Phase B 因而可以只对不可变预测做一次 privileged scoring，既
+计算真实 model-validation 指标，又阻断“看结果后重跑模型或改候选池”的反馈。先写消费状态、失败即永久
+收口、公开 verifier 不重开 label，使正结果与负结果具有相同审计强度。
+
+**Alternatives considered:**
+
+- score-select 失败后在同 identity 重跑：首次 label open 已消费 validation，拒绝。
+- 先看部分 viewpoint/候选再决定是否继续：形成顺序选择偏差，拒绝。
+- 用 CONTROL validation loss 或加入排名：CONTROL 只量化 domain gap，拒绝。
+- zero eligible 时选择最低 p90：违反预注册安全门槛，拒绝。
+
+**Implementation status:** D042 Phase A 已通过 R2；等待 D043 docs commit/push、Phase A Drive verification 与
+工程确认后执行一次性 Phase B。后续全部 HOLD。
 
 **Status:** active
 

@@ -1,11 +1,11 @@
 # E018-P1-G2C Front Provider Adaptation 实验计划书
 
-> 状态：`formal-train-pass / phase-a-go / phase-b-hold / development-only`
+> 状态：`phase-a-pass / phase-b-one-shot-go / calibration-hold / development-only`
 > 日期：2026-09-05
 > Experiment ID：`E018-P1-G2C-FRONT-PROVIDER-ADAPTATION-DEVELOPMENT/v1`
 > Data identity：`E018-P1-G2C-DATA/v1`
 > Train identity：`E018-P1-G2C-TRAIN/v1`
-> Decision Gate：[`D036`、`D037`、`D038`、`D039`、`D040`、`D041`、`D042`](decisions.md)
+> Decision Gate：[`D036`、`D037`、`D038`、`D039`、`D040`、`D041`、`D042`、`D043`](decisions.md)
 > 上位计划：[`E018-P1 三阶段主动视觉闭环`](e018_p1_three_stage_active_vision_closed_loop_plan.md)
 
 > 2026-09-05 DATA Gate：`E018-P1-G2C-DATA/v1` 已通过独立 verifier 与 R2，接受为 canonical
@@ -40,6 +40,13 @@
 > diagnostic CONTROL ledger（9900 rows）与 280 个 candidate loss-output shards；privileged label open 必须为
 > 0。Phase A 不计算 validation loss、不做 eligibility/ranking；Phase B、calibration、qualification、fresh test、
 > Memory、closed-loop 和 actuator 继续 HOLD。
+
+> 2026-09-05 Phase B Gate：D042 Phase A 已通过 independent verifier/R2，freeze raw/internal 为
+> `6ed7a880c41abbfc4bda3865f609a739d31be9be74538fdd782e59dc5b1cb7fd` /
+> `e9afee15af889b769000c168c90b4f251d63e67da0e5ef2736ed50df38ea7ac2`。D043 只允许准备 100 个
+> privileged bundles，并在 `phase_state` 落盘后一次性打开 100 个 label arrays 做 score/select；同 identity
+> 失败不得重跑。公开 verifier 不接 label path、label reopen=0。calibration、qualification、fresh test、Memory、
+> active loop、canonical runtime 和 actuator 继续 HOLD。
 
 本实验是 E018 Stage 2 的上游 provider 资格实验。它只回答“受限动态 front 视角是否能产生可部署语义的
 object measurement”，不评价 Active 相对 Passive 的任务收益，也不授予 canonical runtime、机械臂、夹爪、
