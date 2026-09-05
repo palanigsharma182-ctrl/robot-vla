@@ -290,8 +290,8 @@ def select_g2c_checkpoint(
     candidates = []
     for candidate, epoch in sorted(expected_candidates):
         loss = float(validation_losses[(candidate, epoch)])
-        if not math.isfinite(loss) or loss < 0.0:
-            raise ValueError("G2C validation loss 必须有限非负")
+        if not math.isfinite(loss):
+            raise ValueError("G2C validation loss 必须有限")
         summaries = [
             summarize_g2c_model_val_view(
                 grouped.get((candidate, epoch, viewpoint), []),

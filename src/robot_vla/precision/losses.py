@@ -123,8 +123,14 @@ def precision_unet_loss(
     output: PrecisionUNetOutput,
     target: PrecisionSupervision,
     config: PrecisionLossConfig | None = None,
+    *,
+    frozen_decoded_normalized_uv: torch.Tensor | None = None,
 ) -> PrecisionLoss:
-    """计算定位、受限 residual 与不确定性损失；不读取历史 Expert Action。"""
+    """计算定位、受限 residual 与不确定性损失；不读取历史 Expert Action。
+
+    ``frozen_decoded_normalized_uv`` 只供 prediction-freeze 后的无梯度评分重算。
+    默认 ``None`` 时仍由 heatmap/subpixel offset 原路径解码，训练语义不变。
+    """
 
     loss_config = config or PrecisionLossConfig()
     batch_size, keypoint_count, height, width = output.heatmap_logits.shape
@@ -220,9 +226,32 @@ def precision_unet_loss(
     )
     mask_loss = mask_bce + loss_config.mask_dice_weight * mask_dice.mean()
 
-    decoded = output.decode_keypoints(temperature=loss_config.keypoint_temperature)
+    if frozen_decoded_normalized_uv is None:
+        decoded_normalized_uv = output.decode_keypoints(
+            temperature=loss_config.keypoint_temperature
+        ).normalized_uv
+    else:
+        expected_decoded = (batch_size, keypoint_count, 2)
+        if (
+            not isinstance(frozen_decoded_normalized_uv, torch.Tensor)
+            or tuple(frozen_decoded_normalized_uv.shape) != expected_decoded
+            or frozen_decoded_normalized_uv.dtype != torch.float32
+            or not torch.isfinite(frozen_decoded_normalized_uv).all()
+        ):
+            raise ValueError(
+                "frozen_decoded_normalized_uv 必须是有限 float32 [B,K,2] Tensor"
+            )
+        if torch.any(frozen_decoded_normalized_uv < 0.0) or torch.any(
+            frozen_decoded_normalized_uv > 1.0
+        ):
+            raise ValueError("frozen_decoded_normalized_uv 必须位于 [0,1]")
+        if torch.is_grad_enabled():
+            raise RuntimeError(
+                "frozen_decoded_normalized_uv 只允许用于无梯度冻结输出评分"
+            )
+        decoded_normalized_uv = frozen_decoded_normalized_uv
     coordinate_error = F.smooth_l1_loss(
-        decoded.normalized_uv,
+        decoded_normalized_uv,
         target.normalized_uv_targets.float(),
         reduction="none",
     ).mean(dim=-1)
@@ -236,7 +265,7 @@ def precision_unet_loss(
     motion_loss = _masked_mean(motion_error, target.motion_valid)
 
     keypoint_squared_error = (
-        decoded.normalized_uv - target.normalized_uv_targets.float()
+        decoded_normalized_uv - target.normalized_uv_targets.float()
     ).square()
     keypoint_nll = 0.5 * (
         keypoint_squared_error * torch.exp(-output.keypoint_log_variance)
