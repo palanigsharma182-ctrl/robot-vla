@@ -10,6 +10,7 @@ import platform
 import subprocess
 import tempfile
 from pathlib import Path
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
 import numpy as np
@@ -254,8 +255,7 @@ def load_e018_p1_g0_config(path: str | Path) -> dict[str, Any]:
         library["version"] != E018_P1_G0_VIEWPOINT_LIBRARY_VERSION
         or library["status"] != "provisional-development-not-frozen"
         or library["pose_frame"] != "world"
-        or library["orientation_policy"]
-        != "fixed-workspace-look-at-yaw-pitch-roll-zero/v1"
+        or library["orientation_policy"] != "fixed-workspace-look-at-yaw-pitch-roll-zero/v1"
         or library["route_policy"] != "HOME_TO_ONE_ALTERNATE_TO_HOME/v1"
         or library["look_at_up_world"] != [0.0, 0.0, 1.0]
     ):
@@ -410,9 +410,7 @@ def load_e018_p1_g0_config(path: str | Path) -> dict[str, Any]:
 def _source_identity(repository_root: Path) -> dict[str, Any]:
     safe_repository = str(repository_root.resolve())
     git = ("git", "-c", f"safe.directory={safe_repository}")
-    hashes = {
-        relative: _file_sha256(repository_root / relative) for relative in _SOURCE_FILES
-    }
+    hashes = {relative: _file_sha256(repository_root / relative) for relative in _SOURCE_FILES}
     commit = subprocess.run(
         [*git, "rev-parse", "HEAD"],
         cwd=repository_root,
@@ -473,6 +471,238 @@ def _gate(actual: Any, required: str, passed: bool) -> dict[str, Any]:
     return {"actual": actual, "required": required, "passed": bool(passed)}
 
 
+def recompute_route_gates(
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    config: Mapping[str, Any],
+    home_position_world_m: Sequence[float],
+    home_quaternion_sapien: Sequence[float],
+    alternate_orientation_id: str,
+    requested_orientation_offset_rad: float,
+    actual_orientation_offset_rad: float,
+    alternate_target_orientation_error_rad: float,
+    alternate_rgb_mean_abs_difference: float,
+    return_home_rgb_mean_abs_difference: float,
+) -> dict[str, dict[str, Any]]:
+    """从 route ledger 与显式 RGB 证据重算 G0/G0C 的完整门禁。
+
+    RGB 均值差仍来自运行期原始像素；其余运动、安全与状态门禁只依赖逐帧
+    ledger 和冻结 config。函数不读取仿真器，也不修改输入，供 runner 与公开
+    verifier 共用。
+    """
+
+    if not rows:
+        raise ValueError("G0 route rows 不能为空")
+    environment = config["environment"]
+    motion = config["motion"]
+    safety = config["safety"]
+    control_period = 1.0 / float(environment["control_hz"])
+    move_steps = round(float(motion["move_duration_s"]) * environment["control_hz"])
+    collect_rows = [
+        row for row in rows if row["camera_motion_state"] == ExternalCameraMotionState.COLLECT.value
+    ]
+    non_collect_rows = [
+        row for row in rows if row["camera_motion_state"] != ExternalCameraMotionState.COLLECT.value
+    ]
+    if not collect_rows:
+        raise ValueError("G0 route 缺少 COLLECT rows")
+
+    home_position = np.asarray(home_position_world_m, dtype=np.float64)
+    home_quaternion = np.asarray(home_quaternion_sapien, dtype=np.float64)
+    initial_position = np.asarray(rows[0]["actual_external_position_world_m"], dtype=np.float64)
+    alternate_actual_position = np.asarray(
+        collect_rows[-1]["actual_external_position_world_m"], dtype=np.float64
+    )
+    final_position = np.asarray(rows[-1]["actual_external_position_world_m"], dtype=np.float64)
+    actual_displacement = float(np.linalg.norm(alternate_actual_position - initial_position))
+    final_home_position_error = float(np.linalg.norm(final_position - home_position))
+    final_home_orientation_error = quaternion_angular_distance_rad(
+        rows[-1]["actual_external_quaternion_sapien"],
+        home_quaternion,
+    )
+    max_position_tracking = max(float(row["external_position_tracking_error_m"]) for row in rows)
+    max_orientation_tracking = max(
+        float(row["external_orientation_tracking_error_rad"]) for row in rows
+    )
+    max_linear_speed = max(float(row["external_linear_speed_m_s"]) for row in rows)
+    max_linear_acceleration = max(float(row["external_linear_acceleration_m_s2"]) for row in rows)
+    max_angular_speed = max(float(row["external_angular_speed_rad_s"]) for row in rows)
+    max_angular_acceleration = max(
+        float(row["external_angular_acceleration_rad_s2"]) for row in rows
+    )
+    max_arm_drift = max(float(row["arm_joint_max_drift_rad"]) for row in rows)
+    max_tcp_position_drift = max(float(row["tcp_position_drift_m"]) for row in rows)
+    max_tcp_orientation_drift = max(float(row["tcp_orientation_drift_rad"]) for row in rows)
+    minimum_finger_position = min(float(row["minimum_finger_joint_position_m"]) for row in rows)
+    max_finger_contact = max(float(row["finger_object_contact_force_n"]) for row in rows)
+    motion_or_unsettled_write_eligible_count = sum(
+        bool(row["measurement_write_eligible"]) for row in non_collect_rows
+    )
+    memory_write_count = sum(bool(row["memory_write_executed"]) for row in rows)
+    terminated_or_truncated_count = sum(bool(row["terminated"] or row["truncated"]) for row in rows)
+    collect_all_settled = all(
+        bool(row["settled"] and row["measurement_write_eligible"]) for row in collect_rows
+    )
+    dynamic_pose_count = len(
+        {
+            tuple(round(float(value), 8) for value in row["actual_external_position_world_m"])
+            for row in rows
+        }
+    )
+
+    return {
+        "nonzero_time_camera_motion": _gate(
+            {
+                "move_ticks_each_leg": move_steps,
+                "move_duration_s_each_leg": move_steps * control_period,
+            },
+            "move_ticks_each_leg > 1 and duration > 0",
+            move_steps > 1 and move_steps * control_period > 0.0,
+        ),
+        "actual_dynamic_pose_observed": _gate(
+            {
+                "unique_actual_positions": dynamic_pose_count,
+                "alternate_displacement_m": actual_displacement,
+            },
+            "unique_actual_positions > 2 and displacement > 0.10 m",
+            dynamic_pose_count > 2 and actual_displacement > 0.10,
+        ),
+        "alternate_orientation_target_reached": _gate(
+            {
+                "orientation_id": alternate_orientation_id,
+                "requested_offset_rad": float(requested_orientation_offset_rad),
+                "actual_offset_rad": float(actual_orientation_offset_rad),
+                "target_error_rad": float(alternate_target_orientation_error_rad),
+            },
+            (
+                "actual endpoint matches nominal look-at plus registered local offset; "
+                f"error <= {safety['camera_orientation_tracking_tolerance_rad']} rad"
+            ),
+            float(alternate_target_orientation_error_rad)
+            <= safety["camera_orientation_tracking_tolerance_rad"],
+        ),
+        "commanded_actual_tracking": _gate(
+            {
+                "max_position_error_m": max_position_tracking,
+                "max_orientation_error_rad": max_orientation_tracking,
+            },
+            (
+                f"position <= {safety['camera_position_tracking_tolerance_m']} m; "
+                f"orientation <= {safety['camera_orientation_tracking_tolerance_rad']} rad"
+            ),
+            max_position_tracking <= safety["camera_position_tracking_tolerance_m"]
+            and max_orientation_tracking <= safety["camera_orientation_tracking_tolerance_rad"],
+        ),
+        "camera_velocity_limits": _gate(
+            {
+                "max_linear_velocity_m_s": max_linear_speed,
+                "max_angular_velocity_rad_s": max_angular_speed,
+            },
+            (
+                f"linear <= {motion['max_linear_velocity_m_s']} m/s; "
+                f"angular <= {motion['max_angular_velocity_rad_s']} rad/s"
+            ),
+            max_linear_speed <= motion["max_linear_velocity_m_s"]
+            and max_angular_speed <= motion["max_angular_velocity_rad_s"],
+        ),
+        "camera_acceleration_limits": _gate(
+            {
+                "max_linear_acceleration_m_s2": max_linear_acceleration,
+                "max_angular_acceleration_rad_s2": max_angular_acceleration,
+            },
+            (
+                f"linear <= {motion['max_linear_acceleration_m_s2']} m/s^2; "
+                f"angular <= {motion['max_angular_acceleration_rad_s2']} rad/s^2"
+            ),
+            max_linear_acceleration <= motion["max_linear_acceleration_m_s2"]
+            and max_angular_acceleration <= motion["max_angular_acceleration_rad_s2"],
+        ),
+        "settled_collection_window": _gate(
+            {
+                "collect_frames": len(collect_rows),
+                "eligible_collect_frames": sum(
+                    bool(row["measurement_write_eligible"]) for row in collect_rows
+                ),
+            },
+            f"all {motion['collect_ticks']} collect frames settled and eligible",
+            len(collect_rows) == motion["collect_ticks"] and collect_all_settled,
+        ),
+        "return_home_pose": _gate(
+            {
+                "position_error_m": final_home_position_error,
+                "orientation_error_rad": final_home_orientation_error,
+                "final_settled": rows[-1]["settled"],
+            },
+            (
+                f"position <= {safety['home_position_tolerance_m']} m; orientation <= "
+                f"{safety['home_orientation_tolerance_rad']} rad; settled"
+            ),
+            final_home_position_error <= safety["home_position_tolerance_m"]
+            and final_home_orientation_error <= safety["home_orientation_tolerance_rad"]
+            and bool(rows[-1]["settled"]),
+        ),
+        "rendered_view_changed": _gate(
+            float(alternate_rgb_mean_abs_difference),
+            f">= {safety['minimum_alternate_rgb_mean_abs_difference']} mean |RGB diff|",
+            float(alternate_rgb_mean_abs_difference)
+            >= safety["minimum_alternate_rgb_mean_abs_difference"],
+        ),
+        "return_home_render_recovered": _gate(
+            float(return_home_rgb_mean_abs_difference),
+            f"<= {safety['maximum_return_home_rgb_mean_abs_difference']} mean |RGB diff|",
+            float(return_home_rgb_mean_abs_difference)
+            <= safety["maximum_return_home_rgb_mean_abs_difference"],
+        ),
+        "arm_joint_hold": _gate(
+            max_arm_drift,
+            f"<= {safety['arm_joint_drift_max_rad']} rad",
+            max_arm_drift <= safety["arm_joint_drift_max_rad"],
+        ),
+        "tcp_hold": _gate(
+            {
+                "max_position_drift_m": max_tcp_position_drift,
+                "max_orientation_drift_rad": max_tcp_orientation_drift,
+            },
+            (
+                f"position <= {safety['tcp_position_drift_max_m']} m; orientation <= "
+                f"{safety['tcp_orientation_drift_max_rad']} rad"
+            ),
+            max_tcp_position_drift <= safety["tcp_position_drift_max_m"]
+            and max_tcp_orientation_drift <= safety["tcp_orientation_drift_max_rad"],
+        ),
+        "gripper_safe_hold_open": _gate(
+            minimum_finger_position,
+            f">= {safety['minimum_open_finger_joint_position_m']} m",
+            minimum_finger_position >= safety["minimum_open_finger_joint_position_m"],
+        ),
+        "unexpected_contact_absent": _gate(
+            max_finger_contact,
+            f"<= {safety['unexpected_finger_contact_max_n']} N",
+            max_finger_contact <= safety["unexpected_finger_contact_max_n"],
+        ),
+        "non_collect_frame_write_invalidation": _gate(
+            motion_or_unsettled_write_eligible_count,
+            "0 non-COLLECT frames eligible",
+            motion_or_unsettled_write_eligible_count == 0,
+        ),
+        "memory_write_disabled": _gate(
+            memory_write_count,
+            "0 writes",
+            memory_write_count == 0,
+        ),
+        "episode_remained_nonterminal": _gate(
+            terminated_or_truncated_count,
+            "0 terminated/truncated frames",
+            terminated_or_truncated_count == 0,
+        ),
+        "runtime_gt_control_dependency_absent": _gate(
+            0,
+            "0; segmentation is post-command offline diagnostic only",
+            True,
+        ),
+    }
+
+
 def _set_camera_pose(
     camera: Any,
     viewpoint: FrontCameraViewpoint,
@@ -521,6 +751,94 @@ def _read_finger_contact_force_n(base_env: Any) -> float:
     return float(max(np.linalg.norm(left), np.linalg.norm(right)))
 
 
+def _read_robot_object_contact_witness(
+    base_env: Any,
+) -> tuple[float, list[dict[str, Any]]]:
+    """读取全 robot-link 对 object 的接触力；仅供显式 qualification witness。"""
+
+    witnesses: list[dict[str, Any]] = []
+    maximum = 0.0
+    for link in base_env.agent.robot.links:
+        force = _numpy(base_env.scene.get_pairwise_contact_forces(link, base_env.cube))
+        if force.shape != (1, 3) or not np.isfinite(force).all():
+            raise RuntimeError("G0 robot-object contact force schema 漂移")
+        vector = np.asarray(force[0], dtype=np.float64)
+        magnitude = float(np.linalg.norm(vector))
+        maximum = max(maximum, magnitude)
+        witnesses.append(
+            {
+                "link_name": str(link.name),
+                "force_xyz_n": vector.tolist(),
+                "force_magnitude_n": magnitude,
+            }
+        )
+    return maximum, witnesses
+
+
+def _offline_actor_ids(
+    base_env: Any,
+    *,
+    enabled: bool,
+) -> tuple[int | None, int | None]:
+    """只在显式 offline diagnostic 路径读取 privileged actor id。"""
+
+    if not enabled:
+        return None, None
+    return (
+        int(_numpy(base_env.cube.per_scene_id).reshape(-1)[0]),
+        int(_numpy(base_env.goal_site.per_scene_id).reshape(-1)[0]),
+    )
+
+
+def _offline_segmentation_diagnostics(
+    sensor: Any,
+    *,
+    enabled: bool,
+    object_actor_id: int | None,
+    goal_actor_id: int | None,
+) -> dict[str, Any] | None:
+    """隔离 oracle-only segmentation；disabled 分支不索引 sensor。"""
+
+    if not enabled:
+        return None
+    if object_actor_id is None or goal_actor_id is None:
+        raise RuntimeError("G0 offline segmentation diagnostics 缺 actor id")
+    segmentation = _numpy(sensor["segmentation"])
+    if segmentation.ndim != 4 or segmentation.shape[0] != 1:
+        raise RuntimeError("G0 external segmentation 必须是 [1,H,W,C]")
+    actor_ids = segmentation[0, ..., 0]
+    return {
+        "oracle_only": True,
+        "used_by_runtime_control": False,
+        "object_visible_pixel_count": int(np.count_nonzero(actor_ids == object_actor_id)),
+        "goal_visible_pixel_count": int(np.count_nonzero(actor_ids == goal_actor_id)),
+    }
+
+
+def _raw_safety_witness_fields(
+    *,
+    enabled: bool,
+    arm_anchor_q_rad: np.ndarray,
+    arm_current_q_rad: np.ndarray,
+    tcp_anchor_world: np.ndarray,
+    tcp_current_world: np.ndarray,
+    world_from_robot_base: np.ndarray,
+    finger_joint_positions_m: np.ndarray,
+) -> dict[str, Any]:
+    """qualification-only raw witness；默认关闭时返回严格空字典。"""
+
+    if not enabled:
+        return {}
+    return {
+        "arm_anchor_q_rad": np.asarray(arm_anchor_q_rad, dtype=np.float64).tolist(),
+        "arm_current_q_rad": np.asarray(arm_current_q_rad, dtype=np.float64).tolist(),
+        "tcp_anchor_world": np.asarray(tcp_anchor_world, dtype=np.float64).tolist(),
+        "tcp_current_world": np.asarray(tcp_current_world, dtype=np.float64).tolist(),
+        "world_from_robot_base": np.asarray(world_from_robot_base, dtype=np.float64).tolist(),
+        "finger_joint_positions_m": np.asarray(finger_joint_positions_m, dtype=np.float64).tolist(),
+    }
+
+
 def _record_frame(
     *,
     episode_id: str,
@@ -547,11 +865,12 @@ def _record_frame(
     previous_angular_speed_rad_s: float | None,
     control_period_s: float,
     config: dict[str, Any],
-    object_actor_id: int,
-    goal_actor_id: int,
+    object_actor_id: int | None,
+    goal_actor_id: int | None,
     result_version: str,
     source_phase: str,
     camera_owner: str,
+    include_raw_safety_witnesses: bool,
 ) -> tuple[
     dict[str, Any],
     np.ndarray,
@@ -594,15 +913,16 @@ def _record_frame(
         linear_velocity = np.zeros(3, dtype=np.float64)
         angular_speed = 0.0
     else:
-        linear_velocity = (
-            actual_position - previous_camera_position_world_m
-        ) / control_period_s
+        linear_velocity = (actual_position - previous_camera_position_world_m) / control_period_s
         if previous_camera_quaternion is None:
             raise RuntimeError("G0 previous camera quaternion 缺失")
-        angular_speed = quaternion_angular_distance_rad(
-            previous_camera_quaternion,
-            actual_quaternion,
-        ) / control_period_s
+        angular_speed = (
+            quaternion_angular_distance_rad(
+                previous_camera_quaternion,
+                actual_quaternion,
+            )
+            / control_period_s
+        )
     if previous_linear_velocity_m_s is None:
         linear_acceleration = 0.0
     else:
@@ -626,36 +946,33 @@ def _record_frame(
     if arm_q.shape != (9,):
         raise RuntimeError(f"G0 Panda qpos 必须是 [9]，实际 {arm_q.shape}")
     tcp_world = _single_matrix(base_env.agent.tcp_pose, "actual_world_from_tcp")
-    tcp_position_drift = float(
-        np.linalg.norm(tcp_world[:3, 3] - tcp_anchor_world[:3, 3])
-    )
+    tcp_position_drift = float(np.linalg.norm(tcp_world[:3, 3] - tcp_anchor_world[:3, 3]))
     tcp_orientation_drift = rotation_angular_distance_rad(
         tcp_anchor_world[:3, :3],
         tcp_world[:3, :3],
     )
     finger_contact_force = _read_finger_contact_force_n(base_env)
+    robot_object_contact_force = None
+    robot_object_contact_witness = None
+    if include_raw_safety_witnesses:
+        (
+            robot_object_contact_force,
+            robot_object_contact_witness,
+        ) = _read_robot_object_contact_witness(base_env)
     is_grasping = _single_bool(base_env.agent.is_grasping(base_env.cube))
 
-    segmentation = _numpy(sensor["segmentation"])
-    if segmentation.ndim != 4 or segmentation.shape[0] != 1:
-        raise RuntimeError("G0 external segmentation 必须是 [1,H,W,C]")
-    actor_ids = segmentation[0, ..., 0]
-    offline_diagnostics = None
-    if config["experiment"]["offline_segmentation_diagnostics"]:
-        # 只在命令与观测已经产生后计算，不进入相机轨迹、settle 或 safety 决策。
-        offline_diagnostics = {
-            "oracle_only": True,
-            "used_by_runtime_control": False,
-            "object_visible_pixel_count": int(np.count_nonzero(actor_ids == object_actor_id)),
-            "goal_visible_pixel_count": int(np.count_nonzero(actor_ids == goal_actor_id)),
-        }
+    offline_diagnostics = _offline_segmentation_diagnostics(
+        sensor,
+        enabled=config["experiment"]["offline_segmentation_diagnostics"],
+        object_actor_id=object_actor_id,
+        goal_actor_id=goal_actor_id,
+    )
 
     linear_speed = float(np.linalg.norm(linear_velocity))
     safety = config["safety"]
     settle_evidence = bool(
         position_tracking_error <= safety["camera_position_tracking_tolerance_m"]
-        and orientation_tracking_error
-        <= safety["camera_orientation_tracking_tolerance_rad"]
+        and orientation_tracking_error <= safety["camera_orientation_tracking_tolerance_rad"]
         and linear_speed <= safety["settled_linear_velocity_max_m_s"]
         and angular_speed <= safety["settled_angular_velocity_max_rad_s"]
     )
@@ -717,6 +1034,24 @@ def _record_frame(
         "rgb_sha256": hashlib.sha256(rgb.tobytes()).hexdigest(),
         "offline_segmentation_diagnostics": offline_diagnostics,
     }
+    row.update(
+        _raw_safety_witness_fields(
+            enabled=include_raw_safety_witnesses,
+            arm_anchor_q_rad=arm_anchor_q_rad,
+            arm_current_q_rad=arm_q[:7],
+            tcp_anchor_world=tcp_anchor_world,
+            tcp_current_world=tcp_world,
+            world_from_robot_base=world_from_base,
+            finger_joint_positions_m=arm_q[7:],
+        )
+    )
+    if include_raw_safety_witnesses:
+        row.update(
+            {
+                "robot_object_contact_force_n": robot_object_contact_force,
+                "robot_object_contact_by_link": robot_object_contact_witness,
+            }
+        )
     return (
         row,
         rgb,
@@ -752,6 +1087,8 @@ def _run_route(
     episode_prefix: str = "g0",
     source_phase: str = "G0_FEASIBILITY_NO_EXECUTIVE_PHASE",
     camera_owner: str = "ACTIVE_REOBSERVE_G0_PROBE",
+    frame_hook: Callable[[dict[str, Any], np.ndarray, dict[str, Any]], None] | None = None,
+    include_raw_safety_witnesses: bool = False,
 ) -> tuple[list[dict[str, Any]], dict[str, Any], dict[str, np.ndarray]]:
     environment = config["environment"]
     motion = config["motion"]
@@ -778,8 +1115,7 @@ def _run_route(
         )
 
     episode_id = (
-        f"{episode_prefix}-seed-{seed:06d}-"
-        f"{alternate.viewpoint_id.lower().replace('_', '-')}"
+        f"{episode_prefix}-seed-{seed:06d}-" f"{alternate.viewpoint_id.lower().replace('_', '-')}"
     )
     request_id = f"{episode_id}-request-00"
     command_sequence_id = f"{episode_id}-camera-sequence-00"
@@ -815,8 +1151,10 @@ def _run_route(
     arm_q = _numpy(base_env.agent.robot.get_qpos())[0]
     arm_anchor_q = np.asarray(arm_q[:7], dtype=np.float64).copy()
     tcp_anchor = _single_matrix(base_env.agent.tcp_pose, "anchor_world_from_tcp")
-    object_actor_id = int(_numpy(base_env.cube.per_scene_id).reshape(-1)[0])
-    goal_actor_id = int(_numpy(base_env.goal_site.per_scene_id).reshape(-1)[0])
+    object_actor_id, goal_actor_id = _offline_actor_ids(
+        base_env,
+        enabled=config["experiment"]["offline_segmentation_diagnostics"],
+    )
 
     rows: list[dict[str, Any]] = []
     images: dict[str, np.ndarray] = {}
@@ -876,6 +1214,7 @@ def _run_route(
             result_version=result_version,
             source_phase=source_phase,
             camera_owner=camera_owner,
+            include_raw_safety_witnesses=include_raw_safety_witnesses,
         )
         row, rgb, position, quaternion, linear_velocity, angular_speed = result
         stationary_state = state in {
@@ -891,14 +1230,14 @@ def _run_route(
         else:
             settle_streak = 0
         row["settle_streak"] = settle_streak
-        row["settled"] = bool(
-            settle_streak >= safety["required_consecutive_settled_ticks"]
-        )
+        row["settled"] = bool(settle_streak >= safety["required_consecutive_settled_ticks"])
         row["measurement_write_eligible"] = measurement_write_eligible(
             state,
             settled=row["settled"],
         )
         rows.append(row)
+        if frame_hook is not None:
+            frame_hook(row, rgb, current_observation)
         previous_position = position
         previous_quaternion = quaternion
         previous_linear_velocity = linear_velocity
@@ -1075,27 +1414,19 @@ def _run_route(
     collect_rows = [
         row for row in rows if row["camera_motion_state"] == ExternalCameraMotionState.COLLECT.value
     ]
-    non_collect_rows = [
-        row for row in rows if row["camera_motion_state"] != ExternalCameraMotionState.COLLECT.value
-    ]
     alternate_diff = float(
         np.mean(
-            np.abs(images["alternate"].astype(np.float64) - images["home_before"].astype(np.float64))
+            np.abs(
+                images["alternate"].astype(np.float64) - images["home_before"].astype(np.float64)
+            )
         )
     )
     return_diff = float(
         np.mean(
-            np.abs(images["home_after"].astype(np.float64) - images["home_before"].astype(np.float64))
+            np.abs(
+                images["home_after"].astype(np.float64) - images["home_before"].astype(np.float64)
+            )
         )
-    )
-    initial_position = np.asarray(rows[0]["actual_external_position_world_m"])
-    alternate_actual_position = np.asarray(collect_rows[-1]["actual_external_position_world_m"])
-    final_position = np.asarray(rows[-1]["actual_external_position_world_m"])
-    actual_displacement = float(np.linalg.norm(alternate_actual_position - initial_position))
-    final_home_position_error = float(np.linalg.norm(final_position - home_position))
-    final_home_orientation_error = quaternion_angular_distance_rad(
-        rows[-1]["actual_external_quaternion_sapien"],
-        home_quaternion,
     )
     alternate_nominal_pose = sapien_utils_module.look_at(
         alternate_position,
@@ -1127,191 +1458,21 @@ def _run_route(
         alternate_target_quaternion,
         alternate_actual_quaternion,
     )
-    max_position_tracking = max(row["external_position_tracking_error_m"] for row in rows)
-    max_orientation_tracking = max(
-        row["external_orientation_tracking_error_rad"] for row in rows
+    gates = recompute_route_gates(
+        rows,
+        config=config,
+        home_position_world_m=home_position,
+        home_quaternion_sapien=home_quaternion,
+        alternate_orientation_id=target_orientation.orientation_id,
+        requested_orientation_offset_rad=requested_orientation_offset,
+        actual_orientation_offset_rad=actual_orientation_offset,
+        alternate_target_orientation_error_rad=alternate_target_orientation_error,
+        alternate_rgb_mean_abs_difference=alternate_diff,
+        return_home_rgb_mean_abs_difference=return_diff,
     )
-    max_linear_speed = max(row["external_linear_speed_m_s"] for row in rows)
-    max_linear_acceleration = max(
-        row["external_linear_acceleration_m_s2"] for row in rows
-    )
-    max_angular_speed = max(row["external_angular_speed_rad_s"] for row in rows)
-    max_angular_acceleration = max(
-        row["external_angular_acceleration_rad_s2"] for row in rows
-    )
-    max_arm_drift = max(row["arm_joint_max_drift_rad"] for row in rows)
-    max_tcp_position_drift = max(row["tcp_position_drift_m"] for row in rows)
-    max_tcp_orientation_drift = max(row["tcp_orientation_drift_rad"] for row in rows)
-    minimum_finger_position = min(row["minimum_finger_joint_position_m"] for row in rows)
-    max_finger_contact = max(row["finger_object_contact_force_n"] for row in rows)
-    motion_or_unsettled_write_eligible_count = sum(
-        bool(row["measurement_write_eligible"]) for row in non_collect_rows
-    )
-    memory_write_count = sum(bool(row["memory_write_executed"]) for row in rows)
-    terminated_or_truncated_count = sum(
-        bool(row["terminated"] or row["truncated"]) for row in rows
-    )
-    collect_all_settled = bool(collect_rows) and all(
-        bool(row["settled"] and row["measurement_write_eligible"])
-        for row in collect_rows
-    )
-    dynamic_pose_count = len(
-        {
-            tuple(round(value, 8) for value in row["actual_external_position_world_m"])
-            for row in rows
-        }
-    )
-
-    gates = {
-        "nonzero_time_camera_motion": _gate(
-            {
-                "move_ticks_each_leg": move_steps,
-                "move_duration_s_each_leg": move_steps * control_period,
-            },
-            "move_ticks_each_leg > 1 and duration > 0",
-            move_steps > 1 and move_steps * control_period > 0.0,
-        ),
-        "actual_dynamic_pose_observed": _gate(
-            {
-                "unique_actual_positions": dynamic_pose_count,
-                "alternate_displacement_m": actual_displacement,
-            },
-            "unique_actual_positions > 2 and displacement > 0.10 m",
-            dynamic_pose_count > 2 and actual_displacement > 0.10,
-        ),
-        "alternate_orientation_target_reached": _gate(
-            {
-                "orientation_id": target_orientation.orientation_id,
-                "requested_offset_rad": requested_orientation_offset,
-                "actual_offset_rad": actual_orientation_offset,
-                "target_error_rad": alternate_target_orientation_error,
-            },
-            (
-                "actual endpoint matches nominal look-at plus registered local offset; "
-                f"error <= {safety['camera_orientation_tracking_tolerance_rad']} rad"
-            ),
-            alternate_target_orientation_error
-            <= safety["camera_orientation_tracking_tolerance_rad"],
-        ),
-        "commanded_actual_tracking": _gate(
-            {
-                "max_position_error_m": max_position_tracking,
-                "max_orientation_error_rad": max_orientation_tracking,
-            },
-            (
-                f"position <= {safety['camera_position_tracking_tolerance_m']} m; "
-                f"orientation <= {safety['camera_orientation_tracking_tolerance_rad']} rad"
-            ),
-            max_position_tracking <= safety["camera_position_tracking_tolerance_m"]
-            and max_orientation_tracking
-            <= safety["camera_orientation_tracking_tolerance_rad"],
-        ),
-        "camera_velocity_limits": _gate(
-            {
-                "max_linear_velocity_m_s": max_linear_speed,
-                "max_angular_velocity_rad_s": max_angular_speed,
-            },
-            (
-                f"linear <= {motion['max_linear_velocity_m_s']} m/s; "
-                f"angular <= {motion['max_angular_velocity_rad_s']} rad/s"
-            ),
-            max_linear_speed <= motion["max_linear_velocity_m_s"]
-            and max_angular_speed <= motion["max_angular_velocity_rad_s"],
-        ),
-        "camera_acceleration_limits": _gate(
-            {
-                "max_linear_acceleration_m_s2": max_linear_acceleration,
-                "max_angular_acceleration_rad_s2": max_angular_acceleration,
-            },
-            (
-                f"linear <= {motion['max_linear_acceleration_m_s2']} m/s^2; "
-                f"angular <= {motion['max_angular_acceleration_rad_s2']} rad/s^2"
-            ),
-            max_linear_acceleration <= motion["max_linear_acceleration_m_s2"]
-            and max_angular_acceleration <= motion["max_angular_acceleration_rad_s2"],
-        ),
-        "settled_collection_window": _gate(
-            {
-                "collect_frames": len(collect_rows),
-                "eligible_collect_frames": sum(
-                    bool(row["measurement_write_eligible"]) for row in collect_rows
-                ),
-            },
-            f"all {motion['collect_ticks']} collect frames settled and eligible",
-            len(collect_rows) == motion["collect_ticks"] and collect_all_settled,
-        ),
-        "return_home_pose": _gate(
-            {
-                "position_error_m": final_home_position_error,
-                "orientation_error_rad": final_home_orientation_error,
-                "final_settled": rows[-1]["settled"],
-            },
-            (
-                f"position <= {safety['home_position_tolerance_m']} m; orientation <= "
-                f"{safety['home_orientation_tolerance_rad']} rad; settled"
-            ),
-            final_home_position_error <= safety["home_position_tolerance_m"]
-            and final_home_orientation_error <= safety["home_orientation_tolerance_rad"]
-            and bool(rows[-1]["settled"]),
-        ),
-        "rendered_view_changed": _gate(
-            alternate_diff,
-            f">= {safety['minimum_alternate_rgb_mean_abs_difference']} mean |RGB diff|",
-            alternate_diff >= safety["minimum_alternate_rgb_mean_abs_difference"],
-        ),
-        "return_home_render_recovered": _gate(
-            return_diff,
-            f"<= {safety['maximum_return_home_rgb_mean_abs_difference']} mean |RGB diff|",
-            return_diff <= safety["maximum_return_home_rgb_mean_abs_difference"],
-        ),
-        "arm_joint_hold": _gate(
-            max_arm_drift,
-            f"<= {safety['arm_joint_drift_max_rad']} rad",
-            max_arm_drift <= safety["arm_joint_drift_max_rad"],
-        ),
-        "tcp_hold": _gate(
-            {
-                "max_position_drift_m": max_tcp_position_drift,
-                "max_orientation_drift_rad": max_tcp_orientation_drift,
-            },
-            (
-                f"position <= {safety['tcp_position_drift_max_m']} m; orientation <= "
-                f"{safety['tcp_orientation_drift_max_rad']} rad"
-            ),
-            max_tcp_position_drift <= safety["tcp_position_drift_max_m"]
-            and max_tcp_orientation_drift <= safety["tcp_orientation_drift_max_rad"],
-        ),
-        "gripper_safe_hold_open": _gate(
-            minimum_finger_position,
-            f">= {safety['minimum_open_finger_joint_position_m']} m",
-            minimum_finger_position >= safety["minimum_open_finger_joint_position_m"],
-        ),
-        "unexpected_contact_absent": _gate(
-            max_finger_contact,
-            f"<= {safety['unexpected_finger_contact_max_n']} N",
-            max_finger_contact <= safety["unexpected_finger_contact_max_n"],
-        ),
-        "non_collect_frame_write_invalidation": _gate(
-            motion_or_unsettled_write_eligible_count,
-            "0 non-COLLECT frames eligible",
-            motion_or_unsettled_write_eligible_count == 0,
-        ),
-        "memory_write_disabled": _gate(
-            memory_write_count,
-            "0 writes",
-            memory_write_count == 0,
-        ),
-        "episode_remained_nonterminal": _gate(
-            terminated_or_truncated_count,
-            "0 terminated/truncated frames",
-            terminated_or_truncated_count == 0,
-        ),
-        "runtime_gt_control_dependency_absent": _gate(
-            0,
-            "0; segmentation is post-command offline diagnostic only",
-            True,
-        ),
-    }
+    actual_displacement = gates["actual_dynamic_pose_observed"]["actual"][
+        "alternate_displacement_m"
+    ]
     route_passed = all(item["passed"] for item in gates.values())
     object_pixels = [
         row["offline_segmentation_diagnostics"]["object_visible_pixel_count"]
@@ -1463,9 +1624,9 @@ def _run_simulator(
                 )
                 all_rows.extend(rows)
                 route_summaries.append(summary)
-                contact_sheet_images[(seed, alternate.viewpoint_id, "alternate")] = (
-                    route_images["alternate"]
-                )
+                contact_sheet_images[(seed, alternate.viewpoint_id, "alternate")] = route_images[
+                    "alternate"
+                ]
                 contact_sheet_images.setdefault(
                     (seed, "HOME", "home_before"),
                     route_images["home_before"],
@@ -1565,9 +1726,7 @@ def run_e018_p1_g0(
                 "max_arm_joint_drift_rad": max(
                     row["arm_joint_max_drift_rad"] for row in frame_rows
                 ),
-                "max_tcp_position_drift_m": max(
-                    row["tcp_position_drift_m"] for row in frame_rows
-                ),
+                "max_tcp_position_drift_m": max(row["tcp_position_drift_m"] for row in frame_rows),
                 "max_tcp_orientation_drift_rad": max(
                     row["tcp_orientation_drift_rad"] for row in frame_rows
                 ),
@@ -1577,12 +1736,9 @@ def run_e018_p1_g0(
                 "motion_or_unsettled_write_eligible_count": sum(
                     bool(row["measurement_write_eligible"])
                     for row in frame_rows
-                    if row["camera_motion_state"]
-                    != ExternalCameraMotionState.COLLECT.value
+                    if row["camera_motion_state"] != ExternalCameraMotionState.COLLECT.value
                 ),
-                "memory_write_count": sum(
-                    bool(row["memory_write_executed"]) for row in frame_rows
-                ),
+                "memory_write_count": sum(bool(row["memory_write_executed"]) for row in frame_rows),
                 "terminated_or_truncated_count": sum(
                     bool(row["terminated"] or row["truncated"]) for row in frame_rows
                 ),
@@ -1632,9 +1788,7 @@ def run_e018_p1_g0(
             "status": "complete-development-only",
             "gate_passed": gate_passed,
             "config_sha256": config_sha256,
-            "files": {
-                str(path.relative_to(output)): _file_sha256(path) for path in artifact_paths
-            },
+            "files": {str(path.relative_to(output)): _file_sha256(path) for path in artifact_paths},
             "test_split_status": "prohibited-unread",
             "formal_claim_allowed": False,
         }
