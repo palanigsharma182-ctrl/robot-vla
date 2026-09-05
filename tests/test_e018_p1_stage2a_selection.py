@@ -62,7 +62,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SELECTION_CONFIG = (
     REPOSITORY_ROOT
     / "configs"
-    / "e018_p1_stage2a_information_gain_selection_development_v1.json"
+    / "e018_p1_stage2a_information_gain_selection_development_v2.json"
 )
 
 
@@ -91,7 +91,7 @@ def _memory_safety() -> ObjectMemorySafetyContext:
 
 
 def _captured_route(*, raw_gain: float = 0.03) -> CapturedSelectionRoute:
-    seed = 77001
+    seed = 77601
     episode_id = f"e018-p1-stage2a-selection-development-seed-{seed}"
     request = ActiveFrontReobserveRequest(
         episode_id=episode_id,
@@ -288,7 +288,7 @@ def _private_label(
     frame = (45, 46, 47)[label_index % 3]
     value = {
         **_private_capture(observable=observable),
-        "version": "e018-p1-stage2a-min-information-gain-selection-execution/v1",
+        "version": "e018-p1-stage2a-min-information-gain-selection-execution/v2",
         "label_index": label_index,
         "prediction_row_index": (label_index // 3) * 4 + 1 + label_index % 3,
         "seed": seed,
@@ -487,7 +487,7 @@ def _synthetic_pass_b_artifact(
         inventory_rows.append(inventory)
     inventory_value = {
         "version": (
-            "e018-p1-stage2a-min-information-gain-selection-execution/v1"
+            "e018-p1-stage2a-min-information-gain-selection-execution/v2"
         ),
         "label_count": 75,
         "rows": inventory_rows,
@@ -496,7 +496,7 @@ def _synthetic_pass_b_artifact(
     _write_json(public_root / "private_label_inventory.json", inventory_value)
     capture_state = {
         "version": (
-            "e018-p1-stage2a-min-information-gain-selection-execution/v1"
+            "e018-p1-stage2a-min-information-gain-selection-execution/v2"
         ),
         "status": "capture-complete-write-only-not-opened",
         "transaction_identity_sha256": transaction_identity,
@@ -614,8 +614,8 @@ def _synthetic_route_summary() -> dict[str, object]:
         gates[name] = {"actual": actual, "required": "frozen", "passed": True}
     return {
         "version": "e018-p1-stage2a-primary-memory-integration-smoke/v1",
-        "episode_id": "e018-p1-stage2a-selection-development-seed-77001",
-        "seed": 77001,
+        "episode_id": "e018-p1-stage2a-selection-development-seed-77601",
+        "seed": 77601,
         "alternate_viewpoint_id": "LEFT_LOW__PITCH_UP",
         "alternate_orientation_id": "PITCH_UP",
         "yaw_offset_rad": 0.0,
@@ -634,7 +634,7 @@ def _synthetic_route_summary() -> dict[str, object]:
         "memory_write_count": 0,
         "formal_claim_allowed": False,
         "classification": (
-            "formal-development-selection-capture-only-no-test-no-actuation/v1"
+            "formal-development-selection-capture-only-no-test-no-actuation/v2"
         ),
         "offline_segmentation_diagnostics": False,
         "runtime_object_gt_reads": 0,
@@ -654,6 +654,34 @@ def test_selection_config_is_frozen_no_test_no_actuation() -> None:
     assert loaded.payload["permissions"]["arm_tcp_actuation"] == 0
 
 
+def test_selection_config_exactly_binds_v1_failure_recovery(
+    tmp_path: Path,
+) -> None:
+    loaded = load_e018_p1_stage2a_selection_config(SELECTION_CONFIG)
+    recovery = loaded.payload["recovery"]
+
+    assert loaded.payload["experiment"]["gate"] == "D049-R1"
+    assert loaded.payload["split"]["seeds"] == [77601, 77625]
+    assert recovery["consumed_selection_seed_range"] == [77001, 77025]
+    assert recovery["private_label_open_count"] == 0
+    assert recovery["reuse_failed_private_labels"] is False
+    assert recovery["public_only_diagnostic"] is True
+    assert recovery["reserved_conditional_evaluation_seed_range"] == [
+        77626,
+        77650,
+    ]
+    assert recovery["reserved_conditional_evaluation_status"] == (
+        "planning-only-unread"
+    )
+
+    drifted = copy.deepcopy(loaded.payload)
+    drifted["recovery"]["reuse_failed_private_labels"] = True
+    path = tmp_path / "drifted-selection-config.json"
+    _write_json(path, drifted)
+    with pytest.raises(ValueError, match="recovery identity/boundary"):
+        load_e018_p1_stage2a_selection_config(path)
+
+
 def test_selection_transaction_entry_rejects_unfrozen_identity_and_seed() -> None:
     kwargs = {
         "provider": None,
@@ -669,17 +697,17 @@ def test_selection_transaction_entry_rejects_unfrozen_identity_and_seed() -> Non
     with pytest.raises(PermissionError, match="experiment identity"):
         Stage2ARouteTransaction.for_information_gain_selection_capture(
             experiment_identity="wrong",
-            seed=77001,
+            seed=77601,
             **kwargs,
         )
-    with pytest.raises(ValueError, match="77001..77025"):
+    with pytest.raises(ValueError, match="77601..77625"):
         Stage2ARouteTransaction.for_information_gain_selection_capture(
             experiment_identity=E018_P1_STAGE2A_SELECTION_EXPERIMENT_ID,
-            seed=77026,
+            seed=77626,
             **kwargs,
         )
     with pytest.raises(ValueError, match="76901..76910"):
-        Stage2ARouteTransaction(seed=77001, **kwargs)
+        Stage2ARouteTransaction(seed=77601, **kwargs)
 
 
 def test_raw_gain_003_replays_one_route_as_accept_reject_reject() -> None:
@@ -943,7 +971,7 @@ def test_prediction_fsync_then_three_private_labels_return_only_metadata(
                 "provider_output_digest": digest,
                 "model_input_digest": f"{row_index + 7:x}" * 64,
             },
-            seed=77001,
+            seed=77601,
             route_frame_index=frame,
             provider_output_digest=digest,
             model_input_digest=f"{row_index + 7:x}" * 64,
@@ -951,7 +979,7 @@ def test_prediction_fsync_then_three_private_labels_return_only_metadata(
         if frame != 0:
             metadata = journal.capture_private_label_after_prediction(
                 prediction_receipt=receipt,
-                seed=77001,
+                seed=77601,
                 route_frame_index=frame,
                 rgb_sha256="a" * 64,
                 actual_pose_sha256="b" * 64,
@@ -980,7 +1008,7 @@ def test_prediction_fsync_then_three_private_labels_return_only_metadata(
 
 def test_preflight_progress_identity_and_seed_are_mutually_isolated() -> None:
     progress = Stage2AExecutionProgress()
-    with pytest.raises(ValueError, match="77001..77025"):
+    with pytest.raises(ValueError, match="77601..77625"):
         progress.begin_information_gain_selection(
             STAGE2A_SELECTION_PREFLIGHT_SEED,
             experiment_identity=E018_P1_STAGE2A_SELECTION_EXPERIMENT_ID,
@@ -1131,7 +1159,7 @@ def test_privileged_getter_failure_persists_consumed_identity(tmp_path: Path) ->
                 "provider_output_digest": digest,
                 "model_input_digest": f"{row_index + 7:x}" * 64,
             },
-            seed=77001,
+            seed=77601,
             route_frame_index=frame,
             provider_output_digest=digest,
             model_input_digest=f"{row_index + 7:x}" * 64,
@@ -1139,7 +1167,7 @@ def test_privileged_getter_failure_persists_consumed_identity(tmp_path: Path) ->
     with pytest.raises(RuntimeError, match="injected-private-read"):
         journal.capture_private_label_after_prediction(
             prediction_receipt=receipt,
-            seed=77001,
+            seed=77601,
             route_frame_index=45,
             rgb_sha256="a" * 64,
             actual_pose_sha256="b" * 64,
@@ -1167,7 +1195,7 @@ def test_selection_denominator_one_can_select_gain() -> None:
         _private_label(index, observable=index < 3) for index in range(75)
     ]
     _, summary = score_gain_branches(
-        _branches(commit_seed_gain=(77001, 0.02)), labels
+        _branches(commit_seed_gain=(77601, 0.02)), labels
     )
     assert summary["common_denominator_count"] == 1
     assert summary["selected_gain"] == 0.02
@@ -1178,7 +1206,7 @@ def test_selection_equal_recovered_count_prefers_larger_gain() -> None:
     route_digest = branches[0]["route_evidence_digest"]
     for index, gain in enumerate(STAGE2A_SELECTION_GAINS):
         branches[index] = GainBranchOutcome(
-            seed=77001,
+            seed=77601,
             gain=gain,
             route_evidence_digest=route_digest,
             route_protocol_safety_valid=True,
@@ -1216,7 +1244,7 @@ def test_scoring_uses_exact_frozen_xyz_thresholds(
     branches = _branches()
     route_digest = branches[0]["route_evidence_digest"]
     branches[0] = GainBranchOutcome(
-        seed=77001,
+        seed=77601,
         gain=0.02,
         route_evidence_digest=route_digest,
         route_protocol_safety_valid=True,
@@ -1249,7 +1277,7 @@ def test_scoring_uses_exact_frozen_xyz_thresholds(
 def test_unobservable_commit_is_false_unsafe_and_eliminates_gain() -> None:
     labels = [_private_label(index, observable=False) for index in range(75)]
     _, summary = score_gain_branches(
-        _branches(commit_seed_gain=(77001, 0.02)), labels
+        _branches(commit_seed_gain=(77601, 0.02)), labels
     )
     by_gain = {row["gain"]: row for row in summary["per_gain"]}
     assert by_gain[0.02]["false_recovery_count"] == 1
@@ -1303,7 +1331,7 @@ def test_branch_resigned_commit_state_tamper_is_rejected() -> None:
 
 
 def test_branch_resigned_route_invalid_commit_is_rejected_fail_closed() -> None:
-    branches = _branches(commit_seed_gain=(77001, 0.02))
+    branches = _branches(commit_seed_gain=(77601, 0.02))
     tampered = copy.deepcopy(branches[0])
     tampered["route_protocol_safety_valid"] = False
     tampered.pop("branch_sha256")
@@ -1337,9 +1365,9 @@ def test_selection_route_summary_rejects_resigned_nested_extra_key(
     with pytest.raises((TypeError, ValueError, RuntimeError)):
         selection_runtime._verify_selection_route_summary_schema(
             summary,
-            seed=77001,
+            seed=77601,
             episode_id=(
-                "e018-p1-stage2a-selection-development-seed-77001"
+                "e018-p1-stage2a-selection-development-seed-77601"
             ),
         )
 
@@ -1348,8 +1376,8 @@ def test_selection_route_summary_exact_nested_schema_accepts_baseline() -> None:
     summary = _synthetic_route_summary()
     verified = selection_runtime._verify_selection_route_summary_schema(
         summary,
-        seed=77001,
-        episode_id="e018-p1-stage2a-selection-development-seed-77001",
+        seed=77601,
+        episode_id="e018-p1-stage2a-selection-development-seed-77601",
     )
     assert verified == summary
 

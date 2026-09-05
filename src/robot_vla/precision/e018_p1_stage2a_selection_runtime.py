@@ -117,10 +117,10 @@ _PREFLIGHT_PUBLIC_FILES = {
 }
 
 _SELECTION_CLASSIFICATION = (
-    "formal-development-selection-no-test-no-actuation/v1"
+    "formal-development-selection-no-test-no-actuation/v2"
 )
 _SELECTION_CAPTURE_CLASSIFICATION = (
-    "formal-development-selection-capture-only-no-test-no-actuation/v1"
+    "formal-development-selection-capture-only-no-test-no-actuation/v2"
 )
 
 _SELECTION_TRANSACTION_KEYS = {
@@ -993,8 +993,7 @@ def _verify_route_evidence_row(
         or transaction.get("seed") != seed
         or transaction.get("episode_id") != episode
         or transaction.get("request_id") != request
-        or transaction.get("classification")
-        != "formal-development-selection-capture-only-no-test-no-actuation/v1"
+        or transaction.get("classification") != _SELECTION_CAPTURE_CLASSIFICATION
         or transaction.get("effect_claim") != "no-effect-claim"
         or transaction.get("wrist_capability")
         != _stage2a.WRIST_CAPABILITY_ABSENT_STATUS
@@ -1538,7 +1537,7 @@ def _verify_e018_p1_stage2a_selection_public(
                 parent_verification_sha256=parent["verification_sha256"],
             )
         ),
-        "seeds": [77001, 77025],
+        "seeds": [STAGE2A_SELECTION_SEEDS[0], STAGE2A_SELECTION_SEEDS[-1]],
         "gain_order": list(STAGE2A_SELECTION_GAINS),
     }
     if (
@@ -1556,7 +1555,8 @@ def _verify_e018_p1_stage2a_selection_public(
         != "PASS_A_IN_PROGRESS_NO_TEST_NO_ACTUATION"
         or started.get("classification") != _SELECTION_CLASSIFICATION
         or started.get("effect_claim") != "no-effect-claim"
-        or started.get("seed_range") != [77001, 77025]
+        or started.get("seed_range")
+        != [STAGE2A_SELECTION_SEEDS[0], STAGE2A_SELECTION_SEEDS[-1]]
         or started.get("gain_order") != list(STAGE2A_SELECTION_GAINS)
         or started.get("fresh_test_reads") != 0
         or started.get("public_artifact_role_identity_sha256")
@@ -2336,7 +2336,7 @@ def _run_selection_simulator(
                 "classification": (
                     "engineering-preflight-selection-capture-only-no-test-no-actuation/v1"
                     if preflight_one_route
-                    else "formal-development-selection-capture-only-no-test-no-actuation/v1"
+                    else _SELECTION_CAPTURE_CLASSIFICATION
                 ),
                 "provider_forward_count": len(transaction.provider_records),
                 "memory_write_count": transaction.orchestrator.memory_write_count,
@@ -3059,7 +3059,7 @@ def run_e018_p1_stage2a_selection_capture(
         "parent_verification_sha256": parent["verification_sha256"],
         "public_artifact_role_identity_sha256": public_identity,
         "private_artifact_role_identity_sha256": private_identity,
-        "seeds": [77001, 77025],
+        "seeds": [STAGE2A_SELECTION_SEEDS[0], STAGE2A_SELECTION_SEEDS[-1]],
         "gain_order": list(STAGE2A_SELECTION_GAINS),
     }
     transaction_identity = canonical_sha256(transaction_primitive)
@@ -3083,9 +3083,9 @@ def run_e018_p1_stage2a_selection_capture(
         "version": E018_P1_STAGE2A_SELECTION_EXECUTION_VERSION,
         "status": "PASS_A_IN_PROGRESS_NO_TEST_NO_ACTUATION",
         "experiment_id": E018_P1_STAGE2A_SELECTION_EXPERIMENT_ID,
-        "classification": "formal-development-selection-no-test-no-actuation/v1",
+        "classification": _SELECTION_CLASSIFICATION,
         "effect_claim": "no-effect-claim",
-        "seed_range": [77001, 77025],
+        "seed_range": [STAGE2A_SELECTION_SEEDS[0], STAGE2A_SELECTION_SEEDS[-1]],
         "gain_order": list(STAGE2A_SELECTION_GAINS),
         "transaction_identity_sha256": transaction_identity,
         "public_artifact_role_identity_sha256": public_identity,
@@ -3225,7 +3225,7 @@ def run_e018_p1_stage2a_selection_capture(
         receipt = {
             "version": E018_P1_STAGE2A_SELECTION_EXECUTION_VERSION,
             "status": "PASS_A_COMPLETE_CONTEXT_DESTROYED",
-            "classification": "formal-development-selection-no-test-no-actuation/v1",
+            "classification": _SELECTION_CLASSIFICATION,
             "effect_claim": "no-effect-claim",
             "experiment_id": E018_P1_STAGE2A_SELECTION_EXPERIMENT_ID,
             "config_raw_sha256": loaded.raw_sha256,

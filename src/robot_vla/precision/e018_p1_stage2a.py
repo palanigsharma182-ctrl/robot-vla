@@ -117,9 +117,9 @@ E018_P1_STAGE2A_WRIST_CAPABILITY_VERSION = (
 )
 WRIST_CAPABILITY_ABSENT_STATUS = "NO_QUALIFIED_WRIST_PROVIDER_IN_D049_PARENT"
 STAGE2A_INTEGRATION_SMOKE_SEEDS = tuple(range(76901, 76911))
-STAGE2A_SELECTION_SEEDS = tuple(range(77001, 77026))
+STAGE2A_SELECTION_SEEDS = tuple(range(77601, 77626))
 E018_P1_STAGE2A_SELECTION_EXPERIMENT_ID = (
-    "E018-P1-S2A-MIN-INFORMATION-GAIN-SELECTION-DEVELOPMENT/v1"
+    "E018-P1-S2A-MIN-INFORMATION-GAIN-SELECTION-DEVELOPMENT/v2"
 )
 STAGE2A_SELECTION_PREFLIGHT_SEED = 76891
 E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXPERIMENT_ID = (
@@ -172,7 +172,7 @@ class Stage2AExecutionProgress:
         if experiment_identity != E018_P1_STAGE2A_SELECTION_EXPERIMENT_ID:
             raise PermissionError("Stage 2A selection progress experiment identity 漂移")
         if seed not in STAGE2A_SELECTION_SEEDS:
-            raise ValueError("Stage 2A selection progress 只接受 77001..77025")
+            raise ValueError("Stage 2A selection progress 只接受 77601..77625")
         self.current_seed = seed
         self.episode_id = f"e018-p1-stage2a-selection-development-seed-{seed}"
         self.request_id = None
@@ -2794,11 +2794,11 @@ class Stage2ARouteTransaction:
             capture_classification = None
         elif _selection_capture_token is _STAGE2A_SELECTION_CAPTURE_TOKEN:
             if seed not in STAGE2A_SELECTION_SEEDS:
-                raise ValueError("Stage 2A selection capture 只接受 77001..77025")
+                raise ValueError("Stage 2A selection capture 只接受 77601..77625")
             episode_id = f"e018-p1-stage2a-selection-development-seed-{seed}"
             capture_only = True
             capture_classification = (
-                "formal-development-selection-capture-only-no-test-no-actuation/v1"
+                "formal-development-selection-capture-only-no-test-no-actuation/v2"
             )
         elif (
             _selection_capture_token

@@ -70,19 +70,19 @@ from robot_vla.precision.object_memory import (
 )
 
 E018_P1_STAGE2A_SELECTION_CONFIG_VERSION = (
-    "e018-p1-stage2a-information-gain-selection-development/v1"
+    "e018-p1-stage2a-information-gain-selection-development/v2"
 )
 E018_P1_STAGE2A_SELECTION_EXECUTION_VERSION = (
-    "e018-p1-stage2a-min-information-gain-selection-execution/v1"
+    "e018-p1-stage2a-min-information-gain-selection-execution/v2"
 )
 E018_P1_STAGE2A_SELECTION_RESULT_VERSION = (
-    "e018-p1-stage2a-min-information-gain-selection-result/v1"
+    "e018-p1-stage2a-min-information-gain-selection-result/v2"
 )
 E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXECUTION_VERSION = (
     "e018-p1-stage2a-pass-a-one-route-preflight-execution/v2"
 )
 STAGE2A_SELECTION_GO = (
-    "E018_P1_STAGE2A_MIN_INFORMATION_GAIN_SELECTION_GO_77001_77025_V1"
+    "E018_P1_STAGE2A_MIN_INFORMATION_GAIN_SELECTION_GO_77601_77625_V2"
 )
 STAGE2A_SELECTION_PREFLIGHT_GO = (
     "E018_P1_STAGE2A_PASS_A_ONE_ROUTE_PREFLIGHT_GO_76891_V2"
@@ -119,6 +119,7 @@ _CONFIG_TOP_LEVEL_KEYS = {
     "version",
     "status",
     "experiment",
+    "recovery",
     "parents",
     "split",
     "gain_selection",
@@ -241,12 +242,63 @@ def _validate_selection_config(config: dict[str, Any]) -> None:
     )
     if experiment != {
         "id": E018_P1_STAGE2A_SELECTION_EXPERIMENT_ID,
-        "gate": "D049",
-        "classification": "formal-development-selection-no-test-no-actuation/v1",
+        "gate": "D049-R1",
+        "classification": "formal-development-selection-no-test-no-actuation/v2",
         "exact_go_token": STAGE2A_SELECTION_GO,
         "rerun_under_same_identity_allowed": False,
     }:
         raise ValueError("selection experiment identity 漂移")
+    recovery = _require_exact_keys(
+        config["recovery"],
+        {
+            "supersedes_experiment_id",
+            "failed_artifact_id",
+            "failed_source_git_commit",
+            "failed_transaction_identity_sha256",
+            "failure_raw_sha256",
+            "failure_internal_sha256",
+            "classification",
+            "consumed_selection_seed_range",
+            "private_label_open_count",
+            "reuse_failed_private_labels",
+            "public_only_diagnostic",
+            "reserved_conditional_evaluation_seed_range",
+            "reserved_conditional_evaluation_status",
+            "allowed_conclusion",
+        },
+        "selection recovery",
+    )
+    if recovery != {
+        "supersedes_experiment_id": (
+            "E018-P1-S2A-MIN-INFORMATION-GAIN-SELECTION-DEVELOPMENT/v1"
+        ),
+        "failed_artifact_id": (
+            "stage2a-selection-formal-40d4959-77001-77025-20260906-v1"
+        ),
+        "failed_source_git_commit": (
+            "40d4959fb3d19062c7f823fc99f6b5eca222ca22"
+        ),
+        "failed_transaction_identity_sha256": (
+            "81855d0ef387d339b847369258ab44e7bfad6cddd136312dd202bd2b2d57824c"
+        ),
+        "failure_raw_sha256": (
+            "47d13e10516a65b11e66fa8ecb923a9a6aec7d132f6e589ed6bcc4c9d7984b05"
+        ),
+        "failure_internal_sha256": (
+            "2264c483d568be4610e5daf4b6067430fdb3bea95a509797cf006f8cf1415a58"
+        ),
+        "classification": "engineering-serialization-verifier-failure",
+        "consumed_selection_seed_range": [77001, 77025],
+        "private_label_open_count": 0,
+        "reuse_failed_private_labels": False,
+        "public_only_diagnostic": True,
+        "reserved_conditional_evaluation_seed_range": [77626, 77650],
+        "reserved_conditional_evaluation_status": "planning-only-unread",
+        "allowed_conclusion": (
+            "selection-only-gain-or-null-no-effect-no-actuation/v1"
+        ),
+    }:
+        raise ValueError("selection recovery identity/boundary 漂移")
     parents = _require_exact_keys(
         config["parents"],
         {
@@ -343,7 +395,7 @@ def _validate_selection_config(config: dict[str, Any]) -> None:
         "selection split",
     )
     if split != {
-        "seeds": [77001, 77025],
+        "seeds": [STAGE2A_SELECTION_SEEDS[0], STAGE2A_SELECTION_SEEDS[-1]],
         "seed_count": 25,
         "route_count": 25,
         "camera_frames_per_route": 92,
@@ -2814,7 +2866,7 @@ def score_gain_branches(
     summary = {
         "version": E018_P1_STAGE2A_SELECTION_RESULT_VERSION,
         "status": "complete-development-selection",
-        "classification": "formal-development-selection-no-test-no-actuation/v1",
+        "classification": "formal-development-selection-no-test-no-actuation/v2",
         "effect_claim": "no-effect-claim",
         "common_denominator_count": denominator,
         "minimum_support_required": STAGE2A_SELECTION_MIN_SUPPORT,

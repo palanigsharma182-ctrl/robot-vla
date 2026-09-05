@@ -167,7 +167,7 @@ def main(argv: list[str] | None = None) -> None:
             "status": loaded.payload["status"],
             "raw_sha256": loaded.raw_sha256,
             "canonical_sha256": loaded.canonical_sha256,
-            "selection_seeds": [77001, 77025],
+            "selection_seeds": loaded.payload["split"]["seeds"],
             "fresh_test_status": "prohibited-unread",
         }
     elif args.command == "verify-parents":
