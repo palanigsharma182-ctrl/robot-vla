@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+
 from robot_vla.adapters import FrankaObservationAdapter
 from robot_vla.contracts import RobotSpec
 from robot_vla.executive.contracts import PhaseId
@@ -4258,6 +4259,7 @@ def _run_stage2a_simulator(
     import sapien
     import torch
     from mani_skill.utils import sapien_utils
+
     from robot_vla.sim import register_robot_vla_maniskill_envs
 
     if (

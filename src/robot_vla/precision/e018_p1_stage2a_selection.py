@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+
 from robot_vla.executive.contracts import PhaseId
 from robot_vla.precision.active_front_camera import ExternalCameraMotionState
 from robot_vla.precision.active_front_memory import (
