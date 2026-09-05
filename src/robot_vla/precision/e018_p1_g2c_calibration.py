@@ -3556,7 +3556,7 @@ __all__ = [
     "run_g2c_calibration_synthetic_gpu_smoke",
     "score_calibrate_g2c",
     "validate_g2c_calibration_input_view",
-    "verify_g2c_calibration_prediction_freeze",
     "verify_g2c_calibration_phase_a_persistence",
+    "verify_g2c_calibration_prediction_freeze",
     "verify_g2c_calibration_result",
 ]

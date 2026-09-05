@@ -13,20 +13,7 @@ from robot_vla.precision.e018_p1_g2c import (
     _measurement_covariance,
     calibrate_g2c_viewpoint,
 )
-from robot_vla.precision.e018_p1_g2c_data import (
-    _LABEL_ARRAYS,
-    G2C_LABEL_SCHEMA_VERSION,
-    G2C_MANIFEST_SCHEMA_VERSION,
-    G2C_VIEW_ORDER,
-)
 from robot_vla.precision.e018_p1_g2c_calibration import (
-    E018_P1_G2C_CALIBRATION_CHECK_EVIDENCE_VERSION,
-    E018_P1_G2C_CALIBRATION_COMPLETION_MARKER_VERSION,
-    E018_P1_G2C_CALIBRATION_FREEZE_VERSION,
-    E018_P1_G2C_CALIBRATION_INPUT_VIEW_VERSION,
-    E018_P1_G2C_CALIBRATION_PERSISTENCE_VERSION,
-    E018_P1_G2C_CALIBRATION_RESULT_VERSION,
-    G2C_CALIBRATION_SELECTION_PARENT,
     _PHASE_A_CHECK_EVIDENCE_NAMES,
     _PREDICTION_ARTIFACTS,
     _RESULT_ARTIFACTS,
@@ -39,6 +26,13 @@ from robot_vla.precision.e018_p1_g2c_calibration import (
     _prepare_calibration_input_view,
     _score_calibration_prediction,
     _validate_prediction_row_mechanics,
+    E018_P1_G2C_CALIBRATION_CHECK_EVIDENCE_VERSION,
+    E018_P1_G2C_CALIBRATION_COMPLETION_MARKER_VERSION,
+    E018_P1_G2C_CALIBRATION_FREEZE_VERSION,
+    E018_P1_G2C_CALIBRATION_INPUT_VIEW_VERSION,
+    E018_P1_G2C_CALIBRATION_PERSISTENCE_VERSION,
+    E018_P1_G2C_CALIBRATION_RESULT_VERSION,
+    G2C_CALIBRATION_SELECTION_PARENT,
     build_g2c_calibration_config,
     build_g2c_calibration_phase_a_completion_marker,
     finalize_g2c_calibration_phase_a_persistence,
@@ -51,6 +45,12 @@ from robot_vla.precision.e018_p1_g2c_calibration import (
     verify_g2c_calibration_phase_a_persistence,
     verify_g2c_calibration_prediction_freeze,
     verify_g2c_calibration_result,
+)
+from robot_vla.precision.e018_p1_g2c_data import (
+    _LABEL_ARRAYS,
+    G2C_LABEL_SCHEMA_VERSION,
+    G2C_MANIFEST_SCHEMA_VERSION,
+    G2C_VIEW_ORDER,
 )
 from robot_vla.precision.object_observability import ObjectWriteEvidence
 from robot_vla.precision.outliers import geometry_conditioning
