@@ -143,6 +143,10 @@ _FORMAL_DECISION_SMOKE_KEYS = {
     "seed",
     "alternate_viewpoint_id",
     "classification",
+    "source_git_commit",
+    "source_identity_sha256",
+    "qualification_config_raw_sha256",
+    "qualification_config_internal_sha256",
     "execution_status",
     "result_status",
     "execution_receipt_raw_sha256",
@@ -1062,6 +1066,10 @@ def _validate_g2c_formal_execution_decision_receipt(
         or smoke.get("seed") != 76801
         or smoke.get("alternate_viewpoint_id") != FRONT_ALTERNATE_IDS[0]
         or smoke.get("classification") != QUALIFICATION_CLASSIFICATION_SMOKE
+        or smoke.get("source_git_commit") != source["git_commit"]
+        or smoke.get("source_identity_sha256") != source["identity_sha256"]
+        or smoke.get("qualification_config_raw_sha256") != config_identity["raw_sha256"]
+        or smoke.get("qualification_config_internal_sha256") != config_identity["internal_sha256"]
         or smoke.get("execution_status") != "complete-execution-freeze-context-destroyed"
         or smoke.get("result_status") != "complete-preflight-no-qualification-claim"
         or type(smoke.get("started_at_unix_ns")) is not int
@@ -1214,6 +1222,8 @@ def _validate_g2c_formal_execution_decision_receipt(
         )
         or type(receipt.get("issued_at_unix_ns")) is not int
         or receipt["issued_at_unix_ns"] <= 0
+        or smoke["started_at_unix_ns"] < budget_audit["audited_at_unix_ns"]
+        or receipt["issued_at_unix_ns"] <= smoke["completed_at_unix_ns"]
     ):
         raise RuntimeError("G2C formal decision receipt contract/identity 漂移")
     return str(internal)
@@ -1289,6 +1299,32 @@ def _verify_embedded_formal_execution_decision(
     ):
         raise RuntimeError("G2C embedded formal decision verification 漂移")
     return dict(embedded)
+
+
+def _validate_formal_execution_decision_time_order(
+    *,
+    execution_started_at_unix_ns: Any,
+    classification: str,
+    formal_decision_verification: Mapping[str, Any] | None,
+) -> None:
+    """formal capture 必须严格晚于已验证 D048 签发；smoke 不适用。"""
+
+    if classification != QUALIFICATION_CLASSIFICATION_FORMAL:
+        return
+    decision_receipt = (
+        None
+        if formal_decision_verification is None
+        else formal_decision_verification.get("receipt")
+    )
+    issued_at = (
+        decision_receipt.get("issued_at_unix_ns") if isinstance(decision_receipt, Mapping) else None
+    )
+    if (
+        type(execution_started_at_unix_ns) is not int
+        or type(issued_at) is not int
+        or execution_started_at_unix_ns <= issued_at
+    ):
+        raise RuntimeError("formal qualification execution 必须严格晚于 D048 GO 签发")
 
 
 def _verify_g0c_parent_receipt(
@@ -4870,6 +4906,13 @@ def verify_g2c_qualification_execution(
         or any(receipt.get(name) != value for name, value in freeze.items() if name != "status")
     ):
         raise RuntimeError("qualification execution receipt 漂移")
+    _validate_formal_execution_decision_time_order(
+        execution_started_at_unix_ns=receipt["started_at_unix_ns"],
+        classification=classification,
+        formal_decision_verification=(
+            formal_decision if classification == QUALIFICATION_CLASSIFICATION_FORMAL else None
+        ),
+    )
     commit_files = {
         f"prediction_commits/{index:06d}{suffix}.json"
         for index in range(expected_prediction_count)
@@ -5206,6 +5249,11 @@ def _run_qualification_capture(
 
     capture_started_at_unix_ns = time.time_ns()
     capture_started_monotonic_s = time.monotonic()
+    _validate_formal_execution_decision_time_order(
+        execution_started_at_unix_ns=capture_started_at_unix_ns,
+        classification=classification,
+        formal_decision_verification=execution_decision_verification,
+    )
     import gymnasium as gym
     import mani_skill
     import sapien

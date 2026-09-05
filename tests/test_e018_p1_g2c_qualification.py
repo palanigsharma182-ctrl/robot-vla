@@ -241,6 +241,10 @@ def _formal_decision_receipt() -> dict[str, object]:
             "seed": 76801,
             "alternate_viewpoint_id": "LEFT_LOW__CENTER",
             "classification": qualification.QUALIFICATION_CLASSIFICATION_SMOKE,
+            "source_git_commit": "4" * 40,
+            "source_identity_sha256": "5" * 64,
+            "qualification_config_raw_sha256": qualification.file_sha256(CONFIG_PATH),
+            "qualification_config_internal_sha256": config["config_sha256"],
             "execution_status": "complete-execution-freeze-context-destroyed",
             "result_status": "complete-preflight-no-qualification-claim",
             "execution_receipt_raw_sha256": "d" * 64,
@@ -253,8 +257,8 @@ def _formal_decision_receipt() -> dict[str, object]:
             "public_output_identity_sha256": "6" * 64,
             "private_output_identity_sha256": "7" * 64,
             "result_output_identity_sha256": "8" * 64,
-            "started_at_unix_ns": 1,
-            "completed_at_unix_ns": 2,
+            "started_at_unix_ns": 2,
+            "completed_at_unix_ns": 3,
             "wall_elapsed_seconds": 1.0,
             "gpu_elapsed_seconds": smoke_gpu_seconds,
             "total_artifact_bytes": smoke_bytes,
@@ -349,7 +353,7 @@ def _formal_decision_receipt() -> dict[str, object]:
             "dynamic-front-provider-qualified-for-shadow-planning-only-"
             "no-memory-no-actuator-no-test/v1"
         ),
-        "issued_at_unix_ns": 1,
+        "issued_at_unix_ns": 4,
     }
     receipt["receipt_sha256"] = canonical_sha256(receipt)
     return receipt
@@ -1095,6 +1099,95 @@ def test_d048_rejects_resigned_d046_persistence_identity_drift(
             qualification_config_raw_sha256=qualification.file_sha256(CONFIG_PATH),
             expected_source_git_commit="4" * 40,
             expected_source_identity_sha256="5" * 64,
+        )
+
+
+@pytest.mark.parametrize(
+    ("identity_field", "replacement"),
+    (
+        ("source_git_commit", "3" * 40),
+        ("source_identity_sha256", "6" * 64),
+        ("qualification_config_raw_sha256", "6" * 64),
+        ("qualification_config_internal_sha256", "6" * 64),
+    ),
+)
+def test_d048_rejects_resigned_smoke_source_or_config_rebinding(
+    identity_field: str,
+    replacement: str,
+) -> None:
+    config = load_g2c_dynamic_qualification_config(CONFIG_PATH)
+    receipt = _formal_decision_receipt()
+    receipt["d047_smoke"][identity_field] = replacement
+    receipt["receipt_sha256"] = canonical_sha256(
+        {key: value for key, value in receipt.items() if key != "receipt_sha256"}
+    )
+
+    with pytest.raises(RuntimeError, match="formal decision receipt"):
+        qualification._validate_g2c_formal_execution_decision_receipt(
+            receipt,
+            config=config,
+            qualification_config_raw_sha256=qualification.file_sha256(CONFIG_PATH),
+            expected_source_git_commit="4" * 40,
+            expected_source_identity_sha256="5" * 64,
+        )
+
+
+@pytest.mark.parametrize(
+    "invalid_order",
+    ("decision-before-smoke-complete", "smoke-before-budget-audit"),
+)
+def test_d048_rejects_resigned_invalid_time_order(invalid_order: str) -> None:
+    config = load_g2c_dynamic_qualification_config(CONFIG_PATH)
+    receipt = _formal_decision_receipt()
+    if invalid_order == "decision-before-smoke-complete":
+        receipt["issued_at_unix_ns"] = receipt["d047_smoke"]["completed_at_unix_ns"]
+    else:
+        receipt["d047_smoke"]["started_at_unix_ns"] = 0
+    receipt["receipt_sha256"] = canonical_sha256(
+        {key: value for key, value in receipt.items() if key != "receipt_sha256"}
+    )
+
+    with pytest.raises(RuntimeError, match="formal decision receipt"):
+        qualification._validate_g2c_formal_execution_decision_receipt(
+            receipt,
+            config=config,
+            qualification_config_raw_sha256=qualification.file_sha256(CONFIG_PATH),
+            expected_source_git_commit="4" * 40,
+            expected_source_identity_sha256="5" * 64,
+        )
+
+
+def test_formal_execution_rejects_resigned_start_not_after_d048() -> None:
+    config = load_g2c_dynamic_qualification_config(CONFIG_PATH)
+    decision_receipt = _formal_decision_receipt()
+    decision_verification = {
+        "verified": True,
+        "receipt": decision_receipt,
+        "receipt_raw_sha256": "7" * 64,
+        "receipt_internal_sha256": decision_receipt["receipt_sha256"],
+    }
+    decision_verification["verification_sha256"] = canonical_sha256(decision_verification)
+    embedded = qualification._verify_embedded_formal_execution_decision(
+        decision_verification,
+        config=config,
+        qualification_config_raw_sha256=qualification.file_sha256(CONFIG_PATH),
+        expected_source_git_commit="4" * 40,
+        expected_source_identity_sha256="5" * 64,
+    )
+    execution_receipt = {
+        "started_at_unix_ns": decision_receipt["issued_at_unix_ns"],
+        "formal_execution_decision": embedded,
+    }
+    execution_receipt["receipt_sha256"] = canonical_sha256(execution_receipt)
+    unsigned = dict(execution_receipt)
+    internal = unsigned.pop("receipt_sha256")
+    assert internal == canonical_sha256(unsigned)
+
+    with pytest.raises(RuntimeError, match="晚于 D048"):
+        qualification._validate_formal_execution_decision_time_order(
+            execution_started_at_unix_ns=execution_receipt["started_at_unix_ns"],
+            classification=qualification.QUALIFICATION_CLASSIFICATION_FORMAL,
+            formal_decision_verification=embedded,
         )
 
 
