@@ -47,6 +47,77 @@ G0C_CONFIG_PATH = (
 )
 
 
+@pytest.mark.parametrize(
+    ("available", "device_count", "device_name", "bf16_supported", "error_match"),
+    [
+        (False, 1, "NVIDIA RTX 6000 Ada Generation", True, "CUDA available"),
+        (True, 2, "NVIDIA RTX 6000 Ada Generation", True, "device count"),
+        (True, 1, "NVIDIA RTX 4090", True, "device name"),
+        (True, 1, "NVIDIA RTX 6000 Ada Generation", False, "BF16"),
+    ],
+)
+def test_qualification_cuda_preflight_rejects_wrong_environment(
+    available: bool,
+    device_count: int,
+    device_name: str,
+    bf16_supported: bool,
+    error_match: str,
+) -> None:
+    class FakeCuda:
+        @staticmethod
+        def is_available() -> bool:
+            return available
+
+        @staticmethod
+        def device_count() -> int:
+            return device_count
+
+        @staticmethod
+        def get_device_name(index: int) -> str:
+            assert index == 0
+            return device_name
+
+        @staticmethod
+        def is_bf16_supported() -> bool:
+            return bf16_supported
+
+    class FakeTorch:
+        cuda = FakeCuda()
+
+    with pytest.raises(RuntimeError, match=error_match):
+        qualification._qualification_cuda_environment_identity(FakeTorch())
+
+
+def test_qualification_cuda_preflight_accepts_single_rtx_6000_ada_bf16() -> None:
+    class FakeCuda:
+        @staticmethod
+        def is_available() -> bool:
+            return True
+
+        @staticmethod
+        def device_count() -> int:
+            return 1
+
+        @staticmethod
+        def get_device_name(index: int) -> str:
+            assert index == 0
+            return "NVIDIA RTX 6000 Ada Generation"
+
+        @staticmethod
+        def is_bf16_supported() -> bool:
+            return True
+
+    class FakeTorch:
+        cuda = FakeCuda()
+
+    assert qualification._qualification_cuda_environment_identity(FakeTorch()) == {
+        "cuda_available": True,
+        "cuda_device_count": 1,
+        "cuda_device_name": "NVIDIA RTX 6000 Ada Generation",
+        "cuda_bf16_supported": True,
+    }
+
+
 class _PoisonMapping:
     def __getitem__(self, key: object) -> object:
         raise AssertionError(f"非评分帧不应读取 observation: {key}")
@@ -667,6 +738,7 @@ def _synthetic_raw_route(
         "privileged_capture_count": 2,
         "memory_write_count": 0,
         "formal_claim_allowed": False,
+        "route_index": 0,
         "qualification_classification": "preflight/no-qualification-claim",
         "offline_segmentation_diagnostics": False,
         "gates": gates,
@@ -898,7 +970,19 @@ def _build_complete_synthetic_smoke_execution(
         private_root=private,
         combined_artifact_bytes_max=1_073_741_824,
         execution_freeze=execution_freeze,
-        environment_identity={"synthetic": True},
+        environment_identity={
+            "python": "synthetic-python",
+            "numpy": "synthetic-numpy",
+            "torch": "synthetic-torch",
+            "cuda_available": True,
+            "cuda_device_count": 1,
+            "cuda_device_name": "NVIDIA RTX 6000 Ada Generation",
+            "cuda_bf16_supported": True,
+            "mani_skill": g0c_config["software"]["expected_mani_skill_version"],
+            "sapien": g0c_config["software"]["expected_sapien_version"],
+            "external_camera_unmounted": True,
+            "camera_class": "synthetic.RenderCamera",
+        },
         capture_started_at_unix_ns=qualification.time.time_ns() - 1_000_000,
         capture_started_monotonic_s=qualification.time.monotonic() - 0.001,
         wall_seconds_max=900.0,
@@ -973,6 +1057,116 @@ def _resign_execution_after_summary_tamper(
         json.dumps(receipt, indent=2, sort_keys=True, allow_nan=False) + "\n",
         encoding="utf-8",
     )
+
+
+def _write_json(path: Path, value: dict[str, object]) -> None:
+    path.write_text(
+        json.dumps(value, indent=2, sort_keys=True, allow_nan=False) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _resign_freeze_and_receipt(public: Path, freeze: dict[str, object]) -> None:
+    freeze["freeze_sha256"] = canonical_sha256(
+        {key: value for key, value in freeze.items() if key != "freeze_sha256"}
+    )
+    _write_json(public / "execution_freeze.json", freeze)
+    receipt_path = public / "execution_receipt.json"
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    for key, value in freeze.items():
+        if key != "status":
+            receipt[key] = value
+    receipt["receipt_sha256"] = canonical_sha256(
+        {key: value for key, value in receipt.items() if key != "receipt_sha256"}
+    )
+    _write_json(receipt_path, receipt)
+
+
+def _resign_receipt(public: Path, receipt: dict[str, object]) -> None:
+    receipt["receipt_sha256"] = canonical_sha256(
+        {key: value for key, value in receipt.items() if key != "receipt_sha256"}
+    )
+    _write_json(public / "execution_receipt.json", receipt)
+
+
+def _resign_marker_and_complete_result_chain(*, public: Path, private: Path, result: Path) -> None:
+    marker_path = private / "SCORING_CONSUMED.json"
+    marker = json.loads(marker_path.read_text(encoding="utf-8"))
+    marker["rerun_under_same_identity_allowed"] = True
+    marker["marker_sha256"] = canonical_sha256(
+        {key: value for key, value in marker.items() if key != "marker_sha256"}
+    )
+    _write_json(marker_path, marker)
+    marker_raw_sha256 = qualification.file_sha256(marker_path)
+
+    summary_path = result / "qualification_summary.json"
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    summary["private_label_consumption_marker_raw_sha256"] = marker_raw_sha256
+    summary["private_label_consumption_marker_internal_sha256"] = marker["marker_sha256"]
+    _write_json(summary_path, summary)
+
+    receipt = {
+        **summary,
+        "artifact_sha256": {
+            name: qualification.file_sha256(result / name)
+            for name in (
+                "scoring_ledger.jsonl",
+                "viewpoint_summaries.json",
+                "qualification_summary.json",
+            )
+        },
+    }
+    receipt["receipt_sha256"] = canonical_sha256(receipt)
+    _write_json(result / "qualification_receipt.json", receipt)
+
+    state_path = result / "scoring_state.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state["private_label_consumption_marker_raw_sha256"] = marker_raw_sha256
+    state["private_label_consumption_marker_internal_sha256"] = marker["marker_sha256"]
+    state["qualification_receipt_internal_sha256"] = receipt["receipt_sha256"]
+
+    accounting_path = result / "artifact_accounting.json"
+    accounting = json.loads(accounting_path.read_text(encoding="utf-8"))
+    private_total_bytes = sum(path.stat().st_size for path in private.rglob("*") if path.is_file())
+    private_marker_bytes = marker_path.stat().st_size
+    stable_result_files = {
+        "scoring_ledger.jsonl",
+        "viewpoint_summaries.json",
+        "qualification_summary.json",
+        "qualification_receipt.json",
+    }
+    stable_result_bytes = sum((result / name).stat().st_size for name in stable_result_files)
+    candidate_result_bytes = stable_result_bytes
+    for _ in range(32):
+        accounting.update(
+            {
+                "private_label_commit_bytes": private_total_bytes - private_marker_bytes,
+                "private_scoring_consumption_marker_bytes": private_marker_bytes,
+                "private_label_total_bytes": private_total_bytes,
+                "result_total_bytes": candidate_result_bytes,
+                "combined_total_bytes": (
+                    accounting["public_execution_bytes"]
+                    + private_total_bytes
+                    + candidate_result_bytes
+                ),
+            }
+        )
+        accounting["accounting_sha256"] = canonical_sha256(
+            {key: value for key, value in accounting.items() if key != "accounting_sha256"}
+        )
+        state["artifact_accounting_sha256"] = accounting["accounting_sha256"]
+        recomputed_result_bytes = (
+            stable_result_bytes
+            + len(qualification._serialized_json_bytes(accounting))
+            + len(qualification._serialized_json_bytes(state))
+        )
+        if recomputed_result_bytes == candidate_result_bytes:
+            break
+        candidate_result_bytes = recomputed_result_bytes
+    else:  # pragma: no cover - 与 production fixed point 同构
+        raise AssertionError("synthetic marker result accounting 未收敛")
+    _write_json(accounting_path, accounting)
+    _write_json(state_path, state)
 
 
 def test_config_binds_formal_seed_view_count_and_calibration() -> None:
@@ -1348,6 +1542,215 @@ def test_complete_smoke_execution_tree_scores_and_verifies_without_private_reope
     assert combined["label_content_reopen_count"] == 0
 
 
+def test_combined_verifier_rejects_fully_resigned_marker_rerun_permission(
+    tmp_path: Path,
+) -> None:
+    public, private = _build_complete_synthetic_smoke_execution(tmp_path)
+    result = tmp_path / "result"
+    score_e018_p1_g2c_qualification(
+        qualification_config_path=CONFIG_PATH,
+        public_execution_root=public,
+        private_label_root=private,
+        result_output_root=result,
+        decision_scoring_go=True,
+    )
+    _resign_marker_and_complete_result_chain(
+        public=public,
+        private=private,
+        result=result,
+    )
+
+    # 证明依赖的公开 result/hash/bytes 已完整重签；拒绝点必须来自 marker 语义。
+    assert (
+        verify_g2c_qualification_result(
+            qualification_config_path=CONFIG_PATH,
+            public_execution_root=public,
+            result_root=result,
+        )["verified"]
+        is True
+    )
+    with pytest.raises(RuntimeError, match="scoring consumption marker"):
+        qualification.verify_g2c_qualification_combined_artifacts(
+            qualification_config_path=CONFIG_PATH,
+            public_execution_root=public,
+            private_label_root=private,
+            result_root=result,
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("cuda_device_name", "NVIDIA RTX 4090"),
+        ("cuda_device_count", 2),
+        ("cuda_bf16_supported", False),
+        ("test_array_read_count", 1),
+    ],
+)
+def test_complete_execution_rejects_resigned_environment_identity_tamper(
+    tmp_path: Path, field: str, value: object
+) -> None:
+    public, _ = _build_complete_synthetic_smoke_execution(tmp_path)
+    receipt_path = public / "execution_receipt.json"
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["environment_identity"][field] = value
+    _resign_receipt(public, receipt)
+
+    with pytest.raises((ValueError, RuntimeError), match="environment"):
+        qualification.verify_g2c_qualification_execution(
+            qualification_config_path=CONFIG_PATH,
+            public_execution_root=public,
+        )
+
+
+def test_complete_execution_rejects_resigned_receipt_extra_field(tmp_path: Path) -> None:
+    public, _ = _build_complete_synthetic_smoke_execution(tmp_path)
+    receipt_path = public / "execution_receipt.json"
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["test_array_read_count"] = 1
+    _resign_receipt(public, receipt)
+
+    with pytest.raises(ValueError, match="execution receipt keys"):
+        qualification.verify_g2c_qualification_execution(
+            qualification_config_path=CONFIG_PATH,
+            public_execution_root=public,
+        )
+
+
+@pytest.mark.parametrize(
+    "extra_field",
+    [
+        "test_array_read_count",
+        "memory_read_count",
+        "runtime_camera_actuation_count",
+        "formal_claim_allowed",
+    ],
+)
+def test_complete_execution_rejects_resigned_freeze_and_receipt_extra_permission(
+    tmp_path: Path, extra_field: str
+) -> None:
+    public, _ = _build_complete_synthetic_smoke_execution(tmp_path)
+    freeze_path = public / "execution_freeze.json"
+    freeze = json.loads(freeze_path.read_text(encoding="utf-8"))
+    freeze[extra_field] = 1
+    _resign_freeze_and_receipt(public, freeze)
+
+    with pytest.raises(ValueError, match="execution freeze keys"):
+        qualification.verify_g2c_qualification_execution(
+            qualification_config_path=CONFIG_PATH,
+            public_execution_root=public,
+        )
+
+
+def test_complete_execution_rejects_phase_state_extra_permission(tmp_path: Path) -> None:
+    public, _ = _build_complete_synthetic_smoke_execution(tmp_path)
+    state_path = public / "phase_state.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state["memory_write_count"] = 1
+    _write_json(state_path, state)
+
+    with pytest.raises(ValueError, match="phase state keys"):
+        qualification.verify_g2c_qualification_execution(
+            qualification_config_path=CONFIG_PATH,
+            public_execution_root=public,
+        )
+
+
+@pytest.mark.parametrize(
+    "ledger_name",
+    [
+        "motion_ledger",
+        "route_summaries",
+        "prediction_ledger",
+        "prediction_commit_ledger",
+    ],
+)
+def test_complete_execution_rejects_resigned_ledger_freeze_extra_permission(
+    tmp_path: Path, ledger_name: str
+) -> None:
+    public, _ = _build_complete_synthetic_smoke_execution(tmp_path)
+    freeze_path = public / "execution_freeze.json"
+    freeze = json.loads(freeze_path.read_text(encoding="utf-8"))
+    freeze[ledger_name]["test_array_read_count"] = 1
+    _resign_freeze_and_receipt(public, freeze)
+
+    with pytest.raises(ValueError, match=f"{ledger_name} freeze keys"):
+        qualification.verify_g2c_qualification_execution(
+            qualification_config_path=CONFIG_PATH,
+            public_execution_root=public,
+        )
+
+
+def test_complete_execution_rejects_resigned_route_summary_extra_permission(
+    tmp_path: Path,
+) -> None:
+    public, _ = _build_complete_synthetic_smoke_execution(tmp_path)
+    summary_path = public / "route_summaries.jsonl"
+    summaries = [json.loads(line) for line in summary_path.read_text().splitlines()]
+    summaries[0]["test_array_read_count"] = 1
+    _resign_execution_after_summary_tamper(public, summaries)
+
+    with pytest.raises(ValueError, match="route summary keys"):
+        qualification.verify_g2c_qualification_execution(
+            qualification_config_path=CONFIG_PATH,
+            public_execution_root=public,
+        )
+
+
+def test_complete_execution_rejects_resigned_commit_receipt_extra_permission(
+    tmp_path: Path,
+) -> None:
+    public, _ = _build_complete_synthetic_smoke_execution(tmp_path)
+    ledger_path = public / "prediction_commit_ledger.jsonl"
+    commits = [json.loads(line) for line in ledger_path.read_text().splitlines()]
+    commits[0]["test_array_read_count"] = 1
+    commits[0]["commit_receipt_sha256"] = canonical_sha256(
+        {key: value for key, value in commits[0].items() if key != "commit_receipt_sha256"}
+    )
+    ledger_path.write_text(
+        "".join(json.dumps(row, sort_keys=True, allow_nan=False) + "\n" for row in commits),
+        encoding="utf-8",
+    )
+    _write_json(public / "prediction_commits/000000.commit.json", commits[0])
+    freeze_path = public / "execution_freeze.json"
+    freeze = json.loads(freeze_path.read_text(encoding="utf-8"))
+    freeze["prediction_commit_ledger"] = {
+        "row_count": len(commits),
+        "raw_sha256": qualification.file_sha256(ledger_path),
+        "size_bytes": ledger_path.stat().st_size,
+    }
+    _resign_freeze_and_receipt(public, freeze)
+
+    with pytest.raises(ValueError, match="commit receipt keys"):
+        qualification.verify_g2c_qualification_execution(
+            qualification_config_path=CONFIG_PATH,
+            public_execution_root=public,
+        )
+
+
+def test_complete_execution_rejects_resigned_source_identity_extra_permission(
+    tmp_path: Path,
+) -> None:
+    public, _ = _build_complete_synthetic_smoke_execution(tmp_path)
+    source_path = public / "source_identity.json"
+    source = json.loads(source_path.read_text(encoding="utf-8"))
+    source["test_array_read_count"] = 1
+    source["identity_sha256"] = canonical_sha256(
+        {key: value for key, value in source.items() if key != "identity_sha256"}
+    )
+    _write_json(source_path, source)
+    freeze_path = public / "execution_freeze.json"
+    freeze = json.loads(freeze_path.read_text(encoding="utf-8"))
+    freeze["source_identity_sha256"] = source["identity_sha256"]
+    _resign_freeze_and_receipt(public, freeze)
+
+    with pytest.raises(ValueError, match="source identity keys"):
+        qualification.verify_g2c_qualification_execution(
+            qualification_config_path=CONFIG_PATH,
+            public_execution_root=public,
+        )
+
+
 @pytest.mark.parametrize(
     "tamper_kind",
     [
@@ -1703,6 +2106,17 @@ def test_formal_go_without_exact_d048_receipt_fails_before_config_read() -> None
             expected_source_identity_sha256="0" * 64,
             decision_execution_go=True,
         )
+
+
+def test_shared_capture_runs_cuda_preflight_before_artifact_or_provider_consumption() -> None:
+    source = inspect.getsource(qualification._run_qualification_capture)
+    preflight = source.index("_qualification_cuda_environment_identity(torch)")
+    assert preflight < source.index("public_root = Path(public_output_root)")
+    assert preflight < source.index("verify_g2c_qualification_parents(")
+    assert preflight < source.index("QualificationProvider(")
+    assert preflight < source.index("QualificationJournal(")
+    assert "_run_qualification_capture(" in inspect.getsource(run_e018_p1_g2c_qualification_capture)
+    assert "_run_qualification_capture(" in inspect.getsource(run_e018_p1_g2c_qualification_smoke)
 
 
 def test_qualification_cli_help_and_verify_config() -> None:

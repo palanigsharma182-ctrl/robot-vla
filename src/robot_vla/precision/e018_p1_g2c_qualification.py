@@ -277,6 +277,121 @@ _FORMAL_DECISION_VERIFICATION_KEYS = {
     "receipt_internal_sha256",
     "verification_sha256",
 }
+_QUALIFICATION_CUDA_DEVICE_COUNT = 1
+_QUALIFICATION_CUDA_DEVICE_NAME = "NVIDIA RTX 6000 Ada Generation"
+_QUALIFICATION_ENVIRONMENT_IDENTITY_KEYS = {
+    "python",
+    "numpy",
+    "torch",
+    "cuda_available",
+    "cuda_device_count",
+    "cuda_device_name",
+    "cuda_bf16_supported",
+    "mani_skill",
+    "sapien",
+    "external_camera_unmounted",
+    "camera_class",
+}
+_QUALIFICATION_PHASE_STATE_KEYS = {
+    "version",
+    "status",
+    "classification",
+    "config_sha256",
+    "created_at_unix_ns",
+    "qualification_consumption_started_at_unix_ns",
+    "label_array_consumed",
+    "prediction_commit_count",
+    "privileged_access_started_count",
+    "privileged_capture_count",
+    "rerun_under_same_identity_allowed",
+}
+_QUALIFICATION_LEDGER_FREEZE_KEYS = {"row_count", "raw_sha256", "size_bytes"}
+_QUALIFICATION_COMMIT_RECEIPT_KEYS = {
+    "version",
+    "row_index",
+    "prediction_sha256",
+    "prediction_raw_sha256",
+    "prediction_fsync_completed_at_unix_ns",
+    "commit_receipt_sha256",
+}
+_QUALIFICATION_ROUTE_SUMMARY_KEYS = {
+    "version",
+    "episode_id",
+    "seed",
+    "alternate_viewpoint_id",
+    "alternate_orientation_id",
+    "yaw_offset_rad",
+    "pitch_offset_rad",
+    "roll_offset_rad",
+    "status",
+    "passed",
+    "frame_count",
+    "control_hz",
+    "motion_ticks_each_leg",
+    "route_simulated_duration_s",
+    "gates",
+    "diagnostics",
+    "test_split_status",
+    "provider_forward_count",
+    "memory_write_count",
+    "formal_claim_allowed",
+    "route_index",
+    "qualification_classification",
+    "privileged_capture_count",
+    "offline_segmentation_diagnostics",
+}
+_QUALIFICATION_EXECUTION_FREEZE_KEYS = {
+    "version",
+    "status",
+    "classification",
+    "config_sha256",
+    "source_identity_sha256",
+    "parent_verification_sha256",
+    "g0c_config_snapshot",
+    "route_count",
+    "seed_count",
+    "alternate_count",
+    "seeds",
+    "alternate_order",
+    "counters",
+    "motion_ledger",
+    "route_summaries",
+    "prediction_ledger",
+    "prediction_commit_ledger",
+    "route_rgb_inventory",
+    "private_label_journal_inventory",
+    "output_identities",
+    "budget_limits",
+    "formal_execution_decision",
+    "last_prediction_sha256",
+    "permission_counters",
+    "test_split_status",
+    "checkpoint_write_count",
+    "scoring_started",
+    "freeze_sha256",
+}
+_QUALIFICATION_EXECUTION_RECEIPT_KEYS = _QUALIFICATION_EXECUTION_FREEZE_KEYS | {
+    "environment_identity",
+    "context_destroyed",
+    "phase_state_status",
+    "started_at_unix_ns",
+    "completed_at_unix_ns",
+    "wall_elapsed_seconds",
+    "gpu_elapsed_seconds",
+    "gpu_elapsed_accounting",
+    "receipt_sha256",
+}
+_SCORING_CONSUMPTION_MARKER_KEYS = {
+    "version",
+    "status",
+    "config_sha256",
+    "execution_receipt_internal_sha256",
+    "private_label_journal_inventory_sha256",
+    "result_output_identity_sha256",
+    "rerun_under_same_identity_allowed",
+    "consumption_started_at_unix_ns",
+    "marker_sha256",
+}
 _D036_CUMULATIVE_GPU_SECONDS_MAX = 36_000.0
 _D036_CUMULATIVE_ARTIFACT_BYTES_MAX = 21_474_836_480
 _D047_SMOKE_ARTIFACT_BYTES_MAX = 1_073_741_824
@@ -692,6 +807,64 @@ def _require_exact_keys(value: Any, expected: set[str], name: str) -> dict[str, 
             f"extra={sorted(actual - expected)}"
         )
     return value
+
+
+def _qualification_cuda_environment_identity(torch_module: Any) -> dict[str, Any]:
+    """在任何 qualification artifact/GT/provider 消费前冻结 CUDA 身份。"""
+
+    cuda = torch_module.cuda
+    available = cuda.is_available()
+    if available is not True:
+        raise RuntimeError("qualification 要求 CUDA available")
+    device_count = cuda.device_count()
+    if type(device_count) is not int or device_count != _QUALIFICATION_CUDA_DEVICE_COUNT:
+        raise RuntimeError(
+            "qualification CUDA device count 漂移: "
+            f"{device_count} != {_QUALIFICATION_CUDA_DEVICE_COUNT}"
+        )
+    device_name = cuda.get_device_name(0)
+    if device_name != _QUALIFICATION_CUDA_DEVICE_NAME:
+        raise RuntimeError(
+            "qualification CUDA device name 漂移: "
+            f"{device_name!r} != {_QUALIFICATION_CUDA_DEVICE_NAME!r}"
+        )
+    bf16_supported = cuda.is_bf16_supported()
+    if bf16_supported is not True:
+        raise RuntimeError("qualification 要求 CUDA BF16 support")
+    return {
+        "cuda_available": True,
+        "cuda_device_count": device_count,
+        "cuda_device_name": device_name,
+        "cuda_bf16_supported": True,
+    }
+
+
+def _validate_qualification_environment_identity(
+    value: Any,
+    *,
+    expected_mani_skill_version: str,
+    expected_sapien_version: str,
+) -> dict[str, Any]:
+    identity = _require_exact_keys(
+        value,
+        _QUALIFICATION_ENVIRONMENT_IDENTITY_KEYS,
+        "qualification environment identity",
+    )
+    if (
+        identity.get("cuda_available") is not True
+        or identity.get("cuda_device_count") != _QUALIFICATION_CUDA_DEVICE_COUNT
+        or identity.get("cuda_device_name") != _QUALIFICATION_CUDA_DEVICE_NAME
+        or identity.get("cuda_bf16_supported") is not True
+        or identity.get("mani_skill") != expected_mani_skill_version
+        or identity.get("sapien") != expected_sapien_version
+        or identity.get("external_camera_unmounted") is not True
+        or any(
+            not isinstance(identity.get(name), str) or not identity[name]
+            for name in ("python", "numpy", "torch", "camera_class")
+        )
+    ):
+        raise RuntimeError("qualification environment identity 漂移")
+    return identity
 
 
 def _read_json(path: Path, name: str) -> dict[str, Any]:
@@ -2096,6 +2269,11 @@ def validate_qualification_route_rows(
 ) -> dict[str, int]:
     """从 raw witness 重验一条 G0C-v2 route、SafeHold 与完整 gate。"""
 
+    _require_exact_keys(
+        dict(summary),
+        _QUALIFICATION_ROUTE_SUMMARY_KEYS,
+        "qualification route summary",
+    )
     if alternate_viewpoint_id != FRONT_ALTERNATE_IDS[alternate_index]:
         raise RuntimeError("qualification route alternate order 漂移")
     expected_states = tuple(state for state, count in _ROUTE_STATE_PATTERN for _ in range(count))
@@ -4222,6 +4400,11 @@ def _load_public_prediction_chain(
         internal = prediction_unsigned.pop("prediction_sha256", None)
         receipt_unsigned = dict(receipt)
         receipt_internal = receipt_unsigned.pop("commit_receipt_sha256", None)
+        _require_exact_keys(
+            receipt,
+            _QUALIFICATION_COMMIT_RECEIPT_KEYS,
+            "qualification prediction commit receipt",
+        )
         if (
             prediction.get("row_index") != row_index
             or prediction.get("previous_prediction_sha256") != previous
@@ -4502,6 +4685,11 @@ def verify_g2c_qualification_execution(
     config = load_g2c_dynamic_qualification_config(qualification_config_path)
     root = Path(public_execution_root)
     freeze = _read_json(root / "execution_freeze.json", "qualification execution freeze")
+    _require_exact_keys(
+        freeze,
+        _QUALIFICATION_EXECUTION_FREEZE_KEYS,
+        "qualification execution freeze",
+    )
     freeze_unsigned = dict(freeze)
     freeze_internal = freeze_unsigned.pop("freeze_sha256", None)
     if freeze_internal != canonical_sha256(freeze_unsigned):
@@ -4559,6 +4747,11 @@ def verify_g2c_qualification_execution(
     ):
         raise RuntimeError("qualification frozen G0C config snapshot 漂移")
     source = _read_json(root / "source_identity.json", "qualification source identity")
+    _require_exact_keys(
+        source,
+        {"git_commit", "source_tree_sha256", "identity_sha256"},
+        "qualification source identity",
+    )
     source_unsigned = dict(source)
     source_internal = source_unsigned.pop("identity_sha256", None)
     if source_internal != canonical_sha256(source_unsigned) or source_internal != freeze.get(
@@ -4656,6 +4849,17 @@ def verify_g2c_qualification_execution(
         or len(commit_receipts) != expected_prediction_count
     ):
         raise RuntimeError("qualification execution ledger count 漂移")
+    for name in (
+        "motion_ledger",
+        "route_summaries",
+        "prediction_ledger",
+        "prediction_commit_ledger",
+    ):
+        _require_exact_keys(
+            freeze.get(name),
+            _QUALIFICATION_LEDGER_FREEZE_KEYS,
+            f"qualification {name} freeze",
+        )
     route_counters: list[dict[str, int]] = []
     route_rgb_inventory_rows = _verify_ordered_inventory(
         freeze.get("route_rgb_inventory"),
@@ -4744,6 +4948,11 @@ def verify_g2c_qualification_execution(
         internal = prediction_unsigned.pop("prediction_sha256", None)
         commit_unsigned = dict(commit)
         commit_internal = commit_unsigned.pop("commit_receipt_sha256", None)
+        _require_exact_keys(
+            commit,
+            _QUALIFICATION_COMMIT_RECEIPT_KEYS,
+            "qualification prediction commit receipt",
+        )
         identity, route_row = expected_identity
         seed = identity["seed"]
         sample_index = identity["sample_index"]
@@ -4859,6 +5068,11 @@ def verify_g2c_qualification_execution(
     if freeze.get("permission_counters") != expected_permissions:
         raise RuntimeError("qualification permission/contact counters 漂移")
     phase_state = _read_json(root / "phase_state.json", "qualification phase state")
+    _require_exact_keys(
+        phase_state,
+        _QUALIFICATION_PHASE_STATE_KEYS,
+        "qualification phase state",
+    )
     if (
         phase_state.get("status") != "complete-execution-freeze-context-destroyed"
         or phase_state.get("classification") != classification
@@ -4872,8 +5086,18 @@ def verify_g2c_qualification_execution(
         raise RuntimeError("qualification final phase state 漂移")
     receipt_path = root / "execution_receipt.json"
     receipt = _read_json(receipt_path, "qualification execution receipt")
+    _require_exact_keys(
+        receipt,
+        _QUALIFICATION_EXECUTION_RECEIPT_KEYS,
+        "qualification execution receipt",
+    )
     receipt_unsigned = dict(receipt)
     receipt_internal = receipt_unsigned.pop("receipt_sha256", None)
+    _validate_qualification_environment_identity(
+        receipt.get("environment_identity"),
+        expected_mani_skill_version=g0c_config["software"]["expected_mani_skill_version"],
+        expected_sapien_version=g0c_config["software"]["expected_sapien_version"],
+    )
     timing_values = (
         receipt.get("wall_elapsed_seconds"),
         receipt.get("gpu_elapsed_seconds"),
@@ -5041,6 +5265,11 @@ def verify_g2c_qualification_failure(
     ):
         raise RuntimeError("qualification consumed failure identity/state 漂移")
     state = _read_json(root / "phase_state.json", "qualification failure phase state")
+    _require_exact_keys(
+        state,
+        _QUALIFICATION_PHASE_STATE_KEYS,
+        "qualification failure phase state",
+    )
     if (
         state.get("status") != "consumed-qualification-failure"
         or state.get("classification") != classification
@@ -5140,6 +5369,11 @@ def verify_g2c_qualification_failure(
         receipt_path = root / "prediction_commits" / f"{row_index:06d}.commit.json"
         prediction = _read_json(prediction_path, "qualification failed prediction")
         receipt = _read_json(receipt_path, "qualification failed prediction receipt")
+        _require_exact_keys(
+            receipt,
+            _QUALIFICATION_COMMIT_RECEIPT_KEYS,
+            "qualification failed prediction receipt",
+        )
         prediction_unsigned = dict(prediction)
         prediction_internal = prediction_unsigned.pop("prediction_sha256", None)
         receipt_unsigned = dict(receipt)
@@ -5262,6 +5496,7 @@ def _run_qualification_capture(
 
     from robot_vla.sim import register_robot_vla_maniskill_envs
 
+    cuda_environment_identity = _qualification_cuda_environment_identity(torch)
     public_root = Path(public_output_root)
     private_root = Path(private_label_output_root)
     output_identities = _output_root_identities(public_root=public_root, private_root=private_root)
@@ -5317,9 +5552,8 @@ def _run_qualification_capture(
     if (
         mani_skill.__version__ != data_config["software"]["expected_mani_skill_version"]
         or sapien.__version__ != data_config["software"]["expected_sapien_version"]
-        or not torch.cuda.is_available()
     ):
-        raise RuntimeError("qualification CUDA/ManiSkill/SAPIEN environment 漂移")
+        raise RuntimeError("qualification ManiSkill/SAPIEN environment 漂移")
     spec, proprio_normalizer, force_normalizer, normalizer_identity = _load_normalizers(
         stats_root=Path(stats_root), config=data_config
     )
@@ -5616,7 +5850,7 @@ def _run_qualification_capture(
             "python": platform.python_version(),
             "numpy": np.__version__,
             "torch": torch.__version__,
-            "cuda_device": torch.cuda.get_device_name(torch.device("cuda")),
+            **cuda_environment_identity,
             "mani_skill": mani_skill.__version__,
             "sapien": sapien.__version__,
             "external_camera_unmounted": sensor.entity is None,
@@ -6368,7 +6602,7 @@ def verify_g2c_qualification_combined_artifacts(
     private_label_root: str | Path,
     result_root: str | Path,
 ) -> dict[str, Any]:
-    """R2 artifact verifier：只审文件树/hash/bytes，不重开 private label 内容。"""
+    """R2 artifact verifier：审文件树/hash/marker 语义，不重开 private label 内容。"""
 
     execution = verify_g2c_qualification_execution(
         qualification_config_path=qualification_config_path,
@@ -6388,9 +6622,8 @@ def verify_g2c_qualification_combined_artifacts(
         expected_directories={"label_commits"},
         name="qualification private label journal artifact-only verification",
     )
-    # 这里只重算原始文件摘要，不解析 private label JSON。这样既能保持
-    # public verifier 的 label-content reopen count 为 0，又能发现评分后对
-    # private tree 的等长篡改，避免“文件数/总字节未变”被误报为三树完整。
+    # 这里只重算 label 原始文件摘要；SCORING_CONSUMED 是公开控制面 marker，
+    # 可以解析其语义而不重开任何 private label 内容。
     label_inventory_rows = execution["private_label_journal_inventory"]["rows"]
     for row_index, inventory_row in enumerate(label_inventory_rows):
         label_path = private_root / "label_commits" / f"{row_index:06d}.json"
@@ -6405,12 +6638,40 @@ def verify_g2c_qualification_combined_artifacts(
         "qualification summary for private marker commitment",
     )
     marker_path = private_root / "SCORING_CONSUMED.json"
+    marker = _read_json(marker_path, "qualification private scoring consumption marker")
+    _require_exact_keys(
+        marker,
+        _SCORING_CONSUMPTION_MARKER_KEYS,
+        "qualification private scoring consumption marker",
+    )
+    marker_unsigned = dict(marker)
+    marker_internal = marker_unsigned.pop("marker_sha256", None)
+    marker_raw = file_sha256(marker_path)
+    expected_result_output_identity = canonical_sha256(
+        {"absolute_path": str(Path(result_root).resolve())}
+    )
+    if (
+        marker_internal != canonical_sha256(marker_unsigned)
+        or marker.get("version") != E018_P1_G2C_QUALIFICATION_RESULT_VERSION
+        or marker.get("status") != "private-label-scoring-consumption-started"
+        or marker.get("config_sha256") != execution["config_sha256"]
+        or marker.get("execution_receipt_internal_sha256")
+        != execution["execution_receipt_internal_sha256"]
+        or marker.get("private_label_journal_inventory_sha256")
+        != execution["private_label_journal_inventory"]["inventory_sha256"]
+        or marker.get("result_output_identity_sha256") != expected_result_output_identity
+        or marker.get("rerun_under_same_identity_allowed") is not False
+        or type(marker.get("consumption_started_at_unix_ns")) is not int
+        or marker["consumption_started_at_unix_ns"] <= 0
+        or marker_raw != summary.get("private_label_consumption_marker_raw_sha256")
+        or marker_internal != summary.get("private_label_consumption_marker_internal_sha256")
+    ):
+        raise RuntimeError("qualification private scoring consumption marker 漂移")
     combined_bytes = (
         int(execution["artifact_bytes"]) + private_bytes + int(result["result_artifact_bytes"])
     )
     if (
-        file_sha256(marker_path) != summary.get("private_label_consumption_marker_raw_sha256")
-        or private_bytes != result["private_label_bytes"]
+        private_bytes != result["private_label_bytes"]
         or combined_bytes != result["combined_artifact_bytes"]
         or combined_bytes > result["combined_artifact_budget_bytes"]
     ):
