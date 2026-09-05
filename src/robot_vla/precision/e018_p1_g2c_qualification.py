@@ -85,6 +85,9 @@ QUALIFICATION_CLASSIFICATION_FORMAL = (
     "formal-dynamic-qualification-no-test-no-memory-no-manipulation/v1"
 )
 QUALIFICATION_CLASSIFICATION_SMOKE = "preflight/no-qualification-claim"
+QUALIFICATION_CLASSIFICATION_SELECTION = (
+    "formal-development-selection-capture-only-no-test-no-actuation/v1"
+)
 QUALIFICATION_SOURCE_PHASE = "G2C_DYNAMIC_QUALIFICATION_NO_EXECUTIVE_PHASE"
 QUALIFICATION_CAMERA_OWNER = "G2C_QUALIFICATION_ISOLATED_SIM_CAMERA"
 
@@ -2755,11 +2758,13 @@ def _validate_qualification_prediction_static_identity(
     )
     _require_exact_keys(dict(prediction), expected_keys, "qualification prediction")
     checkpoint = config["parents"]["selected_checkpoint"]
-    expected_split = (
-        "qualification"
-        if classification == QUALIFICATION_CLASSIFICATION_FORMAL
-        else "engineering_smoke"
-    )
+    expected_split = {
+        QUALIFICATION_CLASSIFICATION_FORMAL: "qualification",
+        QUALIFICATION_CLASSIFICATION_SMOKE: "engineering_smoke",
+        QUALIFICATION_CLASSIFICATION_SELECTION: "selection_development",
+    }.get(classification)
+    if expected_split is None:
+        raise RuntimeError("qualification prediction classification 未冻结")
     safety = _require_exact_keys(
         prediction.get("deployable_safety"),
         _DEPLOYABLE_SAFETY_KEYS,
@@ -2983,6 +2988,7 @@ class QualificationProvider:
         if classification not in {
             QUALIFICATION_CLASSIFICATION_FORMAL,
             QUALIFICATION_CLASSIFICATION_SMOKE,
+            QUALIFICATION_CLASSIFICATION_SELECTION,
         }:
             raise ValueError("qualification classification 未冻结")
         if not torch.cuda.is_available():
@@ -3030,11 +3036,11 @@ class QualificationProvider:
         ):
             output = self.model(image_tensor, state_tensor, motion_tensor)
         identity = capture["identity"]
-        split = (
-            "qualification"
-            if self.classification == QUALIFICATION_CLASSIFICATION_FORMAL
-            else "engineering_smoke"
-        )
+        split = {
+            QUALIFICATION_CLASSIFICATION_FORMAL: "qualification",
+            QUALIFICATION_CLASSIFICATION_SMOKE: "engineering_smoke",
+            QUALIFICATION_CLASSIFICATION_SELECTION: "selection_development",
+        }[self.classification]
         sample = {
             "model_inputs": {
                 "rgb_external": image,
@@ -3994,6 +4000,7 @@ def validate_qualification_prediction_mechanics(
     if classification not in {
         QUALIFICATION_CLASSIFICATION_FORMAL,
         QUALIFICATION_CLASSIFICATION_SMOKE,
+        QUALIFICATION_CLASSIFICATION_SELECTION,
     }:
         raise RuntimeError("qualification prediction classification 漂移")
     _validate_qualification_prediction_static_identity(

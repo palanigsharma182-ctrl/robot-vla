@@ -434,6 +434,7 @@ class ActiveFrontStage2Config:
     enabled: bool = False
     memory_write_allowed: bool = False
     min_information_gain: float = 0.05
+    information_gain_comparison_tolerance: float = 1e-12
     min_candidate_frames: int = 3
     max_candidate_gap_s: float = 0.075
     max_candidate_position_spread_m: float = 0.005
@@ -471,6 +472,8 @@ class ActiveFrontStage2Config:
             raise ValueError("D049 禁止 physical/manipulation actuator 与 fresh test")
         if self.min_information_gain not in ACTIVE_FRONT_INFORMATION_GAIN_CANDIDATES:
             raise ValueError("min_information_gain 必须来自 D049 冻结候选")
+        if self.information_gain_comparison_tolerance not in {0.0, 1e-12}:
+            raise ValueError("information gain comparison tolerance 只能是 0 或 1e-12")
         fixed = {
             "min_candidate_frames": (self.min_candidate_frames, 3),
             "max_candidate_gap_s": (self.max_candidate_gap_s, 0.075),
@@ -501,11 +504,30 @@ class ActiveFrontStage2Config:
             raise ValueError("Stage 2 adapter config version 漂移")
 
     @classmethod
-    def development(cls, *, min_information_gain: float = 0.05) -> "ActiveFrontStage2Config":
+    def development(
+        cls,
+        *,
+        min_information_gain: float = 0.05,
+        information_gain_comparison_tolerance: float = 1e-12,
+    ) -> "ActiveFrontStage2Config":
         return cls(
             enabled=True,
             memory_write_allowed=True,
             min_information_gain=min_information_gain,
+            information_gain_comparison_tolerance=(
+                information_gain_comparison_tolerance
+            ),
+        )
+
+    def information_gain_is_sufficient(self, information_gain: float) -> bool:
+        """按显式冻结 tolerance 比较，selection 使用 0.0。"""
+
+        value = float(information_gain)
+        if not math.isfinite(value):
+            raise ValueError("information gain 必须有限")
+        return bool(
+            value + self.information_gain_comparison_tolerance
+            >= self.min_information_gain
         )
 
 

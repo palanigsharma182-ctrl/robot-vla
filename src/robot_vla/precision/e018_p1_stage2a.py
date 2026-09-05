@@ -13,7 +13,7 @@ import math
 import platform
 import time
 import traceback
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -89,6 +89,7 @@ from robot_vla.precision.e018_p1_g2c_data import (
 )
 from robot_vla.precision.e018_p1_g2c_qualification import (
     QUALIFICATION_CLASSIFICATION_SMOKE,
+    QUALIFICATION_CLASSIFICATION_SELECTION,
     QualificationProvider,
     build_qualification_deployable_capture,
     load_g2c_dynamic_qualification_config,
@@ -117,6 +118,11 @@ E018_P1_STAGE2A_WRIST_CAPABILITY_VERSION = (
 )
 WRIST_CAPABILITY_ABSENT_STATUS = "NO_QUALIFIED_WRIST_PROVIDER_IN_D049_PARENT"
 STAGE2A_INTEGRATION_SMOKE_SEEDS = tuple(range(76901, 76911))
+STAGE2A_SELECTION_SEEDS = tuple(range(77001, 77026))
+E018_P1_STAGE2A_SELECTION_EXPERIMENT_ID = (
+    "E018-P1-S2A-MIN-INFORMATION-GAIN-SELECTION-DEVELOPMENT/v1"
+)
+_STAGE2A_SELECTION_CAPTURE_TOKEN = object()
 STAGE2A_COLLECT_FRAME_INDICES = (45, 46, 47)
 _STAGE2A_FAILURE_TRACEBACK_MAX_CHARS = 8192
 _STAGE2A_FAILURE_ERROR_MAX_CHARS = 1024
@@ -142,6 +148,29 @@ class Stage2AExecutionProgress:
             raise ValueError("Stage 2A progress 只接受 integration smoke seed")
         self.current_seed = seed
         self.episode_id = _stage2a_episode_id(seed)
+        self.request_id = None
+        self.current_frame_index = None
+        self.last_processed_frame_index = None
+        self.last_authorized_frame_index = None
+        self.controller_state = None
+        self.orchestrator_state = None
+        self.provider_forward_count = 0
+        self.memory_write_count = 0
+
+    def begin_information_gain_selection(
+        self,
+        seed: int,
+        *,
+        experiment_identity: str,
+    ) -> None:
+        """只为冻结的 selection split 建立失败恢复进度。"""
+
+        if experiment_identity != E018_P1_STAGE2A_SELECTION_EXPERIMENT_ID:
+            raise PermissionError("Stage 2A selection progress experiment identity 漂移")
+        if seed not in STAGE2A_SELECTION_SEEDS:
+            raise ValueError("Stage 2A selection progress 只接受 77001..77025")
+        self.current_seed = seed
+        self.episode_id = f"e018-p1-stage2a-selection-development-seed-{seed}"
         self.request_id = None
         self.current_frame_index = None
         self.last_processed_frame_index = None
@@ -676,6 +705,7 @@ def verify_stage2a_provider_output_record(
     *,
     stage2_config: LoadedStage2AConfig,
     qualification_config: Mapping[str, Any],
+    expected_classification: str = QUALIFICATION_CLASSIFICATION_SMOKE,
 ) -> None:
     """独立重算 provider mechanics 与所有 parent/config identity。"""
 
@@ -700,7 +730,12 @@ def verify_stage2a_provider_output_record(
     )
     identity = record.provider_identity
     if (
-        prediction.get("classification") != QUALIFICATION_CLASSIFICATION_SMOKE
+        expected_classification
+        not in {
+            QUALIFICATION_CLASSIFICATION_SMOKE,
+            QUALIFICATION_CLASSIFICATION_SELECTION,
+        }
+        or prediction.get("classification") != expected_classification
         or prediction.get("candidate_id") != identity.candidate_id
         or prediction.get("epoch") != identity.checkpoint_epoch
         or prediction.get("checkpoint_sha256") != identity.checkpoint_sha256
@@ -732,6 +767,7 @@ def build_stage2a_provider_output_record(
     route_frame_index: int,
     stage2_config: LoadedStage2AConfig,
     qualification_config: Mapping[str, Any],
+    expected_classification: str = QUALIFICATION_CLASSIFICATION_SMOKE,
 ) -> Stage2AProviderOutputRecord:
     """唯一构造入口；调用方不能分别注入任意 input/output digest。"""
 
@@ -775,6 +811,7 @@ def build_stage2a_provider_output_record(
         record,
         stage2_config=stage2_config,
         qualification_config=qualification_config,
+        expected_classification=expected_classification,
     )
     return record
 
@@ -1996,7 +2033,10 @@ def _stage2a_active_safety(
     row: Mapping[str, Any],
     *,
     controller: ActiveFrontReobserveController,
+    contact_comparison_tolerance_n: float = 1e-12,
 ) -> ActiveFrontSafetyEvidence:
+    if contact_comparison_tolerance_n not in {0.0, 1e-12}:
+        raise ValueError("Stage 2A contact comparison tolerance 只能是 0 或 1e-12")
     raw = _stage2a_safety_scalars(row)
     return ActiveFrontSafetyEvidence(
         arm_hold_pass=raw["arm_joint_max_drift_rad"] <= 1e-5 + 1e-12,
@@ -2006,7 +2046,8 @@ def _stage2a_active_safety(
         ),
         gripper_open_hold_pass=raw["minimum_finger_joint_position_m"]
         >= 0.039 - 1e-12,
-        contact_absent=raw["finger_object_contact_force_n"] <= 0.01 + 1e-12,
+        contact_absent=raw["finger_object_contact_force_n"]
+        <= 0.01 + contact_comparison_tolerance_n,
         active_window_open=controller.active_window_open,
     )
 
@@ -2015,8 +2056,13 @@ def _stage2a_memory_safety(
     row: Mapping[str, Any],
     *,
     controller: ActiveFrontReobserveController,
+    contact_comparison_tolerance_n: float = 1e-12,
 ) -> ObjectMemorySafetyContext:
-    active = _stage2a_active_safety(row, controller=controller)
+    active = _stage2a_active_safety(
+        row,
+        controller=controller,
+        contact_comparison_tolerance_n=contact_comparison_tolerance_n,
+    )
     return ObjectMemorySafetyContext(
         pregrasp_window_open=active.active_window_open,
         gripper_open=active.gripper_open_hold_pass,
@@ -2033,9 +2079,14 @@ def _stage2a_safety_evidence_record(
     row: Mapping[str, Any],
     *,
     controller: ActiveFrontReobserveController,
+    contact_comparison_tolerance_n: float = 1e-12,
 ) -> dict[str, Any]:
     raw = _stage2a_safety_scalars(row)
-    evidence = _stage2a_active_safety(row, controller=controller)
+    evidence = _stage2a_active_safety(
+        row,
+        controller=controller,
+        contact_comparison_tolerance_n=contact_comparison_tolerance_n,
+    )
     record = {
         "version": "e018-p1-stage2a-derived-safety-evidence/v1",
         "frame_index": int(row["frame_index"]),
@@ -2057,6 +2108,7 @@ def _stage2a_home_barrier_evidence(
     observation_sequence_id: str,
     timestamp_offset_s: float,
     controller: ActiveFrontReobserveController,
+    contact_comparison_tolerance_n: float = 1e-12,
 ) -> dict[str, Any]:
     control_timestamp = float(row["timestamp_s"]) + timestamp_offset_s
     payload = home_observation_payload_identity(
@@ -2066,7 +2118,11 @@ def _stage2a_home_barrier_evidence(
     actual_pose = np.asarray(
         row["actual_base_from_external_camera_cv"], dtype=np.float64
     )
-    safety = _stage2a_safety_evidence_record(row, controller=controller)
+    safety = _stage2a_safety_evidence_record(
+        row,
+        controller=controller,
+        contact_comparison_tolerance_n=contact_comparison_tolerance_n,
+    )
     evidence = {
         "version": "e018-p1-stage2a-home-barrier-evidence/v1",
         "episode_id": episode_id,
@@ -2686,11 +2742,41 @@ class Stage2ARouteTransaction:
         proprio_normalizer: Any,
         finger_force_normalizer: Any,
         execution_progress: Stage2AExecutionProgress,
+        _selection_capture_token: object | None = None,
+        _selection_provider_commit_hook: (
+            Callable[
+                [
+                    Stage2AProviderOutputRecord,
+                    Mapping[str, Any],
+                    np.ndarray,
+                    Mapping[str, Any],
+                ],
+                None,
+            ]
+            | None
+        ) = None,
     ) -> None:
-        if seed not in STAGE2A_INTEGRATION_SMOKE_SEEDS:
-            raise ValueError("Stage 2A transaction 只接受 76901..76910")
+        if _selection_capture_token is None:
+            if seed not in STAGE2A_INTEGRATION_SMOKE_SEEDS:
+                raise ValueError("Stage 2A transaction 只接受 76901..76910")
+            episode_id = _stage2a_episode_id(seed)
+            capture_only = False
+        elif _selection_capture_token is _STAGE2A_SELECTION_CAPTURE_TOKEN:
+            if seed not in STAGE2A_SELECTION_SEEDS:
+                raise ValueError("Stage 2A selection capture 只接受 77001..77025")
+            episode_id = f"e018-p1-stage2a-selection-development-seed-{seed}"
+            capture_only = True
+        else:
+            raise PermissionError("Stage 2A selection capture token 非法")
+        if capture_only != (_selection_provider_commit_hook is not None):
+            raise ValueError(
+                "Stage 2A selection capture 必须且只能配置 prediction/label commit hook"
+            )
         self.seed = seed
-        self.episode_id = _stage2a_episode_id(seed)
+        self.episode_id = episode_id
+        self.capture_only = capture_only
+        self._contact_comparison_tolerance_n = 0.0 if capture_only else 1e-12
+        self._selection_provider_commit_hook = _selection_provider_commit_hook
         self.provider = provider
         self.stage2_config = stage2_config
         self.qualification_config = qualification_config
@@ -2721,9 +2807,17 @@ class Stage2ARouteTransaction:
         self.memory = ExplicitObjectStateMemory(
             build_stage2_object_memory_config(d049_primary_provider_identity())
         )
+        runtime_config = (
+            ActiveFrontStage2Config.development(
+                min_information_gain=0.02,
+                information_gain_comparison_tolerance=0.0,
+            )
+            if capture_only
+            else stage2_config.runtime_config
+        )
         self.orchestrator = ActiveFrontStage2MemoryOrchestrator(
             self.memory,
-            config=stage2_config.runtime_config,
+            config=runtime_config,
         )
         self.orchestrator.reset_episode(
             self.episode_id,
@@ -2753,7 +2847,63 @@ class Stage2ARouteTransaction:
         self._last_warmup_observation: Mapping[str, Any] | None = None
         self._return_marked = False
         self._collect_orchestrator_rejections: list[str] = []
+        self.selection_candidate_digest_before_defer: str | None = None
+        self.selection_candidate_commit_eligible_before_defer: bool | None = None
+        self.selection_candidate_rejection_reasons_before_defer: tuple[str, ...] | None = None
+        self.selection_passive_baseline: PassiveBaselineEvidence | None = None
+        self.selection_home_frames: list[HomeV2BarrierFrame] = []
+        self.selection_memory_safety_by_frame: dict[int, ObjectMemorySafetyContext] = {}
+        self.selection_active_safety_by_frame: dict[int, ActiveFrontSafetyEvidence] = {}
+        self.selection_return_home_timestamp_s: float | None = None
+        self.selection_route_summary: dict[str, Any] | None = None
         self._sync_execution_progress()
+
+    @classmethod
+    def for_information_gain_selection_capture(
+        cls,
+        *,
+        experiment_identity: str,
+        seed: int,
+        provider: QualificationProvider,
+        stage2_config: LoadedStage2AConfig,
+        qualification_config: Mapping[str, Any],
+        data_config: Mapping[str, Any],
+        base_env: Any,
+        spec: Any,
+        proprio_normalizer: Any,
+        finger_force_normalizer: Any,
+        execution_progress: Stage2AExecutionProgress,
+        provider_commit_hook: (
+            Callable[
+                [
+                    Stage2AProviderOutputRecord,
+                    Mapping[str, Any],
+                    np.ndarray,
+                    Mapping[str, Any],
+                ],
+                None,
+            ]
+            | None
+        ) = None,
+    ) -> "Stage2ARouteTransaction":
+        """建立固定 selection split 的 capture-only supervisor。"""
+
+        if experiment_identity != E018_P1_STAGE2A_SELECTION_EXPERIMENT_ID:
+            raise PermissionError("Stage 2A selection experiment identity 漂移")
+        return cls(
+            seed=seed,
+            provider=provider,
+            stage2_config=stage2_config,
+            qualification_config=qualification_config,
+            data_config=data_config,
+            base_env=base_env,
+            spec=spec,
+            proprio_normalizer=proprio_normalizer,
+            finger_force_normalizer=finger_force_normalizer,
+            execution_progress=execution_progress,
+            _selection_capture_token=_STAGE2A_SELECTION_CAPTURE_TOKEN,
+            _selection_provider_commit_hook=provider_commit_hook,
+        )
 
     def _sync_execution_progress(self) -> None:
         """把当前 supervisor 状态复制到失败恢复 receipt。"""
@@ -2974,6 +3124,11 @@ class Stage2ARouteTransaction:
             route_frame_index=frame_index,
             stage2_config=self.stage2_config,
             qualification_config=self.qualification_config,
+            expected_classification=(
+                QUALIFICATION_CLASSIFICATION_SELECTION
+                if self.capture_only
+                else QUALIFICATION_CLASSIFICATION_SMOKE
+            ),
         )
         self.provider_records.append(record)
         return record
@@ -3015,12 +3170,28 @@ class Stage2ARouteTransaction:
         safety_record = _stage2a_safety_evidence_record(
             row,
             controller=self.trigger_controller,
+            contact_comparison_tolerance_n=self._contact_comparison_tolerance_n,
         )
         self.safety_evidence.append(safety_record)
         safety = _stage2a_active_safety(
             row,
             controller=self.trigger_controller,
+            contact_comparison_tolerance_n=self._contact_comparison_tolerance_n,
         )
+        if self.capture_only and frame_index in {
+            *STAGE2A_COLLECT_FRAME_INDICES,
+            *STAGE2A_HOME_BARRIER_FRAME_INDICES,
+        }:
+            self.selection_active_safety_by_frame[frame_index] = safety
+            self.selection_memory_safety_by_frame[frame_index] = (
+                _stage2a_memory_safety(
+                    row,
+                    controller=self.trigger_controller,
+                    contact_comparison_tolerance_n=(
+                        self._contact_comparison_tolerance_n
+                    ),
+                )
+            )
 
         if (
             frame_index > 0
@@ -3041,6 +3212,15 @@ class Stage2ARouteTransaction:
 
         if frame_index in STAGE2A_PROVIDER_FRAME_INDICES:
             record = self._provider_frame(row, rgb)
+            if self.capture_only:
+                if self._selection_provider_commit_hook is None:
+                    raise RuntimeError("selection capture 缺 prediction/label commit hook")
+                self._selection_provider_commit_hook(
+                    record,
+                    row,
+                    rgb,
+                    observation,
+                )
             if frame_index == 0:
                 if self.trigger_record is None or self._request is None:
                     raise RuntimeError("Stage 2A HOME baseline 缺少 trigger record")
@@ -3065,6 +3245,8 @@ class Stage2ARouteTransaction:
                     object_memory_age_s=None,
                     object_memory_source_identity=None,
                 )
+                if self.capture_only:
+                    self.selection_passive_baseline = baseline
                 self.reset_receipt, self.reset_audit = (
                     self.action_history.invalidate_for_active_request(self._request)
                 )
@@ -3100,6 +3282,9 @@ class Stage2ARouteTransaction:
                         safety=_stage2a_memory_safety(
                             row,
                             controller=self.trigger_controller,
+                            contact_comparison_tolerance_n=(
+                                self._contact_comparison_tolerance_n
+                            ),
                         ),
                     )
                     self._collect_orchestrator_rejections.extend(
@@ -3133,6 +3318,19 @@ class Stage2ARouteTransaction:
             )
             candidate = self.orchestrator.pending_candidate
             rejection_reasons = tuple(self.orchestrator.terminal_reasons)
+            if self.capture_only and candidate is not None:
+                self.selection_candidate_digest_before_defer = candidate.digest
+                self.selection_candidate_commit_eligible_before_defer = (
+                    candidate.commit_eligible
+                )
+                self.selection_candidate_rejection_reasons_before_defer = (
+                    candidate.rejection_reasons
+                )
+                if candidate.commit_eligible:
+                    self.orchestrator.defer_candidate_for_pure_logic_replay(
+                        candidate_digest=candidate.digest
+                    )
+                    rejection_reasons = tuple(self.orchestrator.terminal_reasons)
             if candidate is None:
                 rejection_reasons = tuple(
                     dict.fromkeys((*rejection_reasons, "candidate_not_constructed"))
@@ -3150,8 +3348,12 @@ class Stage2ARouteTransaction:
                 commit_eligible = False
             else:
                 candidate_digest = candidate.digest
-                commit_eligible = candidate.commit_eligible
-                rejection_reasons = candidate.rejection_reasons
+                commit_eligible = candidate.commit_eligible and not self.capture_only
+                rejection_reasons = (
+                    rejection_reasons
+                    if self.capture_only
+                    else candidate.rejection_reasons
+                )
             self.candidate_stage_receipt = Stage2MemoryCandidateReceipt(
                 request_id=self._request.request_id,
                 candidate_digest=candidate_digest,
@@ -3171,12 +3373,15 @@ class Stage2ARouteTransaction:
                 safety=safety,
                 candidate_receipt=self.candidate_stage_receipt,
             )
+            return_home_timestamp_s = (
+                float(row["timestamp_s"]) + self._TIMESTAMP_OFFSET_S + 0.001
+            )
             self.orchestrator.mark_returning_home(
-                timestamp_s=(
-                    float(row["timestamp_s"]) + self._TIMESTAMP_OFFSET_S + 0.001
-                ),
+                timestamp_s=return_home_timestamp_s,
                 candidate_digest=None if candidate is None else candidate.digest,
             )
+            if self.capture_only:
+                self.selection_return_home_timestamp_s = return_home_timestamp_s
             self._return_marked = True
         elif frame_index == 87:
             if not _stage2a_pose_at_home(row):
@@ -3217,6 +3422,8 @@ class Stage2ARouteTransaction:
                 captured_after_return=True,
                 contains_alternate_or_motion_rgb=False,
             )
+            if self.capture_only:
+                self.selection_home_frames.append(home_frame)
             home_evidence = _stage2a_home_barrier_evidence(
                 row,
                 observation,
@@ -3225,6 +3432,9 @@ class Stage2ARouteTransaction:
                 observation_sequence_id=sequence_id,
                 timestamp_offset_s=self._TIMESTAMP_OFFSET_S,
                 controller=self.trigger_controller,
+                contact_comparison_tolerance_n=(
+                    self._contact_comparison_tolerance_n
+                ),
             )
             prospective_home_evidence = [*self.home_barrier_evidence, home_evidence]
             if frame_index == STAGE2A_HOME_BARRIER_FRAME_INDICES[-1]:
@@ -3336,6 +3546,9 @@ class Stage2ARouteTransaction:
                 safety=_stage2a_active_safety(
                     final_row,
                     controller=self.trigger_controller,
+                    contact_comparison_tolerance_n=(
+                        self._contact_comparison_tolerance_n
+                    ),
                 ),
             )
             expected_controller_state = (
@@ -3350,6 +3563,9 @@ class Stage2ARouteTransaction:
                 safety=_stage2a_active_safety(
                     final_row,
                     controller=self.trigger_controller,
+                    contact_comparison_tolerance_n=(
+                        self._contact_comparison_tolerance_n
+                    ),
                 ),
                 source_phase=STAGE2A_SOURCE_PHASE,
                 source_invariants_passed=bool(route_summary.get("passed")),
@@ -3366,6 +3582,9 @@ class Stage2ARouteTransaction:
                     safety=_stage2a_memory_safety(
                         final_row,
                         controller=self.trigger_controller,
+                        contact_comparison_tolerance_n=(
+                            self._contact_comparison_tolerance_n
+                        ),
                     ),
                 )
                 resume, self.resume_audit = (
@@ -3408,15 +3627,35 @@ class Stage2ARouteTransaction:
                 provider_forward_count=len(self.provider_records),
             )
 
+        if self.capture_only:
+            if (
+                self.orchestrator.memory_write_count != 0
+                or self.orchestrator.commit_receipt is not None
+                or self.orchestrator.shadow_action_receipt is not None
+                or self.resume_audit is not None
+            ):
+                raise RuntimeError("selection capture-only supervisor 产生了 Memory/Action 副作用")
+            self.selection_route_summary = dict(route_summary)
+
         candidate = self.orchestrator.pending_candidate
         final_memory = _object_state_snapshot(self.memory.state)
         candidate_stage = asdict(self.candidate_stage_receipt)
         candidate_stage["receipt_sha256"] = canonical_sha256(candidate_stage)
+        transaction_classification = (
+            "formal-development-selection-capture-only-no-test-no-actuation/v1"
+            if self.capture_only
+            else "engineering-integration-smoke"
+        )
+        wrist_capability_status = (
+            WRIST_CAPABILITY_ABSENT_STATUS
+            if self.capture_only
+            else "not-evaluated"
+        )
         return {
             "version": E018_P1_STAGE2A_EXECUTION_VERSION,
-            "classification": "engineering-integration-smoke",
+            "classification": transaction_classification,
             "effect_claim": "no-effect-claim",
-            "wrist_capability": "not-evaluated",
+            "wrist_capability": wrist_capability_status,
             "seed": self.seed,
             "episode_id": self.episode_id,
             "request_id": self._request.request_id,
@@ -3487,6 +3726,90 @@ class Stage2ARouteTransaction:
             "gripper_close_command_count": 0,
             "fresh_test_reads": 0,
             "checkpoint_writes": 0,
+        }
+
+    def selection_replay_inputs(self) -> dict[str, Any]:
+        """导出不含 env/provider/GT 的同路由纯逻辑重放输入。"""
+
+        candidate = self.orchestrator.pending_candidate
+        if (
+            not self.capture_only
+            or self.selection_route_summary is None
+            or self._request is None
+            or self.trigger_record is None
+            or self.source_recheck_record is None
+            or self.selection_passive_baseline is None
+            or self.reset_receipt is None
+            or self.selection_return_home_timestamp_s is None
+            or len(self.primary_frames) != 3
+            or len(self.selection_home_frames) != 4
+            or len(self.home_barrier_evidence) != 4
+            or self.home_v2_window_identity is None
+            or set(self.selection_memory_safety_by_frame)
+            != {*STAGE2A_COLLECT_FRAME_INDICES, *STAGE2A_HOME_BARRIER_FRAME_INDICES}
+            or set(self.selection_active_safety_by_frame)
+            != {*STAGE2A_COLLECT_FRAME_INDICES, *STAGE2A_HOME_BARRIER_FRAME_INDICES}
+        ):
+            raise RuntimeError("selection replay inputs 尚未完整冻结")
+        if candidate is not None and (
+            self.selection_candidate_digest_before_defer != candidate.digest
+            or self.selection_candidate_commit_eligible_before_defer
+            is not candidate.commit_eligible
+            or self.selection_candidate_rejection_reasons_before_defer
+            != candidate.rejection_reasons
+        ):
+            raise RuntimeError("selection defer 前 raw candidate identity 漂移")
+        return {
+            "episode_id": self.episode_id,
+            "seed": self.seed,
+            "request": self._request,
+            "trigger_record": self.trigger_record,
+            "source_recheck_record": self.source_recheck_record,
+            "passive_baseline": self.selection_passive_baseline,
+            "primary_frames": tuple(self.primary_frames),
+            "collect_memory_safety": tuple(
+                self.selection_memory_safety_by_frame[index]
+                for index in STAGE2A_COLLECT_FRAME_INDICES
+            ),
+            "home_frames": tuple(self.selection_home_frames),
+            "home_timestamps_s": tuple(
+                float(value["control_timestamp_s"])
+                for value in self.home_barrier_evidence
+            ),
+            "home_memory_safety": tuple(
+                self.selection_memory_safety_by_frame[index]
+                for index in STAGE2A_HOME_BARRIER_FRAME_INDICES
+            ),
+            "home_active_safety": tuple(
+                self.selection_active_safety_by_frame[index]
+                for index in STAGE2A_HOME_BARRIER_FRAME_INDICES
+            ),
+            "final_active_safety": self.selection_active_safety_by_frame[
+                STAGE2A_HOME_BARRIER_FRAME_INDICES[-1]
+            ],
+            "final_memory_safety": self.selection_memory_safety_by_frame[
+                STAGE2A_HOME_BARRIER_FRAME_INDICES[-1]
+            ],
+            "return_home_timestamp_s": self.selection_return_home_timestamp_s,
+            "home_evidence": tuple(
+                json.loads(_canonical_json(value))
+                for value in self.home_barrier_evidence
+            ),
+            "observation_v2_window_identity": json.loads(
+                _canonical_json(self.home_v2_window_identity)
+            ),
+            "route_protocol_safety_valid": bool(
+                self.selection_route_summary.get("passed")
+            ),
+            "provider_forward_count": len(self.provider_records),
+            "raw_candidate": None if candidate is None else candidate.as_dict(),
+            "raw_candidate_digest": None if candidate is None else candidate.digest,
+            "raw_candidate_commit_eligible_at_gain_0_02": (
+                None if candidate is None else candidate.commit_eligible
+            ),
+            "raw_candidate_rejection_reasons_at_gain_0_02": (
+                None if candidate is None else candidate.rejection_reasons
+            ),
         }
 
 
@@ -4813,6 +5136,7 @@ def _verify_stage2a_safety_record(
     value: Mapping[str, Any],
     *,
     controller: ActiveFrontReobserveController,
+    contact_comparison_tolerance_n: float = 1e-12,
 ) -> ActiveFrontSafetyEvidence:
     record = _require_exact_keys(
         dict(value),
@@ -4873,7 +5197,11 @@ def _verify_stage2a_safety_record(
             float(finger_force_left), float(finger_force_right)
         ),
     }
-    expected = _stage2a_active_safety(row, controller=controller)
+    expected = _stage2a_active_safety(
+        row,
+        controller=controller,
+        contact_comparison_tolerance_n=contact_comparison_tolerance_n,
+    )
     if (
         stored_digest != canonical_sha256(primitive)
         or record["version"] != "e018-p1-stage2a-derived-safety-evidence/v1"

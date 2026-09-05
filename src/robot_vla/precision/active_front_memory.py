@@ -762,6 +762,27 @@ class ActiveFrontStage2MemoryOrchestrator:
         else:
             self._state = PendingActiveViewState.RETURN_HOME_REQUIRED_NO_COMMIT
 
+    def defer_candidate_for_pure_logic_replay(self, *, candidate_digest: str) -> None:
+        """冻结已构造 candidate，但把任何 Memory/Action 副作用延迟到隔离重放。"""
+
+        if (
+            self._state is not PendingActiveViewState.VERIFIED_PENDING
+            or self._candidate is None
+        ):
+            raise RuntimeError("只有 VERIFIED_PENDING candidate 可以延迟到纯逻辑重放")
+        _sha256(candidate_digest, "candidate_digest")
+        if candidate_digest != self._candidate.digest:
+            raise RuntimeError("纯逻辑重放 candidate digest 漂移")
+        if (
+            self.memory_write_count != 0
+            or self._commit_receipt is not None
+            or self._shadow_action_receipt is not None
+        ):
+            raise RuntimeError("纯逻辑重放冻结前禁止 Memory write/Action generation")
+        self._require_return_home_without_commit(
+            "selection_capture_only_branching_deferred"
+        )
+
     def _finish_failed_safe_hold(self, *reasons: str) -> None:
         """只在四帧 HOME barrier 已成立后释放 camera lease。"""
 
@@ -922,7 +943,7 @@ class ActiveFrontStage2MemoryOrchestrator:
         information_gain = None
         if not baseline_reasons and self._baseline.home_front_write_score is not None:
             information_gain = minimum_score - self._baseline.home_front_write_score
-            if information_gain + 1e-12 < self.config.min_information_gain:
+            if not self.config.information_gain_is_sufficient(information_gain):
                 reasons.append("information_gain_below_threshold")
 
         final_measurement = adaptation.measurement
