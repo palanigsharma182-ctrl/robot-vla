@@ -383,6 +383,7 @@ def calibrate_g2c_viewpoint(
     threshold_rows: list[tuple[float, bool, bool, bool]] = []
     oracle_safe_count = 0
     catastrophic_count = 0
+    nonfinite_conformity_score_count = 0
     for row in rows:
         score = float(row["write_score"])
         structurally_eligible = row.get("structurally_eligible")
@@ -421,13 +422,14 @@ def calibrate_g2c_viewpoint(
         ):
             raise ValueError("G2C calibration covariance cohort 非有限/shape/PSD 漂移")
         mahalanobis = _mahalanobis_squared_psd(error, covariance[:2, :2])
+        nonfinite_conformity_score_count += int(not math.isfinite(mahalanobis))
         covariance_cohort.append((float(mahalanobis), covariance))
 
     support = len(covariance_cohort)
     calibration: dict[str, Any] | None = None
     maximum_std: float | None = None
     covariance_passed = False
-    if support >= rules["minimum_support"]:
+    if support >= rules["minimum_support"] and nonfinite_conformity_score_count == 0:
         k = min(
             math.ceil((support + 1) * rules["target_coverage"]),
             support,
@@ -487,6 +489,8 @@ def calibrate_g2c_viewpoint(
     failure_reasons = []
     if support < rules["minimum_support"]:
         failure_reasons.append("covariance_support_below_30")
+    elif nonfinite_conformity_score_count > 0:
+        failure_reasons.append("nonfinite_conformity_score_present")
     elif calibration is None:
         failure_reasons.append("nonfinite_conformal_quantile_or_scale")
     elif not covariance_passed:
@@ -500,6 +504,11 @@ def calibrate_g2c_viewpoint(
         "status": "calibration-pass" if passed else "calibration-no-go",
         "row_count": len(rows),
         "support_count": support,
+        "conformity_score_count": support,
+        "finite_conformity_score_count": (
+            support - nonfinite_conformity_score_count
+        ),
+        "nonfinite_conformity_score_count": nonfinite_conformity_score_count,
         "oracle_safe_count": oracle_safe_count,
         "catastrophic_measurement_count": catastrophic_count,
         "covariance_passed": covariance_passed,

@@ -300,6 +300,7 @@ def g2c_calibration_protocol() -> dict[str, Any]:
             "chi_square_threshold": 5.991,
             "minimum_support": 30,
             "maximum_calibrated_position_std_m": 0.020,
+            "nonfinite_conformity_policy": "view-no-go-no-tail-hiding/v1",
         },
         "write_threshold": {
             "maximum_oracle_safe_error_m": 0.005,
@@ -3491,7 +3492,7 @@ def run_g2c_calibration_synthetic_gpu_smoke(
         "model_and_inference_context_destroyed": True,
         "singular_psd_protocol_valid_no_go": bool(
             singular_no_go["status"] == "calibration-no-go"
-            and "nonfinite_conformal_quantile_or_scale"
+            and "nonfinite_conformity_score_present"
             in singular_no_go["failure_reasons"]
         ),
         "formal_calibration_gate_evaluated": False,

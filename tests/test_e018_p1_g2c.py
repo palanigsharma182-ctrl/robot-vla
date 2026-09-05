@@ -602,9 +602,89 @@ def test_per_view_calibration_singular_psd_nonzero_nullspace_error_is_no_go() ->
 
     assert result["status"] == "calibration-no-go"
     assert result["support_count"] == 30
+    assert result["nonfinite_conformity_score_count"] == 30
     assert result["calibration"] is None
-    assert "nonfinite_conformal_quantile_or_scale" in result["failure_reasons"]
+    assert "nonfinite_conformity_score_present" in result["failure_reasons"]
     assert result["catastrophic_accepted_count"] == 0
+
+
+def test_per_view_calibration_one_nonfinite_score_cannot_hide_in_alpha_tail() -> None:
+    rows = [
+        {
+            "viewpoint_id": "LEFT_LOW__CENTER",
+            "world_xy_error_vector_m": [0.001, 0.0],
+            "raw_covariance_base_m2": np.diag([1e-6, 1e-6, 0.0]).tolist(),
+            "write_score": 0.8,
+            "gt_observable": True,
+            "geometry_valid": True,
+            "structurally_eligible": True,
+            "oracle_safe_measurement": True,
+            "catastrophic_measurement": False,
+        }
+        for _ in range(49)
+    ]
+    rows.append(
+        {
+            "viewpoint_id": "LEFT_LOW__CENTER",
+            "world_xy_error_vector_m": [0.0, 0.001],
+            "raw_covariance_base_m2": np.diag([1e-6, 0.0, 0.0]).tolist(),
+            "write_score": 0.8,
+            "gt_observable": True,
+            "geometry_valid": True,
+            "structurally_eligible": True,
+            "oracle_safe_measurement": True,
+            "catastrophic_measurement": False,
+        }
+    )
+
+    result = calibrate_g2c_viewpoint(rows, viewpoint_id="LEFT_LOW__CENTER")
+
+    assert result["status"] == "calibration-no-go"
+    assert result["support_count"] == 50
+    assert result["conformity_score_count"] == 50
+    assert result["finite_conformity_score_count"] == 49
+    assert result["nonfinite_conformity_score_count"] == 1
+    assert result["covariance_passed"] is False
+    assert result["calibration"] is None
+    assert "nonfinite_conformity_score_present" in result["failure_reasons"]
+
+
+def test_per_view_calibration_singular_psd_zero_nullspace_error_is_allowed() -> None:
+    rows = [
+        {
+            "viewpoint_id": "LEFT_LOW__CENTER",
+            "world_xy_error_vector_m": [0.001, 0.0],
+            "raw_covariance_base_m2": np.diag([1e-6, 1e-6, 0.0]).tolist(),
+            "write_score": 0.8,
+            "gt_observable": True,
+            "geometry_valid": True,
+            "structurally_eligible": True,
+            "oracle_safe_measurement": True,
+            "catastrophic_measurement": False,
+        }
+        for _ in range(49)
+    ]
+    rows.append(
+        {
+            "viewpoint_id": "LEFT_LOW__CENTER",
+            "world_xy_error_vector_m": [0.001, 0.0],
+            "raw_covariance_base_m2": np.diag([1e-6, 0.0, 0.0]).tolist(),
+            "write_score": 0.8,
+            "gt_observable": True,
+            "geometry_valid": True,
+            "structurally_eligible": True,
+            "oracle_safe_measurement": True,
+            "catastrophic_measurement": False,
+        }
+    )
+
+    result = calibrate_g2c_viewpoint(rows, viewpoint_id="LEFT_LOW__CENTER")
+
+    assert result["status"] == "calibration-pass"
+    assert result["conformity_score_count"] == 50
+    assert result["finite_conformity_score_count"] == 50
+    assert result["nonfinite_conformity_score_count"] == 0
+    assert result["covariance_passed"] is True
 
 
 def test_dynamic_qualification_plan_has_exact_d036_counts() -> None:

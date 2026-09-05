@@ -535,7 +535,10 @@ def test_singular_psd_nullspace_error_is_protocol_valid_view_no_go() -> None:
 
     assert result["status"] == "calibration-no-go"
     assert result["calibration"] is None
-    assert "nonfinite_conformal_quantile_or_scale" in result["failure_reasons"]
+    assert result["conformity_score_count"] == 30
+    assert result["finite_conformity_score_count"] == 0
+    assert result["nonfinite_conformity_score_count"] == 30
+    assert "nonfinite_conformity_score_present" in result["failure_reasons"]
 
 
 def _build_persistence_control_fixture(

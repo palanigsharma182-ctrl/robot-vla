@@ -1,5 +1,5 @@
 {
-  "config_sha256": "181683cb2d0839ff95f7f431780486ba3aacf20627dea4b03841683fb8d2458c",
+  "config_sha256": "98a5727766cfe46f133bc4945d154be58da52be8c7d341e0d857c84a65aeaa74",
   "data_parent": {
     "data_config_sha256": "56718c0611fc620ccfb767141d8d0867ea5d03806348396d0a2e201fbff3d5de",
     "data_identity_sha256": "07919f413224fba797d4c12df25e2d5aec8ded8213e3283a07feed282701cfa3",
@@ -45,6 +45,7 @@
       "chi_square_threshold": 5.991,
       "maximum_calibrated_position_std_m": 0.02,
       "minimum_support": 30,
+      "nonfinite_conformity_policy": "view-no-go-no-tail-hiding/v1",
       "target_coverage": 0.95
     },
     "free_static_safety": {
