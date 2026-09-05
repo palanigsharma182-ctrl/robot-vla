@@ -819,10 +819,10 @@ def load_g2c_formal_training_config(path: str | Path) -> dict[str, Any]:
     ):
         _require_sha256(model_parent[name], f"G2C model_parent.{name}")
     if (
-        model_parent["source_training_camera"] != "wrist"
-        or model_parent["target_training_camera"] != "external/front"
+        model_parent["source_training_camera"] != "hand_camera"
+        or model_parent["target_training_camera"] != "base_camera"
     ):
-        raise RuntimeError("G2C TRAIN model parent camera role 漂移")
+        raise RuntimeError("G2C TRAIN model parent camera UID 漂移")
     splits = _require_exact_keys(
         inventories["splits"], set(G2C_STATIC_SPLITS), "G2C TRAIN inventory splits"
     )

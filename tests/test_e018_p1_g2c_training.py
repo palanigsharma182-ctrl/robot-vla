@@ -92,8 +92,8 @@ def _formal_config() -> dict[str, object]:
             "e016_checkpoint_parameter_sha256": _sha("6"),
             "e016_checkpoint_provenance_sha256": _sha("7"),
             "e016_checkpoint_model_config_sha256": _sha("8"),
-            "source_training_camera": "wrist",
-            "target_training_camera": "external/front",
+            "source_training_camera": "hand_camera",
+            "target_training_camera": "base_camera",
         },
         "protocol": g2c_formal_training_protocol(),
         "permissions": {
@@ -262,6 +262,8 @@ def test_config_survives_sorted_json_write_read_without_dict_order_dependency(
         "model-parent-extra",
         "model-parent-bad-sha",
         "model-parent-camera-swap",
+        "model-parent-source-role-alias",
+        "model-parent-target-role-alias",
         "inventories-missing",
         "inventories-extra",
         "split-item-missing",
@@ -296,7 +298,12 @@ def test_config_loader_rejects_nested_schema_drift(
     elif case == "model-parent-bad-sha":
         model_parent["e016_checkpoint_sha256"] = "not-a-sha"
     elif case == "model-parent-camera-swap":
-        model_parent["source_training_camera"] = "external/front"
+        model_parent["source_training_camera"] = "base_camera"
+        model_parent["target_training_camera"] = "hand_camera"
+    elif case == "model-parent-source-role-alias":
+        model_parent["source_training_camera"] = "wrist"
+    elif case == "model-parent-target-role-alias":
+        model_parent["target_training_camera"] = "external/front"
     elif case == "inventories-missing":
         inventories.pop("total_sample_count")
     elif case == "inventories-extra":
