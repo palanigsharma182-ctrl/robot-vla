@@ -1,12 +1,12 @@
 # E018-P1 三阶段主动视觉闭环实施计划书
 
-> 状态：`implementation-ready / development-only`
+> 状态：`stage-2-runner-in-progress / development-only`
 > 日期：2026-09-05
 > 上位计划：[`E018-P1 受限 Front Active Reobserve 实验计划书`](e018_p1_active_front_reobservation_plan.md)
 > Memory parent：[`E018-P0 抓取前 Dual Memory 实验计划书`](e018_p0_dual_memory_plan.md)
 > 运动 parent：[`E018-P1 G0C rotated-motion findings`](e018_p1_g0c_rotated_motion_findings_20260905.md)
 > 授权与推进决策：[`D034 — E018 仿真 development 三阶段闭环`](decisions.md)
-> 当前 provider/Stage 2 Gate：[`D048`、`D049`](decisions.md)；独立协议见
+> 当前 provider/Stage 2/trigger/Stage 3 Gate：[`D048`、`D049`、`D050`、`D051`](decisions.md)；独立协议见
 > [`E018-P1-G2C Front Provider Adaptation`](e018_p1_g2c_front_provider_adaptation_plan.md)
 
 > 2026-09-05 执行状态：Stage 1 dynamic observation 与 supervisor/replay 已通过 development-only Gate。
@@ -16,6 +16,13 @@
 > 视角均为零。D049 现只放行 Stage 2 版本化 contract/tests 和 integration smoke；首个 live Object Memory
 > 闭环 PRIMARY-only，其余 6 个合格视角先做 information-gain shadow。fresh test、canonical runtime 和全部
 > physical/manipulation actuator 继续 HOLD。
+
+> 2026-09-05 续接状态：Stage 2 Object Memory/provider contract 与 frozen config 已通过退出 R2；真实
+> `76901..76910` runner/CLI 仍在实现，GPU seed 尚未消费。D050 已把“没有合格 wrist provider”与“wrist
+> observability predicate 判定需要 reobserve”拆成两个实验 identity，前者只能支持 capability-absent
+> navigation recovery，不能声称 wrist 模型看不清。D051 已冻结 Stage 3A fault/replay 和 Stage 3B matched
+> Passive–Active development Gate；其 seed 执行仍受 Stage 2、wrist-trigger 分支、R2 和 artifact persistence
+> 门禁约束，当前不得称 Stage 2、Stage 3 或完整主动视觉闭环完成。
 
 本文件把 E018-P1 的总实验协议收敛成三个连续、可编码、可测试的实施阶段：
 
