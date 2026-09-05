@@ -3767,6 +3767,196 @@ P0 API 无法表达“alternate 已观测、HOME 时延迟提交”的时间语�
 
 **Status:** stage2-contract-and-engineering-smoke-go / development-selection-hold-until-persistence-and-exit-review
 
+## D050 — 分离“无合格 wrist 能力”基线与 observability-only 触发资格
+
+**Decision:**
+
+D049 已冻结 PRIMARY front provider、pending candidate 和 HOME 后延迟 Memory commit，但它没有
+冻结一个可用于当前 wrist 的合格 direct-state provider。因此
+`qualified_direct_wrist_measurement_usable=false` 不能同时表示“已看图且不可用”与
+“本 parent 根本没有合格 provider”。本 Gate 把两者拆成两个独立 identity：
+
+```text
+E018-P1-S2A-ABSENT-WRIST-CAPABILITY-BASELINE/v1
+E018-P1-WRIST-OBSERVABILITY-TRIGGER-QUALIFICATION/v1
+```
+
+前者保证 D049 Stage 2 工程与 PRIMARY recovery 可以继续；后者才回答“当 wrist 直接
+视觉证据持续不足时，是否可以稳定触发相机移动”。两者均为 isolated ManiSkill、
+development-only、no fresh test、no canonical runtime、no physical camera、no arm/gripper/
+manipulation actuator。
+
+### A. Absent-capability baseline
+
+D049 parent 下的 wrist capability 必须以不可变记录显式表达：
+
+```text
+status:                    NO_QUALIFIED_WRIST_PROVIDER_IN_D049_PARENT
+frame_evaluated:           false
+provider_identity:         null
+inference_attempt_count:   0
+measurement_usable:        false
+state_authorized:          false
+supersede_authorized:      false
+contact_authorized:        false
+```
+
+记录至少绑定 version、episode/generation/request、source phase、Observation sequence/timestamp、
+当时 Memory resolution、reason 和 canonical digest。trigger baseline 与返回 HOME 后的 source recheck
+分别产生证据，不允许共用一个 digest。orchestrator 中的 bool 只能由该记录机械派生，
+不得由 runner 直接填 `false`。
+
+在 wrist/HOME sensor、timestamp、actual pose、source identity 和 controller safety 都有效的前提下，
+若 Object Memory navigation state 不可用，该 baseline 允许每 Episode 执行一次 D049 PRIMARY
+roundtrip。它是“没有合格 wrist state capability 时的受限主动恢复”，不是“wrist 模型
+已判定当前看不清”。HOME raw score 仍只作信息增益基线；HOME 和 absent-wrist
+capability 都不得形成 direct state、Memory write、supersede 或 contact evidence。
+
+`76901..76910` 首先只证明 plumbing/integration。D048 达到 `REPLICATED`、runner 通过退出
+R2 且执行 config 单独冻结后，`77001..77025` / `77026..77050` 可继续按 D049
+做 information-gain selection 和 frozen development evaluation；其允许结论只是“在合格
+wrist capability 缺席、Memory 不可用的条件下，PRIMARY 路线恢复/未恢复了可审计的
+navigation state”。它不能支持 uncertainty-trigger quality、wrist 看不清、Active 优于 Passive
+或完整主动视觉闭环已完成的 claim。
+
+### B. Observability-only wrist trigger qualification
+
+首个候选不训练新定位模型，只把 E016-P1 selected epoch 12 checkpoint 当作冻结
+feature source：
+
+```text
+checkpoint SHA:             c0be8769f75e4b991daa3a71878df72d2e2aaad70b5139abb4190512d6110552
+parameter-state SHA:        0d84e3fbf56445a0b6cbfabf46643abce6b8ddd6c152e0534a1870b88eeeaed6
+provenance SHA:             f25d876c2cf0b670b22e4c09aa561ff4190704411a4c053a089a9bc05804fed2
+E016 config SHA:            4b469e1abcab1cb2289a75797b683adb8719e5f510e23681a20a35d9ff10908b
+source camera:              hand_camera
+consumer:                   trigger-only
+state/Memory/supersede:     forbidden
+```
+
+E016-P1 在已消费 fresh test 上有 4 次 unsafe write，所以该 checkpoint 不得被称为
+qualified wrist write/state provider。本 Gate 不使用 E016 的 `0.6210827827453613` write
+threshold，也不使用 E018-P0 recorded-validation 上的探索性 `0.619403` threshold。
+模型只提供部署可得的 object observability 分量，新 trigger score 固定为：
+
+```text
+min(
+  object_visibility_probability,
+  projection_validity_probability,
+  object_mask_probability_at_predicted_object_uv,
+  1 - goal_mask_probability_at_predicted_object_uv
+)
+```
+
+score semantics 使用新版本
+`min-object-visibility-projection-object-mask-not-goal-mask/wrist-trigger/v1`。它不读取预测 XYZ、
+world error、covariance、Memory 或 privileged label。模态、pose、timestamp 或 provider identity 无效时结果
+是 `UNKNOWN_INVALID_INPUT -> Passive/SafeHold`，不得把输入故障当作不确定性而移动相机。
+
+时序 trigger 仍是连续 3 个有效 control tick 均为 `score < threshold`。候选 threshold 在
+看到新数据前固定为：
+
+```text
+[0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85]
+```
+
+数据只用全新 simulator-development seeds，与 `71001..77250` 全部不相交：
+
+```text
+77301..77350  threshold selection
+77351..77400  frozen development evaluation
+```
+
+每个 seed 独立 reset，在与 D049 相同的 allowed source state 采集 3 个 pre-trigger wrist
+frames，并在 arm/gripper SafeHold、camera 留在 HOME、与 PRIMARY roundtrip 相同 control-tick
+预算后采集 3 个 recheck frames。每个 split 因此有 100 个三帧 window。prediction records、
+threshold-independent decision inputs、顺序和 digest chain 必须在首次 label 打开前原子冻结；
+然后才可用 own-mask `projected-object-center-ray-hits-own-mask/v1` 私有标签离线评分。
+runtime object/goal GT read count 必须为零。
+
+三帧 oracle 窗口分层固定为：
+
+```text
+HARD:   3/3 frames object_observable=false
+CLEAR:  3/3 frames object_observable=true
+MIXED:  otherwise; always reported, not used to hide errors or satisfy support
+```
+
+selection 和 evaluation 各自至少要有 `20 HARD + 20 CLEAR` windows。支撑不足则该 identity 为
+`insufficient-support/inconclusive`，不补 seed、不按当前 label 挑场景。在 selection 上，候选
+要同时满足：
+
+```text
+HARD trigger recall >= 0.95        # missed-reobserve rate <= 0.05
+CLEAR trigger rate <= 0.25         # unnecessary-reobserve rate <= 0.25
+```
+
+在所有合格候选中选择 threshold 最小者，以最小化不必要相机移动；若无候选合格，
+`selected=null` 并在 selection 收口，不打开 evaluation labels。若有 selected，必须先冻结新
+evaluation config/threshold/prediction rule，再对 `77351..77400` 只评一次；evaluation 使用同样
+support 与两个 rate Gate，不得重选 threshold。
+
+通过该 Gate 只证明：在冻结 development source state 上，一个不产生状态的 wrist
+observability predicate 能以预定错误界触发受限 reobserve。它不证明 wrist XYZ 安全、
+不使一帧 wrist 成为 Memory write source，也不能在 recheck 时 supersede PRIMARY candidate。
+`score >= threshold` 只表示“不触发本次主动移动”，不表示 state 可用；此时系统
+继续 Passive/SafeHold，不得盲控。recheck 可以记录 score 改变，但
+`state_authorized=false` 且 `supersede_authorized=false`。
+
+错误边界显式为：
+
+- `missed_reobserve`：oracle HARD 但 predicate 不触发；只能 SafeHold/未恢复，不允许继续动作；
+- `unnecessary_reobserve`：oracle CLEAR 但 predicate 触发；最多执行一次已资格化 PRIMARY
+  roundtrip，仍要通过全部 HOME/Memory/safety Gate；
+- CLEAR/HARD 都只描述 observability，不描述 XYZ 定位正确性；该 predicate 永不具有
+  state 或 contact 授权。
+
+资源上限为 selection `1,200 s GPU/wall + 1 GiB`、evaluation
+`1,200 s GPU/wall + 1 GiB`，总计 `2,400 s + 2 GiB`。任一 split 超限、非零退出、
+prediction-before-label 破坏、identity/digest 不一致、runtime GT read 非零或 actuator/Memory write
+非零，都冻结当前 identity 为 no-go，不覆盖 output 或复用 seed。
+
+若冻结 E016 feature 的 threshold-only 路线为 effect-negative 或 insufficient-support，不从 evaluation
+反调 grid。下一条预定回退是新
+`E018-P1-WRIST-OBSERVABILITY-HEAD-DEVELOPMENT/v1` identity：只训练小型 wrist object-observability
+head，使用新 train/selection/evaluation data 和新 Decision/config；仍然不产生 XYZ、Memory 或
+actuator 权限。这保证单一 trigger 路线失败不中断三阶段项目，同时不允许为了
+触发率放宽 state/Memory 安全 Gate。
+
+### 执行顺序与 Stage 3 边界
+
+1. 先完成 `76901..76910` absent-capability plumbing smoke；
+2. D048 `REPLICATED` 且 runner/config R2 通过后，执行 D049 `77001..77050` absent-capability
+   selection/evaluation，并按限定 estimand 冻结正/负结果；
+3. 独立执行 `77301..77400` wrist-trigger qualification，不回写 D049 threshold 或 PRIMARY；
+4. 只有 wrist-trigger qualification 通过并完成 runner 集成后，Stage 3 才可声称测试
+   “不确定性触发的 Active-vs-Passive”；
+5. absent-capability baseline 通过但 wrist-trigger 失败时，Stage 3 仍执行 fault/replay 和限定的
+   capability-absent matched diagnostic，最终结论必须明确为 trigger 子问题未达预期，不得声称
+   完整主动视觉闭环已通过。
+
+**Reason:**
+
+没有 provider 时的 `false` 只是 capability 缺席，不是模型对当前图像的判断。先保留
+absent-capability baseline，可以独立验证 front motion→candidate→HOME→Memory→fresh shadow
+replan 数据流，不让 wrist 依赖阻塞 D049 的其他可验证工作。再用只产生 trigger
+的独立资格实验回答“何时移动”，可以把 observability error、不必要移动和 front
+recovery 分开归因，也避免已失败的 wrist write threshold 获得新状态权限。
+
+**Alternatives considered:**
+
+- 不跑 wrist forward 但写成“wrist 已判定不可用”：伪造证据，拒绝。
+- 直接把 E016-P1 epoch 12 或 E018-P0 `0.619403` 当 qualified state/write source：前者
+  fresh test 有 4 次 unsafe write，后者是 recorded-validation 探索阈值且 margin 极窄，拒绝。
+- 让 observability-only 阳性直接 supersede active candidate 或生成 wrist XYZ：超出它的资格问题，
+  拒绝。
+- 使用 runtime simulator mask/GT 决定是否移动：破坏 deployable trigger 和因果对照，拒绝。
+- 看到 `77301..77350` 结果后再增加 threshold 候选：用 selection 反调协议，拒绝。
+- wrist trigger 失败就停掉 Stage 2/3：无法分离 trigger 失败与 front recovery 失败，且违背
+  D034 的负结果完成路线，拒绝。
+
+**Status:** active / absent-capability baseline go / wrist-trigger contract-and-runner implementation go
+
 ## 新决策模板
 
 ```markdown
