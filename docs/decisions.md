@@ -3378,10 +3378,108 @@ static-render provider path，不能把两个 PASS 直接拼成动态资格。�
 - 把 early GT 直接保留在 provider/controller context：存在反馈泄漏，拒绝；只允许 commit 后写入隔离的
   private journal，并在全路线完成后才评分。
 
-**Implementation status:** D046 calibration public R2 pass；Phase B persistence 执行中；dynamic qualification
-runner 尚未实现。
+**Execution outcome（D047 preflight）：** runner 已在 exact-clean
+`0c7e7127551b122a4d3b507f94be25f5a44512e5` 上完成实现与本地 R2，并只执行了允许的
+`E018-P1-G2C-D047-PREFLIGHT`：seed `76801`、`LEFT_LOW__CENTER`、1 route。capture 本身完成，计数为
+`97/96/92` camera-pose/SafeHold/ledger、2 prediction commits 和 2 次 commit-after-prediction privileged
+captures；test/Memory/runtime/physical/manipulation/checkpoint-write 均为 0，wall/GPU 为
+`8.937853629002348 s`。但 score 前的 public execution verifier 因
+`qualification prediction/raw-route camera/gripper 漂移` fail closed；result、`SCORING_CONSUMED` 与任何
+provider metric 均未产生。因此本运行冻结为
+`capture-complete / pipeline-verification-invalid / no-provider-claim`，同 identity 永久不重跑，也不得在
+后续 source 上补 score 来追认。
 
-**Status:** qualification-runner-implementation-go / formal-qualification-hold
+只读审计确认这不是相机、row 时序或 gripper 的真实漂移。route 保存的是 float32-origin raw
+`base_from_external_camera_cv`；capture 通过 `_single_rigid` 投影到最近 SO(3) 后写入 prediction，public
+verifier 也重算了该投影，却丢弃 canonical matrix，随后用 `atol=0` 把 canonical prediction 与 raw matrix
+直接比较。HOME/alternate 的 raw-to-canonical 最大差分别为 `1.749066347e-08` / `5.727785657e-08`，投影
+修正为 `3.167693975e-08` / `8.835032193e-08`；对 raw matrix 运行同一 `_single_rigid` 后，两行与
+prediction 的最大差均为 0。gripper 差 `2.235174e-08`，已在冻结的 `1e-7` 容差内。
+
+D047 负结果已达到 `DRIVE_VERIFIED`。public/private/control 原始 evidence 为
+`18 files / 715,828 B`、`2 files / 3,431 B`、`6 files / 11,042 B`；failure summary raw/internal 为
+`cb13f9f7cfd9692adefddd51577a3dfc3841e8bb396a628886db6ff59bebacac` /
+`7ee002df69744e841eb67e958fb8b5d8dfc02d6f742bedfc8453cc2453ef1d31`，Drive persistence receipt
+raw/internal 为 `9f4ca815105120c7466ce0fb94fca22886293a6962ba219af6149eb1cfc16dee` /
+`ce2eb5f54b3deb7e04cab77790ee0a791edf261f56107b85a1789de5baf4608a`，persistence verification
+raw/internal 为 `fd24c5bd2b016f5033425e589d630ac79daa2c2116d4211924c2795f5ddc59c0` /
+`4e75176f7bdc87a786984dfd4983077370a8f4e15c4e998ae474d85dd3e012ff`。本机副本未校验前不得写成
+`REPLICATED`，worker source/staging 继续保留。
+
+**Implementation status:** dynamic qualification runner 已实现；D047 preflight 冻结为 pipeline-verifier
+工程负结果，转交 D047A 的 representation-boundary repair。
+
+**Status:** d047-consumed-preflight-verification-negative / formal-qualification-hold
+
+## D047A — 修复 dynamic qualification 的 raw/canonical pose 验证边界
+
+**Decision:**
+
+D047 的失败发生在 capture 完成后的 public verifier，且已有两行独立证据把原因唯一定位为同一 raw pose 的
+representation mismatch。批准一个最小 D047A 修复与一个新的 noncanonical preflight；不得借此改变模型、
+数据、seed、视角、route、calibration、write threshold、指标或安全门槛。
+
+实现范围冻结为：
+
+1. `_validate_prediction_against_route_row` 必须保留
+   `_single_rigid(raw_actual_base_from_external_camera_cv)` 返回的 canonical matrix，并将 prediction pose 与该
+   canonical matrix 做 `rtol=0, atol=0` 的 exact compare；同一次调用返回的 projection error 继续接受冻结的
+   `1e-6` 上限检查；
+2. raw route matrix、RGB、intrinsic、安全 witness、prediction commit、hash chain 和 projection error 的
+   公开绑定保持不变；禁止简单放宽 matrix compare tolerance；
+3. 新增 float32-origin、轻微非正交但低于投影上限的 raw pose 正例，以及 raw pose、canonical pose 和
+   projection-error 的可反证 tamper；旧 D047 public execution 只允许在新 verifier 上做 read-only
+   `verify-execution` 诊断，不得打开 private label、启动 score 或改变旧结果分类；
+4. D048 尚未签发，其 receipt 与嵌套 cumulative-budget contract 升为 exact `v2`。成功 smoke 字段改绑
+   `d047a_smoke` 与 `E018-P1-G2C-D047A-PREFLIGHT`；旧 `d047_smoke`/v1 schema 必须拒绝；
+5. D048 预算必须显式分成：D047 前 conservative upper、失败 D047 的 full-cap reserve、D047A 实际消费和
+   formal reserve。失败 D047 按 `900 s / 1 GiB` 全额计入，而不是只取实际 `8.938 s / <1 MiB`。因此在
+   D047A 也用满 `900 s / 1 GiB` 的最坏情况下，formal 前后 projected upper 分别为
+   `26,251.833224 s` / `35,251.833224 s` 与 `6 GiB` / `10 GiB`，仍低于 D036 的
+   `36,000 s / 20 GiB` 硬上限。
+
+新的 preflight identity 固定为：
+
+```text
+experiment:                 E018-P1-G2C-D047A-PREFLIGHT
+seed:                       76801
+alternate:                  LEFT_LOW__CENTER
+classification:             preflight/no-qualification-claim
+route/capture attempts:     1 / 1
+scoring attempts:           1 only after execution verification PASS
+GPU/wall maximum:           900 s
+combined artifact maximum:  1 GiB
+same-identity rerun:        prohibited after consumption
+```
+
+刻意复用同一个 noncanonical engineering seed/view，而不是换 seed 寻找能通过的样本；新 source、run 和三个
+output roots 必须全新且拒绝覆盖。开始前必须把代码修复、测试和本决策文档组成一个 exact-clean source，完成
+有限 R2；运行顺序仍为 `capture -> context destroy -> verify-execution -> one-shot score -> verify-result ->
+combined-artifact verify`。任何 consumption 后失败都冻结新负结果并回到新 Decision，不允许第三次静默重跑。
+
+D047A PASS 只说明动态 qualification 工程执行链可运行。formal seeds `76701..76750`、500 routes、fresh
+test、Object/Goal Memory、information-gain/active-loop、canonical runtime 及全部 physical/manipulation
+actuator 继续 HOLD；只有 D047A 完成、exact-source R2 与 GitHub exact commit 可达后，才可以签发独立 D048
+formal execution receipt。
+
+**Reason:**
+
+保留 raw pose 是审计动态相机外参所必需的，provider 使用 canonical rigid pose 则是几何运算的正确边界。
+verifier 应重演相同的确定性 canonicalization，而不是要求浮点 raw rotation 与其 SVD 投影逐元素相等。该修复
+既能接受实际观测到的 `1e-8` 数值修正，也不会给 pose tamper 新增容差窗口。
+
+**Alternatives considered:**
+
+- 将 pose compare 的 `atol` 放宽到 `1e-6`：会给 translation/rotation 篡改留下不必要窗口，拒绝。
+- 修改 G0C route ledger 只保存 canonical pose：会改变冻结 parent 的 raw witness 语义，拒绝。
+- 在新 source 上直接 score 旧 D047 private labels：source/smoke identity 不一致且会追认失败运行，拒绝。
+- 更换 smoke seed 或 alternate：引入选择性重试，拒绝；D047A 保持相同 seed/view。
+- 跳过新 smoke 直接执行 formal：真实 runner 尚未端到端通过，拒绝。
+
+**Implementation status:** engineering repair source `7c7f93a8f6173e47cd3bba6d958783091d1aef11`
+已实现 canonical compare、D048 v2/four段预算和反例；等待本决策文档进入最终 source 后的有限 R2。
+
+**Status:** repair-implemented / d047a-one-shot-smoke-go-after-final-source-r2 / formal-hold
 
 ## 新决策模板
 

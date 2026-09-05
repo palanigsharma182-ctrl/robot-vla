@@ -1,11 +1,11 @@
 # E018-P1-G2C Front Provider Adaptation 实验计划书
 
-> 状态：`calibration-pass / qualification-runner-implementation-go / formal-qualification-hold / development-only`
+> 状态：`calibration-pass / D047-preflight-verification-negative / D047A-repair-go / formal-qualification-hold / development-only`
 > 日期：2026-09-05
 > Experiment ID：`E018-P1-G2C-FRONT-PROVIDER-ADAPTATION-DEVELOPMENT/v1`
 > Data identity：`E018-P1-G2C-DATA/v1`
 > Train identity：`E018-P1-G2C-TRAIN/v1`
-> Decision Gate：[`D036`、`D037`、`D038`、`D039`、`D040`、`D041`、`D042`、`D043`、`D044`、`D045`、`D046`、`D047`](decisions.md)
+> Decision Gate：[`D036`、`D037`、`D038`、`D039`、`D040`、`D041`、`D042`、`D043`、`D044`、`D045`、`D046`、`D047`、`D047A`](decisions.md)
 > 上位计划：[`E018-P1 三阶段主动视觉闭环`](e018_p1_three_stage_active_vision_closed_loop_plan.md)
 
 > 2026-09-05 DATA Gate：`E018-P1-G2C-DATA/v1` 已通过独立 verifier 与 R2，接受为 canonical
@@ -86,6 +86,15 @@
 > catastrophic measurement 仍有 10 条，只是全被 write gate 拒绝；这是后续动态 qualification 的
 > 显式尾部风险。D047 只放行 qualification runner/CLI/verifier 实现和 noncanonical smoke；
 > `76701..76750` 正式路线仍 HOLD。
+
+> 2026-09-05 qualification preflight outcome：D047 的单 seed/单 route capture 完成并保持全部安全与权限计数，
+> 但 score 前 public verifier 因 raw float32-origin camera matrix 与其 canonical SO(3) projection 被错误做
+> zero-tolerance 直接比较而 fail closed。该运行已消费 2 个 prediction/label pairs，但没有启动 scoring、没有
+> 产生 provider metric，冻结为工程 pipeline-verification negative，同 identity 不重跑且已达到
+> `DRIVE_VERIFIED`。D047A 只允许修复 verifier 重演 capture 的确定性 `_single_rigid` canonicalization，并在
+> 相同 noncanonical seed `76801`、相同 `LEFT_LOW__CENTER` 上以全新 source/output 执行一次 repair smoke；
+> 失败 D047 按完整 `900 s / 1 GiB` cap 纳入 D048 v2 累计预算。formal qualification、fresh test、Memory、
+> active loop、canonical runtime 与 actuator 继续 HOLD。
 
 本实验是 E018 Stage 2 的上游 provider 资格实验。它只回答“受限动态 front 视角是否能产生可部署语义的
 object measurement”，不评价 Active 相对 Passive 的任务收益，也不授予 canonical runtime、机械臂、夹爪、

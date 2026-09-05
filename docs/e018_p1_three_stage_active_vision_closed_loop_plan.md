@@ -11,9 +11,12 @@
 
 > 2026-09-05 执行状态：Stage 1 dynamic observation 与 supervisor/replay 已通过 development-only Gate。
 > G2A 证明原 E016 wrist provider 不能直接替代 front provider；G2B-CAL-v1/v2 已分别按数据生命周期不匹配
-> 和 reset-first-frame contact-cache transient 冻结为协议性负结果。当前按 D036 执行全新、seed-disjoint 的
-> G2C front-domain adaptation；在 G2C 至少一个 non-HOME viewpoint 通过前，Stage 2 live Object Memory
-> commit 和 Active-vs-Passive 对照保持关闭。
+> 和 reset-first-frame contact-cache transient 冻结为协议性负结果。G2C static calibration 已通过；D047
+> dynamic qualification preflight 的 capture 完成，但 public verifier 暴露了 raw pose 与 canonical SO(3)
+> pose 的 representation-boundary bug，已冻结为不含 provider claim 的工程负结果。当前按 D047A 只修复该
+> verifier 并以相同 noncanonical seed/view 做一次新 identity smoke；正式 `76701..76750` qualification 仍
+> HOLD。在 G2C 至少一个 non-HOME viewpoint 正式通过前，Stage 2 live Object Memory commit 和
+> Active-vs-Passive 对照保持关闭。
 
 本文件把 E018-P1 的总实验协议收敛成三个连续、可编码、可测试的实施阶段：
 
