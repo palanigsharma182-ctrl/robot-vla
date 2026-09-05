@@ -5,9 +5,10 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 import numpy as np
 
@@ -606,7 +607,7 @@ def replay_selected_gain_branch(
         _outcome_type=SelectedGainEvaluationBranch,
     )
     if not isinstance(result, SelectedGainEvaluationBranch):
-        raise RuntimeError("evaluation replay outcome type 漂移")
+        raise TypeError("evaluation replay outcome type 漂移")
     return result
 
 

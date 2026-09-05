@@ -815,7 +815,7 @@ def _verify_inventory_record(
     inventory = _read_json(inventory_path, "artifact inventory")
     backups = inventory.get("backups")
     if not isinstance(backups, list):
-        raise RuntimeError("artifact inventory backups schema 漂移")
+        raise TypeError("artifact inventory backups schema 漂移")
     matches = [
         row
         for row in backups
@@ -1168,6 +1168,7 @@ def _run_evaluation_pass_a_simulator(
     import sapien
     import torch
     from mani_skill.utils import sapien_utils
+
     from robot_vla.sim import register_robot_vla_maniskill_envs
 
     if (
@@ -1773,7 +1774,7 @@ def _verify_embedded_formal_execution_go(
     )
     receipt = embedded.get("receipt")
     if not isinstance(receipt, Mapping):
-        raise RuntimeError("D049 embedded final GO receipt 类型漂移")
+        raise TypeError("D049 embedded final GO receipt 类型漂移")
     internal = _validate_formal_execution_go_receipt(
         receipt,
         loaded=loaded,
@@ -2866,6 +2867,7 @@ def _run_deterministic_private_label_replay(
     import sapien
     import torch
     from mani_skill.utils import sapien_utils
+
     from robot_vla.sim import register_robot_vla_maniskill_envs
 
     if (
@@ -2965,15 +2967,23 @@ def _run_deterministic_private_label_replay(
                 observation: Mapping[str, Any],
                 _route_index: int = route_index,
                 _seed: int = seed,
+                _route_public_camera: Sequence[Mapping[str, Any]] = (
+                    route_public_camera
+                ),
+                _replay_prefix: list[Mapping[str, Any]] = replay_prefix,
+                _public_route: Mapping[str, Any] = public_route,
+                _provider_index_by_frame: Mapping[int, int] = (
+                    provider_index_by_frame
+                ),
             ) -> None:
                 frame_index = int(row["frame_index"])
-                public_row = route_public_camera[frame_index]
-                replay_prefix.append(row)
+                public_row = _route_public_camera[frame_index]
+                _replay_prefix.append(row)
                 binding = _verify_replay_frame_binding(
                     replay_row=row,
                     public_row=public_row,
-                    replay_prefix_rows=replay_prefix,
-                    expected_action_prefix_sha256=public_route[
+                    replay_prefix_rows=_replay_prefix,
+                    expected_action_prefix_sha256=_public_route[
                         "action_prefix_sha256s"
                     ][frame_index],
                     rgb=rgb,
@@ -2983,9 +2993,9 @@ def _run_deterministic_private_label_replay(
                 counts["rgb_match_count"] += 1
                 counts["actual_pose_raw_match_count"] += 1
                 counts["actual_pose_canonical_match_count"] += 1
-                if frame_index not in provider_index_by_frame:
+                if frame_index not in _provider_index_by_frame:
                     return
-                prediction_index = provider_index_by_frame[frame_index]
+                prediction_index = _provider_index_by_frame[frame_index]
                 record = public_provider_records[prediction_index]
                 identity = _stage2a._stage2a_capture_identity(
                     seed=_seed,
@@ -3006,11 +3016,11 @@ def _run_deterministic_private_label_replay(
                 if (
                     capture["input_sha256"] != record.model_input_digest
                     or record.provider_output_digest
-                    != public_route["provider_output_digests"][
+                    != _public_route["provider_output_digests"][
                         STAGE2A_PROVIDER_FRAME_INDICES.index(frame_index)
                     ]
                     or record.model_input_digest
-                    != public_route["model_input_digests"][
+                    != _public_route["model_input_digests"][
                         STAGE2A_PROVIDER_FRAME_INDICES.index(frame_index)
                     ]
                 ):
