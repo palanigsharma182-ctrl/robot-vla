@@ -16,7 +16,6 @@ import json
 import math
 import os
 import random
-import shutil
 import subprocess
 import tempfile
 import time
@@ -52,7 +51,7 @@ from robot_vla.precision.e018_p1_g2c_data import (
 
 E018_P1_G2C_FORMAL_TRAIN_CONFIG_VERSION = "e018-p1-g2c-train-development/v1"
 E018_P1_G2C_FORMAL_TRAIN_RESULT_VERSION = "e018-p1-g2c-train-result/v1"
-E018_P1_G2C_INPUT_VIEW_VERSION = "e018-p1-g2c-input-view/v1"
+E018_P1_G2C_INPUT_VIEW_VERSION = "e018-p1-g2c-input-view/v2"
 E018_P1_G2C_PREDICTION_FREEZE_VERSION = "e018-p1-g2c-model-val-freeze/v1"
 E018_P1_G2C_SELECTION_RESULT_VERSION = "e018-p1-g2c-model-val-selection/v1"
 G2C_DIAGNOSTIC_CONTROL_ID = "CONTROL-E016-EPOCH12"
@@ -861,11 +860,12 @@ def load_g2c_formal_training_config(path: str | Path) -> dict[str, Any]:
     return config
 
 
-def _copy_input_bundle(source: Path, target: Path) -> None:
-    """复制到独立 inode；禁止 hardlink/symlink 污染 canonical DATA。"""
+def _copy_input_bundle(source: Path, target: Path, *, expected_sha256: str) -> str:
+    """单次读取源 bytes 并复制到独立 inode，同时校验 SHA-256。"""
 
     if source.is_symlink() or not source.is_file():
         raise FileNotFoundError(f"G2C input bundle 不存在或是 symlink: {source}")
+    _require_sha256(expected_sha256, "G2C input bundle expected sha")
     target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     temporary: Path | None = None
     try:
@@ -873,7 +873,16 @@ def _copy_input_bundle(source: Path, target: Path) -> None:
             prefix=f".{target.name}.", suffix=".tmp", dir=target.parent, delete=False
         ) as handle:
             temporary = Path(handle.name)
-        shutil.copyfile(source, temporary)
+            digest = hashlib.sha256()
+            with source.open("rb") as source_handle:
+                while chunk := source_handle.read(1024 * 1024):
+                    handle.write(chunk)
+                    digest.update(chunk)
+            handle.flush()
+            os.fsync(handle.fileno())
+        actual_sha256 = digest.hexdigest()
+        if actual_sha256 != expected_sha256:
+            raise RuntimeError("G2C input bundle source SHA 漂移")
         if source.stat().st_ino == temporary.stat().st_ino:
             raise RuntimeError("G2C input view copy 意外共享 canonical DATA inode")
         os.chmod(temporary, 0o400)
@@ -881,6 +890,7 @@ def _copy_input_bundle(source: Path, target: Path) -> None:
         os.replace(temporary, target)
         temporary = None
         _fsync_path(target)
+        return actual_sha256
     finally:
         if temporary is not None:
             temporary.unlink(missing_ok=True)
@@ -892,6 +902,8 @@ def _prepare_g2c_input_view(
     data_root: str | Path,
     output_root: str | Path,
     role: str,
+    prediction_freeze_internal_sha256: str | None = None,
+    source_identity_sha256: str | None = None,
 ) -> dict[str, Any]:
     config = load_g2c_formal_training_config(config_path)
     role_spec = {
@@ -902,6 +914,19 @@ def _prepare_g2c_input_view(
     if role not in role_spec:
         raise ValueError("G2C input view role 未冻结")
     split, include_deployable, include_labels = role_spec[role]
+    if role == "model-val-privileged":
+        _require_sha256(
+            prediction_freeze_internal_sha256,
+            "G2C privileged view prediction freeze identity",
+        )
+        _require_sha256(
+            source_identity_sha256, "G2C privileged view source identity"
+        )
+    elif (
+        prediction_freeze_internal_sha256 is not None
+        or source_identity_sha256 is not None
+    ):
+        raise ValueError("G2C non-privileged input view 禁止携带 Phase B 绑定")
     source = Path(data_root)
     output = Path(output_root)
     if output.exists():
@@ -926,8 +951,6 @@ def _prepare_g2c_input_view(
         deployable_rows if include_deployable else None,
         label_rows if include_labels else None,
         split=split,
-        deployable_root=source / "deployable" if include_deployable else None,
-        label_root=source / "privileged_labels" if include_labels else None,
     )
     expected = config["input_inventories"]["splits"][split]
     if include_deployable and (
@@ -947,7 +970,9 @@ def _prepare_g2c_input_view(
         for row in deployable_rows:
             source_path = _resolve_artifact_file(source / "deployable", str(row["file"]))
             target = output / "deployable" / str(row["file"])
-            _copy_input_bundle(source_path, target)
+            _copy_input_bundle(
+                source_path, target, expected_sha256=str(row["sha256"])
+            )
             copied.append({"role": "deployable", "file": str(row["file"]), "sha256": row["sha256"]})
     if include_labels:
         _atomic_jsonl(output / "privileged_labels" / "manifest.jsonl", label_rows)
@@ -956,7 +981,9 @@ def _prepare_g2c_input_view(
                 source / "privileged_labels", str(row["file"])
             )
             target = output / "privileged_labels" / str(row["file"])
-            _copy_input_bundle(source_path, target)
+            _copy_input_bundle(
+                source_path, target, expected_sha256=str(row["sha256"])
+            )
             copied.append({"role": "privileged", "file": str(row["file"]), "sha256": row["sha256"]})
     receipt = {
         "version": E018_P1_G2C_INPUT_VIEW_VERSION,
@@ -971,19 +998,47 @@ def _prepare_g2c_input_view(
         "privileged_included": include_labels,
         "inventory": inventory,
         "copied_file_inventory_sha256": canonical_sha256(copied),
+        "prediction_freeze_internal_sha256": (
+            prediction_freeze_internal_sha256
+            if role == "model-val-privileged"
+            else None
+        ),
+        "source_identity_sha256": (
+            source_identity_sha256 if role == "model-val-privileged" else None
+        ),
+        "privileged_source_bundle_copy_count": (
+            len(label_rows) if role == "model-val-privileged" else 0
+        ),
+        "privileged_label_array_open_count": 0,
         "forbidden_split_names": [name for name in G2C_STATIC_SPLITS if name != split],
         "test_array_read_count": 0,
     }
     receipt["receipt_sha256"] = canonical_sha256(receipt)
     _atomic_json(output / "input_view_receipt.json", receipt)
     return validate_g2c_input_view(
-        config_path=config_path, input_root=output, expected_role=role
+        config_path=config_path,
+        input_root=output,
+        expected_role=role,
+        expected_prediction_freeze_internal_sha256=(
+            prediction_freeze_internal_sha256
+            if role == "model-val-privileged"
+            else None
+        ),
+        expected_source_identity_sha256=(
+            source_identity_sha256 if role == "model-val-privileged" else None
+        ),
     )
 
 
 def prepare_g2c_train_input_view(
-    *, config_path: str | Path, data_root: str | Path, output_root: str | Path
+    *,
+    config_path: str | Path,
+    data_root: str | Path,
+    output_root: str | Path,
+    decision_exit_go: bool,
 ) -> dict[str, Any]:
+    if decision_exit_go is not True:
+        raise PermissionError("G2C TRAIN input preparation 仍为 HOLD")
     return _prepare_g2c_input_view(
         config_path=config_path,
         data_root=data_root,
@@ -993,8 +1048,14 @@ def prepare_g2c_train_input_view(
 
 
 def prepare_g2c_model_val_deployable_view(
-    *, config_path: str | Path, data_root: str | Path, output_root: str | Path
+    *,
+    config_path: str | Path,
+    data_root: str | Path,
+    output_root: str | Path,
+    decision_exit_go: bool,
 ) -> dict[str, Any]:
+    if decision_exit_go is not True:
+        raise PermissionError("G2C Phase A deployable input preparation 仍为 HOLD")
     return _prepare_g2c_input_view(
         config_path=config_path,
         data_root=data_root,
@@ -1004,13 +1065,40 @@ def prepare_g2c_model_val_deployable_view(
 
 
 def prepare_g2c_model_val_label_view(
-    *, config_path: str | Path, data_root: str | Path, output_root: str | Path
+    *,
+    config_path: str | Path,
+    data_root: str | Path,
+    prediction_freeze_root: str | Path,
+    repository_root: str | Path,
+    output_root: str | Path,
+    decision_exit_go: bool,
 ) -> dict[str, Any]:
+    if decision_exit_go is not True:
+        raise PermissionError("G2C Phase B privileged input staging 仍为 HOLD")
+    from robot_vla.precision.e018_p1_g2c_model_val import (
+        verify_g2c_prediction_freeze,
+    )
+
+    freeze = verify_g2c_prediction_freeze(
+        config_path=config_path, output_root=prediction_freeze_root
+    )
+    marker = _read_json(
+        Path(prediction_freeze_root) / "prediction_freeze.json",
+        "G2C freeze marker",
+    )
+    source = _git_source_identity(Path(repository_root))
+    if (
+        marker.get("source_git_commit") != source["git_commit"]
+        or marker.get("source_identity_sha256") != source["identity_sha256"]
+    ):
+        raise RuntimeError("G2C privileged input source 必须与 Phase A 一致")
     return _prepare_g2c_input_view(
         config_path=config_path,
         data_root=data_root,
         output_root=output_root,
         role="model-val-privileged",
+        prediction_freeze_internal_sha256=freeze["freeze_internal_sha256"],
+        source_identity_sha256=source["identity_sha256"],
     )
 
 
@@ -1020,6 +1108,8 @@ def validate_g2c_input_view(
     input_root: str | Path,
     expected_role: str,
     verify_bundle_bytes: bool = True,
+    expected_prediction_freeze_internal_sha256: str | None = None,
+    expected_source_identity_sha256: str | None = None,
 ) -> dict[str, Any]:
     if not isinstance(verify_bundle_bytes, bool):
         raise TypeError("verify_bundle_bytes 必须是 bool")
@@ -1028,6 +1118,31 @@ def validate_g2c_input_view(
     _assert_unlinked_regular_file_tree(root, name="G2C input view")
     receipt_path = root / "input_view_receipt.json"
     receipt = _read_json(receipt_path, "G2C input view receipt")
+    _require_exact_keys(
+        receipt,
+        {
+            "version",
+            "status",
+            "role",
+            "split",
+            "config_sha256",
+            "data_identity_sha256",
+            "seed_count",
+            "sample_count",
+            "deployable_included",
+            "privileged_included",
+            "inventory",
+            "copied_file_inventory_sha256",
+            "prediction_freeze_internal_sha256",
+            "source_identity_sha256",
+            "privileged_source_bundle_copy_count",
+            "privileged_label_array_open_count",
+            "forbidden_split_names",
+            "test_array_read_count",
+            "receipt_sha256",
+        },
+        "G2C input view receipt",
+    )
     internal = receipt.get("receipt_sha256")
     unsigned = dict(receipt)
     unsigned.pop("receipt_sha256", None)
@@ -1039,6 +1154,25 @@ def validate_g2c_input_view(
     if expected_role not in role_spec:
         raise ValueError("G2C expected input role 未冻结")
     split, include_deployable, include_labels = role_spec[expected_role]
+    if expected_role == "model-val-privileged":
+        expected_freeze = _require_sha256(
+            expected_prediction_freeze_internal_sha256,
+            "G2C expected privileged prediction freeze identity",
+        )
+        expected_source = _require_sha256(
+            expected_source_identity_sha256,
+            "G2C expected privileged source identity",
+        )
+        expected_privileged_copy_count = 100
+    else:
+        if (
+            expected_prediction_freeze_internal_sha256 is not None
+            or expected_source_identity_sha256 is not None
+        ):
+            raise ValueError("G2C non-privileged validation 禁止 Phase B 绑定")
+        expected_freeze = None
+        expected_source = None
+        expected_privileged_copy_count = 0
     if (
         internal != canonical_sha256(unsigned)
         or receipt.get("version") != E018_P1_G2C_INPUT_VIEW_VERSION
@@ -1050,6 +1184,15 @@ def validate_g2c_input_view(
         != config["data_parent"]["data_identity_sha256"]
         or receipt.get("deployable_included") is not include_deployable
         or receipt.get("privileged_included") is not include_labels
+        or receipt.get("seed_count") != len(_EXPECTED_SPLIT_SEEDS[split])
+        or receipt.get("sample_count") != _EXPECTED_SPLIT_SAMPLES[split]
+        or receipt.get("prediction_freeze_internal_sha256") != expected_freeze
+        or receipt.get("source_identity_sha256") != expected_source
+        or receipt.get("privileged_source_bundle_copy_count")
+        != expected_privileged_copy_count
+        or receipt.get("privileged_label_array_open_count") != 0
+        or receipt.get("forbidden_split_names")
+        != [name for name in G2C_STATIC_SPLITS if name != split]
         or receipt.get("test_array_read_count") != 0
     ):
         raise RuntimeError("G2C input view receipt identity/role 漂移")
@@ -1143,6 +1286,10 @@ def validate_g2c_input_view(
         "seed_count": len(_EXPECTED_SPLIT_SEEDS[split]),
         "sample_count": _EXPECTED_SPLIT_SAMPLES[split],
         "bundle_bytes_verified": verify_bundle_bytes,
+        "prediction_freeze_internal_sha256": expected_freeze,
+        "source_identity_sha256": expected_source,
+        "privileged_source_bundle_copy_count": expected_privileged_copy_count,
+        "privileged_label_array_open_count": 0,
         "receipt_raw_sha256": file_sha256(receipt_path),
         "receipt_internal_sha256": internal,
         "inventory": inventory,

@@ -12,6 +12,7 @@ import numpy as np
 import pytest
 
 import robot_vla.cli.freeze_e018_p1_g2c_model_val as freeze_cli
+import robot_vla.cli.run_e018_p1_g2c_training as training_cli
 import robot_vla.precision.e018_p1_g2c_model_val as model_val
 import robot_vla.precision.e018_p1_g2c_training as training
 from robot_vla.precision.e018_p1_g2a import canonical_sha256, file_sha256
@@ -330,6 +331,15 @@ def test_formal_interfaces_keep_phase_boundaries_and_control_parent() -> None:
     verify_parameters = inspect.signature(
         model_val.verify_g2c_model_val_selection
     ).parameters
+    train_view_parameters = inspect.signature(
+        training.prepare_g2c_train_input_view
+    ).parameters
+    deployable_view_parameters = inspect.signature(
+        training.prepare_g2c_model_val_deployable_view
+    ).parameters
+    privileged_view_parameters = inspect.signature(
+        training.prepare_g2c_model_val_label_view
+    ).parameters
 
     assert "e016_training_output" in freeze_parameters
     assert "model_val_deployable_input_root" in freeze_parameters
@@ -337,6 +347,23 @@ def test_formal_interfaces_keep_phase_boundaries_and_control_parent() -> None:
     assert "checkpoint" not in score_parameters
     assert "model_val_deployable_input_root" not in score_parameters
     assert "model_val_label_input_root" not in verify_parameters
+    assert set(train_view_parameters) == {
+        "config_path",
+        "data_root",
+        "output_root",
+        "decision_exit_go",
+    }
+    assert set(deployable_view_parameters) == set(train_view_parameters)
+    assert set(privileged_view_parameters) == {
+        "config_path",
+        "data_root",
+        "prediction_freeze_root",
+        "repository_root",
+        "output_root",
+        "decision_exit_go",
+    }
+    for forbidden_name in ("model", "checkpoint", "rgb", "deployable_dataset"):
+        assert forbidden_name not in privileged_view_parameters
 
 
 def test_decision_hold_is_checked_before_any_input_read(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -372,6 +399,294 @@ def test_decision_hold_is_checked_before_any_input_read(monkeypatch: pytest.Monk
             repository_root="missing",
             output_root="missing",
             decision_exit_go=False,
+        )
+
+
+def test_each_input_view_hold_is_first_and_old_combined_cli_is_unavailable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls = {"prepare": 0, "freeze": 0}
+
+    def forbidden_prepare(**_: object) -> object:
+        calls["prepare"] += 1
+        raise AssertionError("HOLD 后不得读取 source 或创建 output")
+
+    def forbidden_freeze(**_: object) -> object:
+        calls["freeze"] += 1
+        raise AssertionError("HOLD 后不得验证 freeze")
+
+    monkeypatch.setattr(training, "_prepare_g2c_input_view", forbidden_prepare)
+    monkeypatch.setattr(model_val, "verify_g2c_prediction_freeze", forbidden_freeze)
+    output = tmp_path / "must-not-exist"
+    with pytest.raises(PermissionError, match="HOLD"):
+        training.prepare_g2c_train_input_view(
+            config_path="missing",
+            data_root="missing",
+            output_root=output,
+            decision_exit_go=False,
+        )
+    with pytest.raises(PermissionError, match="HOLD"):
+        training.prepare_g2c_model_val_deployable_view(
+            config_path="missing",
+            data_root="missing",
+            output_root=output,
+            decision_exit_go=False,
+        )
+    with pytest.raises(PermissionError, match="HOLD"):
+        training.prepare_g2c_model_val_label_view(
+            config_path="missing",
+            data_root="missing",
+            prediction_freeze_root="missing",
+            repository_root="missing",
+            output_root=output,
+            decision_exit_go=False,
+        )
+    assert calls == {"prepare": 0, "freeze": 0}
+    assert not output.exists()
+
+    monkeypatch.setattr(sys, "argv", ["run_e018_p1_g2c_training", "prepare-input-views"])
+    with pytest.raises(SystemExit) as error:
+        training_cli._parse_args()
+    assert error.value.code == 2
+
+
+def test_privileged_stage_rejects_bad_freeze_before_source_copy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls = {"prepare": 0}
+
+    def rejected_freeze(**_: object) -> object:
+        raise RuntimeError("incomplete prediction freeze")
+
+    def forbidden_prepare(**_: object) -> object:
+        calls["prepare"] += 1
+        raise AssertionError("freeze 失败后不得 copy label bytes")
+
+    monkeypatch.setattr(model_val, "verify_g2c_prediction_freeze", rejected_freeze)
+    monkeypatch.setattr(training, "_prepare_g2c_input_view", forbidden_prepare)
+    output = tmp_path / "label-view"
+    with pytest.raises(RuntimeError, match="incomplete prediction freeze"):
+        training.prepare_g2c_model_val_label_view(
+            config_path=tmp_path / "config.json",
+            data_root=tmp_path / "data",
+            prediction_freeze_root=tmp_path / "freeze",
+            repository_root=tmp_path,
+            output_root=output,
+            decision_exit_go=True,
+        )
+    assert calls["prepare"] == 0
+    assert not output.exists()
+
+
+def test_privileged_stage_rejects_foreign_source_before_copy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    freeze_root = tmp_path / "freeze"
+    freeze_root.mkdir()
+    _atomic_json(
+        freeze_root / "prediction_freeze.json",
+        {
+            "source_git_commit": "foreign",
+            "source_identity_sha256": _sha("e"),
+        },
+    )
+    monkeypatch.setattr(
+        model_val,
+        "verify_g2c_prediction_freeze",
+        lambda **_: {"freeze_internal_sha256": _sha("f")},
+    )
+    monkeypatch.setattr(
+        training,
+        "_git_source_identity",
+        lambda _: {
+            "git_commit": "current",
+            "source_tree_sha256": _sha("c"),
+            "identity_sha256": _sha("d"),
+        },
+    )
+    monkeypatch.setattr(
+        training,
+        "_prepare_g2c_input_view",
+        lambda **_: (_ for _ in ()).throw(
+            AssertionError("foreign source 后不得 copy label bytes")
+        ),
+    )
+    output = tmp_path / "label-view"
+    with pytest.raises(RuntimeError, match="Phase A 一致"):
+        training.prepare_g2c_model_val_label_view(
+            config_path=tmp_path / "config.json",
+            data_root=tmp_path / "data",
+            prediction_freeze_root=freeze_root,
+            repository_root=tmp_path,
+            output_root=output,
+            decision_exit_go=True,
+        )
+    assert not output.exists()
+
+
+def test_privileged_stage_binds_freeze_and_copies_each_source_bundle_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    data_root = tmp_path / "data"
+    source_bundle_root = data_root / "privileged_labels" / "bundles"
+    source_bundle_root.mkdir(parents=True)
+    rows: list[dict[str, object]] = []
+    for seed in range(76501, 76601):
+        relative = f"bundles/seed-{seed:06d}.npz"
+        path = data_root / "privileged_labels" / relative
+        raw = f"privileged-label-{seed}".encode()
+        path.write_bytes(raw)
+        rows.append(
+            {
+                "manifest_schema_version": training.G2C_MANIFEST_SCHEMA_VERSION,
+                "split": "model_val",
+                "seed": seed,
+                "sample_count": 11,
+                "view_order": list(G2C_VIEW_ORDER),
+                "schema_version": training.G2C_LABEL_SCHEMA_VERSION,
+                "file": relative,
+                "sha256": file_sha256(path),
+                "contains_model_input_rgb": False,
+                "source_deployable_file": f"bundles/seed-{seed:06d}.npz",
+                "source_deployable_sha256": _sha("a"),
+            }
+        )
+    _atomic_json(data_root / "data_receipt.json", {"status": "fixture"})
+    _atomic_jsonl(data_root / "deployable" / "manifest.jsonl", [])
+    _atomic_jsonl(data_root / "privileged_labels" / "manifest.jsonl", rows)
+    config = _formal_config()
+    data_parent = config["data_parent"]
+    inventories = config["input_inventories"]
+    assert isinstance(data_parent, dict)
+    assert isinstance(inventories, dict)
+    splits = inventories["splits"]
+    assert isinstance(splits, dict)
+    model_val_inventory = splits["model_val"]
+    assert isinstance(model_val_inventory, dict)
+    data_parent["data_receipt_raw_sha256"] = file_sha256(
+        data_root / "data_receipt.json"
+    )
+    data_parent["deployable_manifest_raw_sha256"] = file_sha256(
+        data_root / "deployable" / "manifest.jsonl"
+    )
+    data_parent["privileged_manifest_raw_sha256"] = file_sha256(
+        data_root / "privileged_labels" / "manifest.jsonl"
+    )
+    inventory = training._manifest_inventory(None, rows, split="model_val")
+    model_val_inventory["privileged_inventory_sha256"] = inventory[
+        "privileged_inventory_sha256"
+    ]
+    freeze_root = tmp_path / "freeze"
+    freeze_root.mkdir()
+    _atomic_json(
+        freeze_root / "prediction_freeze.json",
+        {
+            "source_git_commit": "commit",
+            "source_identity_sha256": _sha("d"),
+        },
+    )
+    monkeypatch.setattr(
+        training, "load_g2c_formal_training_config", lambda _: config
+    )
+    monkeypatch.setattr(
+        model_val,
+        "verify_g2c_prediction_freeze",
+        lambda **_: {"freeze_internal_sha256": _sha("f")},
+    )
+    monkeypatch.setattr(
+        training,
+        "_git_source_identity",
+        lambda _: {
+            "git_commit": "commit",
+            "source_tree_sha256": _sha("c"),
+            "identity_sha256": _sha("d"),
+        },
+    )
+    source_binary_reads = 0
+    original_open = Path.open
+
+    def counted_open(path: Path, *args: object, **kwargs: object) -> object:
+        nonlocal source_binary_reads
+        mode = str(args[0] if args else kwargs.get("mode", "r"))
+        if source_bundle_root in path.parents and "b" in mode and "r" in mode:
+            source_binary_reads += 1
+        return original_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", counted_open)
+    monkeypatch.setattr(
+        np,
+        "load",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("privileged staging 禁止 np.load")
+        ),
+    )
+    output = tmp_path / "label-view"
+    result = training.prepare_g2c_model_val_label_view(
+        config_path=tmp_path / "config.json",
+        data_root=data_root,
+        prediction_freeze_root=freeze_root,
+        repository_root=tmp_path,
+        output_root=output,
+        decision_exit_go=True,
+    )
+    receipt = json.loads(
+        (output / "input_view_receipt.json").read_text(encoding="utf-8")
+    )
+    assert source_binary_reads == 100
+    assert receipt["prediction_freeze_internal_sha256"] == _sha("f")
+    assert receipt["source_identity_sha256"] == _sha("d")
+    assert receipt["privileged_source_bundle_copy_count"] == 100
+    assert receipt["privileged_label_array_open_count"] == 0
+    assert result["privileged_source_bundle_copy_count"] == 100
+    assert result["privileged_label_array_open_count"] == 0
+    with pytest.raises(FileExistsError, match="已存在"):
+        training.prepare_g2c_model_val_label_view(
+            config_path=tmp_path / "config.json",
+            data_root=data_root,
+            prediction_freeze_root=freeze_root,
+            repository_root=tmp_path,
+            output_root=output,
+            decision_exit_go=True,
+        )
+    assert source_binary_reads == 100
+
+    extra = output / "extra.json"
+    extra.write_text("{}\n", encoding="utf-8")
+    with pytest.raises(RuntimeError, match="白名单"):
+        validate_g2c_input_view(
+            config_path=tmp_path / "config.json",
+            input_root=output,
+            expected_role="model-val-privileged",
+            verify_bundle_bytes=False,
+            expected_prediction_freeze_internal_sha256=_sha("f"),
+            expected_source_identity_sha256=_sha("d"),
+        )
+    extra.unlink()
+    symlink = output / "unexpected-link"
+    symlink.symlink_to(output / "input_view_receipt.json")
+    with pytest.raises(RuntimeError, match="symlink"):
+        validate_g2c_input_view(
+            config_path=tmp_path / "config.json",
+            input_root=output,
+            expected_role="model-val-privileged",
+            verify_bundle_bytes=False,
+            expected_prediction_freeze_internal_sha256=_sha("f"),
+            expected_source_identity_sha256=_sha("d"),
+        )
+    symlink.unlink()
+
+    receipt["prediction_freeze_internal_sha256"] = _sha("e")
+    receipt.pop("receipt_sha256")
+    receipt["receipt_sha256"] = canonical_sha256(receipt)
+    _atomic_json(output / "input_view_receipt.json", receipt)
+    with pytest.raises(RuntimeError, match="identity/role"):
+        validate_g2c_input_view(
+            config_path=tmp_path / "config.json",
+            input_root=output,
+            expected_role="model-val-privileged",
+            verify_bundle_bytes=False,
+            expected_prediction_freeze_internal_sha256=_sha("f"),
+            expected_source_identity_sha256=_sha("d"),
         )
 
 
@@ -842,6 +1157,68 @@ def test_scoring_verifier_binds_each_row_to_frozen_prediction(tmp_path: Path) ->
         )
 
 
+def test_phase_b_rejects_label_freeze_binding_before_array_open(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = _formal_config()
+    freeze_root = tmp_path / "freeze"
+    freeze_root.mkdir()
+    _atomic_json(
+        freeze_root / "prediction_freeze.json",
+        {
+            "source_git_commit": "commit",
+            "source_identity_sha256": _sha("d"),
+            "frozen_at_unix_ns": 1,
+        },
+    )
+    calls = {"label_load": 0}
+    monkeypatch.setattr(
+        model_val, "load_g2c_formal_training_config", lambda _: config
+    )
+    monkeypatch.setattr(
+        model_val,
+        "verify_g2c_prediction_freeze",
+        lambda **_: {
+            "freeze_internal_sha256": _sha("f"),
+            "freeze_raw_sha256": _sha("e"),
+        },
+    )
+    monkeypatch.setattr(
+        model_val,
+        "_git_source_identity",
+        lambda _: {
+            "git_commit": "commit",
+            "source_tree_sha256": _sha("c"),
+            "identity_sha256": _sha("d"),
+        },
+    )
+
+    def reject_binding(**kwargs: object) -> object:
+        assert kwargs["verify_bundle_bytes"] is False
+        assert kwargs["expected_prediction_freeze_internal_sha256"] == _sha("f")
+        assert kwargs["expected_source_identity_sha256"] == _sha("d")
+        raise RuntimeError("label freeze binding drift")
+
+    def forbidden_label_load(_: Path) -> object:
+        calls["label_load"] += 1
+        raise AssertionError("receipt 绑定失败后不得 np.load")
+
+    monkeypatch.setattr(model_val, "validate_g2c_input_view", reject_binding)
+    monkeypatch.setattr(model_val, "_load_model_val_labels", forbidden_label_load)
+    output = tmp_path / "selection"
+    with pytest.raises(RuntimeError, match="label freeze binding drift"):
+        model_val.score_select_g2c_model_val(
+            config_path=tmp_path / "config.json",
+            prediction_freeze_root=freeze_root,
+            model_val_label_input_root=tmp_path / "labels",
+            repository_root=tmp_path,
+            output_root=output,
+            decision_exit_go=True,
+        )
+    assert calls["label_load"] == 0
+    assert not output.exists()
+
+
 def test_phase_b_verifier_failure_after_label_consumption_is_persisted(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -881,6 +1258,12 @@ def test_phase_b_verifier_failure_after_label_consumption_is_persisted(
     monkeypatch.setattr(model_val, "validate_g2c_input_view", lambda **_: {})
 
     def load_labels(_: Path) -> dict[tuple[int, int, str], dict[str, object]]:
+        phase = json.loads(
+            (output / "phase_state.json").read_text(encoding="utf-8")
+        )
+        assert phase["status"] == "label-consumption-started"
+        assert phase["label_array_consumed"] is True
+        assert phase["rerun_under_same_identity_allowed"] is False
         calls["label_load"] += 1
         return {}
 

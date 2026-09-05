@@ -25,12 +25,25 @@ def _parse_args() -> argparse.Namespace:
     build.add_argument("--data-root", type=Path, required=True)
     build.add_argument("--output", type=Path, required=True)
 
-    prepare = phases.add_parser("prepare-input-views")
-    prepare.add_argument("--config", type=Path, required=True)
-    prepare.add_argument("--data-root", type=Path, required=True)
-    prepare.add_argument("--train-output", type=Path, required=True)
-    prepare.add_argument("--model-val-output", type=Path, required=True)
-    prepare.add_argument("--label-output", type=Path, required=True)
+    prepare_train = phases.add_parser("prepare-train-input")
+    prepare_train.add_argument("--config", type=Path, required=True)
+    prepare_train.add_argument("--data-root", type=Path, required=True)
+    prepare_train.add_argument("--output", type=Path, required=True)
+    prepare_train.add_argument("--decision-exit-go", action="store_true")
+
+    prepare_deployable = phases.add_parser("prepare-model-val-deployable-input")
+    prepare_deployable.add_argument("--config", type=Path, required=True)
+    prepare_deployable.add_argument("--data-root", type=Path, required=True)
+    prepare_deployable.add_argument("--output", type=Path, required=True)
+    prepare_deployable.add_argument("--decision-exit-go", action="store_true")
+
+    prepare_privileged = phases.add_parser("prepare-model-val-privileged-input")
+    prepare_privileged.add_argument("--config", type=Path, required=True)
+    prepare_privileged.add_argument("--data-root", type=Path, required=True)
+    prepare_privileged.add_argument("--prediction-freeze", type=Path, required=True)
+    prepare_privileged.add_argument("--repository-root", type=Path, required=True)
+    prepare_privileged.add_argument("--output", type=Path, required=True)
+    prepare_privileged.add_argument("--decision-exit-go", action="store_true")
 
     train = phases.add_parser("formal-train")
     train.add_argument("--config", type=Path, required=True)
@@ -55,24 +68,29 @@ def main() -> None:
             raise FileExistsError(f"G2C TRAIN config 已存在: {args.output}")
         result = build_g2c_formal_training_config(args.data_root)
         _atomic_json(args.output, result)
-    elif args.phase == "prepare-input-views":
-        result = {
-            "train": prepare_g2c_train_input_view(
-                config_path=args.config,
-                data_root=args.data_root,
-                output_root=args.train_output,
-            ),
-            "model_val_deployable": prepare_g2c_model_val_deployable_view(
-                config_path=args.config,
-                data_root=args.data_root,
-                output_root=args.model_val_output,
-            ),
-            "model_val_privileged": prepare_g2c_model_val_label_view(
-                config_path=args.config,
-                data_root=args.data_root,
-                output_root=args.label_output,
-            ),
-        }
+    elif args.phase == "prepare-train-input":
+        result = prepare_g2c_train_input_view(
+            config_path=args.config,
+            data_root=args.data_root,
+            output_root=args.output,
+            decision_exit_go=args.decision_exit_go,
+        )
+    elif args.phase == "prepare-model-val-deployable-input":
+        result = prepare_g2c_model_val_deployable_view(
+            config_path=args.config,
+            data_root=args.data_root,
+            output_root=args.output,
+            decision_exit_go=args.decision_exit_go,
+        )
+    elif args.phase == "prepare-model-val-privileged-input":
+        result = prepare_g2c_model_val_label_view(
+            config_path=args.config,
+            data_root=args.data_root,
+            prediction_freeze_root=args.prediction_freeze,
+            repository_root=args.repository_root,
+            output_root=args.output,
+            decision_exit_go=args.decision_exit_go,
+        )
     elif args.phase == "formal-train":
         result = run_g2c_formal_training(
             config_path=args.config,

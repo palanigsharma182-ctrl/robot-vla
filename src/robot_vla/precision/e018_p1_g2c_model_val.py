@@ -2001,6 +2001,17 @@ def score_select_g2c_model_val(
         != freeze_marker.get("source_identity_sha256")
     ):
         raise RuntimeError("G2C Phase B source 必须与 Phase A exact-clean source 一致")
+    # metadata-only preflight：在创建消费事务和首次 np.load 前拒绝错误绑定。
+    label_verification = validate_g2c_input_view(
+        config_path=config_path,
+        input_root=model_val_label_input_root,
+        expected_role="model-val-privileged",
+        verify_bundle_bytes=False,
+        expected_prediction_freeze_internal_sha256=freeze_verification[
+            "freeze_internal_sha256"
+        ],
+        expected_source_identity_sha256=source_identity["identity_sha256"],
+    )
     output.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     if shutil.disk_usage(output.parent).free < 1024**3:
         raise RuntimeError("G2C Phase B 可用磁盘不足 1 GiB，拒绝消费 label")
@@ -2031,13 +2042,7 @@ def score_select_g2c_model_val(
     )
     _atomic_json(output / "phase_state.json", phase_state)
     try:
-        # metadata-only 检查不打开 bundle bytes；下一步每个 label bundle 只开一次。
-        label_verification = validate_g2c_input_view(
-            config_path=config_path,
-            input_root=model_val_label_input_root,
-            expected_role="model-val-privileged",
-            verify_bundle_bytes=False,
-        )
+        # phase_state 已持久化；从此处起每个 label bundle 只进行一次 array decode。
         labels = _load_model_val_labels(Path(model_val_label_input_root))
         result = _score_select_g2c_model_val_consumed(
             config=config,
@@ -2278,6 +2283,59 @@ def _verify_g2c_model_val_selection(
         or source.get("identity_sha256") != freeze_marker.get("source_identity_sha256")
     ):
         raise RuntimeError("G2C Phase B/A source identity 漂移")
+    label_verification = _read_json(
+        root / "label_input_verification.json",
+        "G2C Phase B label input verification",
+    )
+    _require_exact_keys(
+        label_verification,
+        {
+            "version",
+            "verified",
+            "role",
+            "split",
+            "seed_count",
+            "sample_count",
+            "bundle_bytes_verified",
+            "prediction_freeze_internal_sha256",
+            "source_identity_sha256",
+            "privileged_source_bundle_copy_count",
+            "privileged_label_array_open_count",
+            "receipt_raw_sha256",
+            "receipt_internal_sha256",
+            "inventory",
+            "verification_sha256",
+        },
+        "G2C Phase B label input verification",
+    )
+    label_verification_internal = label_verification.get("verification_sha256")
+    label_verification_unsigned = dict(label_verification)
+    label_verification_unsigned.pop("verification_sha256", None)
+    label_inventory = label_verification.get("inventory")
+    if (
+        label_verification_internal
+        != canonical_sha256(label_verification_unsigned)
+        or label_verification.get("verified") is not True
+        or label_verification.get("role") != "model-val-privileged"
+        or label_verification.get("split") != "model_val"
+        or label_verification.get("seed_count") != 100
+        or label_verification.get("sample_count") != 1100
+        or label_verification.get("bundle_bytes_verified") is not False
+        or label_verification.get("prediction_freeze_internal_sha256")
+        != freeze["freeze_internal_sha256"]
+        or label_verification.get("source_identity_sha256")
+        != source["identity_sha256"]
+        or label_verification.get("privileged_source_bundle_copy_count") != 100
+        or label_verification.get("privileged_label_array_open_count") != 0
+        or not isinstance(label_inventory, dict)
+        or label_inventory.get("deployable_inventory_sha256") is not None
+        or label_inventory.get("privileged_inventory_sha256")
+        != config["input_inventories"]["splits"]["model_val"][
+            "privileged_inventory_sha256"
+        ]
+        or label_inventory.get("paired_inventory_sha256") is not None
+    ):
+        raise RuntimeError("G2C Phase B label input freeze/source/count 绑定漂移")
     phase_state = _read_json(root / "phase_state.json", "G2C selection phase state")
     _require_exact_keys(
         phase_state,
