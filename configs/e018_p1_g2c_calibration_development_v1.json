@@ -1,0 +1,131 @@
+{
+  "config_sha256": "181683cb2d0839ff95f7f431780486ba3aacf20627dea4b03841683fb8d2458c",
+  "data_parent": {
+    "data_config_sha256": "56718c0611fc620ccfb767141d8d0867ea5d03806348396d0a2e201fbff3d5de",
+    "data_identity_sha256": "07919f413224fba797d4c12df25e2d5aec8ded8213e3283a07feed282701cfa3",
+    "data_receipt_internal_sha256": "0b52c3f1463087ad04275237c4567e656e698ab1043991b11d6c41d6711aa383",
+    "data_receipt_raw_sha256": "0bd4c2c6dd008889f9c02bb09e050d65b98d97620acbc8bfa5d225f1ed16e99d",
+    "deployable_inventory_sha256": "c2067d89e2cde7d57bada5723388eb29deb35757b62002f9dead2c1d2ed36516",
+    "deployable_manifest_raw_sha256": "5f99d3bc56381926061d61e2f1a07aea6c4655dcdd60b7b743b323c24697dff7",
+    "privileged_inventory_sha256": "24205efa88c0bae2df6c51992696fbefc69ea4c24be8d3e82eda5591d2d653f2",
+    "privileged_manifest_raw_sha256": "08a7e126a176936366f17688eacc6574412901ed171b5af405e8a91f7e93036c",
+    "sample_count": 550,
+    "seed_count": 50,
+    "source_git_commit": "b84536279fc751e65b9f685d951c4f77043f675c",
+    "source_identity_sha256": "f226b1f66c775ae8ff86a2111f0ff9b0f15aaab97155b2aa9f9096752253a39c",
+    "split": "calibration"
+  },
+  "decision": {
+    "formal_calibration_execution": "HOLD-until-exact-source-r2-go",
+    "model_selection": "D043",
+    "qualification_execution": "HOLD-until-separate-go",
+    "runner_implementation": "D044"
+  },
+  "permissions": {
+    "arm_motion_commands": 0,
+    "checkpoint_writes": 0,
+    "gripper_close_commands": 0,
+    "manipulation_progression": 0,
+    "memory_reads": 0,
+    "memory_writes": 0,
+    "physical_camera_actuation": 0,
+    "runtime_camera_actuation": 0,
+    "test_array_reads": 0
+  },
+  "protocol": {
+    "batch_size": 32,
+    "budgets": {
+      "formal_artifact_bytes_max": 5368709120,
+      "formal_phase_a_gpu_seconds_max": 3600.0,
+      "implementation_smoke_artifact_bytes_max": 1073741824,
+      "implementation_smoke_gpu_seconds_max": 600.0
+    },
+    "covariance": {
+      "alpha": 0.05,
+      "chi_square_threshold": 5.991,
+      "maximum_calibrated_position_std_m": 0.02,
+      "minimum_support": 30,
+      "target_coverage": 0.95
+    },
+    "free_static_safety": {
+      "maximum_arm_joint_drift_rad": 1e-05,
+      "maximum_camera_orientation_tracking_error_rad": 0.0001,
+      "maximum_camera_position_tracking_error_m": 1e-05,
+      "maximum_finger_force_n": 0.01,
+      "maximum_rgb_pose_skew_s": 0.01,
+      "maximum_robot_object_contact_force_n": 0.01,
+      "maximum_rotation_projection_error_frobenius": 1e-06,
+      "maximum_tcp_orientation_drift_rad": 0.0001,
+      "maximum_tcp_position_drift_m": 1e-05,
+      "minimum_raw_gripper_opening_ratio": 0.95,
+      "object_center_base_z_m": 0.02,
+      "object_center_base_z_tolerance_m": 1e-05,
+      "require_finger_force_valid": true,
+      "require_not_grasped": true
+    },
+    "model_forward_batch_count": 18,
+    "phase_a_persistence": {
+      "artifact_copy_contract": "rclone-copy-immutable/v1",
+      "check_contract": "rclone-check-one-way-checksum-combined/v1",
+      "completion_marker_copy_contract": "rclone-copyto-immutable/v1",
+      "completion_marker_name": "DRIVE_BACKUP_COMPLETE.json",
+      "control_artifacts_outside_prediction_freeze_exact_tree": true,
+      "final_receipt_after_both_post_checks": true,
+      "final_receipt_name": "phase_a_persistence_receipt.json",
+      "post_marker_artifact_matching_file_count": 10,
+      "post_marker_completion_marker_matching_file_count": 1,
+      "pre_marker_artifact_matching_file_count": 10
+    },
+    "prediction_before_privileged_label": true,
+    "privileged_staging_requires_phase_a_drive_zero_difference": true,
+    "sample_count": 550,
+    "seed_count": 50,
+    "seed_end": 76650,
+    "seed_start": 76601,
+    "selected_checkpoint_count": 1,
+    "split": "calibration",
+    "version": "e018-p1-g2c-calibration-development/v1",
+    "view_order": [
+      "HOME__CENTER",
+      "LEFT_LOW__CENTER",
+      "LEFT_LOW__YAW_LEFT",
+      "LEFT_LOW__YAW_RIGHT",
+      "LEFT_LOW__PITCH_UP",
+      "LEFT_LOW__PITCH_DOWN",
+      "RIGHT_LOW__CENTER",
+      "RIGHT_LOW__YAW_LEFT",
+      "RIGHT_LOW__YAW_RIGHT",
+      "RIGHT_LOW__PITCH_UP",
+      "RIGHT_LOW__PITCH_DOWN"
+    ],
+    "write_threshold": {
+      "catastrophic_error_m": 0.02,
+      "coverage_denominator": "oracle_safe_count/v1",
+      "maximum_oracle_safe_error_m": 0.005,
+      "minimum_accepted_safe_coverage": 0.1,
+      "tie_break": "coverage-accepted-count-higher-threshold/v1",
+      "unsafe_accepted_max": 0
+    },
+    "zero_pass_policy": "protocol-valid-negative-no-best-effort-view/v1"
+  },
+  "selection_parent": {
+    "candidate_id": "W-KV0",
+    "checkpoint_sha256": "97e3b7289911bc73f67755a8d9c3598c50b6c80ef01e1af13cec698ec59d3d77",
+    "epoch": 15,
+    "model_config_sha256": "4a284a59c8c6d1865910d333597b565183f4d455af520e5edad5a79d5c67d053",
+    "model_val_prediction_freeze_internal_sha256": "e9afee15af889b769000c168c90b4f251d63e67da0e5ef2736ed50df38ea7ac2",
+    "parameter_state_sha256": "1ba14a9009829c1d354555e9b788a8e3627e33ccffaddee24e66d9696121cb24",
+    "provenance_sha256": "8116f273c5f7339813a260bc919e25ee84cb3493a0e76eb454e6fbdeae83252c",
+    "selection_receipt_internal_sha256": "f8874dc604ae8c727831ea21977b1913023a4df6944e76ec4c9f30c26aafb773",
+    "selection_receipt_raw_sha256": "a961d18d3bc02107385bd6d2feed461310fa7b39f93242ec0749ebaeee6f64bd",
+    "selection_verification_sha256": "1aee923b09fe62b1955dad5276b1a24fb19d2e122ddd638238d0f9830894e91a",
+    "training_source_git_commit": "5bf05da5a22a07b8fabfc22b1f32da86fce40ba1",
+    "training_source_identity_sha256": "95b0fb26db8585decb9488ce0086ef1f9f6c8bc2a6496797e3d9681b89f2af05"
+  },
+  "status": "frozen-pre-formal-calibration-awaiting-source-r2-go/v1",
+  "training_config": {
+    "internal_sha256": "6719acdfb95b1780bb6779ff48471bf78823ea062abb3f097d2564bcd0e203ab",
+    "raw_sha256": "e58bfd38ec27cde9c68af72a790474e137e0d5a7f6da8812b8f0156680ba7948"
+  },
+  "version": "e018-p1-g2c-calibration-development/v1"
+}

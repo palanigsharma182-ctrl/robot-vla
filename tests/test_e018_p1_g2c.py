@@ -503,7 +503,11 @@ def test_per_view_calibration_fits_conformal_scale_and_zero_unsafe_threshold() -
             "world_xy_error_vector_m": [0.001, 0.0],
             "raw_covariance_base_m2": np.diag([1e-6, 1e-6, 0.0]).tolist(),
             "write_score": 0.8,
+            "gt_observable": True,
+            "geometry_valid": True,
+            "structurally_eligible": True,
             "oracle_safe_measurement": True,
+            "catastrophic_measurement": False,
         }
         for _ in range(30)
     ]
@@ -514,6 +518,93 @@ def test_per_view_calibration_fits_conformal_scale_and_zero_unsafe_threshold() -
     assert result["calibration"]["scale_factor"] == pytest.approx(1.0)
     assert result["write_threshold"] == pytest.approx(0.8)
     assert result["unsafe_accepted_count"] == 0
+
+
+def test_per_view_calibration_keeps_unsafe_high_score_in_threshold_cohort() -> None:
+    rows = [
+        {
+            "viewpoint_id": "LEFT_LOW__CENTER",
+            "world_xy_error_vector_m": [0.001, 0.0],
+            "raw_covariance_base_m2": np.diag([1e-6, 1e-6, 0.0]).tolist(),
+            "write_score": 0.8,
+            "gt_observable": True,
+            "geometry_valid": True,
+            "structurally_eligible": True,
+            "oracle_safe_measurement": True,
+            "catastrophic_measurement": False,
+        }
+        for _ in range(30)
+    ]
+    rows.append(
+        {
+            "viewpoint_id": "LEFT_LOW__CENTER",
+            "world_xy_error_vector_m": None,
+            "raw_covariance_base_m2": None,
+            "write_score": 0.95,
+            "gt_observable": False,
+            "geometry_valid": True,
+            "structurally_eligible": True,
+            "oracle_safe_measurement": False,
+            "catastrophic_measurement": False,
+        }
+    )
+
+    result = calibrate_g2c_viewpoint(rows, viewpoint_id="LEFT_LOW__CENTER")
+
+    assert result["status"] == "calibration-no-go"
+    assert result["support_count"] == 30
+    assert result["oracle_safe_count"] == 30
+    assert result["write_threshold"] is None
+    assert result["unsafe_accepted_count"] is None
+
+
+def test_per_view_calibration_coverage_uses_oracle_safe_denominator() -> None:
+    rows = [
+        {
+            "viewpoint_id": "LEFT_LOW__CENTER",
+            "world_xy_error_vector_m": [0.001, 0.0],
+            "raw_covariance_base_m2": np.diag([1e-6, 1e-6, 0.0]).tolist(),
+            "write_score": 0.8 if index < 3 else 0.1,
+            "gt_observable": True,
+            "geometry_valid": True,
+            "structurally_eligible": index < 3,
+            "oracle_safe_measurement": True,
+            "catastrophic_measurement": False,
+        }
+        for index in range(30)
+    ]
+
+    result = calibrate_g2c_viewpoint(rows, viewpoint_id="LEFT_LOW__CENTER")
+
+    assert result["status"] == "calibration-pass"
+    assert result["oracle_safe_count"] == 30
+    assert result["accepted_count"] == 3
+    assert result["accepted_safe_coverage"] == pytest.approx(0.1)
+
+
+def test_per_view_calibration_singular_psd_nonzero_nullspace_error_is_no_go() -> None:
+    rows = [
+        {
+            "viewpoint_id": "LEFT_LOW__CENTER",
+            "world_xy_error_vector_m": [0.0, 0.001],
+            "raw_covariance_base_m2": np.diag([1e-6, 0.0, 0.0]).tolist(),
+            "write_score": 0.8,
+            "gt_observable": True,
+            "geometry_valid": True,
+            "structurally_eligible": True,
+            "oracle_safe_measurement": True,
+            "catastrophic_measurement": False,
+        }
+        for _ in range(30)
+    ]
+
+    result = calibrate_g2c_viewpoint(rows, viewpoint_id="LEFT_LOW__CENTER")
+
+    assert result["status"] == "calibration-no-go"
+    assert result["support_count"] == 30
+    assert result["calibration"] is None
+    assert "nonfinite_conformal_quantile_or_scale" in result["failure_reasons"]
+    assert result["catastrophic_accepted_count"] == 0
 
 
 def test_dynamic_qualification_plan_has_exact_d036_counts() -> None:

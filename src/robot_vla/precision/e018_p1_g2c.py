@@ -366,72 +366,152 @@ def calibrate_g2c_viewpoint(
     *,
     viewpoint_id: str,
 ) -> dict[str, Any]:
-    """逐 viewpoint 拟合 XY Mahalanobis scalar 并选择 zero-unsafe threshold。"""
+    """按 D044 的双 cohort 口径拟合单视角 calibration。
+
+    covariance cohort 只使用 GT 可观察且几何/误差/协方差有效的行；write
+    threshold 则始终审计传入的全部行，并以独立的 ``oracle_safe_count``
+    作为 coverage 分母。这样 predicted-observable gate 不能自行缩小安全
+    分母，也不会漏掉“GT 不可观察但模型高分接受”的 unsafe 行。
+    """
 
     if viewpoint_id not in G2C_VIEW_ORDER:
         raise ValueError("G2C calibration viewpoint 未冻结")
     if any(row.get("viewpoint_id") != viewpoint_id for row in rows):
         raise ValueError("G2C calibration rows 必须属于单 viewpoint")
     rules = g2c_training_protocol()["calibration"]
-    evaluable = []
+    covariance_cohort = []
+    threshold_rows: list[tuple[float, bool, bool, bool]] = []
+    oracle_safe_count = 0
+    catastrophic_count = 0
     for row in rows:
+        score = float(row["write_score"])
+        structurally_eligible = row.get("structurally_eligible")
+        oracle_safe = row.get("oracle_safe_measurement")
+        catastrophic = row.get("catastrophic_measurement")
+        gt_observable = row.get("gt_observable")
+        geometry_valid = row.get("geometry_valid")
+        for name, value in (
+            ("structurally_eligible", structurally_eligible),
+            ("oracle_safe_measurement", oracle_safe),
+            ("catastrophic_measurement", catastrophic),
+            ("gt_observable", gt_observable),
+            ("geometry_valid", geometry_valid),
+        ):
+            if type(value) is not bool:
+                raise TypeError(f"G2C calibration {name} 必须是 bool")
+        if not math.isfinite(score) or not 0.0 <= score <= 1.0:
+            raise ValueError("G2C calibration write_score 必须是有限 [0,1]")
+        oracle_safe_count += int(oracle_safe)
+        catastrophic_count += int(catastrophic)
+        threshold_rows.append(
+            (score, structurally_eligible, oracle_safe, catastrophic)
+        )
+
+        if not (gt_observable and geometry_valid):
+            continue
         error = np.asarray(row["world_xy_error_vector_m"], dtype=np.float64)
         covariance = np.asarray(row["raw_covariance_base_m2"], dtype=np.float64)
-        score = float(row["write_score"])
         if (
             error.shape != (2,)
             or covariance.shape != (3, 3)
             or not np.isfinite(error).all()
             or not np.isfinite(covariance).all()
-            or not math.isfinite(score)
-            or not 0.0 <= score <= 1.0
+            or not np.allclose(covariance, covariance.T, rtol=0.0, atol=1e-12)
+            or float(np.linalg.eigvalsh(covariance).min()) < -1e-12
         ):
-            raise ValueError("G2C calibration row 非有限或 shape 漂移")
+            raise ValueError("G2C calibration covariance cohort 非有限/shape/PSD 漂移")
         mahalanobis = _mahalanobis_squared_psd(error, covariance[:2, :2])
-        evaluable.append((row, float(mahalanobis), covariance, score))
-    support = len(evaluable)
-    if support < rules["minimum_support"]:
-        return {
-            "viewpoint_id": viewpoint_id,
-            "status": "calibration-ineligible-low-support",
-            "support_count": support,
-            "calibration": None,
-            "write_threshold": None,
-        }
-    k = math.ceil((support + 1) * rules["target_coverage"])
-    k = min(k, support)
-    quantile = sorted(item[1] for item in evaluable)[k - 1]
-    scale = max(1.0, quantile / rules["chi_square_threshold"])
-    maximum_std = max(
-        float(np.sqrt(np.linalg.eigvalsh(item[2][:2, :2] * scale).max()))
-        for item in evaluable
-    )
-    candidates = sorted({item[3] for item in evaluable}, reverse=True)
+        covariance_cohort.append((float(mahalanobis), covariance))
+
+    support = len(covariance_cohort)
+    calibration: dict[str, Any] | None = None
+    maximum_std: float | None = None
+    covariance_passed = False
+    if support >= rules["minimum_support"]:
+        k = min(
+            math.ceil((support + 1) * rules["target_coverage"]),
+            support,
+        )
+        quantile = sorted(item[0] for item in covariance_cohort)[k - 1]
+        if math.isfinite(quantile):
+            scale = max(1.0, quantile / rules["chi_square_threshold"])
+            if math.isfinite(scale):
+                maximum_std = max(
+                    float(
+                        np.sqrt(
+                            np.linalg.eigvalsh(item[1][:2, :2] * scale).max()
+                        )
+                    )
+                    for item in covariance_cohort
+                )
+                covariance_passed = math.isfinite(maximum_std) and (
+                    maximum_std
+                    <= rules["maximum_calibrated_position_std_m"]
+                )
+                calibration = {
+                    "alpha": rules["alpha"],
+                    "chi_square_threshold": rules["chi_square_threshold"],
+                    "order_statistic_k": k,
+                    "quantile_score": quantile,
+                    "scale_factor": scale,
+                    "maximum_calibrated_position_std_m": maximum_std,
+                }
+
+    candidates = sorted({item[0] for item in threshold_rows}, reverse=True)
     threshold_candidates = []
     for threshold in candidates:
-        accepted = [item for item in evaluable if item[3] >= threshold]
-        unsafe = sum(not bool(item[0]["oracle_safe_measurement"]) for item in accepted)
-        coverage = len(accepted) / support
+        accepted = [item for item in threshold_rows if item[1] and item[0] >= threshold]
+        unsafe = sum(not item[2] for item in accepted)
+        accepted_safe = sum(item[2] for item in accepted)
+        catastrophic_accepted = sum(item[3] for item in accepted)
+        coverage = (
+            accepted_safe / oracle_safe_count if oracle_safe_count > 0 else 0.0
+        )
         if unsafe == 0 and coverage >= rules["minimum_accepted_safe_coverage"]:
-            threshold_candidates.append((coverage, threshold, len(accepted)))
-    chosen = max(threshold_candidates, key=lambda item: (item[0], item[1]), default=None)
-    passed = maximum_std <= rules["maximum_calibrated_position_std_m"] and chosen is not None
+            threshold_candidates.append(
+                (
+                    coverage,
+                    len(accepted),
+                    threshold,
+                    accepted_safe,
+                    catastrophic_accepted,
+                )
+            )
+    chosen = max(
+        threshold_candidates,
+        key=lambda item: (item[0], item[1], item[2]),
+        default=None,
+    )
+    threshold_passed = chosen is not None
+    passed = covariance_passed and threshold_passed
+    failure_reasons = []
+    if support < rules["minimum_support"]:
+        failure_reasons.append("covariance_support_below_30")
+    elif calibration is None:
+        failure_reasons.append("nonfinite_conformal_quantile_or_scale")
+    elif not covariance_passed:
+        failure_reasons.append("maximum_calibrated_position_std_above_0.020")
+    if oracle_safe_count == 0:
+        failure_reasons.append("oracle_safe_count_zero")
+    if not threshold_passed:
+        failure_reasons.append("no_zero_unsafe_threshold_with_coverage_at_least_0.10")
     return {
         "viewpoint_id": viewpoint_id,
         "status": "calibration-pass" if passed else "calibration-no-go",
+        "row_count": len(rows),
         "support_count": support,
-        "calibration": {
-            "alpha": rules["alpha"],
-            "chi_square_threshold": rules["chi_square_threshold"],
-            "order_statistic_k": k,
-            "quantile_score": quantile,
-            "scale_factor": scale,
-            "maximum_calibrated_position_std_m": maximum_std,
-        },
-        "write_threshold": None if chosen is None else chosen[1],
-        "accepted_safe_coverage": None if chosen is None else chosen[0],
-        "accepted_count": None if chosen is None else chosen[2],
+        "oracle_safe_count": oracle_safe_count,
+        "catastrophic_measurement_count": catastrophic_count,
+        "covariance_passed": covariance_passed,
+        "threshold_passed": threshold_passed,
+        "calibration": calibration,
+        "write_threshold": None if chosen is None else chosen[2],
+        "accepted_safe_coverage": 0.0 if chosen is None else chosen[0],
+        "accepted_count": 0 if chosen is None else chosen[1],
+        "accepted_and_oracle_safe_count": 0 if chosen is None else chosen[3],
         "unsafe_accepted_count": 0 if chosen is not None else None,
+        "catastrophic_accepted_count": 0 if chosen is None else chosen[4],
+        "failure_reasons": failure_reasons,
         "passed": passed,
     }
 
