@@ -2495,6 +2495,7 @@ def build_qualification_deployable_capture(
     proprio_normalizer: Any,
     finger_force_normalizer: Any,
     data_config: Mapping[str, Any],
+    eligible_capture_frame_indices: Sequence[int] | None = None,
 ) -> dict[str, Any]:
     """从 RGB/pose/robot state 构建单帧输入；接口不接 observation/segmentation。"""
 
@@ -2556,10 +2557,21 @@ def build_qualification_deployable_capture(
         raise RuntimeError("qualification finger-force 与 motion ledger 漂移")
     rgb_timestamp = float(motion_row["external_rgb_timestamp_s"])
     pose_timestamp = float(motion_row["external_pose_timestamp_s"])
+    eligible_indices = (
+        (0, _FINAL_COLLECT_FRAME_INDEX)
+        if eligible_capture_frame_indices is None
+        else tuple(eligible_capture_frame_indices)
+    )
+    if (
+        not eligible_indices
+        or len(set(eligible_indices)) != len(eligible_indices)
+        or any(type(index) is not int or not 0 <= index < 92 for index in eligible_indices)
+    ):
+        raise ValueError("qualification eligible capture frame indices 非法")
     safety = {
         "eligible_capture": bool(
             motion_row.get("settled") is True
-            and identity["route_frame_index"] in (0, _FINAL_COLLECT_FRAME_INDEX)
+            and identity["route_frame_index"] in eligible_indices
         ),
         "finger_force_n": finger_force.astype(float).tolist(),
         "finger_force_valid": True,

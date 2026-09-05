@@ -756,6 +756,65 @@ class ExplicitObjectStateMemory:
         self._state = state
         return state
 
+    def invalidate_for_safety(
+        self,
+        *,
+        episode_id: str,
+        timestamp_s: float,
+        reasons: tuple[str, ...],
+    ) -> ObjectState:
+        """独立于 candidate 写入，按当前时刻单调失效既有 Memory。"""
+
+        previous = self.state
+        state = self._build_safety_invalidated_state(
+            previous,
+            episode_id=episode_id,
+            timestamp_s=timestamp_s,
+            reasons=reasons,
+        )
+        self._state = state
+        return state
+
+    def _build_safety_invalidated_state(
+        self,
+        previous: ObjectState,
+        *,
+        episode_id: str,
+        timestamp_s: float,
+        reasons: tuple[str, ...],
+    ) -> ObjectState:
+        """纯构造安全失效状态，供 delayed commit 在 mutation 前预演。"""
+
+        if not isinstance(previous, ObjectState):
+            raise TypeError("previous 必须是 ObjectState")
+        if episode_id != previous.episode_id:
+            raise ValueError("episode identity 漂移；必须显式 reset")
+        timestamp = _timestamp(timestamp_s, "safety invalidation timestamp")
+        if timestamp + 1e-12 < previous.state_timestamp_s:
+            raise ValueError("safety invalidation timestamp 不能倒退")
+        resolved_reasons = _unique_reasons(tuple(dict.fromkeys(reasons)))
+        if not resolved_reasons:
+            raise ValueError("safety invalidation 必须提供原因")
+        covariance = self._aged_covariance(
+            previous.covariance_base_m2,
+            timestamp - previous.state_timestamp_s,
+        )
+        return ObjectState(
+            episode_id=previous.episode_id,
+            mode=ObjectMemoryMode.INVALID,
+            position_base_m=previous.position_base_m,
+            covariance_base_m2=covariance,
+            measurement_confidence=previous.measurement_confidence,
+            last_observed_timestamp_s=previous.last_observed_timestamp_s,
+            state_timestamp_s=timestamp,
+            observable_now=False,
+            valid=False,
+            accepted_update_count=previous.accepted_update_count,
+            source_camera=previous.source_camera,
+            source_model_identity=previous.source_model_identity,
+            invalid_reasons=resolved_reasons,
+        )
+
     def _measurement_rejection_reasons(
         self,
         candidate: ObjectCandidateDecision,
@@ -902,6 +961,179 @@ class ExplicitObjectStateMemory:
             innovation_m=innovation,
         )
 
+    def preview_delayed_candidate(
+        self,
+        candidate: ObjectCandidateDecision,
+        *,
+        episode_id: str,
+        safety: ObjectMemorySafetyContext,
+        commit_timestamp_s: float,
+        max_pending_age_s: float,
+    ) -> ObjectMemoryUpdate:
+        """纯预演离开观测视角后的 candidate 结果，不修改 Memory。
+
+        成功状态保留 candidate 最后一帧的观测时间，以 HOME commit 时刻作为
+        state time，并明确标记 ``observable_now=False``。调用方必须在全部
+        postcondition 与 receipt 构造成功后再调用
+        :meth:`apply_delayed_candidate_preview`。
+        """
+
+        if not isinstance(candidate, ObjectCandidateDecision):
+            raise TypeError("candidate 必须是 ObjectCandidateDecision")
+        if not isinstance(safety, ObjectMemorySafetyContext):
+            raise TypeError("safety 必须是 ObjectMemorySafetyContext")
+        commit_timestamp = _timestamp(commit_timestamp_s, "delayed commit timestamp")
+        if not math.isfinite(max_pending_age_s) or max_pending_age_s <= 0.0:
+            raise ValueError("max_pending_age_s 必须是有限正数")
+
+        previous = self.state
+        measurement = candidate.measurement
+        if episode_id != previous.episode_id:
+            raise ValueError("episode identity 漂移；必须显式 reset")
+        if candidate.episode_id != episode_id:
+            raise ValueError("candidate 与 memory episode identity 不一致")
+        if commit_timestamp + 1e-12 < previous.state_timestamp_s:
+            raise ValueError("delayed commit timestamp 不能早于当前 state")
+        if commit_timestamp + 1e-12 < measurement.timestamp_s:
+            raise ValueError("delayed commit timestamp 不能早于 candidate observation")
+
+        pending_age_s = commit_timestamp - measurement.timestamp_s
+        safety_reasons: list[str] = list(safety.invalidation_reasons)
+        safety_reasons.extend(
+            reason
+            for reason in previous.invalid_reasons
+            if reason in _IRREVERSIBLE_INVALID_REASONS
+        )
+        safety_reasons = list(dict.fromkeys(safety_reasons))
+        reasons: list[str] = []
+        reasons.extend(self._measurement_rejection_reasons(candidate))
+        if pending_age_s > max_pending_age_s + 1e-12:
+            reasons.append("pending_candidate_expired")
+        if pending_age_s > self.config.max_unobserved_age_s + 1e-12:
+            reasons.append("memory_stale_at_commit")
+
+        aged_covariance = self._aged_covariance(
+            measurement.covariance_base_m2,
+            pending_age_s,
+        )
+        aged_std = _max_std(aged_covariance)
+        if self.config.require_covariance and aged_covariance is None:
+            reasons.append("measurement_covariance_missing")
+        elif aged_std is not None and aged_std > self.config.max_position_std_m + 1e-12:
+            reasons.append("memory_uncertain_at_commit")
+
+        innovation = None
+        if previous.position_base_m is not None and measurement.position_base_m is not None:
+            innovation = float(
+                np.linalg.norm(
+                    np.asarray(measurement.position_base_m, dtype=np.float64)
+                    - np.asarray(previous.position_base_m, dtype=np.float64)
+                )
+            )
+            if innovation > self.config.max_innovation_m + 1e-12:
+                reasons.append("measurement_conflict")
+
+        rejected = tuple(dict.fromkeys((*safety_reasons, *reasons)))
+        if rejected:
+            state = previous
+            if safety_reasons:
+                state = self._build_safety_invalidated_state(
+                    previous,
+                    episode_id=episode_id,
+                    timestamp_s=commit_timestamp,
+                    reasons=tuple(safety_reasons),
+                )
+            return ObjectMemoryUpdate(
+                state=state,
+                measurement_accepted=False,
+                rejection_reasons=rejected,
+                innovation_m=innovation,
+            )
+
+        if measurement.position_base_m is None or aged_covariance is None:
+            raise RuntimeError("通过 delayed Object write gate 的 measurement 状态不完整")
+        state = ObjectState(
+            episode_id=previous.episode_id,
+            mode=ObjectMemoryMode.FREE_STATIC,
+            position_base_m=measurement.position_base_m,
+            covariance_base_m2=aged_covariance,
+            measurement_confidence=measurement.confidence,
+            last_observed_timestamp_s=measurement.timestamp_s,
+            state_timestamp_s=commit_timestamp,
+            observable_now=False,
+            valid=True,
+            accepted_update_count=previous.accepted_update_count + 1,
+            source_camera=measurement.source_camera,
+            source_model_identity=measurement.source_model_identity,
+            invalid_reasons=(),
+        )
+        return ObjectMemoryUpdate(
+            state=state,
+            measurement_accepted=True,
+            rejection_reasons=(),
+            innovation_m=innovation,
+        )
+
+    def apply_delayed_candidate_preview(
+        self,
+        preview: ObjectMemoryUpdate,
+        candidate: ObjectCandidateDecision,
+        *,
+        episode_id: str,
+        safety: ObjectMemorySafetyContext,
+        commit_timestamp_s: float,
+        max_pending_age_s: float,
+        expected_previous_state: ObjectState,
+    ) -> ObjectMemoryUpdate:
+        """复算并以单个无失败 assignment 应用已验证 preview。"""
+
+        if not isinstance(preview, ObjectMemoryUpdate):
+            raise TypeError("preview 必须是 ObjectMemoryUpdate")
+        if not isinstance(expected_previous_state, ObjectState):
+            raise TypeError("expected_previous_state 必须是 ObjectState")
+        if self.state != expected_previous_state:
+            raise RuntimeError("Object Memory 在 preview/apply 间发生变化")
+        recomputed = self.preview_delayed_candidate(
+            candidate,
+            episode_id=episode_id,
+            safety=safety,
+            commit_timestamp_s=commit_timestamp_s,
+            max_pending_age_s=max_pending_age_s,
+        )
+        if recomputed != preview:
+            raise RuntimeError("delayed candidate preview identity 漂移")
+        self._state = preview.state
+        return preview
+
+    def commit_delayed_candidate(
+        self,
+        candidate: ObjectCandidateDecision,
+        *,
+        episode_id: str,
+        safety: ObjectMemorySafetyContext,
+        commit_timestamp_s: float,
+        max_pending_age_s: float,
+    ) -> ObjectMemoryUpdate:
+        """兼容入口：先纯预演，再原子应用；P0 ``update`` 语义不变。"""
+
+        previous = self.state
+        preview = self.preview_delayed_candidate(
+            candidate,
+            episode_id=episode_id,
+            safety=safety,
+            commit_timestamp_s=commit_timestamp_s,
+            max_pending_age_s=max_pending_age_s,
+        )
+        return self.apply_delayed_candidate_preview(
+            preview,
+            candidate,
+            episode_id=episode_id,
+            safety=safety,
+            commit_timestamp_s=commit_timestamp_s,
+            max_pending_age_s=max_pending_age_s,
+            expected_previous_state=previous,
+        )
+
 
 @dataclass(frozen=True)
 class ObjectStateResolution:
@@ -960,7 +1192,7 @@ def resolve_object_state(
     except ValueError as error:
         raise ValueError("requirement 无效") from error
     state = update.state
-    if update.measurement_accepted:
+    if update.measurement_accepted and state.observable_now:
         return ObjectStateResolution(
             requirement=required,
             position_base_m=state.position_base_m,

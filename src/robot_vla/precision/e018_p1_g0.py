@@ -742,13 +742,17 @@ def _step_hold_open(env: Any, action_shape: tuple[int, ...]) -> tuple[dict[str, 
     return observation, _single_bool(terminated), _single_bool(truncated)
 
 
-def _read_finger_contact_force_n(base_env: Any) -> float:
+def _read_finger_contact_force_pair_n(base_env: Any) -> tuple[float, float]:
     scene = base_env.scene
     agent = base_env.agent
     cube = base_env.cube
     left = _numpy(scene.get_pairwise_contact_forces(agent.finger1_link, cube))[0]
     right = _numpy(scene.get_pairwise_contact_forces(agent.finger2_link, cube))[0]
-    return float(max(np.linalg.norm(left), np.linalg.norm(right)))
+    return float(np.linalg.norm(left)), float(np.linalg.norm(right))
+
+
+def _read_finger_contact_force_n(base_env: Any) -> float:
+    return max(_read_finger_contact_force_pair_n(base_env))
 
 
 def _read_robot_object_contact_witness(
@@ -871,6 +875,8 @@ def _record_frame(
     source_phase: str,
     camera_owner: str,
     include_raw_safety_witnesses: bool,
+    include_privileged_object_state_witnesses: bool,
+    include_robot_object_contact_witnesses: bool,
 ) -> tuple[
     dict[str, Any],
     np.ndarray,
@@ -951,15 +957,20 @@ def _record_frame(
         tcp_anchor_world[:3, :3],
         tcp_world[:3, :3],
     )
-    finger_contact_force = _read_finger_contact_force_n(base_env)
+    finger_force_left, finger_force_right = _read_finger_contact_force_pair_n(base_env)
+    finger_contact_force = max(finger_force_left, finger_force_right)
     robot_object_contact_force = None
     robot_object_contact_witness = None
-    if include_raw_safety_witnesses:
+    if include_raw_safety_witnesses and include_robot_object_contact_witnesses:
         (
             robot_object_contact_force,
             robot_object_contact_witness,
         ) = _read_robot_object_contact_witness(base_env)
-    is_grasping = _single_bool(base_env.agent.is_grasping(base_env.cube))
+    is_grasping = (
+        _single_bool(base_env.agent.is_grasping(base_env.cube))
+        if include_privileged_object_state_witnesses
+        else None
+    )
 
     offline_diagnostics = _offline_segmentation_diagnostics(
         sensor,
@@ -1048,6 +1059,8 @@ def _record_frame(
     if include_raw_safety_witnesses:
         row.update(
             {
+                "finger_force_left_n": finger_force_left,
+                "finger_force_right_n": finger_force_right,
                 "robot_object_contact_force_n": robot_object_contact_force,
                 "robot_object_contact_by_link": robot_object_contact_witness,
             }
@@ -1088,7 +1101,16 @@ def _run_route(
     source_phase: str = "G0_FEASIBILITY_NO_EXECUTIVE_PHASE",
     camera_owner: str = "ACTIVE_REOBSERVE_G0_PROBE",
     frame_hook: Callable[[dict[str, Any], np.ndarray, dict[str, Any]], None] | None = None,
+    warmup_hook: Callable[[int, dict[str, Any]], None] | None = None,
+    pre_command_hook: (
+        Callable[[ExternalCameraMotionState, int, str], None] | None
+    ) = None,
+    episode_id_override: str | None = None,
+    request_id_override: str | None = None,
+    command_sequence_id_override: str | None = None,
     include_raw_safety_witnesses: bool = False,
+    include_privileged_object_state_witnesses: bool = True,
+    include_robot_object_contact_witnesses: bool = True,
 ) -> tuple[list[dict[str, Any]], dict[str, Any], dict[str, np.ndarray]]:
     environment = config["environment"]
     motion = config["motion"]
@@ -1114,11 +1136,20 @@ def _run_route(
             roll_offset_rad=target_orientation.roll_offset_rad * scale,
         )
 
-    episode_id = (
-        f"{episode_prefix}-seed-{seed:06d}-" f"{alternate.viewpoint_id.lower().replace('_', '-')}"
+    default_episode_id = (
+        f"{episode_prefix}-seed-{seed:06d}-"
+        f"{alternate.viewpoint_id.lower().replace('_', '-')}"
     )
-    request_id = f"{episode_id}-request-00"
-    command_sequence_id = f"{episode_id}-camera-sequence-00"
+    episode_id = episode_id_override or default_episode_id
+    request_id = request_id_override or f"{episode_id}-request-00"
+    command_sequence_id = (
+        command_sequence_id_override or f"{episode_id}-camera-sequence-00"
+    )
+    if any(
+        not isinstance(value, str) or not value
+        for value in (episode_id, request_id, command_sequence_id)
+    ):
+        raise ValueError("G0 route identity override 必须是非空字符串")
 
     _, _ = env.reset(seed=seed)
     home_position = np.asarray(home.position_world_m, dtype=np.float64)
@@ -1133,7 +1164,7 @@ def _run_route(
     observation: dict[str, Any] | None = None
     terminated = False
     truncated = False
-    for _ in range(motion["warmup_ticks"]):
+    for warmup_index in range(motion["warmup_ticks"]):
         home_quaternion, home_world_from_gl = _set_camera_pose(
             camera,
             home,
@@ -1143,6 +1174,8 @@ def _run_route(
             sapien_utils_module=sapien_utils_module,
         )
         observation, terminated, truncated = _step_hold_open(env, env.action_space.shape)
+        if warmup_hook is not None:
+            warmup_hook(warmup_index, observation)
         if terminated or truncated:
             raise RuntimeError(f"{episode_id} warmup 期间环境提前结束")
     if observation is None:
@@ -1215,6 +1248,12 @@ def _run_route(
             source_phase=source_phase,
             camera_owner=camera_owner,
             include_raw_safety_witnesses=include_raw_safety_witnesses,
+            include_privileged_object_state_witnesses=(
+                include_privileged_object_state_witnesses
+            ),
+            include_robot_object_contact_witnesses=(
+                include_robot_object_contact_witnesses
+            ),
         )
         row, rgb, position, quaternion, linear_velocity, angular_speed = result
         stationary_state = state in {
@@ -1244,6 +1283,15 @@ def _run_route(
         previous_angular_speed = angular_speed
         return rgb
 
+    def authorize_camera_command(
+        state: ExternalCameraMotionState,
+        viewpoint: FrontCameraViewpoint,
+    ) -> None:
+        """实验专用 supervisor gate；默认 ``None`` 时保持旧 G0/G0C 行为。"""
+
+        if pre_command_hook is not None:
+            pre_command_hook(state, len(rows), viewpoint.viewpoint_id)
+
     home_before_rgb = append_observation(
         state=ExternalCameraMotionState.HOME_ANCHOR,
         viewpoint=home,
@@ -1262,6 +1310,7 @@ def _run_route(
         control_tick += 1
         orientation_progress = smootherstep((index + 1) / move_steps)
         command_orientation = scaled_target_orientation(orientation_progress)
+        authorize_camera_command(ExternalCameraMotionState.MOVE_TO_VIEW, alternate)
         command_q, command_gl = _set_camera_pose(
             camera,
             alternate,
@@ -1291,6 +1340,7 @@ def _run_route(
     settle_streak = 0
     for _ in range(motion["settle_ticks"]):
         control_tick += 1
+        authorize_camera_command(ExternalCameraMotionState.SETTLE_AT_VIEW, alternate)
         command_q, command_gl = _set_camera_pose(
             camera,
             alternate,
@@ -1318,6 +1368,7 @@ def _run_route(
     alternate_rgb: np.ndarray | None = None
     for _ in range(motion["collect_ticks"]):
         control_tick += 1
+        authorize_camera_command(ExternalCameraMotionState.COLLECT, alternate)
         command_q, command_gl = _set_camera_pose(
             camera,
             alternate,
@@ -1350,6 +1401,7 @@ def _run_route(
         control_tick += 1
         orientation_progress = 1.0 - smootherstep((index + 1) / move_steps)
         command_orientation = scaled_target_orientation(orientation_progress)
+        authorize_camera_command(ExternalCameraMotionState.RETURN_HOME, home)
         command_q, command_gl = _set_camera_pose(
             camera,
             home,
@@ -1379,6 +1431,10 @@ def _run_route(
     home_after_rgb: np.ndarray | None = None
     for _ in range(motion["settle_ticks"]):
         control_tick += 1
+        authorize_camera_command(
+            ExternalCameraMotionState.VERIFY_HOME_AND_ARM_HOLD,
+            home,
+        )
         command_q, command_gl = _set_camera_pose(
             camera,
             home,

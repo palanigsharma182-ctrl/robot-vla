@@ -60,6 +60,7 @@ class ActiveFrontReobserveState(str, Enum):
     RECHECK_SOURCE_INVARIANTS = "recheck_source_invariants"
     COMMIT_AND_RESUME = "commit_and_resume"
     COMPLETE_NO_WRITE = "complete_no_write"
+    COMPLETE_STAGE2_MEMORY_WRITE = "complete_stage2_memory_write"
     FAILSAFE_RETURN = "failsafe_return"
     FAILED_SAFE_HOLD = "failed_safe_hold"
 
@@ -70,6 +71,9 @@ class ActiveFrontTriggerReason(str, Enum):
     LOW_VISUAL_CONFIDENCE = "low_visual_confidence"
     HIGH_LOCALIZATION_UNCERTAINTY = "high_localization_uncertainty"
     HIGH_GEOMETRIC_SENSITIVITY = "high_geometric_sensitivity"
+    NO_QUALIFIED_WRIST_PROVIDER_IN_PARENT = (
+        "no_qualified_wrist_provider_in_parent"
+    )
     INVALID_SENSOR_OR_POSE = "invalid_sensor_or_pose"
     PROVIDER_IDENTITY_MISMATCH = "provider_identity_mismatch"
     UNSAFE_ARM_STATE = "unsafe_arm_state"
@@ -118,6 +122,7 @@ class ActiveFrontFailure(str, Enum):
     SOURCE_INVARIANT_FAILED = "source_invariant_failed"
     ACTION_HISTORY_RESET_INVALID = "action_history_reset_invalid"
     STALE_ACTION_HISTORY_RESUME = "stale_action_history_resume"
+    CANDIDATE_REJECTED = "candidate_rejected"
     CAMERA_RETURN_FAILED = "camera_return_failed"
     TIMEOUT = "timeout"
 
@@ -141,6 +146,7 @@ class ActiveFrontReobserveConfig:
     cooldown_ticks: int = 20
     maximum_attempts_per_episode: int = 1
     home_v2_barrier_frames: int = 4
+    allow_capability_absent_trigger: bool = False
     version: str = ACTIVE_FRONT_REOBSERVE_VERSION
 
     def __post_init__(self) -> None:
@@ -148,6 +154,8 @@ class ActiveFrontReobserveConfig:
             raise ValueError("active-front-reobserve config version 漂移")
         if not isinstance(self.enabled, bool):
             raise TypeError("enabled 必须是 bool")
+        if not isinstance(self.allow_capability_absent_trigger, bool):
+            raise TypeError("allow_capability_absent_trigger 必须是 bool")
         if not self.selected_primitive_id:
             raise ValueError("selected_primitive_id 必须是非空字符串")
         for name in (
@@ -308,6 +316,7 @@ class ActionHistoryResumeReceipt:
     home_observation_sequence_ids: tuple[str, ...]
     generated_from_fresh_home_v2: bool
     stale_action_chunk_resumed: bool
+    observation_v2_window_sha256: str | None = None
 
     def __post_init__(self) -> None:
         if not self.episode_id or not self.request_id:
@@ -331,6 +340,14 @@ class ActionHistoryResumeReceipt:
             raise TypeError("generated_from_fresh_home_v2 必须是 bool")
         if not isinstance(self.stale_action_chunk_resumed, bool):
             raise TypeError("stale_action_chunk_resumed 必须是 bool")
+        if self.observation_v2_window_sha256 is not None and (
+            len(self.observation_v2_window_sha256) != 64
+            or any(
+                value not in "0123456789abcdef"
+                for value in self.observation_v2_window_sha256
+            )
+        ):
+            raise ValueError("observation_v2_window_sha256 必须是 SHA-256 或 None")
 
 
 @dataclass(frozen=True)
@@ -354,6 +371,52 @@ class Stage1ShadowCandidateReceipt:
             or self.provider_forward_count < 0
         ):
             raise ValueError("provider_forward_count 必须是非负整数")
+
+
+@dataclass(frozen=True)
+class Stage2MemoryCandidateReceipt:
+    """Stage 2 的三帧 PRIMARY candidate；Memory write 仍延迟到 HOME 后。"""
+
+    request_id: str
+    candidate_digest: str
+    commit_eligible: bool
+    rejection_reasons: tuple[str, ...]
+    memory_write_deferred: bool
+    live_memory_write_executed: bool
+    provider_forward_count: int
+    collect_frame_digests: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if not self.request_id or not self.candidate_digest:
+            raise ValueError("Stage 2 candidate identity/digest 必须非空")
+        if len(self.candidate_digest) != 64 or any(
+            value not in "0123456789abcdef" for value in self.candidate_digest
+        ):
+            raise ValueError("Stage 2 candidate digest 必须是 SHA-256")
+        for name in (
+            "commit_eligible",
+            "memory_write_deferred",
+            "live_memory_write_executed",
+        ):
+            if not isinstance(getattr(self, name), bool):
+                raise TypeError(f"Stage 2 candidate {name} 必须是 bool")
+        if self.commit_eligible != (not self.rejection_reasons):
+            raise ValueError("Stage 2 candidate eligibility/reasons 语义冲突")
+        if self.memory_write_deferred is not self.commit_eligible:
+            raise ValueError("只有 eligible candidate 可以延迟 Memory write")
+        if self.live_memory_write_executed:
+            raise ValueError("candidate staged 阶段禁止 live Memory write")
+        if self.provider_forward_count != 3:
+            raise ValueError("Stage 2 PRIMARY candidate 必须精确绑定三次 forward")
+        if len(self.collect_frame_digests) != 3 or len(
+            set(self.collect_frame_digests)
+        ) != 3:
+            raise ValueError("Stage 2 candidate 必须绑定三个唯一 collect frame")
+        for digest in self.collect_frame_digests:
+            if len(digest) != 64 or any(
+                value not in "0123456789abcdef" for value in digest
+            ):
+                raise ValueError("Stage 2 collect frame digest 必须是 SHA-256")
 
 
 @dataclass(frozen=True)
@@ -531,6 +594,7 @@ class ActiveFrontReobserveController:
         self._reset_receipt: ActionHistoryResetReceipt | None = None
         self._home_frame_ids: list[str] = []
         self._failure: ActiveFrontFailure | None = None
+        self._stage2_candidate_commit_eligible: bool | None = None
 
     @property
     def state(self) -> ActiveFrontReobserveState:
@@ -600,6 +664,7 @@ class ActiveFrontReobserveController:
         self._reset_receipt = None
         self._home_frame_ids = []
         self._failure = None
+        self._stage2_candidate_commit_eligible = None
 
     def _set_state(self, state: ActiveFrontReobserveState) -> None:
         self._state = state
@@ -662,7 +727,15 @@ class ActiveFrontReobserveController:
             return reject(ActiveFrontDecisionReason.HOME_FRONT_EVIDENCE_AVAILABLE)
         if evidence.object_memory_navigation_state_available:
             return reject(ActiveFrontDecisionReason.OBJECT_MEMORY_AVAILABLE)
-        if evidence.failure_reason not in VIEWPOINT_RESOLVABLE_REASONS:
+        capability_absent_allowed = bool(
+            self.config.allow_capability_absent_trigger
+            and evidence.failure_reason
+            is ActiveFrontTriggerReason.NO_QUALIFIED_WRIST_PROVIDER_IN_PARENT
+        )
+        if (
+            evidence.failure_reason not in VIEWPOINT_RESOLVABLE_REASONS
+            and not capability_absent_allowed
+        ):
             return reject(ActiveFrontDecisionReason.FAILURE_NOT_VIEWPOINT_RESOLVABLE)
         if not (
             evidence.arm_hold_prerequisites_pass
@@ -731,31 +804,49 @@ class ActiveFrontReobserveController:
         if self._state is not target:
             self._set_state(target)
 
+    def observe_safety(
+        self,
+        safety: ActiveFrontSafetyEvidence,
+        *,
+        camera_at_home: bool,
+    ) -> bool:
+        """在没有离散状态转换的 motion Tick 上仍持续执行 fail-closed。"""
+
+        if self._request is None:
+            raise RuntimeError("没有 active request")
+        if not isinstance(safety, ActiveFrontSafetyEvidence):
+            raise TypeError("safety 必须是 ActiveFrontSafetyEvidence")
+        failure = safety.failure()
+        if failure is None:
+            return True
+        self._close_latch(failure.value)
+        self._fail(failure, camera_at_home=camera_at_home)
+        return False
+
     def advance(
         self,
         signal: ActiveFrontSignal,
         *,
         safety: ActiveFrontSafetyEvidence | None = None,
         selected_primitive_id: str | None = None,
-        shadow_candidate_receipt: Stage1ShadowCandidateReceipt | None = None,
+        shadow_candidate_receipt: (
+            Stage1ShadowCandidateReceipt | Stage2MemoryCandidateReceipt | None
+        ) = None,
         source_phase: PhaseId | None = None,
         source_invariants_passed: bool | None = None,
     ) -> None:
         if self._request is None:
             raise RuntimeError("没有 active request")
         safety = safety or ActiveFrontSafetyEvidence()
-        failure = safety.failure()
-        if failure is not None:
-            self._close_latch(failure.value)
-            self._fail(
-                failure,
-                camera_at_home=self._state
-                in {
-                    ActiveFrontReobserveState.REQUESTED,
-                    ActiveFrontReobserveState.ACQUIRE_CAMERA_LEASE_AND_HOLD_ARM,
-                    ActiveFrontReobserveState.SELECT_FROZEN_PRIMITIVE,
-                },
-            )
+        camera_at_home = self._state in {
+            ActiveFrontReobserveState.REQUESTED,
+            ActiveFrontReobserveState.ACQUIRE_CAMERA_LEASE_AND_HOLD_ARM,
+            ActiveFrontReobserveState.SELECT_FROZEN_PRIMITIVE,
+            ActiveFrontReobserveState.VERIFY_HOME_AND_ARM_HOLD,
+            ActiveFrontReobserveState.RECHECK_SOURCE_INVARIANTS,
+            ActiveFrontReobserveState.COMMIT_AND_RESUME,
+        }
+        if not self.observe_safety(safety, camera_at_home=camera_at_home):
             return
         target = self._TRANSITIONS.get((self._state, signal))
         if target is None:
@@ -779,13 +870,25 @@ class ActiveFrontReobserveController:
             )
             return
         if signal is ActiveFrontSignal.SHADOW_CANDIDATE_STAGED:
-            valid_shadow_candidate = bool(
-                shadow_candidate_receipt is not None
-                and shadow_candidate_receipt.request_id == self._request.request_id
-                and shadow_candidate_receipt.shadow_only
-                and not shadow_candidate_receipt.live_memory_write_executed
-                and shadow_candidate_receipt.provider_forward_count == 0
-            )
+            if isinstance(shadow_candidate_receipt, Stage1ShadowCandidateReceipt):
+                valid_shadow_candidate = bool(
+                    shadow_candidate_receipt.request_id == self._request.request_id
+                    and shadow_candidate_receipt.shadow_only
+                    and not shadow_candidate_receipt.live_memory_write_executed
+                    and shadow_candidate_receipt.provider_forward_count == 0
+                )
+                self._stage2_candidate_commit_eligible = None
+            elif isinstance(shadow_candidate_receipt, Stage2MemoryCandidateReceipt):
+                valid_shadow_candidate = bool(
+                    shadow_candidate_receipt.request_id == self._request.request_id
+                    and not shadow_candidate_receipt.live_memory_write_executed
+                    and shadow_candidate_receipt.provider_forward_count == 3
+                )
+                self._stage2_candidate_commit_eligible = (
+                    shadow_candidate_receipt.commit_eligible
+                )
+            else:
+                valid_shadow_candidate = False
             if not valid_shadow_candidate:
                 self._fail(
                     ActiveFrontFailure.STATE_TRANSITION_INVALID,
@@ -825,7 +928,10 @@ class ActiveFrontReobserveController:
             return
         self._home_frame_ids.append(frame.observation_sequence_id)
         if len(self._home_frame_ids) == self.config.home_v2_barrier_frames:
-            self._set_state(ActiveFrontReobserveState.RECHECK_SOURCE_INVARIANTS)
+            if self._stage2_candidate_commit_eligible is False:
+                self._fail(ActiveFrontFailure.CANDIDATE_REJECTED, camera_at_home=True)
+            else:
+                self._set_state(ActiveFrontReobserveState.RECHECK_SOURCE_INVARIANTS)
 
     def fail(
         self,
@@ -866,15 +972,56 @@ class ActiveFrontReobserveController:
         self._set_state(ActiveFrontReobserveState.COMPLETE_NO_WRITE)
         return self.receipt(resume_receipt=receipt)
 
+    def complete_stage2_memory_write(
+        self,
+        receipt: ActionHistoryResumeReceipt,
+        *,
+        memory_write_count: int,
+        provider_forward_count: int,
+    ) -> ActiveFrontReobserveReceipt:
+        """HOME 后一次 Memory write 与 fresh shadow replan 的 supervisor 终态。"""
+
+        if (
+            self._state is not ActiveFrontReobserveState.COMMIT_AND_RESUME
+            or self._request is None
+            or self._reset_receipt is None
+        ):
+            raise RuntimeError("只有 COMMIT_AND_RESUME 可以完成 Stage 2 Memory write")
+        valid = bool(
+            receipt.episode_id == self._request.episode_id
+            and receipt.request_id == self._request.request_id
+            and receipt.generation == self._reset_receipt.generation_after + 1
+            and receipt.home_observation_sequence_ids == tuple(self._home_frame_ids)
+            and receipt.generated_from_fresh_home_v2
+            and not receipt.stale_action_chunk_resumed
+            and receipt.observation_v2_window_sha256 is not None
+            and memory_write_count == 1
+            and provider_forward_count == 4
+            and self._stage2_candidate_commit_eligible is True
+        )
+        if not valid:
+            self._fail(ActiveFrontFailure.STALE_ACTION_HISTORY_RESUME, camera_at_home=True)
+            return self.receipt(resume_receipt=receipt)
+        self._set_state(ActiveFrontReobserveState.COMPLETE_STAGE2_MEMORY_WRITE)
+        return self.receipt(
+            resume_receipt=receipt,
+            memory_write_count=memory_write_count,
+            provider_forward_count=provider_forward_count,
+        )
+
     def receipt(
         self,
         *,
         resume_receipt: ActionHistoryResumeReceipt | None = None,
+        memory_write_count: int = 0,
+        provider_forward_count: int = 0,
     ) -> ActiveFrontReobserveReceipt:
         if self._request is None or self._reset_receipt is None:
             raise RuntimeError("receipt 需要 request 与 Action history reset evidence")
         if self._state is ActiveFrontReobserveState.COMPLETE_NO_WRITE:
             status = "complete-stage1-shadow-no-write"
+        elif self._state is ActiveFrontReobserveState.COMPLETE_STAGE2_MEMORY_WRITE:
+            status = "complete-stage2-memory-write-shadow-replan"
         elif self._state in {
             ActiveFrontReobserveState.FAILSAFE_RETURN,
             ActiveFrontReobserveState.FAILED_SAFE_HOLD,
@@ -897,9 +1044,9 @@ class ActiveFrontReobserveController:
                 None if resume_receipt is None else resume_receipt.generation
             ),
             memory_read_count=0,
-            memory_write_count=0,
+            memory_write_count=memory_write_count,
             test_read_count=0,
-            provider_forward_count=0,
+            provider_forward_count=provider_forward_count,
             failure=self._failure,
         )
 
@@ -926,4 +1073,5 @@ __all__ = [
     "ExternalCameraControllerOwner",
     "HomeV2BarrierFrame",
     "Stage1ShadowCandidateReceipt",
+    "Stage2MemoryCandidateReceipt",
 ]
