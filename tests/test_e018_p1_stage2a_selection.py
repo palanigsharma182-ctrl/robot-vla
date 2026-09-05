@@ -1013,6 +1013,49 @@ def test_formal_and_preflight_go_tokens_cannot_cross_authorize() -> None:
             **common,
             exact_preflight_token=STAGE2A_SELECTION_GO,
         )
+    with pytest.raises(PermissionError, match="preflight token"):
+        selection_runtime._assert_preflight_authority(
+            **common,
+            exact_preflight_token=(
+                "E018_P1_STAGE2A_PASS_A_ONE_ROUTE_PREFLIGHT_GO_76891_V1"
+            ),
+        )
+
+
+def test_preflight_stats_identity_binds_actual_raw_files(
+    tmp_path: Path,
+) -> None:
+    proprio = tmp_path / "proprio_stats.json"
+    force = tmp_path / "finger_force_stats.json"
+    proprio.write_bytes(b"proprio\n")
+    force.write_bytes(b"force\n")
+    data_config = {
+        "data_identity": {
+            "proprio_stats_sha256": hashlib.sha256(
+                proprio.read_bytes()
+            ).hexdigest(),
+            "finger_force_stats_sha256": hashlib.sha256(
+                force.read_bytes()
+            ).hexdigest(),
+        }
+    }
+    identity = selection_runtime._build_preflight_stats_identity(
+        tmp_path,
+        data_config,
+    )
+    assert identity["stats_identity_sha256"] == canonical_sha256(
+        {
+            key: value
+            for key, value in identity.items()
+            if key != "stats_identity_sha256"
+        }
+    )
+    force.write_bytes(b"drifted\n")
+    with pytest.raises(RuntimeError, match="冻结 data config"):
+        selection_runtime._build_preflight_stats_identity(
+            tmp_path,
+            data_config,
+        )
 
 
 def test_preflight_cli_has_fixed_seed_and_no_seed_option() -> None:

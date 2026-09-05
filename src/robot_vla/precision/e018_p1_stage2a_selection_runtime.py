@@ -2069,6 +2069,36 @@ def _assert_preflight_authority(
     return loaded, source
 
 
+def _build_preflight_stats_identity(
+    stats_root: Path,
+    data_config: Mapping[str, Any],
+) -> dict[str, Any]:
+    """把实际读取的两份 normalizer stats 绑定进 preflight identity。"""
+
+    paths = {
+        "proprio_stats_raw_sha256": stats_root / "proprio_stats.json",
+        "finger_force_stats_raw_sha256": stats_root / "finger_force_stats.json",
+    }
+    for path in paths.values():
+        if not path.is_file() or path.is_symlink() or path.stat().st_nlink != 1:
+            raise RuntimeError("preflight stats 必须是单链接 regular file")
+    value = {
+        "version": "e018-p1-stage2a-preflight-stats-identity/v1",
+        "data_config_canonical_sha256": canonical_sha256(data_config),
+        **{name: file_sha256(path) for name, path in paths.items()},
+    }
+    expected = data_config["data_identity"]
+    if (
+        value["proprio_stats_raw_sha256"]
+        != expected["proprio_stats_sha256"]
+        or value["finger_force_stats_raw_sha256"]
+        != expected["finger_force_stats_sha256"]
+    ):
+        raise RuntimeError("preflight stats raw SHA-256 与冻结 data config 不匹配")
+    value["stats_identity_sha256"] = canonical_sha256(value)
+    return value
+
+
 def _run_selection_simulator(
     *,
     loaded_selection_config: Any,
@@ -2441,6 +2471,7 @@ def run_e018_p1_stage2a_selection_preflight_one_route(
         data_config_path,
         parent_g0c_config_path=g0c_config_path,
     )
+    stats_identity = _build_preflight_stats_identity(Path(stats_root), data)
     checkpoint = Path(selected_checkpoint_path)
     if (
         not checkpoint.is_file()
@@ -2460,6 +2491,13 @@ def run_e018_p1_stage2a_selection_preflight_one_route(
         "source_identity_sha256": source["identity_sha256"],
         "parent_verification_sha256": parent["verification_sha256"],
         "checkpoint_raw_sha256": file_sha256(checkpoint),
+        "proprio_stats_raw_sha256": stats_identity[
+            "proprio_stats_raw_sha256"
+        ],
+        "finger_force_stats_raw_sha256": stats_identity[
+            "finger_force_stats_raw_sha256"
+        ],
+        "stats_identity_sha256": stats_identity["stats_identity_sha256"],
     }
     transaction_identity = canonical_sha256(transaction_primitive)
     journal = Stage2ASelectionPreflightJournal(
@@ -2573,6 +2611,7 @@ def run_e018_p1_stage2a_selection_preflight_one_route(
             "checkpoint_identity_sha256": checkpoint_identity[
                 "identity_sha256"
             ],
+            "stats_identity": stats_identity,
             "transaction_identity_sha256": transaction_identity,
             "context_destroyed": True,
             "provider_context_destroyed": True,
@@ -2606,6 +2645,9 @@ def run_e018_p1_stage2a_selection_preflight_one_route(
             "private_inventory_internal_sha256": private_inventory[
                 "inventory_sha256"
             ],
+            "stats_identity_sha256": stats_identity[
+                "stats_identity_sha256"
+            ],
             "counts": counts,
             "context_destroyed": True,
             "formal_selection_identity_consumed": False,
@@ -2618,6 +2660,7 @@ def run_e018_p1_stage2a_selection_preflight_one_route(
         _atomic_create_json(public_root / "PREFLIGHT_COMPLETE.json", completion)
         return verify_e018_p1_stage2a_selection_preflight(
             selection_config_path=selection_config_path,
+            data_config_path=data_config_path,
             artifact_root=artifact,
             expected_source_git_commit=expected_source_git_commit,
             expected_source_identity_sha256=expected_source_identity_sha256,
@@ -2649,6 +2692,7 @@ def run_e018_p1_stage2a_selection_preflight_one_route(
 def verify_e018_p1_stage2a_selection_preflight(
     *,
     selection_config_path: str | Path,
+    data_config_path: str | Path,
     artifact_root: str | Path,
     expected_source_git_commit: str,
     expected_source_identity_sha256: str,
@@ -2680,11 +2724,31 @@ def verify_e018_p1_stage2a_selection_preflight(
         name="selection preflight private artifact",
     )
     loaded = load_e018_p1_stage2a_selection_config(selection_config_path)
+    data_config = _stage2a.load_e018_p1_g2c_data_config(data_config_path)
+    stats_identity = {
+        "version": "e018-p1-stage2a-preflight-stats-identity/v1",
+        "data_config_canonical_sha256": canonical_sha256(data_config),
+        "proprio_stats_raw_sha256": data_config["data_identity"][
+            "proprio_stats_sha256"
+        ],
+        "finger_force_stats_raw_sha256": data_config["data_identity"][
+            "finger_force_stats_sha256"
+        ],
+    }
+    stats_identity["stats_identity_sha256"] = canonical_sha256(stats_identity)
     snapshot = _read_json(
         public_root / "config_snapshot.json", "preflight config snapshot"
     )
     source = _read_json(
         public_root / "source_identity.json", "preflight source identity"
+    )
+    parent = _read_json(
+        public_root / "parent_verification.json",
+        "preflight parent verification",
+    )
+    checkpoint = _read_json(
+        public_root / "checkpoint_identity.json",
+        "preflight checkpoint identity",
     )
     if (
         snapshot.get("version")
@@ -2721,6 +2785,23 @@ def verify_e018_p1_stage2a_selection_preflight(
         "tcp_motion_command_count": 0,
         "gripper_command_count": 0,
     }
+    transaction_primitive = {
+        "version": E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXECUTION_VERSION,
+        "experiment_id": E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXPERIMENT_ID,
+        "seed": STAGE2A_SELECTION_PREFLIGHT_SEED,
+        "config_raw_sha256": loaded.raw_sha256,
+        "config_canonical_sha256": loaded.canonical_sha256,
+        "source_identity_sha256": source["identity_sha256"],
+        "parent_verification_sha256": parent["verification_sha256"],
+        "checkpoint_raw_sha256": checkpoint["checkpoint_raw_sha256"],
+        "proprio_stats_raw_sha256": stats_identity[
+            "proprio_stats_raw_sha256"
+        ],
+        "finger_force_stats_raw_sha256": stats_identity[
+            "finger_force_stats_raw_sha256"
+        ],
+        "stats_identity_sha256": stats_identity["stats_identity_sha256"],
+    }
     if (
         _verify_internal_digest(
             receipt,
@@ -2735,6 +2816,9 @@ def verify_e018_p1_stage2a_selection_preflight(
         or receipt.get("experiment_id")
         != E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXPERIMENT_ID
         or receipt.get("seed") != STAGE2A_SELECTION_PREFLIGHT_SEED
+        or receipt.get("stats_identity") != stats_identity
+        or receipt.get("transaction_identity_sha256")
+        != canonical_sha256(transaction_primitive)
         or receipt.get("counts") != expected_counts
         or receipt.get("context_destroyed") is not True
         or receipt.get("provider_context_destroyed") is not True
@@ -2764,6 +2848,8 @@ def verify_e018_p1_stage2a_selection_preflight(
         or completion.get("formal_selection_identity_consumed") is not False
         or completion.get("preflight_receipt_internal_sha256")
         != receipt["receipt_sha256"]
+        or completion.get("stats_identity_sha256")
+        != stats_identity["stats_identity_sha256"]
     ):
         raise RuntimeError("preflight completion identity/accounting 漂移")
     expected_inventory_paths = (
@@ -2855,6 +2941,7 @@ def verify_e018_p1_stage2a_selection_preflight(
         "counts": expected_counts,
         "context_destroyed": True,
         "formal_selection_identity_consumed": False,
+        "stats_identity_sha256": stats_identity["stats_identity_sha256"],
         "completion_sha256": completion["completion_sha256"],
     }
     result["verification_sha256"] = canonical_sha256(result)

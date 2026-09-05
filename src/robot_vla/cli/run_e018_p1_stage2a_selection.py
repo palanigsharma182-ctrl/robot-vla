@@ -97,6 +97,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     verify_preflight = subparsers.add_parser("verify-preflight")
     verify_preflight.add_argument("--selection-config", type=Path, required=True)
+    verify_preflight.add_argument("--data-config", type=Path, required=True)
     verify_preflight.add_argument("--artifact-root", type=Path, required=True)
     _add_source_identity(verify_preflight)
 
@@ -210,6 +211,7 @@ def main(argv: list[str] | None = None) -> None:
     elif args.command == "verify-preflight":
         result = verify_e018_p1_stage2a_selection_preflight(
             selection_config_path=args.selection_config,
+            data_config_path=args.data_config,
             artifact_root=args.artifact_root,
             **_source_kwargs(args),
         )
