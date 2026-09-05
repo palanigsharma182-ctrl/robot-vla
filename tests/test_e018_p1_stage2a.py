@@ -49,6 +49,8 @@ from robot_vla.precision.e018_p1_stage2a import (
     _build_observation_v2_window_identity,
     _new_stage2a_replay_controller,
     _normalize_stage2a_motion_row_viewpoint,
+    _object_state_receipt_digest_from_snapshot,
+    _object_state_snapshot,
     _record_stage2a_failure_evidence,
     _stage2a_camera_at_home,
     _stage2a_episode_id,
@@ -454,6 +456,36 @@ def test_trigger_records_replay_after_json_round_trip() -> None:
     assert isinstance(
         triggers[-1].to_dict()["memory_unavailable_reasons"], list
     )
+
+
+def test_object_state_snapshot_and_commit_receipt_keep_distinct_digest_domains() -> None:
+    snapshot = _object_state_snapshot(
+        _valid_state("stage2a-state-digest-domain", timestamp_s=4.65)
+    )
+    full_snapshot_digest = canonical_sha256(snapshot)
+    receipt_domain = dict(snapshot)
+    receipt_domain.pop("frame_semantics")
+    receipt_digest = _object_state_receipt_digest_from_snapshot(snapshot)
+
+    assert receipt_digest == canonical_sha256(receipt_domain)
+    assert receipt_digest != full_snapshot_digest
+
+    for key in ("frame_semantics", "version"):
+        missing = dict(snapshot)
+        missing.pop(key)
+        with pytest.raises(ValueError, match="keys 漂移"):
+            _object_state_receipt_digest_from_snapshot(missing)
+
+    extra = {**snapshot, "unexpected": True}
+    with pytest.raises(ValueError, match="keys 漂移"):
+        _object_state_receipt_digest_from_snapshot(extra)
+
+    wrong_frame = {**snapshot, "frame_semantics": "position/camera/m/v1"}
+    with pytest.raises(ValueError, match="robot-base position"):
+        _object_state_receipt_digest_from_snapshot(wrong_frame)
+    wrong_version = {**snapshot, "version": "tampered/v1"}
+    with pytest.raises(ValueError, match="version"):
+        _object_state_receipt_digest_from_snapshot(wrong_version)
 
 
 def test_trigger_alias_tamper_is_rejected_even_when_record_is_resigned() -> None:

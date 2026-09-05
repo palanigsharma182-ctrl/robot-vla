@@ -58,6 +58,7 @@ from robot_vla.precision.active_front_memory_provider import (
     ActiveFrontStage2ProviderIdentity,
     PassiveBaselineEvidence,
     PassiveHomeScoreEvidence,
+    _state_dict,
     build_stage2_object_memory_config,
     d049_home_baseline_provider_identity,
     d049_primary_provider_identity,
@@ -784,13 +785,46 @@ def _object_state_snapshot(state: ObjectState) -> dict[str, Any]:
     return value
 
 
+_OBJECT_STATE_SNAPSHOT_KEYS = {
+    "episode_id",
+    "mode",
+    "position_base_m",
+    "covariance_base_m2",
+    "measurement_confidence",
+    "last_observed_timestamp_s",
+    "state_timestamp_s",
+    "observable_now",
+    "valid",
+    "accepted_update_count",
+    "source_camera",
+    "source_model_identity",
+    "invalid_reasons",
+    "frame_semantics",
+    "version",
+}
+
+
 def _object_state_from_snapshot(snapshot: Mapping[str, Any]) -> ObjectState:
-    payload = dict(snapshot)
+    if not isinstance(snapshot, Mapping):
+        raise TypeError("ObjectState snapshot 必须是 mapping")
+    payload = _require_exact_keys(
+        dict(snapshot),
+        _OBJECT_STATE_SNAPSHOT_KEYS,
+        "ObjectState snapshot",
+    )
     reasons = payload.get("invalid_reasons")
     if not isinstance(reasons, (list, tuple)):
         raise TypeError("ObjectState snapshot invalid_reasons 必须是 sequence")
     payload["invalid_reasons"] = tuple(reasons)
     return ObjectState(**payload)
+
+
+def _object_state_receipt_digest_from_snapshot(
+    snapshot: Mapping[str, Any],
+) -> str:
+    """先验证完整公开 snapshot，再按 commit receipt 的历史域重算摘要。"""
+
+    return canonical_sha256(_state_dict(_object_state_from_snapshot(snapshot)))
 
 
 def _derive_memory_resolution(
@@ -800,24 +834,11 @@ def _derive_memory_resolution(
 ) -> dict[str, Any]:
     """从冻结 ObjectState primitive 机械重算 NAVIGATION availability。"""
 
-    required = {
-        "episode_id",
-        "mode",
-        "position_base_m",
-        "covariance_base_m2",
-        "measurement_confidence",
-        "last_observed_timestamp_s",
-        "state_timestamp_s",
-        "observable_now",
-        "valid",
-        "accepted_update_count",
-        "source_camera",
-        "source_model_identity",
-        "invalid_reasons",
-        "frame_semantics",
-        "version",
-    }
-    _require_exact_keys(dict(snapshot), required, "wrist capability Memory snapshot")
+    _require_exact_keys(
+        dict(snapshot),
+        _OBJECT_STATE_SNAPSHOT_KEYS,
+        "wrist capability Memory snapshot",
+    )
     try:
         state = _object_state_from_snapshot(snapshot)
     except (TypeError, ValueError) as error:
@@ -5990,6 +6011,20 @@ def verify_e018_p1_stage2a_integration_smoke(
             commit_digest = commit_primitive.pop("digest", None)
             action_primitive = dict(action)
             action_digest = action_primitive.pop("digest", None)
+            source_recheck_snapshot = json.loads(
+                source_recheck.memory_state_canonical_json
+            )
+            pre_state_receipt_digest = (
+                _object_state_receipt_digest_from_snapshot(
+                    source_recheck_snapshot
+                )
+            )
+            final_memory_snapshot = transaction["final_memory_state"]
+            post_state_receipt_digest = (
+                _object_state_receipt_digest_from_snapshot(
+                    final_memory_snapshot
+                )
+            )
             if (
                 canonical_sha256(commit_primitive) != commit_digest
                 or canonical_sha256(action_primitive) != action_digest
@@ -5998,12 +6033,12 @@ def verify_e018_p1_stage2a_integration_smoke(
                 or commit.get("candidate_digest")
                 != transaction["candidate_digest"]
                 or commit.get("pre_state_digest")
-                != trigger_records[-1].memory_state_revision
+                != pre_state_receipt_digest
                 or commit.get("home_observation_sequence_ids") != home_ids
                 or commit.get("home_observation_timestamps_s") != home_timestamps
                 or commit.get("home_frame_digests") != home_frame_digests
                 or commit.get("post_state_digest")
-                != canonical_sha256(transaction["final_memory_state"])
+                != post_state_receipt_digest
                 or action.get("candidate_digest")
                 != transaction["candidate_digest"]
                 or action.get("commit_receipt_digest") != commit_digest
@@ -6014,9 +6049,7 @@ def verify_e018_p1_stage2a_integration_smoke(
                 or action.get("resume_phase") != STAGE2A_SOURCE_PHASE.value
             ):
                 raise RuntimeError("Stage 2A commit/Action receipt digest 漂移")
-            final_state = _object_state_from_snapshot(
-                transaction["final_memory_state"]
-            )
+            final_state = _object_state_from_snapshot(final_memory_snapshot)
             if (
                 not final_state.valid
                 or final_state.mode is not ObjectMemoryMode.FREE_STATIC
