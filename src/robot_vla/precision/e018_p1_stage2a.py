@@ -14,6 +14,7 @@ import os
 import platform
 import tempfile
 import time
+import traceback
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -118,6 +119,52 @@ E018_P1_STAGE2A_WRIST_CAPABILITY_VERSION = (
 WRIST_CAPABILITY_ABSENT_STATUS = "NO_QUALIFIED_WRIST_PROVIDER_IN_D049_PARENT"
 STAGE2A_INTEGRATION_SMOKE_SEEDS = tuple(range(76901, 76911))
 STAGE2A_COLLECT_FRAME_INDICES = (45, 46, 47)
+_STAGE2A_FAILURE_TRACEBACK_MAX_CHARS = 8192
+_STAGE2A_FAILURE_ERROR_MAX_CHARS = 1024
+
+
+@dataclass
+class Stage2AExecutionProgress:
+    """失败路径只保留可恢复控制进度，不包含 RGB、GT 或私有 label。"""
+
+    current_seed: int | None = None
+    episode_id: str | None = None
+    request_id: str | None = None
+    current_frame_index: int | None = None
+    last_processed_frame_index: int | None = None
+    last_authorized_frame_index: int | None = None
+    controller_state: str | None = None
+    orchestrator_state: str | None = None
+    provider_forward_count: int = 0
+    memory_write_count: int = 0
+
+    def begin_seed(self, seed: int) -> None:
+        if seed not in STAGE2A_INTEGRATION_SMOKE_SEEDS:
+            raise ValueError("Stage 2A progress 只接受 integration smoke seed")
+        self.current_seed = seed
+        self.episode_id = _stage2a_episode_id(seed)
+        self.request_id = None
+        self.current_frame_index = None
+        self.last_processed_frame_index = None
+        self.last_authorized_frame_index = None
+        self.controller_state = None
+        self.orchestrator_state = None
+        self.provider_forward_count = 0
+        self.memory_write_count = 0
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "current_seed": self.current_seed,
+            "episode_id": self.episode_id,
+            "request_id": self.request_id,
+            "current_frame_index": self.current_frame_index,
+            "last_processed_frame_index": self.last_processed_frame_index,
+            "last_authorized_frame_index": self.last_authorized_frame_index,
+            "controller_state": self.controller_state,
+            "orchestrator_state": self.orchestrator_state,
+            "provider_forward_count": self.provider_forward_count,
+            "memory_write_count": self.memory_write_count,
+        }
 STAGE2A_HOME_BARRIER_FRAME_INDICES = (88, 89, 90, 91)
 STAGE2A_PROVIDER_FRAME_INDICES = (0, *STAGE2A_COLLECT_FRAME_INDICES)
 STAGE2A_TRIGGER_WARMUP_INDICES = (2, 3, 4)
@@ -1492,6 +1539,9 @@ def verify_stage2a_observation_v2_window_identity(
                 base_from_wrist[:3, :3]
             )
             arm_q = np.asarray(row.get("arm_current_q_rad"), dtype=np.float32)
+            arm_dq = np.asarray(
+                row.get("arm_current_dq_rad_s"), dtype=np.float32
+            )
             finger_q = np.asarray(
                 row.get("finger_joint_positions_m"), dtype=np.float32
             )
@@ -1501,9 +1551,11 @@ def verify_stage2a_observation_v2_window_identity(
             )
             if (
                 arm_q.shape != (spec.arm_dof,)
+                or arm_dq.shape != (spec.arm_dof,)
                 or finger_q.shape != (2,)
                 or force_pair.shape != (2,)
                 or not np.isfinite(arm_q).all()
+                or not np.isfinite(arm_dq).all()
                 or not np.isfinite(finger_q).all()
                 or not np.isfinite(force_pair).all()
             ):
@@ -1522,13 +1574,7 @@ def verify_stage2a_observation_v2_window_identity(
                 )
                 or not np.allclose(
                     window.physical_proprio[index, spec.arm_dof : 2 * spec.arm_dof],
-                    np.clip(
-                        window.physical_proprio[
-                            index, spec.arm_dof : 2 * spec.arm_dof
-                        ],
-                        -np.asarray(spec.joint_velocity_limits_rad_s),
-                        np.asarray(spec.joint_velocity_limits_rad_s),
-                    ),
+                    arm_dq,
                     rtol=0.0,
                     atol=1e-6,
                 )
@@ -2563,6 +2609,7 @@ class Stage2ARouteTransaction:
         spec: Any,
         proprio_normalizer: Any,
         finger_force_normalizer: Any,
+        execution_progress: Stage2AExecutionProgress,
     ) -> None:
         if seed not in STAGE2A_INTEGRATION_SMOKE_SEEDS:
             raise ValueError("Stage 2A transaction 只接受 76901..76910")
@@ -2576,6 +2623,7 @@ class Stage2ARouteTransaction:
         self.spec = spec
         self.proprio_normalizer = proprio_normalizer
         self.finger_force_normalizer = finger_force_normalizer
+        self.execution_progress = execution_progress
         self.observation_adapter = FrankaObservationAdapter(self.spec)
         self.home_v2_history = ObservationV2History(self.spec)
         self.home_v2_window_identity: dict[str, Any] | None = None
@@ -2629,6 +2677,20 @@ class Stage2ARouteTransaction:
         self._last_warmup_observation: Mapping[str, Any] | None = None
         self._return_marked = False
         self._collect_orchestrator_rejections: list[str] = []
+        self._sync_execution_progress()
+
+    def _sync_execution_progress(self) -> None:
+        """把当前 supervisor 状态复制到失败恢复 receipt。"""
+
+        self.execution_progress.current_seed = self.seed
+        self.execution_progress.episode_id = self.episode_id
+        self.execution_progress.request_id = (
+            None if self._request is None else self._request.request_id
+        )
+        self.execution_progress.controller_state = self.trigger_controller.state.value
+        self.execution_progress.orchestrator_state = self.orchestrator.state.value
+        self.execution_progress.provider_forward_count = len(self.provider_records)
+        self.execution_progress.memory_write_count = self.orchestrator.memory_write_count
 
     def _advance_controller(
         self,
@@ -2670,6 +2732,7 @@ class Stage2ARouteTransaction:
         }
         event["event_sha256"] = canonical_sha256(event)
         self.controller_events.append(event)
+        self._sync_execution_progress()
         if after is not expected_state:
             raise RuntimeError(
                 f"Stage 2A controller {signal.value} 未到达 {expected_state.value}: "
@@ -2683,6 +2746,9 @@ class Stage2ARouteTransaction:
         viewpoint_id: str,
     ) -> None:
         """在任何非 HOME pose mutation 前机械检查 lease/owner/controller 前态。"""
+
+        self.execution_progress.current_frame_index = frame_index
+        self._sync_execution_progress()
 
         expected = {
             ExternalCameraMotionState.MOVE_TO_VIEW: (
@@ -2742,6 +2808,8 @@ class Stage2ARouteTransaction:
         }
         record["authorization_sha256"] = canonical_sha256(record)
         self.camera_command_authorizations.append(record)
+        self.execution_progress.last_authorized_frame_index = frame_index
+        self._sync_execution_progress()
 
     def warmup_hook(self, warmup_index: int, observation: Mapping[str, Any]) -> None:
         if warmup_index not in STAGE2A_TRIGGER_WARMUP_INDICES:
@@ -2786,6 +2854,7 @@ class Stage2ARouteTransaction:
             self._request = decision.request
             self.trigger_record = capability
             self._last_warmup_observation = observation
+        self._sync_execution_progress()
 
     def _provider_frame(
         self,
@@ -2830,6 +2899,25 @@ class Stage2ARouteTransaction:
         return record
 
     def frame_hook(
+        self,
+        row: dict[str, Any],
+        rgb: np.ndarray,
+        observation: Mapping[str, Any],
+    ) -> None:
+        """记录成功处理边界；异常时保留失败帧与最近完成帧。"""
+
+        frame_index = int(row["frame_index"])
+        self.execution_progress.current_frame_index = frame_index
+        self._sync_execution_progress()
+        try:
+            self._process_frame(row, rgb, observation)
+        except Exception:
+            self._sync_execution_progress()
+            raise
+        self.execution_progress.last_processed_frame_index = frame_index
+        self._sync_execution_progress()
+
+    def _process_frame(
         self,
         row: dict[str, Any],
         rgb: np.ndarray,
@@ -3445,6 +3533,7 @@ def _run_stage2a_simulator(
     stats_root: Path,
     selected_checkpoint_path: Path,
     output_root: Path,
+    execution_progress: Stage2AExecutionProgress,
 ) -> tuple[
     list[dict[str, Any]],
     list[dict[str, Any]],
@@ -3518,6 +3607,7 @@ def _run_stage2a_simulator(
         if sensor.entity is not None or not callable(getattr(camera, "set_local_pose", None)):
             raise RuntimeError("Stage 2A 要求 isolated unmounted external camera")
         for seed in STAGE2A_INTEGRATION_SMOKE_SEEDS:
+            execution_progress.begin_seed(seed)
             transaction = Stage2ARouteTransaction(
                 seed=seed,
                 provider=provider,
@@ -3528,6 +3618,7 @@ def _run_stage2a_simulator(
                 spec=spec,
                 proprio_normalizer=proprio,
                 finger_force_normalizer=force,
+                execution_progress=execution_progress,
             )
             route_rows, route_summary, _ = _g0._run_route(
                 env=env,
@@ -3556,6 +3647,7 @@ def _run_stage2a_simulator(
                     f"{transaction.episode_id}-active-front-01-camera-command-00"
                 ),
                 include_raw_safety_witnesses=True,
+                include_raw_proprio_velocity_witness=True,
                 include_privileged_object_state_witnesses=False,
                 include_robot_object_contact_witnesses=False,
             )
@@ -3568,7 +3660,10 @@ def _run_stage2a_simulator(
                 "runtime_object_gt_reads": 0,
                 "goal_gt_reads": 0,
             }
-            transaction_row = transaction.finalize(route_summary)
+            try:
+                transaction_row = transaction.finalize(route_summary)
+            finally:
+                transaction._sync_execution_progress()
             route_summary["memory_write_count"] = transaction_row["memory_write_count"]
             rows.extend(route_rows)
             summaries.append(route_summary)
@@ -3658,6 +3753,227 @@ def _publish_stage2a_frozen_artifacts(
     return freeze
 
 
+def _verify_stage2a_execution_progress(
+    progress: Mapping[str, Any],
+) -> dict[str, Any]:
+    value = _require_exact_keys(
+        dict(progress),
+        {
+            "current_seed",
+            "episode_id",
+            "request_id",
+            "current_frame_index",
+            "last_processed_frame_index",
+            "last_authorized_frame_index",
+            "controller_state",
+            "orchestrator_state",
+            "provider_forward_count",
+            "memory_write_count",
+        },
+        "Stage 2A failure progress",
+    )
+    seed = value["current_seed"]
+    if seed is not None and (type(seed) is not int or seed not in STAGE2A_INTEGRATION_SMOKE_SEEDS):
+        raise ValueError("Stage 2A failure current seed 非法")
+    episode_id = value["episode_id"]
+    request_id = value["request_id"]
+    if seed is None:
+        if any(
+            item is not None
+            for item in (
+                episode_id,
+                request_id,
+                value["current_frame_index"],
+                value["last_processed_frame_index"],
+                value["last_authorized_frame_index"],
+                value["controller_state"],
+                value["orchestrator_state"],
+            )
+        ):
+            raise ValueError("Stage 2A failure pre-seed progress 不得伪造 route 状态")
+    elif episode_id != _stage2a_episode_id(seed):
+        raise ValueError("Stage 2A failure seed/Episode identity 漂移")
+    if request_id is not None and request_id != f"{episode_id}-active-front-01":
+        raise ValueError("Stage 2A failure request identity 漂移")
+
+    for name, lower in (
+        ("current_frame_index", 0),
+        ("last_processed_frame_index", 0),
+        ("last_authorized_frame_index", 1),
+    ):
+        item = value[name]
+        if item is not None and (
+            type(item) is not int or not lower <= item <= 91
+        ):
+            raise ValueError(f"Stage 2A failure {name} 非法")
+    current = value["current_frame_index"]
+    for name in ("last_processed_frame_index", "last_authorized_frame_index"):
+        item = value[name]
+        if current is not None and item is not None and item > current:
+            raise ValueError(f"Stage 2A failure {name} 晚于 current frame")
+
+    controller_state = value["controller_state"]
+    orchestrator_state = value["orchestrator_state"]
+    if controller_state is not None and controller_state not in {
+        item.value for item in ActiveFrontReobserveState
+    }:
+        raise ValueError("Stage 2A failure controller state 非法")
+    if orchestrator_state is not None and orchestrator_state not in {
+        item.value for item in PendingActiveViewState
+    }:
+        raise ValueError("Stage 2A failure orchestrator state 非法")
+    if (
+        type(value["provider_forward_count"]) is not int
+        or not 0 <= value["provider_forward_count"] <= 4
+        or type(value["memory_write_count"]) is not int
+        or value["memory_write_count"] not in {0, 1}
+    ):
+        raise ValueError("Stage 2A failure provider/Memory counter 非法")
+    return value
+
+
+def verify_stage2a_failure_evidence(
+    evidence: Mapping[str, Any],
+) -> dict[str, Any]:
+    """机械校验失败证据的范围、identity 与可恢复进度。"""
+
+    value = _require_exact_keys(
+        dict(evidence),
+        {
+            "version",
+            "status",
+            "classification",
+            "effect_claim",
+            "stage2_config_raw_sha256",
+            "stage2_config_canonical_sha256",
+            "source_identity",
+            "error_type",
+            "error",
+            "progress",
+            "traceback",
+            "fresh_test_reads",
+            "runtime_object_gt_reads",
+            "goal_gt_reads",
+            "offline_label_reads",
+            "failure_sha256",
+        },
+        "Stage 2A failure evidence",
+    )
+    primitive = dict(value)
+    stored_digest = primitive.pop("failure_sha256")
+    source = _require_exact_keys(
+        value["source_identity"],
+        {"git_commit", "source_tree_sha256", "identity_sha256"},
+        "Stage 2A failure source identity",
+    )
+    source_primitive = dict(source)
+    source_digest = source_primitive.pop("identity_sha256")
+    trace = _require_exact_keys(
+        value["traceback"],
+        {
+            "encoding",
+            "tail",
+            "tail_sha256",
+            "full_sha256",
+            "original_char_count",
+            "maximum_tail_chars",
+            "truncated",
+        },
+        "Stage 2A failure traceback",
+    )
+    progress = _verify_stage2a_execution_progress(value["progress"])
+    tail = trace["tail"]
+    if (
+        stored_digest != canonical_sha256(primitive)
+        or value["version"] != E018_P1_STAGE2A_EXECUTION_VERSION
+        or value["status"]
+        != "failed-engineering-integration-smoke-evidence-preserved"
+        or value["classification"] != "engineering-integration-smoke"
+        or value["effect_claim"] != "no-effect-claim"
+        or not _is_sha256(value["stage2_config_raw_sha256"])
+        or not _is_sha256(value["stage2_config_canonical_sha256"])
+        or not isinstance(source["git_commit"], str)
+        or len(source["git_commit"]) != 40
+        or any(item not in "0123456789abcdef" for item in source["git_commit"])
+        or not _is_sha256(source["source_tree_sha256"])
+        or source_digest != canonical_sha256(source_primitive)
+        or not isinstance(value["error_type"], str)
+        or not 0 < len(value["error_type"]) <= 128
+        or not isinstance(value["error"], str)
+        or len(value["error"]) > _STAGE2A_FAILURE_ERROR_MAX_CHARS
+        or trace["encoding"] != "utf-8"
+        or not isinstance(tail, str)
+        or len(tail) > _STAGE2A_FAILURE_TRACEBACK_MAX_CHARS
+        or trace["tail_sha256"] != hashlib.sha256(tail.encode("utf-8")).hexdigest()
+        or not _is_sha256(trace["full_sha256"])
+        or type(trace["original_char_count"]) is not int
+        or trace["original_char_count"] < len(tail)
+        or trace["maximum_tail_chars"] != _STAGE2A_FAILURE_TRACEBACK_MAX_CHARS
+        or trace["truncated"]
+        is not (trace["original_char_count"] > len(tail))
+        or any(
+            value[name] != 0
+            for name in (
+                "fresh_test_reads",
+                "runtime_object_gt_reads",
+                "goal_gt_reads",
+                "offline_label_reads",
+            )
+        )
+    ):
+        raise ValueError("Stage 2A failure evidence identity/scope 漂移")
+    return {
+        "failure_sha256": stored_digest,
+        "error_type": value["error_type"],
+        "progress": progress,
+        "traceback_full_sha256": trace["full_sha256"],
+    }
+
+
+def _record_stage2a_failure_evidence(
+    *,
+    output_root: Path,
+    error: Exception,
+    progress: Stage2AExecutionProgress,
+    stage2_config: LoadedStage2AConfig,
+    source_identity: Mapping[str, Any],
+) -> dict[str, Any]:
+    full_traceback = "".join(
+        traceback.format_exception(type(error), error, error.__traceback__)
+    )
+    traceback_tail = full_traceback[-_STAGE2A_FAILURE_TRACEBACK_MAX_CHARS:]
+    error_text = str(error)[:_STAGE2A_FAILURE_ERROR_MAX_CHARS]
+    evidence = {
+        "version": E018_P1_STAGE2A_EXECUTION_VERSION,
+        "status": "failed-engineering-integration-smoke-evidence-preserved",
+        "classification": "engineering-integration-smoke",
+        "effect_claim": "no-effect-claim",
+        "stage2_config_raw_sha256": stage2_config.raw_sha256,
+        "stage2_config_canonical_sha256": stage2_config.canonical_sha256,
+        "source_identity": dict(source_identity),
+        "error_type": type(error).__name__,
+        "error": error_text,
+        "progress": progress.as_dict(),
+        "traceback": {
+            "encoding": "utf-8",
+            "tail": traceback_tail,
+            "tail_sha256": hashlib.sha256(traceback_tail.encode("utf-8")).hexdigest(),
+            "full_sha256": hashlib.sha256(full_traceback.encode("utf-8")).hexdigest(),
+            "original_char_count": len(full_traceback),
+            "maximum_tail_chars": _STAGE2A_FAILURE_TRACEBACK_MAX_CHARS,
+            "truncated": len(full_traceback) > len(traceback_tail),
+        },
+        "fresh_test_reads": 0,
+        "runtime_object_gt_reads": 0,
+        "goal_gt_reads": 0,
+        "offline_label_reads": 0,
+    }
+    evidence["failure_sha256"] = canonical_sha256(evidence)
+    verify_stage2a_failure_evidence(evidence)
+    _g0._atomic_json(output_root / "FAILURE.json", evidence)
+    return evidence
+
+
 def run_e018_p1_stage2a_integration_smoke(
     *,
     stage2_config_path: str | Path,
@@ -3726,6 +4042,7 @@ def run_e018_p1_stage2a_integration_smoke(
         },
     )
     started = time.monotonic()
+    progress = Stage2AExecutionProgress()
     try:
         (
             camera_rows,
@@ -3742,6 +4059,7 @@ def run_e018_p1_stage2a_integration_smoke(
             stats_root=Path(stats_root),
             selected_checkpoint_path=Path(selected_checkpoint_path),
             output_root=output,
+            execution_progress=progress,
         )
         wall_seconds = time.monotonic() - started
         freeze = _publish_stage2a_frozen_artifacts(
@@ -3862,18 +4180,12 @@ def run_e018_p1_stage2a_integration_smoke(
             raise RuntimeError("Stage 2A integration artifact budget 超限")
         return receipt
     except Exception as error:
-        _g0._atomic_json(
-            output / "FAILURE.json",
-            {
-                "version": E018_P1_STAGE2A_EXECUTION_VERSION,
-                "status": "failed-engineering-integration-smoke-evidence-preserved",
-                "error_type": type(error).__name__,
-                "error": str(error),
-                "fresh_test_reads": 0,
-                "runtime_object_gt_reads": 0,
-                "goal_gt_reads": 0,
-                "offline_label_reads": 0,
-            },
+        _record_stage2a_failure_evidence(
+            output_root=output,
+            error=error,
+            progress=progress,
+            stage2_config=loaded,
+            source_identity=source,
         )
         raise
 
@@ -3965,6 +4277,7 @@ _STAGE2A_CAMERA_ROW_KEYS = {
     "offline_segmentation_diagnostics",
     "arm_anchor_q_rad",
     "arm_current_q_rad",
+    "arm_current_dq_rad_s",
     "tcp_anchor_world",
     "tcp_current_world",
     "world_from_robot_base",
@@ -4093,6 +4406,7 @@ def _verify_stage2a_camera_row_identity(
         "external_linear_velocity_m_s": 3,
         "arm_anchor_q_rad": 7,
         "arm_current_q_rad": 7,
+        "arm_current_dq_rad_s": 7,
         "finger_joint_positions_m": 2,
     }
     parsed_vectors: dict[str, np.ndarray] = {}
@@ -4112,6 +4426,14 @@ def _verify_stage2a_camera_row_identity(
             abs_tol=1e-6,
         ):
             raise ValueError(f"Stage 2A camera row {name} 不是单位四元数")
+    velocity_limits = np.asarray(
+        RobotSpec().joint_velocity_limits_rad_s, dtype=np.float64
+    )
+    if np.any(
+        np.abs(parsed_vectors["arm_current_dq_rad_s"])
+        > velocity_limits + 1e-5
+    ):
+        raise ValueError("Stage 2A camera row arm_current_dq_rad_s 超出 Franka 限制")
     matrices = {
         name: validate_se3(np.asarray(row[name], dtype=np.float64), name)
         for name in (

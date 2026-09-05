@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import json
 import os
 from pathlib import Path
 
@@ -34,10 +35,13 @@ from robot_vla.precision.calibrated_front_provider import canonical_sha256
 from robot_vla.precision.e018_p1_stage2a import (
     STAGE2A_INTEGRATION_SMOKE_GO,
     Stage2AActionHistoryRuntime,
+    Stage2AExecutionProgress,
     _STAGE2A_COMPLETE_ARTIFACT_FILES,
     _array_sha256,
     _build_observation_v2_window_identity,
     _new_stage2a_replay_controller,
+    _record_stage2a_failure_evidence,
+    _stage2a_episode_id,
     _verify_stage2a_camera_authorization,
     _verify_stage2a_controller_receipt,
     _verify_stage2a_exact_file_tree,
@@ -51,6 +55,7 @@ from robot_vla.precision.e018_p1_stage2a import (
     load_e018_p1_stage2a_config,
     run_e018_p1_stage2a_integration_smoke,
     verify_stage2a_action_history_audit,
+    verify_stage2a_failure_evidence,
     verify_stage2a_observation_v2_window_identity,
 )
 from robot_vla.precision.object_memory import ObjectMemoryMode, ObjectState
@@ -240,6 +245,7 @@ def _window_packet(
     motion_rows: list[dict[str, object]] = []
     ids: list[str] = []
     arm_q = np.asarray((0.0, -0.5, 0.0, -1.0, 0.0, 1.0, 0.0), dtype=np.float32)
+    arm_dq = np.asarray((0.01, -0.02, 0.03, -0.04, 0.05, -0.06, 0.07), dtype=np.float32)
     finger_q = np.asarray((0.04, 0.04), dtype=np.float32)
     wrist_world_from_gl = np.eye(4, dtype=np.float64)
     wrist_world_from_gl[0, 3] = 0.2
@@ -265,6 +271,7 @@ def _window_packet(
             "world_from_robot_base": np.eye(4, dtype=np.float64).tolist(),
             "tcp_current_world": np.eye(4, dtype=np.float64).tolist(),
             "arm_current_q_rad": arm_q.tolist(),
+            "arm_current_dq_rad_s": arm_dq.tolist(),
             "finger_joint_positions_m": finger_q.tolist(),
             "finger_force_left_n": 0.0,
             "finger_force_right_n": 0.0,
@@ -284,7 +291,7 @@ def _window_packet(
                 rgb_external=external,
                 rgb_wrist=wrist,
                 physical_proprio=np.concatenate(
-                    (arm_q, np.zeros(7, dtype=np.float32), np.ones(1, dtype=np.float32))
+                    (arm_q, arm_dq, np.ones(1, dtype=np.float32))
                 ),
                 base_from_tcp=np.eye(4, dtype=np.float32),
                 base_from_wrist_camera=base_from_wrist.astype(np.float32),
@@ -478,6 +485,26 @@ def test_observation_v2_resigned_force_witness_tamper_is_rejected() -> None:
     evidence[2]["motion_row_sha256"] = canonical_sha256(rows[2])
     _resign_evidence(evidence[2])
     identity["home_evidence_digests"][2] = evidence[2]["evidence_sha256"]
+    _resign_window(identity)
+    with pytest.raises(ValueError, match="raw witness"):
+        verify_stage2a_observation_v2_window_identity(
+            identity,
+            spec=spec,
+            home_evidence=evidence,
+            home_motion_rows=rows,
+            expected_episode_id=episode_id,
+            expected_episode_generation=1,
+        )
+
+
+def test_observation_v2_resigned_dq_tamper_is_rejected() -> None:
+    episode_id = "stage2a-dq-tamper"
+    spec, identity, evidence, rows = _window_packet(episode_id)
+    proprio = identity["arrays"]["physical_proprio"]
+    values = np.asarray(proprio["values"], dtype=np.float32)
+    values[:, spec.arm_dof : 2 * spec.arm_dof] = np.float32(0.314159)
+    proprio["values"] = values.tolist()
+    proprio["array_sha256"] = _array_sha256(values)
     _resign_window(identity)
     with pytest.raises(ValueError, match="raw witness"):
         verify_stage2a_observation_v2_window_identity(
@@ -848,6 +875,58 @@ def test_complete_controller_chain_and_cross_receipt_replay() -> None:
     tampered["state_trace"].remove("return_home")
     with pytest.raises(ValueError, match="controller receipt"):
         _verify_stage2a_controller_receipt(tampered, receipt)
+
+
+def test_injected_failure_preserves_bounded_recoverable_progress(
+    tmp_path: Path,
+) -> None:
+    loaded = load_e018_p1_stage2a_config(STAGE2_CONFIG)
+    source: dict[str, object] = {
+        "git_commit": "a" * 40,
+        "source_tree_sha256": "b" * 64,
+    }
+    source["identity_sha256"] = canonical_sha256(source)
+    episode_id = _stage2a_episode_id(76903)
+    progress = Stage2AExecutionProgress(
+        current_seed=76903,
+        episode_id=episode_id,
+        request_id=f"{episode_id}-active-front-01",
+        current_frame_index=46,
+        last_processed_frame_index=45,
+        last_authorized_frame_index=46,
+        controller_state=ActiveFrontReobserveState.COLLECT.value,
+        orchestrator_state="collecting",
+        provider_forward_count=2,
+        memory_write_count=0,
+    )
+    try:
+        raise RuntimeError("injected-stage2a-failure:" + "x" * 10_000)
+    except RuntimeError as error:
+        evidence = _record_stage2a_failure_evidence(
+            output_root=tmp_path,
+            error=error,
+            progress=progress,
+            stage2_config=loaded,
+            source_identity=source,
+        )
+
+    stored = json.loads((tmp_path / "FAILURE.json").read_text(encoding="utf-8"))
+    verified = verify_stage2a_failure_evidence(stored)
+    assert stored == evidence
+    assert verified["progress"] == progress.as_dict()
+    assert verified["error_type"] == "RuntimeError"
+    assert stored["traceback"]["truncated"] is True
+    assert len(stored["traceback"]["tail"]) == 8192
+    assert len(stored["error"]) == 1024
+    assert all(
+        stored[name] == 0
+        for name in (
+            "fresh_test_reads",
+            "runtime_object_gt_reads",
+            "goal_gt_reads",
+            "offline_label_reads",
+        )
+    )
 
 
 def test_exact_artifact_tree_rejects_extra_symlink_and_hardlink(tmp_path: Path) -> None:

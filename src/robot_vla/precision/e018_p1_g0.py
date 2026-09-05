@@ -875,6 +875,7 @@ def _record_frame(
     source_phase: str,
     camera_owner: str,
     include_raw_safety_witnesses: bool,
+    include_raw_proprio_velocity_witness: bool,
     include_privileged_object_state_witnesses: bool,
     include_robot_object_contact_witnesses: bool,
 ) -> tuple[
@@ -951,6 +952,13 @@ def _record_frame(
     arm_q = _numpy(base_env.agent.robot.get_qpos())[0]
     if arm_q.shape != (9,):
         raise RuntimeError(f"G0 Panda qpos 必须是 [9]，实际 {arm_q.shape}")
+    arm_dq: np.ndarray | None = None
+    if include_raw_proprio_velocity_witness:
+        if not include_raw_safety_witnesses:
+            raise RuntimeError("raw proprio velocity witness 依赖 raw safety witness")
+        arm_dq = _numpy(base_env.agent.robot.get_qvel())[0]
+        if arm_dq.shape != (9,) or not np.isfinite(arm_dq).all():
+            raise RuntimeError(f"G0 Panda qvel 必须是有限 [9]，实际 {arm_dq.shape}")
     tcp_world = _single_matrix(base_env.agent.tcp_pose, "actual_world_from_tcp")
     tcp_position_drift = float(np.linalg.norm(tcp_world[:3, 3] - tcp_anchor_world[:3, 3]))
     tcp_orientation_drift = rotation_angular_distance_rad(
@@ -1065,6 +1073,10 @@ def _record_frame(
                 "robot_object_contact_by_link": robot_object_contact_witness,
             }
         )
+    if arm_dq is not None:
+        row["arm_current_dq_rad_s"] = np.asarray(
+            arm_dq[:7], dtype=np.float64
+        ).tolist()
     return (
         row,
         rgb,
@@ -1109,6 +1121,7 @@ def _run_route(
     request_id_override: str | None = None,
     command_sequence_id_override: str | None = None,
     include_raw_safety_witnesses: bool = False,
+    include_raw_proprio_velocity_witness: bool = False,
     include_privileged_object_state_witnesses: bool = True,
     include_robot_object_contact_witnesses: bool = True,
 ) -> tuple[list[dict[str, Any]], dict[str, Any], dict[str, np.ndarray]]:
@@ -1248,6 +1261,9 @@ def _run_route(
             source_phase=source_phase,
             camera_owner=camera_owner,
             include_raw_safety_witnesses=include_raw_safety_witnesses,
+            include_raw_proprio_velocity_witness=(
+                include_raw_proprio_velocity_witness
+            ),
             include_privileged_object_state_witnesses=(
                 include_privileged_object_state_witnesses
             ),
