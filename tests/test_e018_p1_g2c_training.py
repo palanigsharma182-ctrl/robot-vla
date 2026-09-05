@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import inspect
 import json
 import os
@@ -32,7 +33,10 @@ from robot_vla.precision.e018_p1_g2c_training import (
     E018_P1_G2C_FORMAL_TRAIN_CONFIG_VERSION,
     E018_P1_G2C_SELECTION_RESULT_VERSION,
     G2C_DIAGNOSTIC_CONTROL_ID,
+    _capture_training_rng_state,
+    _ensure_checkpoint_training_state,
     _state_identity_sha256,
+    _tensor_sha256,
     _train_one_formal_candidate,
     _validate_resume_progress_semantics,
     _validate_zero_epoch_restart_candidate,
@@ -739,6 +743,94 @@ def test_state_identity_preserves_mapping_key_types() -> None:
     assert _state_identity_sha256({True: "value"}) != _state_identity_sha256(
         {1: "value"}
     )
+
+
+def test_tensor_identity_supports_scalar_and_preserves_shape_dtype_value() -> None:
+    torch = pytest.importorskip("torch")
+
+    scalars = [
+        torch.tensor(1.25, dtype=torch.float32),
+        torch.tensor(1.25, dtype=torch.float64),
+        torch.tensor(1, dtype=torch.int64),
+        torch.tensor(1.25, dtype=torch.bfloat16),
+    ]
+    vector = scalars[0].reshape(1)
+    empty = torch.empty((0, 2), dtype=torch.float32)
+
+    for tensor in (*scalars, vector, empty):
+        assert _tensor_sha256(tensor) == _tensor_sha256(tensor.clone())
+
+    assert _tensor_sha256(scalars[0]) != _tensor_sha256(vector)
+    assert len({_tensor_sha256(tensor) for tensor in scalars}) == len(scalars)
+    assert _tensor_sha256(scalars[0]) != _tensor_sha256(
+        torch.tensor(1.5, dtype=torch.float32)
+    )
+
+
+def test_tensor_identity_preserves_non_scalar_bytes_and_layout_semantics() -> None:
+    torch = pytest.importorskip("torch")
+
+    matrix = torch.arange(6, dtype=torch.float32).reshape(2, 3).T
+    contiguous = matrix.contiguous()
+    legacy = hashlib.sha256()
+    legacy.update(str(contiguous.dtype).encode("ascii"))
+    legacy.update(
+        json.dumps(list(contiguous.shape), separators=(",", ":")).encode("ascii")
+    )
+    legacy.update(contiguous.view(torch.uint8).numpy().tobytes())
+
+    assert not matrix.is_contiguous()
+    assert _tensor_sha256(matrix) == _tensor_sha256(contiguous)
+    assert _tensor_sha256(matrix) == legacy.hexdigest()
+
+
+def test_adamw_scalar_step_identity_and_checkpoint_companion_roundtrip(
+    tmp_path: Path,
+) -> None:
+    torch = pytest.importorskip("torch")
+    model = torch.nn.Linear(3, 2)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=20)
+    model(torch.ones((2, 3))).sum().backward()
+    optimizer.step()
+    optimizer_state = optimizer.state_dict()
+    step_tensors = [state["step"] for state in optimizer_state["state"].values()]
+
+    assert step_tensors
+    assert all(tensor.ndim == 0 for tensor in step_tensors)
+    optimizer_identity = _state_identity_sha256(optimizer_state)
+    assert optimizer_identity == _state_identity_sha256(
+        copy.deepcopy(optimizer_state)
+    )
+
+    sampler_generator = torch.Generator().manual_seed(18020)
+    rng_state = _capture_training_rng_state(sampler_generator)
+    companion_path = tmp_path / "epoch-005.training-state.pt"
+    kwargs = {
+        "path": companion_path,
+        "candidate_id": "W-KV0",
+        "epoch": 5,
+        "checkpoint": {
+            "checkpoint_sha256": _sha("a"),
+            "parameter_state_sha256": _sha("b"),
+            "provenance_sha256": _sha("c"),
+        },
+        "config": _formal_config(),
+        "source_identity": {"identity_sha256": _sha("d")},
+        "examples_seen": 22000,
+        "optimizer_steps": 690,
+        "optimizer_state": optimizer_state,
+        "scheduler_state": scheduler.state_dict(),
+        "rng_state": rng_state,
+        "active_gpu_elapsed_s": 12.0,
+    }
+    first = _ensure_checkpoint_training_state(**kwargs)
+    second = _ensure_checkpoint_training_state(**kwargs)
+    reloaded = torch.load(companion_path, map_location="cpu", weights_only=True)
+
+    assert first == second
+    assert first["optimizer_state_identity_sha256"] == optimizer_identity
+    assert _state_identity_sha256(reloaded["optimizer_state"]) == optimizer_identity
 
 
 def test_active_gpu_budget_uses_persisted_high_water_mark() -> None:

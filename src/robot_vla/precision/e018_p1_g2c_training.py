@@ -1336,7 +1336,9 @@ def _tensor_sha256(value: Any) -> str:
     digest = hashlib.sha256()
     digest.update(str(tensor.dtype).encode("ascii"))
     digest.update(json.dumps(list(tensor.shape), separators=(",", ":")).encode("ascii"))
-    digest.update(tensor.view(torch.uint8).numpy().tobytes())
+    # 先展平再做 dtype reinterpret，兼容 AdamW ``step`` 等 0-D Tensor；
+    # dtype 与原始 shape 已在前两段摘要中单独绑定，不会丢失形状语义。
+    digest.update(tensor.reshape(-1).view(torch.uint8).numpy().tobytes())
     return digest.hexdigest()
 
 
