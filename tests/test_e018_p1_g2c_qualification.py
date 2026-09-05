@@ -277,10 +277,16 @@ def _formal_decision_receipt() -> dict[str, object]:
     config = load_g2c_dynamic_qualification_config(CONFIG_PATH)
     smoke_gpu_seconds = 1.0
     smoke_bytes = 1_000
-    pre_formal_gpu = (
-        qualification._D048_PRE_SMOKE_GPU_SECONDS_CONSERVATIVE_UPPER + smoke_gpu_seconds
+    pre_d047a_gpu = (
+        qualification._D048_PRE_SMOKE_GPU_SECONDS_CONSERVATIVE_UPPER
+        + qualification._D047_SMOKE_SECONDS_MAX
     )
-    pre_formal_bytes = qualification._D048_PRE_SMOKE_ARTIFACT_BYTES_CONSERVATIVE_UPPER + smoke_bytes
+    pre_formal_gpu = pre_d047a_gpu + smoke_gpu_seconds
+    pre_d047a_bytes = (
+        qualification._D048_PRE_SMOKE_ARTIFACT_BYTES_CONSERVATIVE_UPPER
+        + qualification._D047_SMOKE_ARTIFACT_BYTES_MAX
+    )
+    pre_formal_bytes = pre_d047a_bytes + smoke_bytes
     receipt: dict[str, object] = {
         "version": qualification._FORMAL_EXECUTION_DECISION_VERSION,
         "decision_id": "D048",
@@ -307,8 +313,8 @@ def _formal_decision_receipt() -> dict[str, object]:
             },
             "selected_checkpoint": config["parents"]["selected_checkpoint"],
         },
-        "d047_smoke": {
-            "experiment_id": "E018-P1-G2C-D047-PREFLIGHT",
+        "d047a_smoke": {
+            "experiment_id": "E018-P1-G2C-D047A-PREFLIGHT",
             "seed": 76801,
             "alternate_viewpoint_id": "LEFT_LOW__CENTER",
             "classification": qualification.QUALIFICATION_CLASSIFICATION_SMOKE,
@@ -367,7 +373,7 @@ def _formal_decision_receipt() -> dict[str, object]:
         },
         "permissions": {name: 0 for name in qualification._FORMAL_DECISION_PERMISSION_KEYS},
         "budgets": {
-            "version": "e018-p1-g2c-d036-conservative-cumulative-budget/v1",
+            "version": "e018-p1-g2c-d036-conservative-cumulative-budget/v2",
             "audit": {
                 "source": "read-only-receipt-mtime-and-filesystem-inventory/v1",
                 "clock": "UTC-unix-time/v1",
@@ -395,7 +401,11 @@ def _formal_decision_receipt() -> dict[str, object]:
                 "pre_smoke_conservative_upper_bound_seconds": (
                     qualification._D048_PRE_SMOKE_GPU_SECONDS_CONSERVATIVE_UPPER
                 ),
-                "d047_smoke_actual_seconds": smoke_gpu_seconds,
+                "failed_d047_conservative_upper_bound_seconds": (
+                    qualification._D047_SMOKE_SECONDS_MAX
+                ),
+                "pre_d047a_conservative_upper_bound_seconds": pre_d047a_gpu,
+                "d047a_smoke_actual_seconds": smoke_gpu_seconds,
                 "pre_formal_conservative_upper_bound_seconds": pre_formal_gpu,
                 "formal_wall_seconds_max": 1_000.0,
                 "formal_gpu_seconds_reserved_max": 1_000.0,
@@ -406,7 +416,11 @@ def _formal_decision_receipt() -> dict[str, object]:
                 "audited_duplicate_inclusive_bytes": 2_118_325_603,
                 "unknown_component_conservative_envelope_bytes": 2_176_641_693,
                 "pre_smoke_conservative_upper_bound_bytes": 4_294_967_296,
-                "d047_smoke_actual_bytes": smoke_bytes,
+                "failed_d047_conservative_upper_bound_bytes": (
+                    qualification._D047_SMOKE_ARTIFACT_BYTES_MAX
+                ),
+                "pre_d047a_conservative_upper_bound_bytes": pre_d047a_bytes,
+                "d047a_smoke_actual_bytes": smoke_bytes,
                 "pre_formal_conservative_upper_bound_bytes": pre_formal_bytes,
                 "formal_combined_artifact_bytes_reserved_max": 4_294_967_296,
                 "projected_conservative_upper_bound_bytes": pre_formal_bytes + 4_294_967_296,
@@ -829,8 +843,12 @@ def _build_complete_synthetic_smoke_execution(
         )
         route_row = rows[route_frame_index]
         intrinsic = np.asarray(route_row["external_intrinsic_cv"], dtype=np.float64)
-        base_from_camera = np.asarray(
-            route_row["actual_base_from_external_camera_cv"], dtype=np.float64
+        base_from_camera, projection_error = qualification._single_rigid(
+            route_row["actual_base_from_external_camera_cv"],
+            "synthetic qualification route camera",
+            maximum_projection_error=float(
+                config["capture_safety"]["maximum_rotation_projection_error_frobenius"]
+            ),
         )
         capture["external_intrinsic_cv"] = intrinsic
         capture["base_from_external_camera_cv"] = base_from_camera
@@ -848,7 +866,7 @@ def _build_complete_synthetic_smoke_execution(
             "camera_orientation_tracking_error_rad": route_row[
                 "external_orientation_tracking_error_rad"
             ],
-            "rotation_projection_error_frobenius": 0.0,
+            "rotation_projection_error_frobenius": projection_error,
         }
         raw.update(
             qualification._recompute_prediction_geometry(
@@ -1220,7 +1238,7 @@ def test_g0c_parent_receipt_recomputes_internal_hash_before_trusting_fields() ->
         )
 
 
-def test_d048_receipt_binds_three_segment_conservative_budget_and_resigning(
+def test_d048_receipt_binds_four_segment_conservative_budget_and_resigning(
     tmp_path: Path,
 ) -> None:
     config = load_g2c_dynamic_qualification_config(CONFIG_PATH)
@@ -1241,13 +1259,23 @@ def test_d048_receipt_binds_three_segment_conservative_budget_and_resigning(
     assert verification["verified"] is True
     gpu = receipt["budgets"]["gpu"]
     artifact = receipt["budgets"]["artifact"]
+    assert gpu["failed_d047_conservative_upper_bound_seconds"] == (
+        qualification._D047_SMOKE_SECONDS_MAX
+    )
+    assert gpu["pre_d047a_conservative_upper_bound_seconds"] == (
+        gpu["pre_smoke_conservative_upper_bound_seconds"]
+        + gpu["failed_d047_conservative_upper_bound_seconds"]
+    )
     assert gpu["pre_formal_conservative_upper_bound_seconds"] == (
-        gpu["pre_smoke_conservative_upper_bound_seconds"] + gpu["d047_smoke_actual_seconds"]
+        gpu["pre_d047a_conservative_upper_bound_seconds"] + gpu["d047a_smoke_actual_seconds"]
     )
     assert artifact["projected_conservative_upper_bound_bytes"] == (
-        artifact["pre_smoke_conservative_upper_bound_bytes"]
-        + artifact["d047_smoke_actual_bytes"]
+        artifact["pre_d047a_conservative_upper_bound_bytes"]
+        + artifact["d047a_smoke_actual_bytes"]
         + artifact["formal_combined_artifact_bytes_reserved_max"]
+    )
+    assert artifact["failed_d047_conservative_upper_bound_bytes"] == (
+        qualification._D047_SMOKE_ARTIFACT_BYTES_MAX
     )
 
     tampered = _formal_decision_receipt()
@@ -1258,6 +1286,70 @@ def test_d048_receipt_binds_three_segment_conservative_budget_and_resigning(
     with pytest.raises(RuntimeError, match="formal decision receipt"):
         qualification._validate_g2c_formal_execution_decision_receipt(
             tampered,
+            config=config,
+            qualification_config_raw_sha256=qualification.file_sha256(CONFIG_PATH),
+            expected_source_git_commit="4" * 40,
+            expected_source_identity_sha256="5" * 64,
+        )
+
+
+@pytest.mark.parametrize(
+    "legacy_contract",
+    (
+        "decision-version",
+        "budget-version",
+        "d047-success-smoke-key",
+        "d047-experiment-id",
+    ),
+)
+def test_d048_rejects_resigned_legacy_d047_contract(legacy_contract: str) -> None:
+    config = load_g2c_dynamic_qualification_config(CONFIG_PATH)
+    receipt = _formal_decision_receipt()
+    if legacy_contract == "decision-version":
+        receipt["version"] = "e018-p1-g2c-formal-execution-decision-receipt/v1"
+    elif legacy_contract == "budget-version":
+        receipt["budgets"]["version"] = "e018-p1-g2c-d036-conservative-cumulative-budget/v1"
+    elif legacy_contract == "d047-success-smoke-key":
+        receipt["d047_smoke"] = receipt.pop("d047a_smoke")
+    else:
+        receipt["d047a_smoke"]["experiment_id"] = "E018-P1-G2C-D047-PREFLIGHT"
+    receipt["receipt_sha256"] = canonical_sha256(
+        {key: value for key, value in receipt.items() if key != "receipt_sha256"}
+    )
+
+    with pytest.raises((RuntimeError, ValueError), match="formal decision"):
+        qualification._validate_g2c_formal_execution_decision_receipt(
+            receipt,
+            config=config,
+            qualification_config_raw_sha256=qualification.file_sha256(CONFIG_PATH),
+            expected_source_git_commit="4" * 40,
+            expected_source_identity_sha256="5" * 64,
+        )
+
+
+@pytest.mark.parametrize(
+    ("budget_name", "field"),
+    (
+        ("gpu", "failed_d047_conservative_upper_bound_seconds"),
+        ("artifact", "failed_d047_conservative_upper_bound_bytes"),
+        ("gpu", "pre_d047a_conservative_upper_bound_seconds"),
+        ("artifact", "pre_d047a_conservative_upper_bound_bytes"),
+    ),
+)
+def test_d048_rejects_resigned_failed_d047_budget_discount(
+    budget_name: str,
+    field: str,
+) -> None:
+    config = load_g2c_dynamic_qualification_config(CONFIG_PATH)
+    receipt = _formal_decision_receipt()
+    receipt["budgets"][budget_name][field] -= 1
+    receipt["receipt_sha256"] = canonical_sha256(
+        {key: value for key, value in receipt.items() if key != "receipt_sha256"}
+    )
+
+    with pytest.raises(RuntimeError, match="formal decision receipt"):
+        qualification._validate_g2c_formal_execution_decision_receipt(
+            receipt,
             config=config,
             qualification_config_raw_sha256=qualification.file_sha256(CONFIG_PATH),
             expected_source_git_commit="4" * 40,
@@ -1311,7 +1403,7 @@ def test_d048_rejects_resigned_smoke_source_or_config_rebinding(
 ) -> None:
     config = load_g2c_dynamic_qualification_config(CONFIG_PATH)
     receipt = _formal_decision_receipt()
-    receipt["d047_smoke"][identity_field] = replacement
+    receipt["d047a_smoke"][identity_field] = replacement
     receipt["receipt_sha256"] = canonical_sha256(
         {key: value for key, value in receipt.items() if key != "receipt_sha256"}
     )
@@ -1334,9 +1426,9 @@ def test_d048_rejects_resigned_invalid_time_order(invalid_order: str) -> None:
     config = load_g2c_dynamic_qualification_config(CONFIG_PATH)
     receipt = _formal_decision_receipt()
     if invalid_order == "decision-before-smoke-complete":
-        receipt["issued_at_unix_ns"] = receipt["d047_smoke"]["completed_at_unix_ns"]
+        receipt["issued_at_unix_ns"] = receipt["d047a_smoke"]["completed_at_unix_ns"]
     else:
-        receipt["d047_smoke"]["started_at_unix_ns"] = 0
+        receipt["d047a_smoke"]["started_at_unix_ns"] = 0
     receipt["receipt_sha256"] = canonical_sha256(
         {key: value for key, value in receipt.items() if key != "receipt_sha256"}
     )
@@ -2508,6 +2600,80 @@ def test_prediction_camera_and_safety_are_bound_to_same_raw_route_frame() -> Non
     with pytest.raises(RuntimeError, match="arm_joint_drift_rad"):
         qualification._validate_prediction_against_route_row(
             prediction,
+            route_row=route_row,
+            expected_identity=identity,
+            config=config,
+        )
+
+
+def test_prediction_camera_binding_canonicalizes_float32_route_pose_and_rejects_tamper() -> None:
+    config = load_g2c_dynamic_qualification_config(CONFIG_PATH)
+    prediction, _ = _scoring_prediction()
+    route_row = _route_row_for_prediction(prediction)
+    identity = {
+        name: prediction[name]
+        for name in (
+            "row_index",
+            "seed",
+            "sample_index",
+            "viewpoint_id",
+            "frame_role",
+            "route_alternate_index",
+            "route_alternate_viewpoint_id",
+            "route_frame_index",
+        )
+    }
+    angle = np.float32(0.61)
+    cosine = np.float32(np.cos(angle))
+    sine = np.float32(np.sin(angle))
+    raw_route_pose = np.eye(4, dtype=np.float64)
+    raw_route_pose[:2, :2] = np.asarray([[cosine, -sine], [sine, cosine]], dtype=np.float32)
+    raw_route_pose[:3, 3] = (0.13, -0.27, 0.91)
+    canonical_pose, projection_error = qualification._single_rigid(
+        raw_route_pose,
+        "test raw float32 route pose",
+        maximum_projection_error=float(
+            config["capture_safety"]["maximum_rotation_projection_error_frobenius"]
+        ),
+    )
+    assert projection_error > 0.0
+    assert not np.array_equal(raw_route_pose, canonical_pose)
+    route_row["actual_base_from_external_camera_cv"] = raw_route_pose.tolist()
+    prediction["base_from_external_camera_cv"] = canonical_pose.tolist()
+    prediction["deployable_safety"]["rotation_projection_error_frobenius"] = projection_error
+
+    qualification._validate_prediction_against_route_row(
+        prediction,
+        route_row=route_row,
+        expected_identity=identity,
+        config=config,
+    )
+
+    canonical_tamper = json.loads(json.dumps(prediction))
+    canonical_tamper["base_from_external_camera_cv"][0][3] += 0.001
+    with pytest.raises(RuntimeError, match="camera/gripper"):
+        qualification._validate_prediction_against_route_row(
+            canonical_tamper,
+            route_row=route_row,
+            expected_identity=identity,
+            config=config,
+        )
+
+    raw_tamper = json.loads(json.dumps(route_row))
+    raw_tamper["actual_base_from_external_camera_cv"][1][3] += 0.001
+    with pytest.raises(RuntimeError, match="camera/gripper"):
+        qualification._validate_prediction_against_route_row(
+            prediction,
+            route_row=raw_tamper,
+            expected_identity=identity,
+            config=config,
+        )
+
+    projection_tamper = json.loads(json.dumps(prediction))
+    projection_tamper["deployable_safety"]["rotation_projection_error_frobenius"] += 1e-9
+    with pytest.raises(RuntimeError, match="rotation projection"):
+        qualification._validate_prediction_against_route_row(
+            projection_tamper,
             route_row=route_row,
             expected_identity=identity,
             config=config,

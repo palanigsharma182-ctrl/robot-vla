@@ -1,8 +1,8 @@
 """E018-P1 G2C 动态 front-provider qualification。
 
 本模块把动态运动、逐帧 deployable prediction、privileged label 采集和离线
-评分拆成单向的数据流。正式 qualification 仍由 Decision Gate 控制；D047 只
-授权实现、测试和单 seed/单 route 的 noncanonical preflight。
+评分拆成单向的数据流。正式 qualification 仍由 Decision Gate 控制；D047/D047A
+只授权实现、测试和各自单 seed/单 route 的一次性 noncanonical preflight。
 """
 
 from __future__ import annotations
@@ -101,7 +101,7 @@ _FINAL_COLLECT_FRAME_INDEX = 47
 _ROUTE_RGB_INVENTORY_VERSION = "e018-p1-g2c-route-rgb-inventory/v1"
 _PRIVATE_LABEL_INVENTORY_VERSION = "e018-p1-g2c-private-label-inventory/v1"
 _ARTIFACT_ACCOUNTING_VERSION = "e018-p1-g2c-combined-artifact-accounting/v1"
-_FORMAL_EXECUTION_DECISION_VERSION = "e018-p1-g2c-formal-execution-decision-receipt/v1"
+_FORMAL_EXECUTION_DECISION_VERSION = "e018-p1-g2c-formal-execution-decision-receipt/v2"
 _FORMAL_DECISION_RECEIPT_KEYS = {
     "version",
     "decision_id",
@@ -109,7 +109,7 @@ _FORMAL_DECISION_RECEIPT_KEYS = {
     "qualification_config",
     "source",
     "parent_identities",
-    "d047_smoke",
+    "d047a_smoke",
     "formal_execution",
     "permissions",
     "budgets",
@@ -138,7 +138,7 @@ _FORMAL_DECISION_PERSISTENCE_KEYS = {
     "completion_marker_raw_sha256",
     "completion_marker_internal_sha256",
 }
-_FORMAL_DECISION_SMOKE_KEYS = {
+_FORMAL_DECISION_D047A_SMOKE_KEYS = {
     "experiment_id",
     "seed",
     "alternate_viewpoint_id",
@@ -246,7 +246,9 @@ _FORMAL_DECISION_GPU_BUDGET_KEYS = {
     "known_lower_bound_seconds",
     "unknown_component_conservative_envelope_seconds",
     "pre_smoke_conservative_upper_bound_seconds",
-    "d047_smoke_actual_seconds",
+    "failed_d047_conservative_upper_bound_seconds",
+    "pre_d047a_conservative_upper_bound_seconds",
+    "d047a_smoke_actual_seconds",
     "pre_formal_conservative_upper_bound_seconds",
     "formal_wall_seconds_max",
     "formal_gpu_seconds_reserved_max",
@@ -257,7 +259,9 @@ _FORMAL_DECISION_ARTIFACT_BUDGET_KEYS = {
     "audited_duplicate_inclusive_bytes",
     "unknown_component_conservative_envelope_bytes",
     "pre_smoke_conservative_upper_bound_bytes",
-    "d047_smoke_actual_bytes",
+    "failed_d047_conservative_upper_bound_bytes",
+    "pre_d047a_conservative_upper_bound_bytes",
+    "d047a_smoke_actual_bytes",
     "pre_formal_conservative_upper_bound_bytes",
     "formal_combined_artifact_bytes_reserved_max",
     "projected_conservative_upper_bound_bytes",
@@ -400,6 +404,12 @@ _D048_FORMAL_GPU_SECONDS_RESERVE_MAX = 9_000.0
 _D048_FORMAL_ARTIFACT_BYTES_RESERVE_MAX = 4_294_967_296
 _D048_PRE_SMOKE_GPU_SECONDS_CONSERVATIVE_UPPER = 24_451.833224
 _D048_PRE_SMOKE_ARTIFACT_BYTES_CONSERVATIVE_UPPER = 4_294_967_296
+_D048_PRE_D047A_GPU_SECONDS_CONSERVATIVE_UPPER = (
+    _D048_PRE_SMOKE_GPU_SECONDS_CONSERVATIVE_UPPER + _D047_SMOKE_SECONDS_MAX
+)
+_D048_PRE_D047A_ARTIFACT_BYTES_CONSERVATIVE_UPPER = (
+    _D048_PRE_SMOKE_ARTIFACT_BYTES_CONSERVATIVE_UPPER + _D047_SMOKE_ARTIFACT_BYTES_MAX
+)
 _D048_AUDITED_ARTIFACT_BYTES = 2_118_325_603
 _D048_UNKNOWN_GPU_SECONDS_CONSERVATIVE_ENVELOPE = 24_019.513831184
 _D048_UNKNOWN_ARTIFACT_BYTES_CONSERVATIVE_ENVELOPE = 2_176_641_693
@@ -1082,9 +1092,9 @@ def _validate_g2c_formal_execution_decision_receipt(
         "G2C formal decision D046 persistence",
     )
     smoke = _require_exact_keys(
-        receipt.get("d047_smoke"),
-        _FORMAL_DECISION_SMOKE_KEYS,
-        "G2C formal decision D047 smoke",
+        receipt.get("d047a_smoke"),
+        _FORMAL_DECISION_D047A_SMOKE_KEYS,
+        "G2C formal decision D047A smoke",
     )
     formal = _require_exact_keys(
         receipt.get("formal_execution"),
@@ -1187,7 +1197,9 @@ def _validate_g2c_formal_execution_decision_receipt(
     known_gpu_lower = gpu_budget.get("known_lower_bound_seconds")
     unknown_gpu_envelope = gpu_budget.get("unknown_component_conservative_envelope_seconds")
     pre_smoke_gpu_upper = gpu_budget.get("pre_smoke_conservative_upper_bound_seconds")
-    smoke_gpu = gpu_budget.get("d047_smoke_actual_seconds")
+    failed_d047_gpu_upper = gpu_budget.get("failed_d047_conservative_upper_bound_seconds")
+    pre_d047a_gpu_upper = gpu_budget.get("pre_d047a_conservative_upper_bound_seconds")
+    smoke_gpu = gpu_budget.get("d047a_smoke_actual_seconds")
     pre_formal_gpu_upper = gpu_budget.get("pre_formal_conservative_upper_bound_seconds")
     qualification_gpu = gpu_budget.get("formal_gpu_seconds_reserved_max")
     qualification_wall = gpu_budget.get("formal_wall_seconds_max")
@@ -1195,7 +1207,9 @@ def _validate_g2c_formal_execution_decision_receipt(
     audited_bytes = artifact_budget.get("audited_duplicate_inclusive_bytes")
     unknown_bytes_envelope = artifact_budget.get("unknown_component_conservative_envelope_bytes")
     pre_smoke_bytes_upper = artifact_budget.get("pre_smoke_conservative_upper_bound_bytes")
-    smoke_bytes = artifact_budget.get("d047_smoke_actual_bytes")
+    failed_d047_bytes_upper = artifact_budget.get("failed_d047_conservative_upper_bound_bytes")
+    pre_d047a_bytes_upper = artifact_budget.get("pre_d047a_conservative_upper_bound_bytes")
+    smoke_bytes = artifact_budget.get("d047a_smoke_actual_bytes")
     pre_formal_bytes_upper = artifact_budget.get("pre_formal_conservative_upper_bound_bytes")
     qualification_bytes = artifact_budget.get("formal_combined_artifact_bytes_reserved_max")
     projected_bytes_upper = artifact_budget.get("projected_conservative_upper_bound_bytes")
@@ -1203,6 +1217,8 @@ def _validate_g2c_formal_execution_decision_receipt(
         known_gpu_lower,
         unknown_gpu_envelope,
         pre_smoke_gpu_upper,
+        failed_d047_gpu_upper,
+        pre_d047a_gpu_upper,
         smoke_gpu,
         pre_formal_gpu_upper,
         qualification_gpu,
@@ -1235,7 +1251,7 @@ def _validate_g2c_formal_execution_decision_receipt(
         or any(parents.get(name) != value for name, value in expected_parent_subset.items())
         or persistence != _D046_REPLICATED_PERSISTENCE
         or any(not _is_sha256(value) for value in sha_fields)
-        or smoke.get("experiment_id") != "E018-P1-G2C-D047-PREFLIGHT"
+        or smoke.get("experiment_id") != "E018-P1-G2C-D047A-PREFLIGHT"
         or smoke.get("seed") != 76801
         or smoke.get("alternate_viewpoint_id") != FRONT_ALTERNATE_IDS[0]
         or smoke.get("classification") != QUALIFICATION_CLASSIFICATION_SMOKE
@@ -1282,7 +1298,7 @@ def _validate_g2c_formal_execution_decision_receipt(
         or formal.get("memory_and_active_loop") != "HOLD"
         or formal.get("actuator_and_manipulation") != "HOLD"
         or any(type(value) is not int or value != 0 for value in permissions.values())
-        or budgets.get("version") != "e018-p1-g2c-d036-conservative-cumulative-budget/v1"
+        or budgets.get("version") != "e018-p1-g2c-d036-conservative-cumulative-budget/v2"
         or budget_audit.get("source") != "read-only-receipt-mtime-and-filesystem-inventory/v1"
         or budget_audit.get("clock") != "UTC-unix-time/v1"
         or budget_audit.get("worker_region") != "US"
@@ -1351,6 +1367,24 @@ def _validate_g2c_formal_execution_decision_receipt(
             abs_tol=1e-9,
         )
         or not math.isclose(
+            float(failed_d047_gpu_upper),
+            _D047_SMOKE_SECONDS_MAX,
+            rel_tol=0.0,
+            abs_tol=0.0,
+        )
+        or not math.isclose(
+            float(pre_d047a_gpu_upper),
+            _D048_PRE_D047A_GPU_SECONDS_CONSERVATIVE_UPPER,
+            rel_tol=0.0,
+            abs_tol=1e-9,
+        )
+        or not math.isclose(
+            float(pre_d047a_gpu_upper),
+            float(pre_smoke_gpu_upper) + float(failed_d047_gpu_upper),
+            rel_tol=0.0,
+            abs_tol=1e-9,
+        )
+        or not math.isclose(
             float(smoke_gpu),
             float(smoke["gpu_elapsed_seconds"]),
             rel_tol=0.0,
@@ -1358,7 +1392,7 @@ def _validate_g2c_formal_execution_decision_receipt(
         )
         or not math.isclose(
             float(pre_formal_gpu_upper),
-            float(pre_smoke_gpu_upper) + float(smoke_gpu),
+            float(pre_d047a_gpu_upper) + float(smoke_gpu),
             rel_tol=0.0,
             abs_tol=1e-9,
         )
@@ -1374,6 +1408,8 @@ def _validate_g2c_formal_execution_decision_receipt(
         or type(audited_bytes) is not int
         or type(unknown_bytes_envelope) is not int
         or type(pre_smoke_bytes_upper) is not int
+        or type(failed_d047_bytes_upper) is not int
+        or type(pre_d047a_bytes_upper) is not int
         or type(smoke_bytes) is not int
         or type(pre_formal_bytes_upper) is not int
         or type(qualification_bytes) is not int
@@ -1382,8 +1418,11 @@ def _validate_g2c_formal_execution_decision_receipt(
         or unknown_bytes_envelope != _D048_UNKNOWN_ARTIFACT_BYTES_CONSERVATIVE_ENVELOPE
         or pre_smoke_bytes_upper != _D048_PRE_SMOKE_ARTIFACT_BYTES_CONSERVATIVE_UPPER
         or pre_smoke_bytes_upper != audited_bytes + unknown_bytes_envelope
+        or failed_d047_bytes_upper != _D047_SMOKE_ARTIFACT_BYTES_MAX
+        or pre_d047a_bytes_upper != _D048_PRE_D047A_ARTIFACT_BYTES_CONSERVATIVE_UPPER
+        or pre_d047a_bytes_upper != pre_smoke_bytes_upper + failed_d047_bytes_upper
         or smoke_bytes != smoke["total_artifact_bytes"]
-        or pre_formal_bytes_upper != pre_smoke_bytes_upper + smoke_bytes
+        or pre_formal_bytes_upper != pre_d047a_bytes_upper + smoke_bytes
         or not 0 < qualification_bytes <= _D048_FORMAL_ARTIFACT_BYTES_RESERVE_MAX
         or projected_bytes_upper != pre_formal_bytes_upper + qualification_bytes
         or projected_bytes_upper > _D036_CUMULATIVE_ARTIFACT_BYTES_MAX
@@ -3985,7 +4024,7 @@ def _validate_prediction_against_route_row(
         np.mean((finger_positions - lower) / (upper - lower), dtype=np.float64)
     )
     force = np.asarray(safety["finger_force_n"], dtype=np.float64)
-    _, expected_projection_error = _single_rigid(
+    expected_base_from_camera, expected_projection_error = _single_rigid(
         route_row["actual_base_from_external_camera_cv"],
         "qualification prediction-route camera transform",
         maximum_projection_error=float(
@@ -4003,7 +4042,7 @@ def _validate_prediction_against_route_row(
         )
         or not np.allclose(
             np.asarray(prediction["base_from_external_camera_cv"], dtype=np.float64),
-            np.asarray(route_row["actual_base_from_external_camera_cv"], dtype=np.float64),
+            expected_base_from_camera,
             rtol=0.0,
             atol=0.0,
         )
