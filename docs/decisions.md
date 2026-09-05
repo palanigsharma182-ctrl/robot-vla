@@ -2702,6 +2702,11 @@ deployable-only Phase A。Phase B 及后续全部 HOLD。
 
 ## D043 — 放行 G2C model-validation 的一次性 privileged Phase B score/select
 
+> **Execution outcome（D044）：** D043 已按一次性协议完成并通过独立 no-label verifier 与 R2。
+> `W-KV0` epoch 15 被冻结选中，10/10 non-HOME viewpoints eligible，最佳 eligible viewpoint 为
+> `RIGHT_LOW__PITCH_UP`。本结果只允许进入 D044 calibration source Gate；不得解释为动态 qualification、
+> Memory、Active-loop 或 actuator 结果。
+
 **Decision:**
 
 依据 D042 deployable-only Phase A 的独立 verifier 与 R2，放行
@@ -2836,10 +2841,118 @@ Phase A 已在 label 不可达时冻结全部候选输出，Phase B 因而可以
 - 用 CONTROL validation loss 或加入排名：CONTROL 只量化 domain gap，拒绝。
 - zero eligible 时选择最低 p90：违反预注册安全门槛，拒绝。
 
-**Implementation status:** D042 Phase A 已通过 R2；等待 D043 docs commit/push、Phase A Drive verification 与
-工程确认后执行一次性 Phase B。后续全部 HOLD。
+**Implementation status:** Phase B 已完成并通过独立 R2。100 个 privileged label bundles 已一次性消费；同一
+identity 禁止重跑。selection artifact 已 DRIVE_VERIFIED；worker source、Phase A、privileged staging 与 Phase B
+artifact 保留。calibration 尚未读取。
 
-**Status:** active
+**Status:** model-selection-pass / handed-off-to-D044
+
+## D044 — 冻结 G2C selected checkpoint 与 calibration 口径，放行 calibration-only runner 实现
+
+**Decision:**
+
+D043 `E018-P1-G2C-MODEL-VAL-PHASE-B/v1` 是 protocol-valid positive。Decision Agent 已在 exact-clean worker
+亲自重跑 no-label verifier：exit 0、`verified=true`、label reopen=0。冻结 selected 为 `W-KV0` epoch 15；
+checkpoint/parameter/provenance SHA 为 `97e3b728...d3d77` / `1ba14a90...cb24` / `8116f273...3252c`。
+10/10 non-HOME viewpoints eligible；最佳 `RIGHT_LOW__PITCH_UP` 的 support=89、precision/recall=
+`0.9888888889/1.0`、XYZ p90/max=`0.0017495315/0.0030838484 m`。CONTROL 未参与 loss/selection。
+
+selection receipt raw/internal 与 verification SHA 为 `a961d18d...64bd` / `f8874dc6...b773` /
+`1aee923b...e91a`；test/Memory/actuation count=0。artifact 已 DRIVE_VERIFIED：manifest
+`d2ffcdc9...c1966`、marker `cb408eb5...e135`，marker 前后 one-way check 均 0 differences。完整 SHA 与计数保留
+在 D043 receipt/selection artifact；worker source/staging/artifact 保留。
+
+从本 Gate 起，selected checkpoint、candidate pool、epoch 和排名永久冻结。calibration 不得重选 checkpoint、
+回看其他 epoch、改变 W-KV0/S initialization 或重新打开 model-validation label。
+
+本 Gate 当前只放行 calibration-only staging/runner/verifier 的最小实现、targeted tests 和不读取 canonical
+calibration label 的 smoke。现有源码只有数学 helper 与基础测试，尚缺完整的 deployable prediction freeze、
+context destroy、privileged one-shot scoring 和 no-label verifier。`76601..76650` 的正式 staging/inference/label
+open 继续 HOLD，直至新 source 通过 regression、smoke、R2 和显式 Decision GO；D044 docs commit 不是 execution
+source。
+
+正式 split 冻结为 50 seeds `76601..76650`、11 viewpoints、550 rows；DATA identity 为
+`07919f413224fba797d4c12df25e2d5aec8ded8213e3283a07feed282701cfa3`，deployable/privileged inventory 为
+`c2067d89e2cde7d57bada5723388eb29deb35757b62002f9dead2c1d2ed36516` /
+`24205efa88c0bae2df6c51992696fbefc69ea4c24be8d3e82eda5591d2d653f2`。selected parent 仍绑定 execution
+source `5bf05da5a22a07b8fabfc22b1f32da86fce40ba1`、formal identity
+`95b0fb26db8585decb9488ce0086ef1f9f6c8bc2a6496797e3d9681b89f2af05` 和 D043 的 full checkpoint identity。
+
+正式 runner 必须机械实现 50 deployable bundles / 550 prediction rows 的 no-label Phase A freeze，以及 50
+privileged bundles / 550 scoring rows 的一次性 Phase B。Phase A 只能运行 selected checkpoint；必须在 context
+destroy、公开 verifier 和 Drive zero-difference marker 后才能准备 privileged staging。首次 label array open 后
+同 identity 永久 consumed；失败保留 `consumed_failure`。公开 verifier 不接 label/model/data path。精确文件、
+计数、identity、原子写和失败注入由新 config/tests 锁定，再由 exact-source R2 审查。
+
+11 个 viewpoint 分别做 calibration。covariance cohort 与 write-threshold cohort 不得混用：
+
+1. covariance cohort 只包含 `gt_observable=true`、`geometry_valid=true`、world-XY error vector 与 raw
+   covariance 均 finite/shape-valid/PSD 的行；支持数 `N>=30`；
+2. 每行 conformity score 固定为 `e_xy^T Sigma_xy^-1 e_xy`；`alpha=0.05`、target coverage=0.95、
+   chi-square=`5.991`、`k=min(ceil((N+1)*0.95),N)`、`scale=max(1,q_k/5.991)`；
+3. scale 只校准 uncertainty，不修正 mean；所有该视角 calibrated position covariance 的最大标准差必须
+   `<=0.020 m`；
+4. write threshold 对该视角全部 50 个 scoring rows 计算。`structurally_eligible` 固定要求 predicted
+   observable、geometry、position/covariance、pregrasp/free-static safety 与既有 write 结构 gate 全部有效；
+5. `oracle_safe_measurement` 固定要求 free-static/pregrasp safety、GT observable、geometry/error 有效且
+   world-XYZ error `<=0.005 m`；它独立于 predicted-observable/write threshold，不能由 gate 自己缩小分母；
+   world-XYZ error `>0.020 m` 另计 catastrophic；
+6. threshold 只能从冻结 finite `[0,1]` write scores 中选择，使 unsafe accepted=0 且
+   `accepted-safe coverage = accepted_and_oracle_safe / oracle_safe_count >=0.10`；若 accepted count/coverage
+   相同，选择更高、更保守的 threshold；`oracle_safe_count=0` 时 coverage=0；
+7. covariance support 不足、calibrated std 超限、没有零 unsafe threshold 或 coverage 不足，只使该
+   viewpoint 成为 `calibration-no-go`，属于协议有效负结果；不得换 seed、删行或放宽门槛。
+
+现有 `calibrate_g2c_viewpoint` helper 将 covariance support 与 threshold denominator 合并，且用全部 evaluable
+rows 作为 coverage denominator；它不能原样成为正式 runner。工程实现必须把两个 cohort 分离，并用反例测试
+锁住：non-observable/unsafe 高分行不能被漏掉，coverage denominator 必须是 `oracle_safe_count`，而不是全部
+rows 或 structurally-eligible count。
+
+正式 calibration 总体 PASS 需要至少一个 non-HOME viewpoint 完成 covariance 与 write-threshold 双 PASS；
+通过的每个 viewpoint 都必须冻结独立 calibration identity。若 10 个 non-HOME 全部 no-go，则冻结
+`complete-calibration-protocol-valid-negative`，不得进入 qualification，并用新 provider Experiment/Decision
+identity研究替代路线；不得选择“最不坏”视角。即使存在 PASS，动态 qualification 仍需新 Decision Gate，
+且固定的 500 routes/550 scored frames 不在 D044 授权范围。
+
+工程实现/smoke 预算为 GPU 不超过 10 分钟、artifact 不超过 1 GiB、checkpoint write=0；正式 calibration
+未来仍受 D036 总预算 10 GPU-hours/20 GiB 约束，并预留 Phase A 不超过 1 GPU-hour、全部 calibration artifacts
+不超过 5 GiB 的停止线。达到预算、identity 漂移、任何 canonical calibration label 被提前打开、test read、
+Memory read/write、canonical/physical camera actuation、nonzero arm motion、gripper close 或 manipulation
+progression 非零时立即停止并保留现场。
+
+本 Gate 的精确 GO 文句为：
+
+> GO — 工程 Agent 可以基于 D043 冻结的 W-KV0 epoch-15 checkpoint identity，最小实现 G2C calibration-only
+> staging、prediction-freeze、one-shot scoring/calibration 与 no-label verifier，并用 synthetic 或非 canonical
+> calibration 数据完成 targeted tests 和 no-label/no-actuation smoke。canonical calibration split
+> `76601..76650` 的任何 staging/inference/array open、qualification、fresh test、Object Memory、active loop、
+> canonical runtime 和全部 actuator 继续 HOLD，直至新 exact-source R2 与显式 Decision GO。
+
+允许的当前结论只有：“G2C model-validation 选出了固定 checkpoint，calibration 协议与工程接口进入实现。”
+不允许声称 provider 已校准、任何动态视角已 qualified、Active 优于 Passive、Memory 有收益、闭环成功或可部署。
+
+**Reason:**
+
+D043 的强正结果把“front-domain mean 是否可学”从主要未知项降为后续验证项，但同一结果没有检验 uncertainty
+coverage、write safety 或相机运动后的分布。把 selected checkpoint 永久冻结，并让 calibration 使用独立 split，
+才能区分 mean adaptation、uncertainty calibration 和动态资格。先补齐 prediction-before-label/one-shot/public
+verifier 执行链，可在不消费唯一 calibration label 的前提下发现身份、I/O、cohort 或分母实现错误。
+
+**Alternatives considered:**
+
+- 直接调用现有单视角 helper 打开 calibration labels：缺少身份、时序、一次性消费和公开 verifier，且 coverage
+  denominator 与冻结 object semantics 不一致，拒绝。
+- 用 D043 model-validation rows 同时调 covariance/threshold：该 split 已用于 checkpoint selection，产生数据
+  重用和反馈偏差，拒绝。
+- calibration 后重选 epoch 或只保留结果最好的 seed/view：破坏冻结 parent 与完整 cohort，拒绝。
+- 把 10/10 model-validation eligible 直接当作动态 qualification：没有运动、covariance 与 write-safety 证据，
+  拒绝。
+
+**Implementation status:** D043 selection 与 Drive persistence 已通过；calibration protocol 已冻结，等待
+calibration-only runner implementation、tests、no-label smoke 和新 exact-source R2。正式 calibration 及其后续
+全部 HOLD。
+
+**Status:** calibration-runner-implementation-go / formal-calibration-hold
 
 ## 新决策模板
 

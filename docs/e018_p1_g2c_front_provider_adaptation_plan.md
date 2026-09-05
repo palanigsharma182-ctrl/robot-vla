@@ -1,11 +1,11 @@
 # E018-P1-G2C Front Provider Adaptation 实验计划书
 
-> 状态：`phase-a-pass / phase-b-one-shot-go / calibration-hold / development-only`
+> 状态：`model-selection-pass / calibration-runner-go / formal-calibration-hold / development-only`
 > 日期：2026-09-05
 > Experiment ID：`E018-P1-G2C-FRONT-PROVIDER-ADAPTATION-DEVELOPMENT/v1`
 > Data identity：`E018-P1-G2C-DATA/v1`
 > Train identity：`E018-P1-G2C-TRAIN/v1`
-> Decision Gate：[`D036`、`D037`、`D038`、`D039`、`D040`、`D041`、`D042`、`D043`](decisions.md)
+> Decision Gate：[`D036`、`D037`、`D038`、`D039`、`D040`、`D041`、`D042`、`D043`、`D044`](decisions.md)
 > 上位计划：[`E018-P1 三阶段主动视觉闭环`](e018_p1_three_stage_active_vision_closed_loop_plan.md)
 
 > 2026-09-05 DATA Gate：`E018-P1-G2C-DATA/v1` 已通过独立 verifier 与 R2，接受为 canonical
@@ -47,6 +47,24 @@
 > privileged bundles，并在 `phase_state` 落盘后一次性打开 100 个 label arrays 做 score/select；同 identity
 > 失败不得重跑。公开 verifier 不接 label path、label reopen=0。calibration、qualification、fresh test、Memory、
 > active loop、canonical runtime 和 actuator 继续 HOLD。
+
+> 2026-09-05 model-selection outcome：D043 Phase B 已按一次性协议完成并通过独立 R2。冻结 selected
+> checkpoint 为 `W-KV0` epoch 15，checkpoint/parameter/provenance SHA 分别为
+> `97e3b7289911bc73f67755a8d9c3598c50b6c80ef01e1af13cec698ec59d3d77` /
+> `1ba14a9009829c1d354555e9b788a8e3627e33ccffaddee24e66d9696121cb24` /
+> `8116f273c5f7339813a260bc919e25ee84cb3493a0e76eb454e6fbdeae83252c`。10/10 non-HOME
+> viewpoints 在 model-validation 上 eligible；冻结 ranking 的最佳视角是 `RIGHT_LOW__PITCH_UP`，其
+> observable-positive support=89、visibility precision/recall=`0.9888888889/1.0`、world-XYZ
+> p90/max=`0.0017495315/0.0030838484 m`。CONTROL 有 0 个 eligible non-HOME view 且没有参与 loss 或
+> selection。该结果只证明 model-selection PASS，不证明 calibration、动态 qualification、Memory、Active
+> 收益、闭环或 actuator 安全。
+
+> 2026-09-05 calibration source Gate：D044 冻结 selected checkpoint、独立 calibration split 与逐视角
+> covariance/write-threshold 口径。当前源码只有单视角数学 helper 和基础测试，尚无正式 split staging、
+> prediction-before-label runner、一次性消费状态或 no-label public verifier。因此现在只放行最小 runner
+> 实现、targeted tests 和不读取 canonical calibration label 的 engineering smoke；`76601..76650` 的
+> deployable/privileged staging、正式 inference 和 label open 仍须新的 exact-source R2 GO。qualification、
+> fresh test、Object Memory、active loop、canonical runtime 和全部 actuator 继续 HOLD。
 
 本实验是 E018 Stage 2 的上游 provider 资格实验。它只回答“受限动态 front 视角是否能产生可部署语义的
 object measurement”，不评价 Active 相对 Passive 的任务收益，也不授予 canonical runtime、机械臂、夹爪、
@@ -268,8 +286,22 @@ scale = max(1, q / 5.991)
 maximum calibrated position std <= 0.020 m
 ```
 
+按 D044，covariance support 与 write-threshold denominator 必须显式分开：
+
+- covariance support 只包含该 viewpoint 上 `gt_observable=true`、`geometry_valid=true`，且 world-XY error、
+  raw covariance 均有限有效的行；`N<30` 只使该 viewpoint calibration no-go，不允许换 seed 或删行；
+- threshold 候选对该 viewpoint 的全部 50 个冻结 scoring rows 计算。只有 predicted observable、geometry、
+  position/covariance 和安全结构条件全部有效的行才 `structurally_eligible=true`；
+- `oracle_safe_measurement` 固定要求 free-static/pregrasp safety、GT observable、几何/error 有效且 world-XYZ
+  error `<=0.005 m`；它独立于 predicted-observable/write threshold，避免用 gate 自己缩小 coverage 分母；
+  大于 `0.020 m` 另计 catastrophic，但 `unsafe accepted=0` 已经是更强的零容忍条件；
+- `accepted-safe coverage = accepted_and_oracle_safe / oracle_safe_count`，不是 accepted/全部 rows，也不是
+  accepted/structurally-eligible rows；`oracle_safe_count=0` 时 coverage 固定为 0、该 viewpoint no-go。
+
 同一 calibration split 按冻结的 E018 object write-score semantics，逐 viewpoint 选择“accepted-safe coverage
-最大且 unsafe accepted=0”的 threshold；coverage 必须至少 0.10，tie 选择更高、更保守的 threshold。
+最大且 unsafe accepted=0”的 threshold；coverage 必须至少 0.10，accepted count 相同时选择更高、更保守的
+threshold。covariance 或 threshold no-go 是该 viewpoint 的协议有效负结果；身份、行数、prediction-before-label、
+数组 opening 或数值实现漂移才是 protocol-invalid。
 
 confidence、write acceptance 或 prediction error 不参与 checkpoint selection。qualification 后不得修改
 covariance scale、visibility/projected threshold、write threshold 或 viewpoint pool。
