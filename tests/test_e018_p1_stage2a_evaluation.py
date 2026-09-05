@@ -36,10 +36,6 @@ EVALUATION_CONFIG = (
     / "configs"
     / "e018_p1_stage2a_selected_gain_evaluation_development_v1.json"
 )
-D049_GATE = Path(
-    "/home/czw/vla-control/gates/e018-p1-stage2a-d049/"
-    "D049_CONDITIONAL_EVALUATION_GATE.json"
-)
 
 
 def _private_capture(
@@ -183,8 +179,116 @@ def _source_identity() -> dict[str, str]:
     return source
 
 
+def _gate_record(config: dict[str, object]) -> dict[str, object]:
+    selection = config["selection_parent"]
+    stage2a = config["stage2a_parent"]
+    preflight = config["preflight"]
+    split = config["split"]
+    assert isinstance(selection, dict)
+    assert isinstance(stage2a, dict)
+    assert isinstance(preflight, dict)
+    assert isinstance(split, dict)
+    persistence = selection["persistence"]
+    assert isinstance(persistence, dict)
+    return {
+        "version": "e018-p1-d049-conditional-evaluation-gate/v1",
+        "status": (
+            "implementation-go-formal-hold-until-final-source-r2-and-preflight"
+        ),
+        "authority": "user-authorized-b-level-offline-no-actuation-decision-agent",
+        "experiment": {
+            "id": config["experiment"]["id"],
+            "config_version": config["version"],
+            "gate": "D049-R2",
+            "classification": config["experiment"]["classification"],
+            "exact_go_token": config["experiment"]["exact_go_token"],
+            "same_identity_rerun_allowed": False,
+        },
+        "selection_parent": {
+            "artifact_id": selection["artifact_id"],
+            "result_verification_sha256": selection[
+                "result_verification_sha256"
+            ],
+            "selection_summary_sha256": selection[
+                "selection_summary_sha256"
+            ],
+            "selected_gain": 0.10,
+            "selection_reason": selection["selection_reason"],
+            "replication_state": "REPLICATED",
+            "artifact_manifest_raw_sha256": persistence["manifest_raw_sha256"],
+            "artifact_manifest_internal_sha256": persistence[
+                "manifest_internal_sha256"
+            ],
+            "artifact_inventory_sha256": persistence[
+                "artifact_inventory_sha256"
+            ],
+            "drive_marker_raw_sha256": persistence["drive_marker_raw_sha256"],
+            "drive_marker_internal_sha256": persistence[
+                "drive_marker_internal_sha256"
+            ],
+            "drive_persistence_verification_sha256": persistence[
+                "drive_verification_internal_sha256"
+            ],
+            "local_canonical_verification_sha256": persistence[
+                "local_verification_internal_sha256"
+            ],
+            "inventory_record_canonical_sha256": persistence[
+                "inventory_record_canonical_sha256"
+            ],
+        },
+        "frozen_inputs": {
+            "selected_min_information_gain": 0.10,
+            "provider_write_threshold": stage2a["provider_write_threshold"],
+            "checkpoint_sha256": stage2a["checkpoint_sha256"],
+            "gain_reselection_allowed": False,
+            "checkpoint_change_allowed": False,
+            "threshold_change_allowed": False,
+            "oracle_or_taxonomy_change_allowed": False,
+        },
+        "preflight": {
+            "experiment_id": preflight["experiment_id"],
+            "exact_go_token": preflight["exact_go_token"],
+            "seed": preflight["seed"],
+            "formal_identity_consumed": False,
+            "formal_split_consumed": False,
+        },
+        "formal_split": {
+            "seed_start": split["seeds"][0],
+            "seed_end": split["seeds"][1],
+            "execution_order": split["execution_order"],
+        },
+        "phase_boundary": {
+            "pass_a_private_label_capture_count": 0,
+            "pass_a_private_label_open_count": 0,
+            "pass_a_runtime_object_gt_read_count": 0,
+            "pass_b_checkpoint_load_count": 0,
+            "pass_b_provider_forward_count": 0,
+            "pass_b_decision_change_count": 0,
+            "consumption_marker_before_first_gt_read": True,
+        },
+        "oracle_and_gate": {
+            "exact_recovery_comparison": (
+                "10*recovered_count >= 7*common_denominator_count"
+            )
+        },
+        "outcome_routing": {
+            "substantive_safety_failure": "safety-negative-continue-stage2b",
+            "stage2b_continuation_required_for_every_complete_outcome": True,
+        },
+        "permissions": {
+            "fresh_test_reads": 0,
+            "canonical_runtime_mutation": 0,
+            "physical_camera_actuation": 0,
+            "arm_tcp_actuation": 0,
+            "gripper_close": 0,
+            "manipulation_progression": 0,
+        },
+    }
+
+
 def _formal_go_receipt(
     *,
+    worker_parent: Path,
     execution_id: str = "stage2a-selected-gain-evaluation-formal-abc-77626-77650-20260906-v1",
 ) -> tuple[object, dict[str, str], str, dict[str, object]]:
     loaded = load_e018_p1_stage2a_evaluation_config(EVALUATION_CONFIG)
@@ -207,7 +311,7 @@ def _formal_go_receipt(
 
     preflight_roles = roles(preflight_mode)
     formal_roles = roles(formal_mode)
-    worker_root = Path("/root/robot-vla-runs/e018-active-front-reobserve") / execution_id
+    worker_root = worker_parent / execution_id
     receipt: dict[str, object] = {
         "version": "e018-p1-stage2a-d049-final-formal-go-receipt/v1",
         "decision_id": "D049",
@@ -355,18 +459,22 @@ def test_config_is_strict_and_has_frozen_identity(tmp_path: Path) -> None:
 
 def test_gate_verifier_exactly_binds_selection_reason(tmp_path: Path) -> None:
     loaded = load_e018_p1_stage2a_evaluation_config(EVALUATION_CONFIG)
+    config = copy.deepcopy(loaded.payload)
+    gate = _gate_record(config)
+    path = tmp_path / "gate.json"
+    path.write_text(json.dumps(gate, sort_keys=True), encoding="utf-8")
+    config["experiment"]["gate_record_raw_sha256"] = hashlib.sha256(
+        path.read_bytes()
+    ).hexdigest()
     assert evaluation_runtime._verify_gate_record(
-        gate_path=D049_GATE,
-        config=loaded.payload,
+        gate_path=path,
+        config=config,
     )["formal_execution_requires_final_go"] is True
 
-    gate = json.loads(D049_GATE.read_text())
     gate["selection_parent"]["selection_reason"] = (
         "max-recovered-count-then-larger-gain"
     )
-    path = tmp_path / "gate.json"
-    path.write_text(json.dumps(gate), encoding="utf-8")
-    config = loaded.payload
+    path.write_text(json.dumps(gate, sort_keys=True), encoding="utf-8")
     config["experiment"]["gate_record_raw_sha256"] = hashlib.sha256(
         path.read_bytes()
     ).hexdigest()
@@ -517,8 +625,13 @@ def test_evaluation_role_identities_are_isolated_from_preflight_and_selection() 
     assert len({formal, preflight, selection}) == 3
 
 
-def test_final_go_contract_binds_exact_source_config_preflight_and_roles() -> None:
-    loaded, source, parent, receipt = _formal_go_receipt()
+def test_final_go_contract_binds_exact_source_config_preflight_and_roles(
+    tmp_path: Path,
+) -> None:
+    worker_parent = tmp_path / "worker-artifacts"
+    loaded, source, parent, receipt = _formal_go_receipt(
+        worker_parent=worker_parent
+    )
     internal = evaluation_runtime._validate_formal_execution_go_receipt(
         receipt,
         loaded=loaded,
@@ -528,10 +641,7 @@ def test_final_go_contract_binds_exact_source_config_preflight_and_roles() -> No
     )
     assert internal == receipt["receipt_sha256"]
 
-    worker_root = (
-        Path("/root/robot-vla-runs/e018-active-front-reobserve")
-        / receipt["formal_execution"]["execution_id"]
-    )
+    worker_root = worker_parent / receipt["formal_execution"]["execution_id"]
     assert (
         evaluation_runtime._validate_formal_execution_go_receipt(
             receipt,
@@ -551,7 +661,7 @@ def test_final_go_contract_binds_exact_source_config_preflight_and_roles() -> No
             conditional_parent_verification_sha256=parent,
             expected_execution_id=receipt["formal_execution"]["execution_id"],
             expected_worker_artifact_root=(
-                Path("/different-parent") / worker_root.name
+                tmp_path / "different-parent" / worker_root.name
             ),
         )
 
