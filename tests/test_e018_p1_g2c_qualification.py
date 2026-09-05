@@ -232,11 +232,7 @@ def _formal_decision_receipt() -> dict[str, object]:
                 "calibration_result_verification_sha256"
             ],
             "d046_replicated_persistence": {
-                "artifact_id": qualification._D046_ARTIFACT_ID,
-                "status": "REPLICATED",
-                "local_verified_receipt_sha256": "a" * 64,
-                "drive_verified_receipt_sha256": "b" * 64,
-                "replicated_receipt_sha256": "c" * 64,
+                **qualification._D046_REPLICATED_PERSISTENCE,
             },
             "selected_checkpoint": config["parents"]["selected_checkpoint"],
         },
@@ -1064,6 +1060,37 @@ def test_d048_receipt_binds_three_segment_conservative_budget_and_resigning(
     with pytest.raises(RuntimeError, match="formal decision receipt"):
         qualification._validate_g2c_formal_execution_decision_receipt(
             tampered,
+            config=config,
+            qualification_config_raw_sha256=qualification.file_sha256(CONFIG_PATH),
+            expected_source_git_commit="4" * 40,
+            expected_source_identity_sha256="5" * 64,
+        )
+
+
+@pytest.mark.parametrize(
+    "identity_field",
+    (
+        "drive_persistence_receipt_raw_sha256",
+        "drive_persistence_receipt_internal_sha256",
+        "replication_verification_sha256",
+        "completion_marker_raw_sha256",
+        "completion_marker_internal_sha256",
+    ),
+)
+def test_d048_rejects_resigned_d046_persistence_identity_drift(
+    identity_field: str,
+) -> None:
+    config = load_g2c_dynamic_qualification_config(CONFIG_PATH)
+    receipt = _formal_decision_receipt()
+    persistence = receipt["parent_identities"]["d046_replicated_persistence"]
+    persistence[identity_field] = "0" * 64
+    receipt["receipt_sha256"] = canonical_sha256(
+        {key: value for key, value in receipt.items() if key != "receipt_sha256"}
+    )
+
+    with pytest.raises(RuntimeError, match="formal decision receipt"):
+        qualification._validate_g2c_formal_execution_decision_receipt(
+            receipt,
             config=config,
             qualification_config_raw_sha256=qualification.file_sha256(CONFIG_PATH),
             expected_source_git_commit="4" * 40,

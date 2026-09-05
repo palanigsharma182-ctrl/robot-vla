@@ -132,9 +132,11 @@ _FORMAL_DECISION_PARENT_KEYS = {
 _FORMAL_DECISION_PERSISTENCE_KEYS = {
     "artifact_id",
     "status",
-    "local_verified_receipt_sha256",
-    "drive_verified_receipt_sha256",
-    "replicated_receipt_sha256",
+    "drive_persistence_receipt_raw_sha256",
+    "drive_persistence_receipt_internal_sha256",
+    "replication_verification_sha256",
+    "completion_marker_raw_sha256",
+    "completion_marker_internal_sha256",
 }
 _FORMAL_DECISION_SMOKE_KEYS = {
     "experiment_id",
@@ -312,6 +314,25 @@ _ARTIFACT_ACCOUNTING_KEYS = {
     "accounting_sha256",
 }
 _D046_ARTIFACT_ID = "g2c-calibration-phase-b-score-calibrate-d046-4158a02-20260905-v1"
+_D046_REPLICATED_PERSISTENCE = {
+    "artifact_id": _D046_ARTIFACT_ID,
+    "status": "REPLICATED",
+    "drive_persistence_receipt_raw_sha256": (
+        "5837dd74536ac9795625a5defb5157715b20cd20cc700f9fb9a60ca1e0038a59"
+    ),
+    "drive_persistence_receipt_internal_sha256": (
+        "192c4b2a8370f32c1ea748283bebc03d096cf93b44d7c798d20a229e26ed3cdc"
+    ),
+    "replication_verification_sha256": (
+        "20b3552489bb33e1081e8d90d2a65317a3be807442c3b8c0980a8082256c5d20"
+    ),
+    "completion_marker_raw_sha256": (
+        "fe5ddf258a630e578b877170cd05460b0ff3f2fbc5ed17eb472003a970973530"
+    ),
+    "completion_marker_internal_sha256": (
+        "47021fc7217092992e6326744f6ea20dfd7f0ab0b908d4907b25bec511d456be"
+    ),
+}
 _PROVIDER_RAW_PREDICTION_KEYS = {
     "version",
     "phase",
@@ -962,9 +983,6 @@ def _validate_g2c_formal_execution_decision_receipt(
         "object_contact_event_count": 0,
     }
     sha_fields = [
-        persistence.get("local_verified_receipt_sha256"),
-        persistence.get("drive_verified_receipt_sha256"),
-        persistence.get("replicated_receipt_sha256"),
         *(
             smoke.get(name)
             for name in (
@@ -1038,8 +1056,7 @@ def _validate_g2c_formal_execution_decision_receipt(
             "identity_sha256": expected_source_identity_sha256,
         }
         or any(parents.get(name) != value for name, value in expected_parent_subset.items())
-        or persistence.get("artifact_id") != _D046_ARTIFACT_ID
-        or persistence.get("status") != "REPLICATED"
+        or persistence != _D046_REPLICATED_PERSISTENCE
         or any(not _is_sha256(value) for value in sha_fields)
         or smoke.get("experiment_id") != "E018-P1-G2C-D047-PREFLIGHT"
         or smoke.get("seed") != 76801
