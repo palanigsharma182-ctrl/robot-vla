@@ -1,11 +1,11 @@
 # E018-P1-G2C Front Provider Adaptation 实验计划书
 
-> 状态：`model-selection-pass / calibration-runner-go / formal-calibration-hold / development-only`
+> 状态：`model-selection-pass / calibration-phase-a-go / calibration-phase-b-hold / development-only`
 > 日期：2026-09-05
 > Experiment ID：`E018-P1-G2C-FRONT-PROVIDER-ADAPTATION-DEVELOPMENT/v1`
 > Data identity：`E018-P1-G2C-DATA/v1`
 > Train identity：`E018-P1-G2C-TRAIN/v1`
-> Decision Gate：[`D036`、`D037`、`D038`、`D039`、`D040`、`D041`、`D042`、`D043`、`D044`](decisions.md)
+> Decision Gate：[`D036`、`D037`、`D038`、`D039`、`D040`、`D041`、`D042`、`D043`、`D044`、`D045`](decisions.md)
 > 上位计划：[`E018-P1 三阶段主动视觉闭环`](e018_p1_three_stage_active_vision_closed_loop_plan.md)
 
 > 2026-09-05 DATA Gate：`E018-P1-G2C-DATA/v1` 已通过独立 verifier 与 R2，接受为 canonical
@@ -60,11 +60,13 @@
 > 收益、闭环或 actuator 安全。
 
 > 2026-09-05 calibration source Gate：D044 冻结 selected checkpoint、独立 calibration split 与逐视角
-> covariance/write-threshold 口径。当前源码只有单视角数学 helper 和基础测试，尚无正式 split staging、
-> prediction-before-label runner、一次性消费状态或 no-label public verifier。因此现在只放行最小 runner
-> 实现、targeted tests 和不读取 canonical calibration label 的 engineering smoke；`76601..76650` 的
-> deployable/privileged staging、正式 inference 和 label open 仍须新的 exact-source R2 GO。qualification、
-> fresh test、Object Memory、active loop、canonical runtime 和全部 actuator 继续 HOLD。
+> covariance/write-threshold 口径。calibration-only runner、prediction-before-label freeze、非自指 Drive
+> persistence、一次性消费状态和 no-label public verifier 已实现。exact-clean execution source
+> `4158a02c081635ef6753c49372c460151d6cfa0a` 已通过远端 RTX regression/smoke 与决策 Agent
+> 独立 R2；包括“1/50 nonfinite conformity score 不得隐藏在 alpha tail”反例。D045 现在只放行
+> `76601..76650` 的 50 个 deployable bundles staging、冻结 checkpoint 的 550-row Phase A inference、
+> no-label verifier 和 Phase A Drive 持久化。privileged staging/label open、Phase B calibration、
+> qualification、fresh test、Object Memory、active loop、canonical runtime 和全部 actuator 继续 HOLD。
 
 本实验是 E018 Stage 2 的上游 provider 资格实验。它只回答“受限动态 front 视角是否能产生可部署语义的
 object measurement”，不评价 Active 相对 Passive 的任务收益，也不授予 canonical runtime、机械臂、夹爪、

@@ -2948,11 +2948,130 @@ verifier 执行链，可在不消费唯一 calibration label 的前提下发现�
 - 把 10/10 model-validation eligible 直接当作动态 qualification：没有运动、covariance 与 write-safety 证据，
   拒绝。
 
-**Implementation status:** D043 selection 与 Drive persistence 已通过；calibration protocol 已冻结，等待
-calibration-only runner implementation、tests、no-label smoke 和新 exact-source R2。正式 calibration 及其后续
-全部 HOLD。
+**Implementation status:** D043 selection 与 Drive persistence 已通过；calibration protocol 已冻结。
+calibration-only runner、tests 和 no-label smoke 已在 exact-clean source `4158a02...` 上通过独立 R2，
+并由 D045 接管 deployable-only Phase A 执行 Gate。privileged staging、Phase B calibration 及其后续
+全部仍 HOLD。
 
-**Status:** calibration-runner-implementation-go / formal-calibration-hold
+**Status:** calibration-runner-implementation-pass / handed-off-to-D045
+
+## D045 — 放行 G2C calibration 的 deployable-only Phase A prediction freeze
+
+**Decision:**
+
+D044 授权的 calibration-only execution chain 已完成并通过 exact-source R2。唯一执行源冻结为：
+
+```text
+git commit:          4158a02c081635ef6753c49372c460151d6cfa0a
+git tree:            31f44e7543a01022d935efd158757e593a86bf15
+source_tree_sha256:  0c1a4a48fa8ab50b19d8ba0b7af027ae42a92aa02e7e404a7806149835e2b757
+source_identity:     646ff1dafe145edea3414e8074e39c931e2b7723452b6d7725e2aee188922648
+config raw SHA:      b2ff7ee79a87a65bc080c5b5411a8989971fd262ad8226f8f51b1f055937f75f
+config internal SHA: 98a5727766cfe46f133bc4945d154be58da52be8c7d341e0d857c84a65aeaa74
+```
+
+远端 exact-clean RTX 6000 Ada 证据为 Ruff 0.16、`py_compile`、`git diff --check` 与 clean-tree
+全部 exit 0；109 项 G2C Torch regression 全部通过。最终 synthetic GPU smoke 为 550 prediction
+rows / 550 synthetic scoring rows / 18 forward batches，GPU/wall 用时 `3.154/5.62 s`，artifact
+`1,997,190 B`，summary SHA `c65319f2...198e08`，selected checkpoint identity 匹配；1/50 singular
+PSD 且零方差方向存在非零误差时稳定 `calibration-no-go`。canonical calibration deployable/
+privileged read、test、Memory、actuation 和 checkpoint write 均为 0。Decision Agent 又在同一
+commit/tree 上独立执行 34 个关键 calibration/persistence/negative-counterexample tests，exit 0。
+
+因此放行 `E018-P1-G2C-CALIBRATION-PHASE-A/v1`，且只允许以下链路：
+
+1. 在上述 source 的 detached/clean checkout 上，从已接受 `G2C-DATA/v1` 准备 calibration
+   deployable input view；
+2. 机械验收 50 个 seed `76601..76650`、50 个 deployable bundles、11 viewpoints/seed 和
+   550 rows；
+3. 只加载 D043 冻结的 `W-KV0` epoch-15 checkpoint，按 `[32] * 17 + [6]` 执行恰好
+   18 个 forward batches，产生恰好 550 条 prediction rows；
+4. 销毁 model/inference context 并清理 CUDA cache 后，冻结 9 个 prediction artifacts 与独立
+   `prediction_freeze.json`，再运行不接 model/checkpoint/DATA/label path 的 public no-label verifier；
+5. 把上述 10-file exact prediction-freeze tree 按已实现的非自指流程完成 Drive 持久化。
+
+Phase A 父 identity 不变：DATA identity/deployable inventory 为 `07919f41...1cfa3` /
+`c2067d89...36516`；selected checkpoint/parameter/provenance SHA 为 `97e3b728...d3d77` /
+`1ba14a90...cb24` / `8116f273...3252c`；selection receipt raw/internal 和 verification SHA 为
+`a961d18d...64bd` / `f8874dc6...b773` / `1aee923b...e91a`。本 D045 docs-only commit 只记录
+授权，不得代替上述 `4158a02...` execution source。
+
+Phase A 固定计数为：
+
+```text
+selected checkpoints:                         1
+calibration unique deployable bundles:        50
+calibration deployable bundle opens:          50
+calibration prediction rows:                  550
+model forward batches:                        18 = 17x32 + 6
+privileged label opens before/after freeze:   0 / 0
+calibration scoring rows/view calibrations:   0 / 0
+test/Memory/actuation/checkpoint writes:       0
+```
+
+Drive 持久化必须按固定顺序完成：对 10-file exact tree 执行 immutable copy 和 pre-marker
+artifact `rclone check --one-way --checksum --combined`；在 exact tree 之外生成不自指的
+`DRIVE_BACKUP_COMPLETE.json` 并用 `copyto --immutable` 上传；再分别执行 10-file
+post-marker artifact check 与 1-file marker-only check；最后才在 exact tree 之外生成
+`phase_a_persistence_receipt.json`。final receipt 必须绑定三份 check 原始/内部 SHA、marker
+原始/内部 SHA、freeze/source/config/remote identity，三次 check 都必须 exit 0、zero differences。
+
+任一下列情况立即 fail closed 并保留完整现场：
+
+- execution commit/tree/source/config、DATA/TRAIN/selection/checkpoint 或 input manifest/SHA 漂移；
+- output 已存在、非 regular file、symlink/hardlink、exact tree 出现额外文件，或 atomic freeze 失败；
+- 50/550/18 计数、顺序、batch sizes、checkpoint identity 或 context-destroy 证据不符；
+- 准备/挂载/打开任何 privileged calibration input，或 privileged/test/Memory/canonical runtime/
+  physical camera/arm/gripper/manipulation/checkpoint-write 计数非零；
+- Phase A GPU 用时超过 1 hour、全部 calibration artifact 超过 5 GiB，或 public/persistence verifier
+  非零退出；
+- Drive remote identity 漂移、完成 marker 污染 prediction-freeze exact tree、任一 check 有差异，
+  或 receipt 在两份 post-check 之前生成。
+
+Phase A 失败发生在 label 打开前，不消费 calibration label，但仍必须冻结 failed
+artifact/console 并返回新 Gate；不得覆盖、手工修补后继续或跳过 verifier。仅当
+prediction freeze、public verifier、Drive persistence receipt 和 Decision Agent 独立 R2 全部通过后，
+才能建立 D046 考虑 `prepare-privileged-input` 和 one-shot Phase B。
+
+本 Gate 明确 HOLD：`prepare-privileged-input`、任何 calibration label path/array open、550-row
+scoring、11 个 per-view calibration、threshold/covariance 结果、dynamic qualification、fresh test、Object
+Memory、information-gain/active-loop integration、canonical runtime 及任何 canonical/physical actuator。
+
+本 Gate 的精确 GO 文句为：
+
+> GO — 工程 Agent 可以且只可以在 exact-clean `4158a02c081635ef6753c49372c460151d6cfa0a`
+> source 上，对 calibration seeds `76601..76650` 准备 50 个 deployable-only bundles，仅用 D043
+> 冻结的 `W-KV0` epoch-15 checkpoint 执行 550-row/18-batch Phase A prediction freeze，运行 public
+> no-label verifier，并按非自指 immutable-copy/check/marker/post-check/receipt 协议完成 Drive
+> 持久化。privileged staging/label open、Phase B score/calibrate、qualification、fresh test、Memory、
+> active loop、canonical runtime 和全部 actuator 仍然 HOLD。
+
+当前唯一允许的结论是：“冻结 selected checkpoint 的 canonical calibration deployable predictions 已获得
+执行授权；若 Phase A 和 Drive R2 通过，只证明 550 条预测在 privileged label 不可达时被完整
+冻结和持久化。”不得声称 provider 已校准、某视角已 qualified、Active 优于 Passive、
+Memory 有收益、闭环成功或可部署。
+
+**Reason:**
+
+D044 的实现与对抗测试已消除打开唯一 calibration label 前的主要工程风险：它把
+deployable prediction、privileged scoring 和持久化分成单向 Gate，并防止一个 nonfinite conformity
+score 被 95% 分位数掩盖。但 calibration label 是 one-shot evidence，所以先单独执行 Phase A 并将
+预测的时间、身份和字节冻结到 Drive，能在零 label 消费的前提下发现 canonical input、
+checkpoint、CUDA、artifact 或 persistence 问题，并为后续一次性 Phase B 提供可验证的不可变 parent。
+
+**Alternatives considered:**
+
+- 同时准备 deployable 与 privileged input：扩大 label 可达面并破坏 prediction-before-label 边界，拒绝。
+- Phase A 后不做 Drive 验证就直接 Phase B：唯一 predictions 仍可能因 worker 丢失或字节漂移而
+  不可审计，拒绝。
+- 把 completion marker 放进 prediction-freeze tree 或让 marker 记录自身 post-check/hash：导致 exact tree
+  污染或自引用 hash 不动点，拒绝。
+- 在 Phase A 查看部分 privileged row 来“确认值正常”：提前消费 calibration evidence 并引入
+  选择性重跑，拒绝。
+
+**Implementation status:** exact-source R2 pass；formal deployable-only Phase A 待执行。
+
+**Status:** calibration-phase-a-execution-go / calibration-phase-b-hold
 
 ## 新决策模板
 
