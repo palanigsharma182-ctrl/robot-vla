@@ -9,8 +9,8 @@ import os
 import platform
 import subprocess
 import tempfile
-from pathlib import Path
 from collections.abc import Callable, Mapping, Sequence
+from pathlib import Path
 from typing import Any
 
 import numpy as np

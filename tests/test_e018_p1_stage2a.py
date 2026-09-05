@@ -33,22 +33,22 @@ from robot_vla.precision.active_front_reobserve import (
 )
 from robot_vla.precision.calibrated_front_provider import canonical_sha256
 from robot_vla.precision.e018_p1_stage2a import (
+    _STAGE2A_COMPLETE_ARTIFACT_FILES,
     STAGE2A_INTEGRATION_SMOKE_GO,
     Stage2AActionHistoryRuntime,
     Stage2AExecutionProgress,
-    _STAGE2A_COMPLETE_ARTIFACT_FILES,
     _array_sha256,
     _build_observation_v2_window_identity,
     _new_stage2a_replay_controller,
     _record_stage2a_failure_evidence,
     _stage2a_episode_id,
+    _stage2a_safety_evidence_record,
     _verify_stage2a_camera_authorization,
     _verify_stage2a_controller_receipt,
     _verify_stage2a_exact_file_tree,
     _verify_stage2a_safety_record,
     _verify_stage2a_source_recheck_identity,
     _verify_stage2a_trigger_replay,
-    _stage2a_safety_evidence_record,
     build_absent_wrist_capability_record,
     build_trigger_evidence_from_capability,
     home_observation_payload_identity,
@@ -59,7 +59,6 @@ from robot_vla.precision.e018_p1_stage2a import (
     verify_stage2a_observation_v2_window_identity,
 )
 from robot_vla.precision.object_memory import ObjectMemoryMode, ObjectState
-
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 STAGE2_CONFIG = (

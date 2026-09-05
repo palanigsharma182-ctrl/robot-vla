@@ -10,9 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-import os
 import platform
-import tempfile
 import time
 import traceback
 from collections.abc import Mapping, Sequence
@@ -76,9 +74,7 @@ from robot_vla.precision.active_front_reobserve import (
     HomeV2BarrierFrame,
     Stage2MemoryCandidateReceipt,
 )
-from robot_vla.precision.calibrated_front_provider import (
-    canonical_sha256,
-)
+from robot_vla.precision.calibrated_front_provider import canonical_sha256
 from robot_vla.precision.e018_p1_g2a import file_sha256
 from robot_vla.precision.e018_p1_g2c_data import (
     FRONT_ALTERNATE_IDS,
@@ -101,8 +97,6 @@ from robot_vla.precision.object_memory import (
     ObjectMemorySafetyContext,
     ObjectState,
 )
-from robot_vla.precision.object_observability import ObjectWriteEvidence
-
 
 E018_P1_STAGE2A_CONFIG_VERSION = (
     "e018-p1-stage2a-primary-memory-development/v1"
@@ -763,7 +757,7 @@ def _object_state_from_snapshot(snapshot: Mapping[str, Any]) -> ObjectState:
     payload = dict(snapshot)
     reasons = payload.get("invalid_reasons")
     if not isinstance(reasons, (list, tuple)):
-        raise ValueError("ObjectState snapshot invalid_reasons 必须是 sequence")
+        raise TypeError("ObjectState snapshot invalid_reasons 必须是 sequence")
     payload["invalid_reasons"] = tuple(reasons)
     return ObjectState(**payload)
 
@@ -2513,7 +2507,7 @@ def verify_stage2a_action_history_audit(
     bundle_sha256 = canonical_sha256(home_bundle)
     window_identity = home_bundle["observation_v2_window"]
     if not isinstance(window_identity, dict):
-        raise ValueError("fresh HOME bundle 缺 Observation V2 window identity")
+        raise TypeError("fresh HOME bundle 缺 Observation V2 window identity")
     window_primitive = dict(window_identity)
     window_digest = window_primitive.pop("window_sha256", None)
     identity_fields = (
@@ -2941,8 +2935,10 @@ class Stage2ARouteTransaction:
             controller=self.trigger_controller,
         )
 
-        if frame_index > 0 and frame_index not in STAGE2A_HOME_BARRIER_FRAME_INDICES:
-            if not self.trigger_controller.observe_safety(
+        if (
+            frame_index > 0
+            and frame_index not in STAGE2A_HOME_BARRIER_FRAME_INDICES
+            and not self.trigger_controller.observe_safety(
                 safety,
                 camera_at_home=bool(
                     row["camera_motion_state"]
@@ -2952,8 +2948,9 @@ class Stage2ARouteTransaction:
                     }
                     and _stage2a_pose_at_home(row)
                 ),
-            ):
-                raise RuntimeError("Stage 2A route safety witness fail-closed")
+            )
+        ):
+            raise RuntimeError("Stage 2A route safety witness fail-closed")
 
         if frame_index in STAGE2A_PROVIDER_FRAME_INDICES:
             record = self._provider_frame(row, rgb)
@@ -4196,7 +4193,7 @@ def _read_stage2a_json(path: Path, name: str) -> dict[str, Any]:
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
         raise RuntimeError(f"{name} 不是有效 JSON") from error
     if not isinstance(value, dict):
-        raise RuntimeError(f"{name} 必须是 JSON object")
+        raise TypeError(f"{name} 必须是 JSON object")
     return value
 
 
@@ -4523,7 +4520,7 @@ def _provider_record_from_dict(value: Mapping[str, Any]) -> Stage2AProviderOutpu
     row = _require_exact_keys(dict(value), expected, "Stage 2A provider ledger row")
     identity_value = row["provider_identity"]
     if not isinstance(identity_value, dict):
-        raise ValueError("provider ledger full identity 缺失")
+        raise TypeError("provider ledger full identity 缺失")
     identity = ActiveFrontStage2ProviderIdentity(**identity_value)
     if row["provider_identity_sha256"] != identity.sha256:
         raise ValueError("provider ledger identity digest 漂移")
@@ -5234,7 +5231,7 @@ def _verify_stage2a_candidate_binding(
             raise ValueError("Stage 2A rejected candidate identity 漂移")
         return receipt
     if not isinstance(candidate, dict):
-        raise ValueError("Stage 2A candidate 必须是 object 或 None")
+        raise TypeError("Stage 2A candidate 必须是 object 或 None")
     candidate = _require_exact_keys(
         candidate,
         {
@@ -5680,8 +5677,10 @@ def verify_e018_p1_stage2a_integration_smoke(
                 safety_values[frame_index],
                 controller=controller,
             )
-            if frame_index > 0 and frame_index not in STAGE2A_HOME_BARRIER_FRAME_INDICES:
-                if not controller.observe_safety(
+            if (
+                frame_index > 0
+                and frame_index not in STAGE2A_HOME_BARRIER_FRAME_INDICES
+                and not controller.observe_safety(
                     safety,
                     camera_at_home=bool(
                         row["camera_motion_state"]
@@ -5691,8 +5690,9 @@ def verify_e018_p1_stage2a_integration_smoke(
                         }
                         and _stage2a_pose_at_home(row)
                     ),
-                ):
-                    raise RuntimeError("Stage 2A replay 遇到未宣告 safety failure")
+                )
+            ):
+                raise RuntimeError("Stage 2A replay 遇到未宣告 safety failure")
 
             replay_events: list[
                 tuple[
