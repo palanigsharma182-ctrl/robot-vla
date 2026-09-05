@@ -1,11 +1,11 @@
 # E018-P1-G2C Front Provider Adaptation 实验计划书
 
-> 状态：`protocol-frozen / implementation-in-progress / development-only`
+> 状态：`formal-train-go / model-validation-hold / development-only`
 > 日期：2026-09-05
 > Experiment ID：`E018-P1-G2C-FRONT-PROVIDER-ADAPTATION-DEVELOPMENT/v1`
 > Data identity：`E018-P1-G2C-DATA/v1`
 > Train identity：`E018-P1-G2C-TRAIN/v1`
-> Decision Gate：[`D036`、`D037`、`D038`](decisions.md)
+> Decision Gate：[`D036`、`D037`、`D038`、`D039`](decisions.md)
 > 上位计划：[`E018-P1 三阶段主动视觉闭环`](e018_p1_three_stage_active_vision_closed_loop_plan.md)
 
 > 2026-09-05 DATA Gate：`E018-P1-G2C-DATA/v1` 已通过独立 verifier 与 R2，接受为 canonical
@@ -15,6 +15,13 @@
 > 为 `0bd4c2c6dd008889f9c02bb09e050d65b98d97620acbc8bfa5d225f1ed16e99d` /
 > `0b52c3f1463087ad04275237c4567e656e698ab1043991b11d6c41d6711aa383`。当前允许 Drive 持久化和 TRAIN
 > runner 实现；正式训练仍需新 source R2 GO。
+
+> 2026-09-05 TRAIN Gate：C1′ exact-clean source 已通过独立 R2；D039 只放行 `prepare-train-input` 与
+> W-KV0/S FORMAL TRAIN。唯一 execution source 是
+> `46e816469661ad7485f6ac7de534c031d70a6138`，source identity 是
+> `a7944bf488dba91302173cf3865861a7b049d0692aaa6549fd4d17ab649674a3`。包含 D039 的 C2 docs commit 只记录
+> 决策，不能作为执行 source。`prepare-model-val-deployable-input`、Phase A、privileged staging、Phase B、
+> calibration、qualification、fresh test、Memory、closed-loop 和 actuator 全部继续 HOLD。
 
 本实验是 E018 Stage 2 的上游 provider 资格实验。它只回答“受限动态 front 视角是否能产生可部署语义的
 object measurement”，不评价 Active 相对 Passive 的任务收益，也不授予 canonical runtime、机械臂、夹爪、
@@ -358,8 +365,10 @@ qualification 只运行一次。无 eligible checkpoint、无可校准 viewpoint
 5. 运行 4-seed、无持久 checkpoint smoke；
 6. 在 full-data 前停止，提交 DATA/sampling/label/identity evidence 给决策 Agent 做一次 R2 抽样；
 7. R2 通过后收集 full DATA 并冻结 receipt；
-8. 由 receipt 机械冻结 train config，训练 W-KV0/S；
-9. 冻结 checkpoint selection，再做 calibration；
+8. 由 receipt 机械冻结 train config；D039 当前只允许在 exact source 上准备 train input、训练 W-KV0/S 并
+   运行只读 formal verifier；
+9. Decision Agent 验收 8 个 checkpoint、companion、trace、resume、预算、权限和 artifact tree 后，另行决定
+   是否放行 model-validation Phase A；冻结 checkpoint selection 后才可另行放行 calibration；
 10. 冻结 calibration/threshold 后执行一次 qualification；
 11. verifier、Drive/local 持久化和 evidence packet 完成后才关闭本 Gate。
 

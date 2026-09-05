@@ -2082,6 +2082,191 @@ receipt 被机械绑定，避免训练代码在 label 可达性、checkpoint fre
 
 **Status:** active
 
+## D039 — 放行 G2C-TRAIN/v1 的正式训练，并保持后续单向 Gate 冻结
+
+**Decision:**
+
+依据 D035 的 B 级代决授权、D036–D038 冻结协议、C1′ exact-clean source 的独立 R2 审查、完整测试和
+4-seed engineering smoke，放行 `E018-P1-G2C-TRAIN/v1` 的 `prepare-train-input` 与 W-KV0/S
+FORMAL TRAIN。该 GO 只覆盖 simulation、development-only、no-actuation 的 train split；训练后的只读
+verifier 是本 Gate 的必要验收步骤，不构成对下一实验阶段的放行。
+
+本 Gate 的研究假设保持为：front-domain supervised adaptation 可能使至少一个 G0C 已通过运动门禁的
+non-HOME front alternate 达到冻结的 object provider 门槛。本次 TRAIN Gate 只能验证两个预注册候选是否按
+冻结身份、预算和隔离合同产生完整候选 checkpoint，不能读取 model-validation label，也不能判断假设成立。
+
+Control/treatment 与自变量固定为：
+
+```text
+CONTROL-E016-EPOCH12:
+  exact E016 selected epoch-12 role substitution
+  本 Gate 不执行 CONTROL inference，不计算 validation loss，不参与 eligibility/ranking
+
+W-KV0:
+  E016 epoch-12 warm start
+  仅将 final uncertainty Linear 的全部 keypoint-logvariance output rows 的 weight/bias 确定性置零
+
+S:
+  相同 PrecisionThreeHeadUNet 架构，random initialization
+
+唯一 treatment 自变量：initialization
+```
+
+两个 treatment 共享 train rows、模型/loss/坐标/时间语义、optimizer、scheduler、precision、batch、epoch、
+sampler order 和 checkpoint 规则。Motion Head 保持 frozen-zero/shadow-only；Qwen、Action Expert、VLA Action、
+Observation V2、Dataset schema、label、viewpoint、threshold、正式 success/failure 和 test-once 边界均不变。
+
+唯一允许的执行 source 是 detached、exact-clean：
+
+```text
+execution source git commit:
+  46e816469661ad7485f6ac7de534c031d70a6138
+execution source identity:
+  a7944bf488dba91302173cf3865861a7b049d0692aaa6549fd4d17ab649674a3
+
+tracked TRAIN config:
+  configs/e018_p1_g2c_front_provider_training_development_v1.json
+config raw SHA:
+  e58bfd38ec27cde9c68af72a790474e137e0d5a7f6da8812b8f0156680ba7948
+config internal SHA:
+  6719acdfb95b1780bb6779ff48471bf78823ea062abb3f097d2564bcd0e203ab
+```
+
+D039/C2 是 docs-only 决策记录。包含本决策的后续文档 commit 不是、也不得被解释为 execution source；worker
+不得 checkout、cherry-pick 或复制该文档 commit 后运行实验。commit、source identity 或 tracked-tree
+cleanliness 任一不等于上述冻结值时 fail closed。
+
+accepted DATA parent 继续机械绑定为：
+
+```text
+DATA source commit:
+  b84536279fc751e65b9f685d951c4f77043f675c
+DATA source identity:
+  f226b1f66c775ae8ff86a2111f0ff9b0f15aaab97155b2aa9f9096752253a39c
+DATA config SHA:
+  56718c0611fc620ccfb767141d8d0867ea5d03806348396d0a2e201fbff3d5de
+DATA identity:
+  07919f413224fba797d4c12df25e2d5aec8ded8213e3283a07feed282701cfa3
+DATA receipt raw/internal SHA:
+  0bd4c2c6dd008889f9c02bb09e050d65b98d97620acbc8bfa5d225f1ed16e99d
+  0b52c3f1463087ad04275237c4567e656e698ab1043991b11d6c41d6711aa383
+deployable/privileged manifest raw SHA:
+  5f99d3bc56381926061d61e2f1a07aea6c4655dcdd60b7b743b323c24697dff7
+  08a7e126a176936366f17688eacc6574412901ed171b5af405e8a91f7e93036c
+```
+
+model parent 固定为：
+
+```text
+E016 checkpoint/model file SHA:
+  c0be8769f75e4b991daa3a71878df72d2e2aaad70b5139abb4190512d6110552
+E016 checkpoint parameter SHA:
+  0d84e3fbf56445a0b6cbfabf46643abce6b8ddd6c152e0534a1870b88eeeaed6
+E016 checkpoint provenance SHA:
+  f25d876c2cf0b670b22e4c09aa561ff4190704411a4c053a089a9bc05804fed2
+E016 checkpoint model-config SHA:
+  4a284a59c8c6d1865910d333597b565183f4d455af520e5edad5a79d5c67d053
+E016 experiment config SHA:
+  4b469e1abcab1cb2289a75797b683adb8719e5f510e23681a20a35d9ff10908b
+source/target physical camera UID:
+  hand_camera -> base_camera
+```
+
+正式训练输入只能是 accepted DATA 的 train split `76001..76400`：400 seeds、4400 rows。随机性、预算和
+checkpoint 规则冻结为：
+
+```text
+shared sampler seed:       18020
+W-KV0 initialization/run:  18021
+S initialization/run:      18022
+
+AdamW: lr=3e-4, weight_decay=1e-4
+gradient clip: 1.0
+cosine eta_min: 1.5e-5
+BF16 autocast + float32 loss
+batch_size=32, num_workers=0, drop_last=false
+spatial augmentation=false
+
+20 epochs/candidate; 40 model-epochs total
+138 batches/epoch
+2760 optimizer steps/candidate; 5520 total
+88000 examples/candidate; 176000 total
+checkpoint epochs: 5, 10, 15, 20
+8 immutable checkpoints total: W-KV0/S x 4 epochs
+GPU cumulative active wall time across all resume attempts <= 10 h
+data + artifact bytes <= 20 GiB (21474836480 bytes)
+```
+
+每个 checkpoint 必须同时冻结 model file、immutable training-state companion、parameter/provenance/model-config
+SHA、epoch trace、optimizer/scheduler/RNG/sampler state 和累计 active GPU 高水位。每个 treatment 的
+`checkpoint_inventory.json`、`resume_state.pt` 和完整 20-epoch trace 必须交叉一致；resume 不得重置 GPU
+预算、采样顺序、计数或 identity。已有 output 拒绝覆盖，只有显式恢复同一 identity 的原运行可以使用
+`--resume`。
+
+本 Gate 明确禁止准备、挂载或读取 model-validation deployable/privileged input、calibration、qualification、
+fresh test 或 E016 val/test；禁止 Phase A prediction freeze、Phase B score/select 和 CONTROL inference；禁止
+Goal/Object Memory 读写、canonical runtime、物理/运行时相机控制、arm motion、gripper close、contact-driven
+manipulation progression 或任何 actuator。允许的 simulator 行为只有训练数据的离线读取与 GPU 拟合，本
+Gate 不采集新轨迹。
+
+出现以下任一条件立即停止、保留现场并回到 Decision Agent，不通过重跑或放宽规则规避：
+
+- loss、gradient、pre/post-clip norm、参数或 optimizer state 出现 nonfinite；
+- GPU 累计 active 时间或 20 GiB data+artifact 预算达到/超过上限；
+- source/config/DATA/model-parent/checkpoint/resume identity 漂移；
+- train input role、数量、SHA、camera UID、regular-file、hardlink/symlink 或不可覆盖约束违规；
+- model-validation、calibration、qualification、test、Memory、runtime、camera actuation、arm、gripper 或
+  manipulation 任一禁止访问/命令计数非零；
+- 两 treatment 的 sampler order 不完全相同，或 initialization/run RNG 未隔离；
+- Motion Head 不再 frozen-zero，或非目标参数发生不符合冻结协议的 reset；
+- 少于/多于 8 个 checkpoint，缺 companion/trace/inventory/resume/receipt，或 formal verifier 非零退出；
+- 进程异常后无法由冻结 resume 状态无身份漂移地恢复。
+
+TRAIN engineering PASS 必须同时满足：`prepare-train-input` receipt 完整绑定上述 source/config/DATA/input
+identity；W-KV0/S 各完成 20 epochs 和 2760 optimizer steps；8 个 checkpoint 及 companion、trace、inventory、
+resume 和 run receipt 完整且 SHA 自洽；sampler order 相同；全部数值 finite；预算内完成；所有禁止计数为
+零；独立 formal verifier exit 0。若候选 loss 不改善但协议完整，仍是 protocol-valid TRAIN completion，不能
+把 loss 曲线解释为 provider 效果，也不能在本 Gate 内改超参数。
+
+精确 GO 文句为：
+
+> GO — 工程 Agent 可以在美国 RTX 6000 Ada worker 的全新、拒绝覆盖运行目录中，以 detached
+> exact-clean `46e816469661ad7485f6ac7de534c031d70a6138` 和 source identity
+> `a7944bf488dba91302173cf3865861a7b049d0692aaa6549fd4d17ab649674a3`，仅执行
+> `prepare-train-input`，随后对 `W-KV0` 与 `S` 执行 `E018-P1-G2C-TRAIN/v1` FORMAL TRAIN，并运行
+> 只读 formal verifier。除此之外全部 HOLD。
+
+训练完成且本 Gate 通过只允许声明：“在冻结 source、accepted train data、两候选、预算和 no-actuation
+隔离合同下，已产生可进入独立 Phase A 审查的 8 个 front-domain candidate checkpoints。”不得声明任何
+checkpoint eligible、front provider 有效、active perception 优于 Passive、Memory 改善、任务成功率提升、
+闭环成立、actuator 安全或真实机器人可用。
+
+formal TRAIN 完成后必须先由 Decision Agent 对 8 checkpoint、companion、trace、resume、预算、权限计数和
+artifact tree 做独立 R2。只有新的显式 Phase A GO 才能运行 `prepare-model-val-deployable-input` 与 inference/
+prediction freeze；`prepare-model-val-privileged-input` 和 Phase B 仍需 Phase A freeze 后的另一显式 GO。
+
+**Reason:**
+
+C1′ 将 train、model-validation deployable 和 model-validation privileged staging 拆成三个 role-specific
+入口，全部在读取 source 前 fail closed，并把 privileged staging 机械绑定到 Phase A freeze/source identity。
+exact-clean source 已通过 49 项 targeted、73 项 combined、92 项 related、899 项 full-suite 测试，4-seed smoke
+的 W-KV0 row reset、shared sampler、prediction-before-label、resume/identity 和权限计数也通过；独立 verifier
+exit 0。因此正式 TRAIN 的剩余风险已能由冻结输入、预算、artifact 和停止条件覆盖，无需继续占用 GPU 做
+重复 smoke。同时，把后续 split 继续隔离可避免训练结果、validation label 和 checkpoint selection 形成反馈环。
+
+**Alternatives considered:**
+
+- 在 C2 docs commit 上直接训练：会使执行 source 与已审查 source 不一致，拒绝。
+- 同时准备 model-validation input 以节省时间：会提前扩大 label/deployable split 可达面，拒绝。
+- 先训练 W-KV0、看曲线后决定是否训练 S：破坏冻结 candidate pool 和公平预算，拒绝。
+- 训练中根据 loss 加 epoch、换 learning rate 或删除异常 batch：属于新的 B 级实验，拒绝在当前 identity 内做。
+- 训练完成后直接选 loss 最低 checkpoint：selection 必须等待冻结的 model-validation 单向 Gate，拒绝。
+
+**Implementation status:** D039/C2 仅记录 TRAIN-only GO；等待工程 Agent 在 exact source 上执行并返回 formal
+receipt。Phase A 及所有后续阶段保持 HOLD。
+
+**Status:** active
+
 ## 新决策模板
 
 ```markdown
