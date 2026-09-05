@@ -1,0 +1,166 @@
+{
+  "config_sha256": "6719acdfb95b1780bb6779ff48471bf78823ea062abb3f097d2564bcd0e203ab",
+  "data_parent": {
+    "data_config_sha256": "56718c0611fc620ccfb767141d8d0867ea5d03806348396d0a2e201fbff3d5de",
+    "data_identity_sha256": "07919f413224fba797d4c12df25e2d5aec8ded8213e3283a07feed282701cfa3",
+    "data_receipt_internal_sha256": "0b52c3f1463087ad04275237c4567e656e698ab1043991b11d6c41d6711aa383",
+    "data_receipt_raw_sha256": "0bd4c2c6dd008889f9c02bb09e050d65b98d97620acbc8bfa5d225f1ed16e99d",
+    "deployable_manifest_raw_sha256": "5f99d3bc56381926061d61e2f1a07aea6c4655dcdd60b7b743b323c24697dff7",
+    "privileged_manifest_raw_sha256": "08a7e126a176936366f17688eacc6574412901ed171b5af405e8a91f7e93036c",
+    "source_git_commit": "b84536279fc751e65b9f685d951c4f77043f675c",
+    "source_identity_sha256": "f226b1f66c775ae8ff86a2111f0ff9b0f15aaab97155b2aa9f9096752253a39c"
+  },
+  "decision": {
+    "data_acceptance": "D038",
+    "formal_train_execution": "HOLD-until-new-source-r2-go",
+    "model_val_execution": "HOLD-until-separate-go"
+  },
+  "input_inventories": {
+    "all_inventory_sha256": "301615537d350b42ec9fefb533a92b46e065ba2d8df7f62dc3f8e9f2cc300ebb",
+    "splits": {
+      "calibration": {
+        "deployable_inventory_sha256": "c2067d89e2cde7d57bada5723388eb29deb35757b62002f9dead2c1d2ed36516",
+        "paired_inventory_sha256": "a97e8634eed7ebaa80dbfebc639db63cf3e5704d7d529e19063e1a40c3bf1bb0",
+        "privileged_inventory_sha256": "24205efa88c0bae2df6c51992696fbefc69ea4c24be8d3e82eda5591d2d653f2",
+        "sample_count": 550,
+        "seed_count": 50,
+        "split": "calibration"
+      },
+      "model_val": {
+        "deployable_inventory_sha256": "bee09be0c104cc6d538b6961761647cf5ff8375f7e91917e97a25c461c8f30d9",
+        "paired_inventory_sha256": "e40bb604c49fe0aae32d9dc1739f7998afded25cf7b73c6b100eeebe39cd0647",
+        "privileged_inventory_sha256": "5c750db79b1a0b8b0c4c5a616cd6a51cd6f86317c560629fcda0890077e85896",
+        "sample_count": 1100,
+        "seed_count": 100,
+        "split": "model_val"
+      },
+      "train": {
+        "deployable_inventory_sha256": "580503b63ee3ac9a6af373b23f95d69fc5fd90dcde993a8c3df4a041887b7400",
+        "paired_inventory_sha256": "58f27e09067f9aaf73cc966059c3fe917525e8ead825f71223dcbf6f2760979d",
+        "privileged_inventory_sha256": "29dc518643b8e8021278660f9a23ca4c6b856602f1c18ed142d500cb113c1727",
+        "sample_count": 4400,
+        "seed_count": 400,
+        "split": "train"
+      }
+    },
+    "total_sample_count": 6050,
+    "total_seed_count": 550
+  },
+  "model_parent": {
+    "e016_checkpoint_model_config_sha256": "4a284a59c8c6d1865910d333597b565183f4d455af520e5edad5a79d5c67d053",
+    "e016_checkpoint_parameter_sha256": "0d84e3fbf56445a0b6cbfabf46643abce6b8ddd6c152e0534a1870b88eeeaed6",
+    "e016_checkpoint_provenance_sha256": "f25d876c2cf0b670b22e4c09aa561ff4190704411a4c053a089a9bc05804fed2",
+    "e016_checkpoint_sha256": "c0be8769f75e4b991daa3a71878df72d2e2aaad70b5139abb4190512d6110552",
+    "e016_config_sha256": "4b469e1abcab1cb2289a75797b683adb8719e5f510e23681a20a35d9ff10908b",
+    "source_training_camera": "hand_camera",
+    "target_training_camera": "base_camera"
+  },
+  "permissions": {
+    "arm_motion_commands": 0,
+    "gripper_close_commands": 0,
+    "manipulation_progression": 0,
+    "memory_reads": 0,
+    "memory_writes": 0,
+    "physical_camera_actuation": 0,
+    "runtime_camera_actuation": 0,
+    "test_array_reads": 0
+  },
+  "protocol": {
+    "budgets": {
+      "artifact_bytes_max": 21474836480,
+      "gpu_hours_max": 10.0,
+      "model_epochs": 40
+    },
+    "candidate_ids": [
+      "W-KV0",
+      "S"
+    ],
+    "candidate_initialization_seeds": {
+      "S": 18022,
+      "W-KV0": 18021
+    },
+    "checkpoint_epochs": [
+      5,
+      10,
+      15,
+      20
+    ],
+    "epochs_per_candidate": 20,
+    "loader": {
+      "batch_size": 32,
+      "drop_last": false,
+      "num_workers": 0,
+      "shuffle": true,
+      "spatial_augmentation": false
+    },
+    "loss": {
+      "coordinate_weight": 2.0,
+      "heatmap_sigma_px": 1.5,
+      "heatmap_weight": 1.0,
+      "keypoint_temperature": 1.0,
+      "mask_dice_weight": 1.0,
+      "mask_weight": 0.5,
+      "motion_weight": 1.0,
+      "projection_weight": 1.0,
+      "uncertainty_weight": 0.1,
+      "visibility_weight": 1.0
+    },
+    "model_validation": {
+      "batch_size": 32,
+      "candidate_loss_output_shard_count": 280,
+      "candidate_prediction_ledger_count": 8,
+      "candidate_prediction_row_count": 8800,
+      "diagnostic_control": {
+        "control_id": "CONTROL-E016-EPOCH12",
+        "eligible_for_selection": false,
+        "loss_output_shard_count": 0,
+        "prediction_ledger_count": 1,
+        "prediction_row_count": 1100,
+        "source": "exact-e016-selected-epoch12-role-substitution/v1",
+        "validation_loss_count": 0
+      },
+      "frozen_arrays": [
+        "seed",
+        "sample_index",
+        "viewpoint_id",
+        "input_sha256",
+        "heatmap_logits",
+        "mask_logits",
+        "decoded_normalized_uv",
+        "motion_residual",
+        "keypoint_log_variance",
+        "motion_log_variance",
+        "visibility_logits",
+        "projection_validity_logit"
+      ],
+      "loss_aggregation": "sum(batch_loss*actual_batch_size)/1100",
+      "model_val_deployable_bundle_open_count": 900,
+      "model_val_unique_deployable_bundle_count": 100,
+      "prediction_before_privileged_label": true,
+      "sample_count_per_checkpoint": 1100,
+      "selection_checkpoint_count": 8,
+      "shuffle": false,
+      "total_prediction_ledger_count": 9,
+      "total_prediction_row_count": 9900
+    },
+    "motion_head_policy": "frozen-zero-shadow-only",
+    "optimizer": {
+      "gradient_clip_norm": 1.0,
+      "learning_rate": 0.0003,
+      "name": "AdamW",
+      "weight_decay": 0.0001
+    },
+    "precision": "BF16-autocast-with-float32-loss/v1",
+    "scheduler": {
+      "eta_min": 1.5e-05,
+      "name": "CosineAnnealingLR",
+      "step_unit": "completed-epoch",
+      "t_max_epochs": 20
+    },
+    "shared_sampler_seed": 18020,
+    "version": "e018-p1-g2c-train-development/v1",
+    "zero_eligible_policy": "selected-null-protocol-valid-negative/v1"
+  },
+  "status": "frozen-pre-formal-train-awaiting-source-r2-go/v1",
+  "version": "e018-p1-g2c-train-development/v1"
+}
