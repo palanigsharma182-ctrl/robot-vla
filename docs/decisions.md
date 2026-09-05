@@ -3477,7 +3477,10 @@ verifier 应重演相同的确定性 canonicalization，而不是要求浮点 ra
 - 跳过新 smoke 直接执行 formal：真实 runner 尚未端到端通过，拒绝。
 
 **Implementation status:** engineering repair source `7c7f93a8f6173e47cd3bba6d958783091d1aef11`
-已实现 canonical compare、D048 v2/four段预算和反例；等待本决策文档进入最终 source 后的有限 R2。
+已实现 canonical compare、D048 v2/four段预算和反例。该 source 的远端 exact checkout 已对旧 D047 原始
+public execution 做只读 `verify-execution`，exit 0、`verified=true`，verification SHA 为
+`74d6cbed24199c57fc3604b07fe5da4f7caf6fbeef865ae4b4bafa5314bf29ae`；未传 private path、未 score、未
+重跑，旧 D047 仍保持冻结的失败分类。等待本决策文档进入最终 source 后的有限 R2。
 
 **Status:** repair-implemented / d047a-one-shot-smoke-go-after-final-source-r2 / formal-hold
 
