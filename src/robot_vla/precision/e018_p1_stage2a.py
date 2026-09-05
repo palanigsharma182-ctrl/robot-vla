@@ -83,6 +83,7 @@ from robot_vla.precision.e018_p1_g2c_data import (
     FRONT_ALTERNATE_IDS,
     FRONT_HOME_ID,
     _load_normalizers,
+    _single_rigid,
     load_e018_p1_g2c_data_config,
 )
 from robot_vla.precision.e018_p1_g2c_qualification import (
@@ -4392,6 +4393,35 @@ def _stage2a_float32_position_matches_pose_translation(
     )
 
 
+def _verify_stage2a_provider_route_pose_binding(
+    prediction_pose: Any,
+    raw_route_pose: Any,
+    *,
+    maximum_projection_error: float,
+) -> float:
+    """按 provider capture 的冻结 SVD 规范重建 pose，并要求 prediction exact。"""
+
+    if (
+        not isinstance(maximum_projection_error, (int, float))
+        or isinstance(maximum_projection_error, bool)
+        or not math.isfinite(float(maximum_projection_error))
+        or maximum_projection_error <= 0.0
+    ):
+        raise ValueError("Stage 2A provider route pose projection cap 非法")
+    predicted = validate_se3(
+        np.asarray(prediction_pose, dtype=np.float64),
+        "Stage 2A provider prediction base_from_external_camera_cv",
+    )
+    canonical, projection_error = _single_rigid(
+        raw_route_pose,
+        "Stage 2A provider raw route base_from_external_camera_cv",
+        maximum_projection_error=float(maximum_projection_error),
+    )
+    if not np.array_equal(predicted, canonical):
+        raise ValueError("Stage 2A provider prediction pose 不等于 canonical route pose")
+    return projection_error
+
+
 def _verify_stage2a_camera_row_identity(
     value: Mapping[str, Any],
     *,
@@ -5219,6 +5249,7 @@ def _verify_stage2a_provider_transaction_binding(
     rows: Sequence[Mapping[str, Any]],
     episode_id: str,
     request_id: str,
+    maximum_projection_error: float,
 ) -> tuple[ActiveFrontStage2FrameEvidence, ...]:
     if (
         len(records) != 4
@@ -5237,8 +5268,16 @@ def _verify_stage2a_provider_transaction_binding(
         prediction_pose = np.asarray(
             record.prediction["base_from_external_camera_cv"], dtype=np.float64
         )
-        actual_pose = np.asarray(
-            row["actual_base_from_external_camera_cv"], dtype=np.float64
+        projection_error = _verify_stage2a_provider_route_pose_binding(
+            prediction_pose,
+            row["actual_base_from_external_camera_cv"],
+            maximum_projection_error=maximum_projection_error,
+        )
+        deployable_safety = record.prediction.get("deployable_safety")
+        stored_projection_error = (
+            deployable_safety.get("rotation_projection_error_frobenius")
+            if isinstance(deployable_safety, Mapping)
+            else None
         )
         if (
             record.episode_id != episode_id
@@ -5248,8 +5287,13 @@ def _verify_stage2a_provider_transaction_binding(
             != f"{episode_id}-route-frame-{frame_index:02d}"
             or record.prediction.get("seed") != transaction["seed"]
             or prediction_pose.shape != (4, 4)
-            or not np.allclose(
-                prediction_pose, actual_pose, rtol=0.0, atol=1e-9
+            or not isinstance(stored_projection_error, (int, float))
+            or isinstance(stored_projection_error, bool)
+            or not math.isclose(
+                float(stored_projection_error),
+                projection_error,
+                rel_tol=0.0,
+                abs_tol=1e-12,
             )
         ):
             raise ValueError("Stage 2A provider output 未绑定实际 route frame")
@@ -5719,6 +5763,11 @@ def verify_e018_p1_stage2a_integration_smoke(
             rows=verified_rows,
             episode_id=episode_id,
             request_id=request_id,
+            maximum_projection_error=float(
+                qualification["capture_safety"][
+                    "maximum_rotation_projection_error_frobenius"
+                ]
+            ),
         )
         candidate_receipt = _verify_stage2a_candidate_binding(
             transaction,

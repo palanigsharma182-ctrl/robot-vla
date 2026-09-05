@@ -58,6 +58,7 @@ from robot_vla.precision.e018_p1_stage2a import (
     _verify_stage2a_camera_authorization,
     _verify_stage2a_controller_receipt,
     _verify_stage2a_exact_file_tree,
+    _verify_stage2a_provider_route_pose_binding,
     _verify_stage2a_safety_record,
     _verify_stage2a_source_recheck_identity,
     _verify_stage2a_trigger_replay,
@@ -807,6 +808,56 @@ def test_float32_position_and_pose_witnesses_require_exact_native_value() -> Non
         tampered,
         pose_translation,
     )
+
+
+def test_provider_route_pose_uses_frozen_rigid_projection_and_rejects_tamper() -> None:
+    angle_rad = 0.321
+    raw_pose = np.eye(4, dtype=np.float64)
+    raw_pose[:3, :3] = np.asarray(
+        (
+            (np.cos(angle_rad), -np.sin(angle_rad), 0.0),
+            (np.sin(angle_rad), np.cos(angle_rad), 0.0),
+            (0.0, 0.0, 1.0),
+        ),
+        dtype=np.float32,
+    )
+    canonical_u, _, canonical_vh = np.linalg.svd(raw_pose[:3, :3])
+    canonical_pose = raw_pose.copy()
+    canonical_pose[:3, :3] = canonical_u @ canonical_vh
+
+    projection_error = _verify_stage2a_provider_route_pose_binding(
+        canonical_pose,
+        raw_pose,
+        maximum_projection_error=1e-6,
+    )
+    assert 0.0 < projection_error < 1e-6
+    for invalid_cap in (0.0, -1e-6, float("inf"), float("nan"), True):
+        with pytest.raises(ValueError, match="projection cap"):
+            _verify_stage2a_provider_route_pose_binding(
+                canonical_pose,
+                raw_pose,
+                maximum_projection_error=invalid_cap,
+            )
+
+    tampered_prediction = canonical_pose.copy()
+    tampered_prediction[0, 0] = np.nextafter(
+        tampered_prediction[0, 0], np.float64(np.inf)
+    )
+    with pytest.raises(ValueError, match="canonical route pose"):
+        _verify_stage2a_provider_route_pose_binding(
+            tampered_prediction,
+            raw_pose,
+            maximum_projection_error=1e-6,
+        )
+
+    non_rigid = raw_pose.copy()
+    non_rigid[0, 0] += 4e-6
+    with pytest.raises(ValueError, match="超过冻结容差"):
+        _verify_stage2a_provider_route_pose_binding(
+            canonical_pose,
+            non_rigid,
+            maximum_projection_error=1e-6,
+        )
 
 
 def test_resigned_tcp_orientation_raw_witness_tamper_is_rejected() -> None:
