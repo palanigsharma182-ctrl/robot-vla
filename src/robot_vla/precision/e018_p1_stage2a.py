@@ -125,8 +125,18 @@ STAGE2A_SELECTION_PREFLIGHT_SEED = 76891
 E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXPERIMENT_ID = (
     "E018-P1-S2A-PASS-A-ONE-ROUTE-PREFLIGHT/v2"
 )
+STAGE2A_SELECTED_GAIN_EVALUATION_SEEDS = tuple(range(77626, 77651))
+E018_P1_STAGE2A_SELECTED_GAIN_EVALUATION_EXPERIMENT_ID = (
+    "E018-P1-S2A-SELECTED-GAIN-DEVELOPMENT-EVALUATION/v1"
+)
+STAGE2A_SELECTED_GAIN_EVALUATION_PREFLIGHT_SEED = 76892
+E018_P1_STAGE2A_SELECTED_GAIN_EVALUATION_PREFLIGHT_EXPERIMENT_ID = (
+    "E018-P1-S2A-SELECTED-GAIN-EVALUATION-PREFLIGHT/v1"
+)
 _STAGE2A_SELECTION_CAPTURE_TOKEN = object()
 _STAGE2A_SELECTION_PREFLIGHT_CAPTURE_TOKEN = object()
+_STAGE2A_SELECTED_GAIN_EVALUATION_CAPTURE_TOKEN = object()
+_STAGE2A_SELECTED_GAIN_EVALUATION_PREFLIGHT_CAPTURE_TOKEN = object()
 STAGE2A_COLLECT_FRAME_INDICES = (45, 46, 47)
 _STAGE2A_FAILURE_TRACEBACK_MAX_CHARS = 8192
 _STAGE2A_FAILURE_ERROR_MAX_CHARS = 1024
@@ -201,6 +211,62 @@ class Stage2AExecutionProgress:
             raise ValueError("Stage 2A preflight progress 只接受固定 seed 76891")
         self.current_seed = seed
         self.episode_id = f"e018-p1-stage2a-selection-preflight-seed-{seed}"
+        self.request_id = None
+        self.current_frame_index = None
+        self.last_processed_frame_index = None
+        self.last_authorized_frame_index = None
+        self.controller_state = None
+        self.orchestrator_state = None
+        self.provider_forward_count = 0
+        self.memory_write_count = 0
+
+    def begin_selected_gain_evaluation(
+        self,
+        seed: int,
+        *,
+        experiment_identity: str,
+    ) -> None:
+        """只为冻结的 fixed-gain evaluation split 建立失败恢复进度。"""
+
+        if (
+            experiment_identity
+            != E018_P1_STAGE2A_SELECTED_GAIN_EVALUATION_EXPERIMENT_ID
+        ):
+            raise PermissionError("Stage 2A evaluation progress identity 漂移")
+        if seed not in STAGE2A_SELECTED_GAIN_EVALUATION_SEEDS:
+            raise ValueError("Stage 2A evaluation progress 只接受 77626..77650")
+        self.current_seed = seed
+        self.episode_id = (
+            f"e018-p1-stage2a-selected-gain-evaluation-seed-{seed}"
+        )
+        self.request_id = None
+        self.current_frame_index = None
+        self.last_processed_frame_index = None
+        self.last_authorized_frame_index = None
+        self.controller_state = None
+        self.orchestrator_state = None
+        self.provider_forward_count = 0
+        self.memory_write_count = 0
+
+    def begin_selected_gain_evaluation_preflight(
+        self,
+        seed: int,
+        *,
+        experiment_identity: str,
+    ) -> None:
+        """只为 fixed-gain evaluation 的固定单路线 preflight 建立进度。"""
+
+        if (
+            experiment_identity
+            != E018_P1_STAGE2A_SELECTED_GAIN_EVALUATION_PREFLIGHT_EXPERIMENT_ID
+        ):
+            raise PermissionError("Stage 2A evaluation preflight identity 漂移")
+        if seed != STAGE2A_SELECTED_GAIN_EVALUATION_PREFLIGHT_SEED:
+            raise ValueError("Stage 2A evaluation preflight 只接受固定 seed 76892")
+        self.current_seed = seed
+        self.episode_id = (
+            f"e018-p1-stage2a-selected-gain-evaluation-preflight-seed-{seed}"
+        )
         self.request_id = None
         self.current_frame_index = None
         self.last_processed_frame_index = None
@@ -2811,6 +2877,40 @@ class Stage2ARouteTransaction:
             capture_classification = (
                 "engineering-preflight-selection-capture-only-no-test-no-actuation/v1"
             )
+        elif (
+            _selection_capture_token
+            is _STAGE2A_SELECTED_GAIN_EVALUATION_CAPTURE_TOKEN
+        ):
+            if seed not in STAGE2A_SELECTED_GAIN_EVALUATION_SEEDS:
+                raise ValueError(
+                    "Stage 2A selected-gain evaluation 只接受 77626..77650"
+                )
+            episode_id = (
+                f"e018-p1-stage2a-selected-gain-evaluation-seed-{seed}"
+            )
+            capture_only = True
+            capture_classification = (
+                "formal-development-selected-gain-capture-only-"
+                "no-test-no-actuation/v1"
+            )
+        elif (
+            _selection_capture_token
+            is _STAGE2A_SELECTED_GAIN_EVALUATION_PREFLIGHT_CAPTURE_TOKEN
+        ):
+            if seed != STAGE2A_SELECTED_GAIN_EVALUATION_PREFLIGHT_SEED:
+                raise ValueError(
+                    "Stage 2A selected-gain evaluation preflight "
+                    "只接受固定 seed 76892"
+                )
+            episode_id = (
+                "e018-p1-stage2a-selected-gain-evaluation-preflight-"
+                f"seed-{seed}"
+            )
+            capture_only = True
+            capture_classification = (
+                "engineering-preflight-selected-gain-capture-only-"
+                "no-test-no-actuation/v1"
+            )
         else:
             raise PermissionError("Stage 2A selection capture token 非法")
         if capture_only != (_selection_provider_commit_hook is not None):
@@ -2999,6 +3099,112 @@ class Stage2ARouteTransaction:
             execution_progress=execution_progress,
             _selection_capture_token=(
                 _STAGE2A_SELECTION_PREFLIGHT_CAPTURE_TOKEN
+            ),
+            _selection_provider_commit_hook=provider_commit_hook,
+        )
+
+    @classmethod
+    def for_selected_gain_evaluation_capture(
+        cls,
+        *,
+        experiment_identity: str,
+        seed: int,
+        provider: QualificationProvider,
+        stage2_config: LoadedStage2AConfig,
+        qualification_config: Mapping[str, Any],
+        data_config: Mapping[str, Any],
+        base_env: Any,
+        spec: Any,
+        proprio_normalizer: Any,
+        finger_force_normalizer: Any,
+        execution_progress: Stage2AExecutionProgress,
+        provider_commit_hook: (
+            Callable[
+                [
+                    Stage2AProviderOutputRecord,
+                    Mapping[str, Any],
+                    np.ndarray,
+                    Mapping[str, Any],
+                ],
+                None,
+            ]
+            | None
+        ) = None,
+    ) -> Stage2ARouteTransaction:
+        """建立冻结 evaluation split 的 capture-only supervisor。"""
+
+        if (
+            experiment_identity
+            != E018_P1_STAGE2A_SELECTED_GAIN_EVALUATION_EXPERIMENT_ID
+        ):
+            raise PermissionError("Stage 2A selected-gain evaluation identity 漂移")
+        return cls(
+            seed=seed,
+            provider=provider,
+            stage2_config=stage2_config,
+            qualification_config=qualification_config,
+            data_config=data_config,
+            base_env=base_env,
+            spec=spec,
+            proprio_normalizer=proprio_normalizer,
+            finger_force_normalizer=finger_force_normalizer,
+            execution_progress=execution_progress,
+            _selection_capture_token=(
+                _STAGE2A_SELECTED_GAIN_EVALUATION_CAPTURE_TOKEN
+            ),
+            _selection_provider_commit_hook=provider_commit_hook,
+        )
+
+    @classmethod
+    def for_selected_gain_evaluation_preflight_capture(
+        cls,
+        *,
+        experiment_identity: str,
+        seed: int,
+        provider: QualificationProvider,
+        stage2_config: LoadedStage2AConfig,
+        qualification_config: Mapping[str, Any],
+        data_config: Mapping[str, Any],
+        base_env: Any,
+        spec: Any,
+        proprio_normalizer: Any,
+        finger_force_normalizer: Any,
+        execution_progress: Stage2AExecutionProgress,
+        provider_commit_hook: (
+            Callable[
+                [
+                    Stage2AProviderOutputRecord,
+                    Mapping[str, Any],
+                    np.ndarray,
+                    Mapping[str, Any],
+                ],
+                None,
+            ]
+            | None
+        ) = None,
+    ) -> Stage2ARouteTransaction:
+        """建立 evaluation 固定 seed 76892 的 capture-only supervisor。"""
+
+        if (
+            experiment_identity
+            != E018_P1_STAGE2A_SELECTED_GAIN_EVALUATION_PREFLIGHT_EXPERIMENT_ID
+        ):
+            raise PermissionError(
+                "Stage 2A selected-gain evaluation preflight identity 漂移"
+            )
+        return cls(
+            seed=seed,
+            provider=provider,
+            stage2_config=stage2_config,
+            qualification_config=qualification_config,
+            data_config=data_config,
+            base_env=base_env,
+            spec=spec,
+            proprio_normalizer=proprio_normalizer,
+            finger_force_normalizer=finger_force_normalizer,
+            execution_progress=execution_progress,
+            _selection_capture_token=(
+                _STAGE2A_SELECTED_GAIN_EVALUATION_PREFLIGHT_CAPTURE_TOKEN
             ),
             _selection_provider_commit_hook=provider_commit_hook,
         )

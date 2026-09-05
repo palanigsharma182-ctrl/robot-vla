@@ -2461,6 +2461,8 @@ def _begin_gain_replay(
 def replay_gain_branch(
     captured: CapturedSelectionRoute,
     gain: float,
+    *,
+    _outcome_type: type[GainBranchOutcome] = GainBranchOutcome,
 ) -> GainBranchOutcome:
     """从全新 Memory/Action state 重放一个 gain；不接 env/provider/label。"""
 
@@ -2555,7 +2557,7 @@ def replay_gain_branch(
         and memory.state.mode is ObjectMemoryMode.FREE_STATIC
         else None
     )
-    return GainBranchOutcome(
+    return _outcome_type(
         seed=captured.seed,
         gain=gain,
         route_evidence_digest=captured.route_evidence_digest,
