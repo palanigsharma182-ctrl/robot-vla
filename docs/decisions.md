@@ -3957,6 +3957,196 @@ recovery 分开归因，也避免已失败的 wrist write threshold 获得新状
 
 **Status:** active / absent-capability baseline go / wrist-trigger contract-and-runner implementation go
 
+## D051 — 冻结 Stage 3 fault/replay 与 matched Passive–Active development Gate
+
+**Decision:**
+
+在 D049 的延迟 Object Memory commit 和 D050 的 wrist trigger 语义分离之上，将 E018 Stage 3 拆成两个
+不可互相替代的 identity：
+
+```text
+E018-P1-S3A-FAULT-REPLAY-DEVELOPMENT/v1
+E018-P1-S3B-MATCHED-PASSIVE-ACTIVE-DEVELOPMENT/v1
+```
+
+S3A 证明状态机、证据链、Memory transaction 和 Action 恢复在故障下确定性 fail closed；S3B 才估计一次
+冻结 PRIMARY roundtrip 相对 matched Passive HOME observation 的条件恢复收益。二者继续限定为 isolated
+ManiSkill、development-only、no fresh test、no canonical runtime、no physical camera、no arm/TCP/gripper/
+manipulation actuator。camera command 只允许在 D041/D049 已冻结的信息收集与预抓取来源阶段，并受 window、
+latch、attempt 和 lease 约束。Stage 3 通过不授予真实机器人、manipulation actuator、contact、close、
+`FINAL_APPROACH` 或 fresh test 权限。
+
+冻结实现顺序为：先完成 S3A contract/runner/tests；D049 Stage 2A exit、D050 对应 trigger 分支和 parent artifact
+门禁均满足后，才运行 S3B。允许先实现不消费 seed、不读取 label 的 deterministic fault fixtures，但不得通过
+预先查看 `77201..77250` 结果调试 runner、阈值或失败分类。
+
+### S3A：fault/replay 范围
+
+S3A 使用 deterministic fixture/scenario identity；需要 ManiSkill route 的故障集成 smoke 使用全新
+`77501..77520` development seeds，不占用 S3B 的 paired seed。至少覆盖下列 fault family，且每个 case
+记录唯一 scenario id、injection point、pre-state digest、input/output/decision/receipt chain、terminal state、
+reason、权限计数和 replay digest：
+
+1. 所有禁止 `PhaseId`、source-phase recovery 重入、window/latch 关闭、attempt budget exhausted；
+2. RGB/Observation/pose/timestamp 缺失、skew 超限、commanded pose 冒充 actual pose、frame/schema identity
+   漂移；
+3. camera lease 失败、move/settle/collect/return timeout、motion/unsettled frame、tracking/velocity/acceleration
+   超限、arm/TCP drift、gripper change 或 unexpected contact；
+4. projection invalid 但 mask 高、provider/checkpoint/calibration/primitive mismatch、model-input 与
+   provider-output digest mismatch、旧 output replay 到新 frame；
+5. candidate frame count/gap、score、information gain、position spread、innovation、covariance 或 pending age
+   不合格；
+6. HOME baseline unavailable、HOME return pose/timestamp/identity 无效、HOME frame duplicate/out-of-order、
+   四帧 barrier 不完整；
+7. absent-wrist 或 qualified-trigger source recheck identity/digest 不匹配、外部 Memory revision 漂移、
+   collect 后 source/window/contact 状态改变；另设一个非故障 success-control，验证 fresh qualified direct
+   evidence 出现时只 supersede 旧 pending、不会提交较旧 alternate；
+8. receipt 构造与 apply 注入失败、duplicate commit、partial mutation trap、stale Action Chunk/temporal
+   ensemble/RTC/command reference resume；
+9. active lifecycle 每个 substate 的 Episode reset、request/command/receipt duplicate、runner crash 后 replay、
+   ledger mutation/reorder/truncation；
+10. runtime hidden object/goal GT 与 test-read trap，确认 deployable decision path 不读取 privileged evidence。
+
+除上述 valid-direct-evidence supersede success-control 外，所有 pre-commit fault case 必须同时满足：terminal 为
+明确 SafeHold/Abort；禁止来源阶段 camera command、latch 关闭后 camera command、arm/TCP manipulation
+command、gripper close/contact、Memory commit、new Action
+generation、stale resume、runtime GT/test read 均为零；candidate/pending/live Memory 不发生 partial mutation。
+已经完成一次合法 control commit 后再注入 duplicate 的 case，只允许历史 `accepted_update_count` 保持不变，
+本次新增 commit/write 必须为零且 pre/post Memory digest 相同。正常路径只有在 verified HOME 后才释放 camera
+lease；return-home fault 不得伪造 HOME 或 normal release，而应保持 fenced terminal fault。
+
+同一冻结输入、fixture、fault schedule 和 initial state 至少独立 replay 两次；terminal state、ordered reasons、
+permission counters、decision/receipt digests 和 live-state digest 必须逐字节一致。prediction/decision ledger 在
+任何 privileged label 或 fault oracle 打开前原子冻结。S3A 的退出条件为所有冻结 fault case `100%` fail
+closed、normal-commit 与 valid-supersede success-control 均 `100%` 完成、全部 replay exact match、所有上述
+零容忍计数为零；不得删除失败 case 或仅重跑通过的子集。任一 case 失败即冻结当前 identity 为 safety
+no-go；修复只能使用新的
+source/config/run identity，并完整重放冻结矩阵。
+
+### S3B：matched Passive 与 Active
+
+S3B 使用冻结的 `77201..77250`，每个 seed 对两臂分别独立 env reset，匹配初始 robot/object/goal state、
+pre-trigger deployable evidence、trigger tick、provider/checkpoint/config、Observation 数量、wall-clock/control-
+tick budget、Flow sampling seed、失败定义和 post-budget scoring 时刻。执行顺序固定平衡为：
+
+```text
+77201..77225: Passive B -> Active C
+77226..77250: Active C -> Passive B
+```
+
+两臂定义为：
+
+```text
+Passive B:
+  arm/gripper SafeHold
+  + 与 PRIMARY roundtrip 匹配的 HOME control ticks 和 settled HOME RGB 数量
+  + 不读取 alternate RGB，不形成 alternate candidate，不提交 alternate Memory
+
+Active C:
+  相同 SafeHold、初始证据、预算和后续 sampling identity
+  + 恰好一次 HOME -> LEFT_LOW__PITCH_UP -> HOME
+  + D049 pending/HOME/source recheck/atomic commit
+  + 成功 commit 后生成全新 shadow Action generation
+```
+
+Control 不得因没有移动而获得更长等待或额外 state provider；Treatment 不得获得额外 wall-clock、Observation
+或 Flow sample。两臂可使用等待期间自然出现且具有独立资格的 current direct evidence，但必须使用相同规则
+和机会；HOME raw score与 observability-only wrist score都不构成 state。每臂独立 reset，禁止前一臂 Memory、
+request、attempt、camera lease、Action generation 或 RNG 状态泄漏到后一臂。
+
+primary denominator 是在打开任何 post-treatment label 前，按共同 pre-trigger deployable evidence 冻结的
+全部 runtime-eligible pair；不得按 PRIMARY acceptance、commit、route success、oracle recoverability 或最终
+结果后筛选。每个 pair 的 prediction/decision ledger 必须在 object/goal/contact/motion oracle label 打开前
+原子冻结并销毁 runtime privileged context。runtime object/goal GT read count 和 test read count必须为零。
+
+每臂的 `reliable_navigation_recovery` 固定要求：在 matched budget 内形成可审计 NAVIGATION resolution，
+`memory_only=true`、`contact_authorized=false`；若来自 Active alternate，还必须 exactly-one commit、提交 XYZ
+离线 error `<=0.005 m`、post-commit new Action generation 且无 protocol/safety violation。error `>0.005 m`
+或 commit 到 oracle 不可观察/运动物体计 false/unsafe recovery；error `>0.020 m` 另计 catastrophic。Passive
+若通过独立合格 current direct evidence 恢复可计成功，但不得把 HOME raw、trigger-only wrist 或旧 Memory
+伪装成恢复。
+
+主要效果量和 Gate 冻结为：
+
+```text
+paired recovery difference
+  = mean(reliable_navigation_recovery_Active
+         - reliable_navigation_recovery_Passive)
+
+required runtime-eligible support:                  >= 20 pairs
+Active - Passive recovery improvement:              >= 0.20
+required treatment oracle-recoverable support:      >= 10 pairs
+Active recovery among oracle-recoverable treatment: >= 0.70
+```
+
+同时报告 Active-only、Passive-only、both、neither 的 paired discordance table，并对 discordant pair 报告
+预注册的 two-sided exact McNemar/binomial p-value；该 p-value 是描述性 development 证据，不替代上述效果门槛，
+也不授权总体/部署 claim。`oracle-recoverable` 沿用 D049：route/protocol/safety context 有效，三帧 PRIMARY
+COLLECT 中 object 均存在、按 own-mask 语义可观察且没有 contact/object-motion event；它只在 ledger freeze 后
+离线产生，绝不进入 runtime decision。
+
+零容忍项包括：禁止阶段或 latch 关闭后 camera command、attempt 超限、active 期间 arm/TCP command、gripper
+close/contact、motion/unsettled write、HOME verify 前 commit、partial/duplicate commit、stale resume、Memory-
+only contact/close/`FINAL_APPROACH` authorization、identity/digest mismatch acceptance、Episode/paired-arm leakage、
+runtime hidden-GT/test read 和 checkpoint write。任一非零均使 S3B 为 safety no-go，不因 recovery 较高而
+通过。
+
+若 runtime-eligible `<20` 或 oracle-recoverable `<10`，结果冻结为 insufficient-support/inconclusive；不得补
+seed、改变 denominator 或按 label 选场景。若安全项全为零但任一效果目标未达到，冻结 effect-negative，完整
+报告 Passive/Active 配对表和失败 taxonomy，不放宽 threshold、不删除 seed、不增加 attempt。若效果和安全
+Gate 均通过，结论仍只限于 isolated simulator development 下的 conditional navigation-state recovery 与
+fresh shadow replan，不是 manipulation/task-success、真实机器人或部署证据。
+
+### Trigger 分支、资源与执行门禁
+
+S3B 的 trigger claim 由运行前冻结的 parent 决定：
+
+- D050 observability-only qualifier 在 selection 与 one-shot evaluation 均通过且 runner integration 通过时，
+  `trigger_parent=WRIST_OBSERVABILITY_QUALIFIED`，允许称为 uncertainty-triggered matched development comparison；
+- qualifier effect-negative/insufficient 且 fallback 尚未通过时，仍执行
+  `trigger_parent=NO_QUALIFIED_WRIST_PROVIDER_IN_D049_PARENT` 的 capability-absent diagnostic，但不得称 wrist
+  看不清、uncertainty-triggered 或完整主动视觉闭环通过；
+- invalid sensor/pose/timestamp/provider 输入永远是 `UNKNOWN_INVALID_INPUT -> Passive/SafeHold`，不得触发
+  camera motion。
+
+不得在看到 S3B scene/label 后选择 trigger 分支。S3A 上限为 `1,800 s GPU/wall + 2 GiB`，S3B 上限为
+`3,600 s GPU/wall + 4 GiB`，Stage 3 合计硬上限 `5,400 s + 6 GiB`。超限、非零退出、identity/preflight
+失败或 ledger-before-label 破坏均冻结当前 run，不覆盖 artifact、不复用 seed。正式执行前必须满足：
+
+1. exact-clean source commit、冻结 config SHA、provider/checkpoint/calibration/route identity 和环境 receipt
+   全部通过 R2；
+2. D048 及本轮所有 canonical parent/input artifact 达到 `REPLICATED`；
+3. D049 Stage 2A targeted/integration/route/HOME/Memory/Action exit Gate 通过；若仅 effect-negative，则 S3B
+   只能以预先冻结的 negative/capability-absent diagnostic estimand 执行；任一 Stage 2 safety no-go 未修复时
+   禁止 S3B；
+4. S3A 先通过；D050 trigger 分支和 claim label在运行前冻结；
+5. 输出完成 marker、manifest/checksum、Drive check 和本机独立副本验收后，才可将 Stage 3 称为完成。
+
+S3A/S3B 单次正式 identity 结果无论正负均必须收口：保存完整 aggregate、per-case/per-pair ledger、失败原因、
+环境/source/config/provider identity、资源消耗和允许结论。负结果通过 effect-negative、insufficient-support
+或 safety no-go 明确分类；“持续推进”要求沿冻结 fallback/修复 identity 完成因果归因，不允许覆盖负 artifact，
+也不允许突破 fresh-test、GT、actuator 或安全 Gate。
+
+**Reason:**
+
+先把 fail-closed 与效果估计拆开，可以避免高 recovery 掩盖 transaction、HOME barrier 或控制权错误；paired
+reset 和 matched budget 又把“多看了几帧/多等了一会儿”与 PRIMARY 视角的信息收益分开。把 wrist qualifier
+通过与 capability 缺席设为两个显式 claim 分支，使 trigger 子问题失败时仍能完成 front recovery 的结构性
+诊断，同时不会把“没有 provider”误写成“模型判断看不清”。
+
+**Alternatives considered:**
+
+- 将 fault case 混入 paired effect denominator：会混淆安全验证与效果估计，拒绝。
+- 只对 provider accepted 或成功 commit 的 Episode 计算 recovery：属于 treatment 后筛选，会系统性高估效果，
+  拒绝。
+- Active 获得更多时间、更多 RGB 或额外 Flow sample：无法归因给视角移动，拒绝。
+- wrist qualifier 失败后取消 Stage 3：会丢失 front route/Memory 的可验证信息；保留 capability-absent diagnostic，
+  但降低 claim。
+- 为达到效果门槛补 seed、换阈值或删除失败 Episode：破坏冻结 development evaluation，拒绝。
+- 安全项非零时以任务收益抵消：控制权与 Memory transaction 是零容忍边界，拒绝。
+
+**Status:** contract-and-runner-implementation-go / seed-execution-held-by-parent-gates
+
 ## 新决策模板
 
 ```markdown
