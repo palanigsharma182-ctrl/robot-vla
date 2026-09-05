@@ -19,7 +19,6 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-
 from robot_vla.adapters import FrankaObservationAdapter
 from robot_vla.contracts import RobotSpec
 from robot_vla.executive.contracts import PhaseId
@@ -88,8 +87,8 @@ from robot_vla.precision.e018_p1_g2c_data import (
     load_e018_p1_g2c_data_config,
 )
 from robot_vla.precision.e018_p1_g2c_qualification import (
-    QUALIFICATION_CLASSIFICATION_SMOKE,
     QUALIFICATION_CLASSIFICATION_SELECTION,
+    QUALIFICATION_CLASSIFICATION_SMOKE,
     QualificationProvider,
     build_qualification_deployable_capture,
     load_g2c_dynamic_qualification_config,
@@ -122,7 +121,12 @@ STAGE2A_SELECTION_SEEDS = tuple(range(77001, 77026))
 E018_P1_STAGE2A_SELECTION_EXPERIMENT_ID = (
     "E018-P1-S2A-MIN-INFORMATION-GAIN-SELECTION-DEVELOPMENT/v1"
 )
+STAGE2A_SELECTION_PREFLIGHT_SEED = 76891
+E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXPERIMENT_ID = (
+    "E018-P1-S2A-PASS-A-ONE-ROUTE-PREFLIGHT/v1"
+)
 _STAGE2A_SELECTION_CAPTURE_TOKEN = object()
+_STAGE2A_SELECTION_PREFLIGHT_CAPTURE_TOKEN = object()
 STAGE2A_COLLECT_FRAME_INDICES = (45, 46, 47)
 _STAGE2A_FAILURE_TRACEBACK_MAX_CHARS = 8192
 _STAGE2A_FAILURE_ERROR_MAX_CHARS = 1024
@@ -171,6 +175,32 @@ class Stage2AExecutionProgress:
             raise ValueError("Stage 2A selection progress 只接受 77001..77025")
         self.current_seed = seed
         self.episode_id = f"e018-p1-stage2a-selection-development-seed-{seed}"
+        self.request_id = None
+        self.current_frame_index = None
+        self.last_processed_frame_index = None
+        self.last_authorized_frame_index = None
+        self.controller_state = None
+        self.orchestrator_state = None
+        self.provider_forward_count = 0
+        self.memory_write_count = 0
+
+    def begin_information_gain_preflight(
+        self,
+        seed: int,
+        *,
+        experiment_identity: str,
+    ) -> None:
+        """只为固定单路线非正式 preflight 建立失败恢复进度。"""
+
+        if (
+            experiment_identity
+            != E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXPERIMENT_ID
+        ):
+            raise PermissionError("Stage 2A preflight progress experiment identity 漂移")
+        if seed != STAGE2A_SELECTION_PREFLIGHT_SEED:
+            raise ValueError("Stage 2A preflight progress 只接受固定 seed 76891")
+        self.current_seed = seed
+        self.episode_id = f"e018-p1-stage2a-selection-preflight-seed-{seed}"
         self.request_id = None
         self.current_frame_index = None
         self.last_processed_frame_index = None
@@ -2761,11 +2791,26 @@ class Stage2ARouteTransaction:
                 raise ValueError("Stage 2A transaction 只接受 76901..76910")
             episode_id = _stage2a_episode_id(seed)
             capture_only = False
+            capture_classification = None
         elif _selection_capture_token is _STAGE2A_SELECTION_CAPTURE_TOKEN:
             if seed not in STAGE2A_SELECTION_SEEDS:
                 raise ValueError("Stage 2A selection capture 只接受 77001..77025")
             episode_id = f"e018-p1-stage2a-selection-development-seed-{seed}"
             capture_only = True
+            capture_classification = (
+                "formal-development-selection-capture-only-no-test-no-actuation/v1"
+            )
+        elif (
+            _selection_capture_token
+            is _STAGE2A_SELECTION_PREFLIGHT_CAPTURE_TOKEN
+        ):
+            if seed != STAGE2A_SELECTION_PREFLIGHT_SEED:
+                raise ValueError("Stage 2A selection preflight 只接受固定 seed 76891")
+            episode_id = f"e018-p1-stage2a-selection-preflight-seed-{seed}"
+            capture_only = True
+            capture_classification = (
+                "engineering-preflight-selection-capture-only-no-test-no-actuation/v1"
+            )
         else:
             raise PermissionError("Stage 2A selection capture token 非法")
         if capture_only != (_selection_provider_commit_hook is not None):
@@ -2775,6 +2820,7 @@ class Stage2ARouteTransaction:
         self.seed = seed
         self.episode_id = episode_id
         self.capture_only = capture_only
+        self.selection_capture_classification = capture_classification
         self._contact_comparison_tolerance_n = 0.0 if capture_only else 1e-12
         self._selection_provider_commit_hook = _selection_provider_commit_hook
         self.provider = provider
@@ -2885,7 +2931,7 @@ class Stage2ARouteTransaction:
             ]
             | None
         ) = None,
-    ) -> "Stage2ARouteTransaction":
+    ) -> Stage2ARouteTransaction:
         """建立固定 selection split 的 capture-only supervisor。"""
 
         if experiment_identity != E018_P1_STAGE2A_SELECTION_EXPERIMENT_ID:
@@ -2902,6 +2948,58 @@ class Stage2ARouteTransaction:
             finger_force_normalizer=finger_force_normalizer,
             execution_progress=execution_progress,
             _selection_capture_token=_STAGE2A_SELECTION_CAPTURE_TOKEN,
+            _selection_provider_commit_hook=provider_commit_hook,
+        )
+
+    @classmethod
+    def for_information_gain_selection_preflight_capture(
+        cls,
+        *,
+        experiment_identity: str,
+        seed: int,
+        provider: QualificationProvider,
+        stage2_config: LoadedStage2AConfig,
+        qualification_config: Mapping[str, Any],
+        data_config: Mapping[str, Any],
+        base_env: Any,
+        spec: Any,
+        proprio_normalizer: Any,
+        finger_force_normalizer: Any,
+        execution_progress: Stage2AExecutionProgress,
+        provider_commit_hook: (
+            Callable[
+                [
+                    Stage2AProviderOutputRecord,
+                    Mapping[str, Any],
+                    np.ndarray,
+                    Mapping[str, Any],
+                ],
+                None,
+            ]
+            | None
+        ) = None,
+    ) -> Stage2ARouteTransaction:
+        """建立固定 76891 非正式单路线 capture-only supervisor。"""
+
+        if (
+            experiment_identity
+            != E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXPERIMENT_ID
+        ):
+            raise PermissionError("Stage 2A selection preflight identity 漂移")
+        return cls(
+            seed=seed,
+            provider=provider,
+            stage2_config=stage2_config,
+            qualification_config=qualification_config,
+            data_config=data_config,
+            base_env=base_env,
+            spec=spec,
+            proprio_normalizer=proprio_normalizer,
+            finger_force_normalizer=finger_force_normalizer,
+            execution_progress=execution_progress,
+            _selection_capture_token=(
+                _STAGE2A_SELECTION_PREFLIGHT_CAPTURE_TOKEN
+            ),
             _selection_provider_commit_hook=provider_commit_hook,
         )
 
@@ -3642,7 +3740,7 @@ class Stage2ARouteTransaction:
         candidate_stage = asdict(self.candidate_stage_receipt)
         candidate_stage["receipt_sha256"] = canonical_sha256(candidate_stage)
         transaction_classification = (
-            "formal-development-selection-capture-only-no-test-no-actuation/v1"
+            self.selection_capture_classification
             if self.capture_only
             else "engineering-integration-smoke"
         )
@@ -3954,7 +4052,6 @@ def _run_stage2a_simulator(
     import sapien
     import torch
     from mani_skill.utils import sapien_utils
-
     from robot_vla.sim import register_robot_vla_maniskill_envs
 
     if (

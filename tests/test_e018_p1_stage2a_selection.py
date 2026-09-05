@@ -12,17 +12,18 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-
+from robot_vla.cli.run_e018_p1_stage2a_selection import build_parser
 from robot_vla.executive.contracts import PhaseId
+from robot_vla.precision import e018_p1_stage2a_selection_runtime as selection_runtime
 from robot_vla.precision.active_front_camera import ExternalCameraMotionState
 from robot_vla.precision.active_front_memory_provider import (
     ACTIVE_FRONT_HOME_BASE_FROM_EXTERNAL_CAMERA_CV,
     ACTIVE_FRONT_PRIMARY_PRIMITIVE_ID,
     ActiveFrontScoreComponents,
+    ActiveFrontStage2Config,
     ActiveFrontStage2FrameEvidence,
     PassiveBaselineEvidence,
     PassiveHomeScoreEvidence,
-    ActiveFrontStage2Config,
     d049_home_baseline_provider_identity,
     d049_primary_provider_identity,
 )
@@ -35,24 +36,27 @@ from robot_vla.precision.active_front_reobserve import (
 from robot_vla.precision.calibrated_front_provider import canonical_sha256
 from robot_vla.precision.e018_p1_stage2a import (
     E018_P1_STAGE2A_SELECTION_EXPERIMENT_ID,
+    E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXPERIMENT_ID,
+    STAGE2A_SELECTION_PREFLIGHT_SEED,
     STAGE2A_SELECTION_SEEDS,
+    Stage2AExecutionProgress,
     Stage2ARouteTransaction,
 )
 from robot_vla.precision.e018_p1_stage2a_selection import (
-    CapturedSelectionRoute,
-    GainBranchOutcome,
     STAGE2A_SELECTION_GAINS,
     STAGE2A_SELECTION_GO,
+    STAGE2A_SELECTION_PREFLIGHT_GO,
+    CapturedSelectionRoute,
+    GainBranchOutcome,
     Stage2ASelectionJournal,
+    Stage2ASelectionPreflightJournal,
     _begin_gain_replay,
     load_e018_p1_stage2a_selection_config,
     replay_all_gain_branches,
     score_gain_branches,
 )
-from robot_vla.precision import e018_p1_stage2a_selection_runtime as selection_runtime
 from robot_vla.precision.object_memory import ObjectMemorySafetyContext
 from robot_vla.precision.object_observability import ObjectObservabilityLabel
-from robot_vla.cli.run_e018_p1_stage2a_selection import build_parser
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SELECTION_CONFIG = (
@@ -923,6 +927,102 @@ def test_prediction_fsync_then_three_private_labels_return_only_metadata(
     assert state["privileged_capture_count"] == 3
 
 
+def test_preflight_progress_identity_and_seed_are_mutually_isolated() -> None:
+    progress = Stage2AExecutionProgress()
+    with pytest.raises(ValueError, match="77001..77025"):
+        progress.begin_information_gain_selection(
+            STAGE2A_SELECTION_PREFLIGHT_SEED,
+            experiment_identity=E018_P1_STAGE2A_SELECTION_EXPERIMENT_ID,
+        )
+    with pytest.raises(ValueError, match="76891"):
+        progress.begin_information_gain_preflight(
+            STAGE2A_SELECTION_SEEDS[0],
+            experiment_identity=(
+                E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXPERIMENT_ID
+            ),
+        )
+    with pytest.raises(PermissionError, match="identity"):
+        progress.begin_information_gain_selection(
+            STAGE2A_SELECTION_SEEDS[0],
+            experiment_identity=(
+                E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXPERIMENT_ID
+            ),
+        )
+    with pytest.raises(PermissionError, match="identity"):
+        progress.begin_information_gain_preflight(
+            STAGE2A_SELECTION_PREFLIGHT_SEED,
+            experiment_identity=E018_P1_STAGE2A_SELECTION_EXPERIMENT_ID,
+        )
+
+
+def test_preflight_journal_is_fixed_4_3_and_rejects_formal_freeze(
+    tmp_path: Path,
+) -> None:
+    journal = Stage2ASelectionPreflightJournal(
+        public_root=tmp_path / "public",
+        private_root=tmp_path / "private",
+        config_canonical_sha256="1" * 64,
+        transaction_identity_sha256="2" * 64,
+    )
+    for row_index, frame in enumerate((0, 45, 46, 47)):
+        provider_digest = f"{row_index + 3:x}" * 64
+        input_digest = f"{row_index + 7:x}" * 64
+        receipt = journal.commit_prediction(
+            {
+                "provider_output_digest": provider_digest,
+                "model_input_digest": input_digest,
+            },
+            seed=STAGE2A_SELECTION_PREFLIGHT_SEED,
+            route_frame_index=frame,
+            provider_output_digest=provider_digest,
+            model_input_digest=input_digest,
+        )
+        if frame in (45, 46, 47):
+            journal.capture_private_label_after_prediction(
+                prediction_receipt=receipt,
+                seed=STAGE2A_SELECTION_PREFLIGHT_SEED,
+                route_frame_index=frame,
+                rgb_sha256="a" * 64,
+                actual_pose_sha256="b" * 64,
+                provider_output_digest=provider_digest,
+                privileged_getter=_private_capture,
+            )
+    with pytest.raises(PermissionError, match="formal freeze"):
+        journal.freeze()
+    provider, private = journal.finalize_preflight_capture()
+    assert provider["row_count"] == 4
+    assert private["label_count"] == 3
+
+
+def test_formal_and_preflight_go_tokens_cannot_cross_authorize() -> None:
+    common = {
+        "selection_config_path": SELECTION_CONFIG,
+        "repository_root": REPOSITORY_ROOT,
+        "expected_config_raw_sha256": "1" * 64,
+        "expected_config_canonical_sha256": "2" * 64,
+        "expected_source_git_commit": "3" * 40,
+        "expected_source_identity_sha256": "4" * 64,
+    }
+    with pytest.raises(PermissionError, match="exact GO"):
+        selection_runtime._assert_capture_authority(
+            **common,
+            exact_go_token=STAGE2A_SELECTION_PREFLIGHT_GO,
+        )
+    with pytest.raises(PermissionError, match="preflight token"):
+        selection_runtime._assert_preflight_authority(
+            **common,
+            exact_preflight_token=STAGE2A_SELECTION_GO,
+        )
+
+
+def test_preflight_cli_has_fixed_seed_and_no_seed_option() -> None:
+    parser = build_parser()
+    subparsers = next(action for action in parser._actions if action.dest == "command")
+    preflight = subparsers.choices["preflight-one-route"]
+    assert "--seed" not in preflight._option_string_actions
+    assert "--preflight-go" in preflight._option_string_actions
+
+
 def test_privileged_getter_failure_persists_consumed_identity(tmp_path: Path) -> None:
     journal = Stage2ASelectionJournal(
         public_root=tmp_path / "public",
@@ -1356,7 +1456,7 @@ def test_pass_b_exact_once_and_result_verifier_end_to_end(
     assert result["selected_gain"] is None
     assert result["stage2b_continuation_required"] is True
     assert len(opened) == 75
-    assert set(path.name for path in artifact["result"].iterdir()) == {
+    assert {path.name for path in artifact["result"].iterdir()} == {
         "scored_gain_branches.jsonl",
         "selection_summary.json",
         "result_receipt.json",

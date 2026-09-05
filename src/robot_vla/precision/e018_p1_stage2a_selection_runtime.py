@@ -17,11 +17,11 @@ import secrets
 import stat as stat_module
 import time
 import traceback
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 import numpy as np
-
 from robot_vla.precision import e018_p1_stage2a as _stage2a
 from robot_vla.precision.calibrated_front_provider import canonical_sha256
 from robot_vla.precision.e018_p1_g2c_qualification import (
@@ -34,8 +34,10 @@ from robot_vla.precision.e018_p1_g2c_training import _git_source_identity
 from robot_vla.precision.e018_p1_stage2a import (
     E018_P1_STAGE2A_EXECUTION_VERSION,
     E018_P1_STAGE2A_SELECTION_EXPERIMENT_ID,
+    E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXPERIMENT_ID,
     STAGE2A_COLLECT_FRAME_INDICES,
     STAGE2A_PROVIDER_FRAME_INDICES,
+    STAGE2A_SELECTION_PREFLIGHT_SEED,
     STAGE2A_SELECTION_SEEDS,
     Stage2AExecutionProgress,
     Stage2AProviderOutputRecord,
@@ -45,15 +47,18 @@ from robot_vla.precision.e018_p1_stage2a import (
 )
 from robot_vla.precision.e018_p1_stage2a_selection import (
     E018_P1_STAGE2A_SELECTION_EXECUTION_VERSION,
+    E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXECUTION_VERSION,
     E018_P1_STAGE2A_SELECTION_RESULT_VERSION,
     STAGE2A_SELECTION_BRANCH_COUNT,
     STAGE2A_SELECTION_GAINS,
     STAGE2A_SELECTION_GO,
     STAGE2A_SELECTION_LABEL_COUNT,
     STAGE2A_SELECTION_PREDICTION_COUNT,
+    STAGE2A_SELECTION_PREFLIGHT_GO,
     CapturedSelectionRoute,
     GainBranchOutcome,
     Stage2ASelectionJournal,
+    Stage2ASelectionPreflightJournal,
     _array_sha256,
     _is_sha256,
     _read_json,
@@ -96,6 +101,19 @@ _ARTIFACT_TOP_LEVEL_DIRECTORIES = {
     "public_execution",
     "private_labels",
     "result",
+}
+_PREFLIGHT_PUBLIC_FILES = {
+    "config_snapshot.json",
+    "source_identity.json",
+    "parent_verification.json",
+    "checkpoint_identity.json",
+    "camera_pose_ledger.jsonl",
+    "provider_output_ledger.jsonl",
+    "route_summary.json",
+    "transaction.json",
+    "private_label_inventory.json",
+    "preflight_receipt.json",
+    "PREFLIGHT_COMPLETE.json",
 }
 
 _SELECTION_CLASSIFICATION = (
@@ -248,7 +266,7 @@ _SELECTION_ROUTE_GATE_ACTUAL_KEYS: dict[str, set[str] | None] = {
 
 def _finite_real(value: Any, name: str) -> float:
     if not isinstance(value, (int, float)) or isinstance(value, bool):
-        raise RuntimeError(f"{name} 必须是有限实数")
+        raise TypeError(f"{name} 必须是有限实数")
     result = float(value)
     if not math.isfinite(result):
         raise RuntimeError(f"{name} 必须是有限实数")
@@ -1824,7 +1842,7 @@ def _verify_e018_p1_stage2a_selection_public(
         raise RuntimeError("selection execution freeze 漂移")
     frozen_inventory = freeze.get("artifact_inventory")
     if not isinstance(frozen_inventory, dict):
-        raise RuntimeError("selection freeze inventory schema 漂移")
+        raise TypeError("selection freeze inventory schema 漂移")
     expected_frozen_paths = {
         "RUN_STARTED.json",
         "config_snapshot.json",
@@ -2022,6 +2040,35 @@ def _assert_capture_authority(
     return loaded, source
 
 
+def _assert_preflight_authority(
+    *,
+    selection_config_path: str | Path,
+    repository_root: Path,
+    expected_config_raw_sha256: str,
+    expected_config_canonical_sha256: str,
+    expected_source_git_commit: str,
+    expected_source_identity_sha256: str,
+    exact_preflight_token: str,
+) -> tuple[Any, dict[str, Any]]:
+    """只授权固定 76891 preflight；formal GO 在这里必须无效。"""
+
+    if exact_preflight_token != STAGE2A_SELECTION_PREFLIGHT_GO:
+        raise PermissionError("Stage 2A preflight 缺 exact preflight token")
+    loaded = load_e018_p1_stage2a_selection_config(selection_config_path)
+    if (
+        loaded.raw_sha256 != expected_config_raw_sha256
+        or loaded.canonical_sha256 != expected_config_canonical_sha256
+    ):
+        raise RuntimeError("preflight config 不匹配冻结 selection config identity")
+    source = _git_source_identity(repository_root)
+    if (
+        source["git_commit"] != expected_source_git_commit
+        or source["identity_sha256"] != expected_source_identity_sha256
+    ):
+        raise RuntimeError("preflight 要求 exact-clean source identity")
+    return loaded, source
+
+
 def _run_selection_simulator(
     *,
     loaded_selection_config: Any,
@@ -2032,9 +2079,10 @@ def _run_selection_simulator(
     stats_root: Path,
     selected_checkpoint_path: Path,
     public_root: Path,
-    journal: Stage2ASelectionJournal,
+    journal: Stage2ASelectionJournal | Stage2ASelectionPreflightJournal,
     execution_progress: Stage2AExecutionProgress,
     started_monotonic: float,
+    preflight_one_route: bool = False,
 ) -> tuple[
     list[dict[str, Any]],
     list[CapturedSelectionRoute],
@@ -2053,7 +2101,6 @@ def _run_selection_simulator(
     import sapien
     import torch
     from mani_skill.utils import sapien_utils
-
     from robot_vla.sim import register_robot_vla_maniskill_envs
 
     if (
@@ -2122,7 +2169,12 @@ def _run_selection_simulator(
             getattr(camera, "set_local_pose", None)
         ):
             raise RuntimeError("selection 要求 isolated unmounted external camera")
-        for seed in STAGE2A_SELECTION_SEEDS:
+        route_seeds = (
+            (STAGE2A_SELECTION_PREFLIGHT_SEED,)
+            if preflight_one_route
+            else STAGE2A_SELECTION_SEEDS
+        )
+        for seed in route_seeds:
             if (
                 time.monotonic() - started_monotonic
                 > loaded_selection_config.payload["budgets"][
@@ -2130,10 +2182,18 @@ def _run_selection_simulator(
                 ]
             ):
                 raise TimeoutError("selection GPU wall budget 已到停止条件")
-            execution_progress.begin_information_gain_selection(
-                seed,
-                experiment_identity=E018_P1_STAGE2A_SELECTION_EXPERIMENT_ID,
-            )
+            if preflight_one_route:
+                execution_progress.begin_information_gain_preflight(
+                    seed,
+                    experiment_identity=(
+                        E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXPERIMENT_ID
+                    ),
+                )
+            else:
+                execution_progress.begin_information_gain_selection(
+                    seed,
+                    experiment_identity=E018_P1_STAGE2A_SELECTION_EXPERIMENT_ID,
+                )
             prediction_receipts: list[dict[str, Any]] = []
             private_metadata: list[dict[str, Any]] = []
 
@@ -2142,6 +2202,11 @@ def _run_selection_simulator(
                 motion_row: Mapping[str, Any],
                 rgb: np.ndarray,
                 observation: Mapping[str, Any],
+                _bound_seed: int = seed,
+                _bound_prediction_receipts: list[dict[str, Any]] = (
+                    prediction_receipts
+                ),
+                _bound_private_metadata: list[dict[str, Any]] = private_metadata,
             ) -> None:
                 frame_index = record.route_frame_index
                 rgb_array = np.ascontiguousarray(np.asarray(rgb, dtype=np.uint8))
@@ -2153,12 +2218,12 @@ def _run_selection_simulator(
                     raise RuntimeError("selection hook RGB/route identity 漂移")
                 receipt = journal.commit_prediction(
                     record.to_dict(),
-                    seed=seed,
+                    seed=_bound_seed,
                     route_frame_index=frame_index,
                     provider_output_digest=record.provider_output_digest,
                     model_input_digest=record.model_input_digest,
                 )
-                prediction_receipts.append(receipt)
+                _bound_prediction_receipts.append(receipt)
                 if frame_index in STAGE2A_COLLECT_FRAME_INDICES:
                     actual_pose = np.asarray(
                         motion_row["actual_base_from_external_camera_cv"],
@@ -2166,7 +2231,7 @@ def _run_selection_simulator(
                     )
                     metadata = journal.capture_private_label_after_prediction(
                         prediction_receipt=receipt,
-                        seed=seed,
+                        seed=_bound_seed,
                         route_frame_index=frame_index,
                         rgb_sha256=motion_row["rgb_sha256"],
                         actual_pose_sha256=_array_sha256(actual_pose),
@@ -2178,10 +2243,19 @@ def _run_selection_simulator(
                             data_config=data_config,
                         ),
                     )
-                    private_metadata.append(metadata)
+                    _bound_private_metadata.append(metadata)
 
-            transaction = Stage2ARouteTransaction.for_information_gain_selection_capture(
-                experiment_identity=E018_P1_STAGE2A_SELECTION_EXPERIMENT_ID,
+            factory = (
+                Stage2ARouteTransaction.for_information_gain_selection_preflight_capture
+                if preflight_one_route
+                else Stage2ARouteTransaction.for_information_gain_selection_capture
+            )
+            transaction = factory(
+                experiment_identity=(
+                    E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXPERIMENT_ID
+                    if preflight_one_route
+                    else E018_P1_STAGE2A_SELECTION_EXPERIMENT_ID
+                ),
                 seed=seed,
                 provider=provider,
                 stage2_config=loaded_stage2a_config,
@@ -2207,7 +2281,11 @@ def _run_selection_simulator(
                 sapien_utils_module=sapien_utils,
                 alternate_orientation=primary_orientation,
                 result_version=E018_P1_STAGE2A_EXECUTION_VERSION,
-                episode_prefix="stage2a-selection",
+                episode_prefix=(
+                    "stage2a-selection-preflight"
+                    if preflight_one_route
+                    else "stage2a-selection"
+                ),
                 source_phase=_stage2a.STAGE2A_SOURCE_PHASE.value,
                 camera_owner=_stage2a.STAGE2A_CAMERA_OWNER,
                 frame_hook=transaction.frame_hook,
@@ -2226,7 +2304,9 @@ def _run_selection_simulator(
             route_summary = {
                 **route_summary,
                 "classification": (
-                    "formal-development-selection-capture-only-no-test-no-actuation/v1"
+                    "engineering-preflight-selection-capture-only-no-test-no-actuation/v1"
+                    if preflight_one_route
+                    else "formal-development-selection-capture-only-no-test-no-actuation/v1"
                 ),
                 "provider_forward_count": len(transaction.provider_records),
                 "memory_write_count": transaction.orchestrator.memory_write_count,
@@ -2236,8 +2316,12 @@ def _run_selection_simulator(
                 "fresh_test_reads": 0,
             }
             transaction_row = transaction.finalize(route_summary)
-            captured = CapturedSelectionRoute.from_transaction_export(
-                transaction.selection_replay_inputs()
+            captured = (
+                None
+                if preflight_one_route
+                else CapturedSelectionRoute.from_transaction_export(
+                    transaction.selection_replay_inputs()
+                )
             )
             if (
                 len(route_rows) != 92
@@ -2249,7 +2333,8 @@ def _run_selection_simulator(
             rows.extend(route_rows)
             route_summaries.append(route_summary)
             transactions.append(transaction_row)
-            captured_routes.append(captured)
+            if captured is not None:
+                captured_routes.append(captured)
             provider_records.extend(transaction.provider_records)
             route_prediction_receipts.append(prediction_receipts)
             route_private_metadata.append(private_metadata)
@@ -2297,6 +2382,483 @@ def _run_selection_simulator(
         environment_identity,
         context_destroyed,
     )
+
+
+def run_e018_p1_stage2a_selection_preflight_one_route(
+    *,
+    selection_config_path: str | Path,
+    stage2a_config_path: str | Path,
+    qualification_config_path: str | Path,
+    g0c_config_path: str | Path,
+    data_config_path: str | Path,
+    stats_root: str | Path,
+    selected_checkpoint_path: str | Path,
+    repository_root: str | Path,
+    artifact_root: str | Path,
+    stage2a_artifact_root: str | Path,
+    stage2a_control_evidence_root: str | Path,
+    artifact_inventory_path: str | Path,
+    parent_replay_artifact_root: str | Path,
+    parent_replay_control_evidence_root: str | Path,
+    expected_config_raw_sha256: str,
+    expected_config_canonical_sha256: str,
+    expected_source_git_commit: str,
+    expected_source_identity_sha256: str,
+    exact_preflight_token: str,
+) -> dict[str, Any]:
+    """固定 seed 76891 的单路线 GPU preflight；不触碰正式 split。"""
+
+    artifact = Path(artifact_root)
+    if artifact.exists():
+        raise FileExistsError(f"preflight artifact root 已存在: {artifact}")
+    loaded, source = _assert_preflight_authority(
+        selection_config_path=selection_config_path,
+        repository_root=Path(repository_root),
+        expected_config_raw_sha256=expected_config_raw_sha256,
+        expected_config_canonical_sha256=expected_config_canonical_sha256,
+        expected_source_git_commit=expected_source_git_commit,
+        expected_source_identity_sha256=expected_source_identity_sha256,
+        exact_preflight_token=exact_preflight_token,
+    )
+    stage2a = load_e018_p1_stage2a_config(stage2a_config_path)
+    parent = verify_selection_parent_gate(
+        selection_config_path=selection_config_path,
+        stage2a_config_path=stage2a_config_path,
+        qualification_config_path=qualification_config_path,
+        stage2a_artifact_root=stage2a_artifact_root,
+        stage2a_control_evidence_root=stage2a_control_evidence_root,
+        artifact_inventory_path=artifact_inventory_path,
+        parent_replay_artifact_root=parent_replay_artifact_root,
+        parent_replay_control_evidence_root=(
+            parent_replay_control_evidence_root
+        ),
+    )
+    qualification = load_g2c_dynamic_qualification_config(
+        qualification_config_path
+    )
+    g0c = _stage2a._g0c.load_e018_p1_g0c_config(g0c_config_path)
+    data = _stage2a.load_e018_p1_g2c_data_config(
+        data_config_path,
+        parent_g0c_config_path=g0c_config_path,
+    )
+    checkpoint = Path(selected_checkpoint_path)
+    if (
+        not checkpoint.is_file()
+        or checkpoint.is_symlink()
+        or checkpoint.stat().st_nlink != 1
+    ):
+        raise RuntimeError("preflight checkpoint 必须是单链接 regular file")
+    artifact.mkdir(mode=0o700, parents=True, exist_ok=False)
+    public_root = artifact / "public_preflight"
+    private_root = artifact / "private_labels"
+    transaction_primitive = {
+        "version": E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXECUTION_VERSION,
+        "experiment_id": E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXPERIMENT_ID,
+        "seed": STAGE2A_SELECTION_PREFLIGHT_SEED,
+        "config_raw_sha256": loaded.raw_sha256,
+        "config_canonical_sha256": loaded.canonical_sha256,
+        "source_identity_sha256": source["identity_sha256"],
+        "parent_verification_sha256": parent["verification_sha256"],
+        "checkpoint_raw_sha256": file_sha256(checkpoint),
+    }
+    transaction_identity = canonical_sha256(transaction_primitive)
+    journal = Stage2ASelectionPreflightJournal(
+        public_root=public_root,
+        private_root=private_root,
+        config_canonical_sha256=loaded.canonical_sha256,
+        transaction_identity_sha256=transaction_identity,
+    )
+    snapshot = {
+        "version": E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXECUTION_VERSION,
+        "config_raw_sha256": loaded.raw_sha256,
+        "config_canonical_sha256": loaded.canonical_sha256,
+        "config": loaded.payload,
+    }
+    snapshot["snapshot_sha256"] = canonical_sha256(snapshot)
+    checkpoint_identity = {
+        "version": E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXECUTION_VERSION,
+        "checkpoint_basename": checkpoint.name,
+        "checkpoint_raw_sha256": transaction_primitive[
+            "checkpoint_raw_sha256"
+        ],
+        "checkpoint_write_count": 0,
+    }
+    checkpoint_identity["identity_sha256"] = canonical_sha256(
+        checkpoint_identity
+    )
+    _atomic_create_json(public_root / "config_snapshot.json", snapshot)
+    _atomic_create_json(public_root / "source_identity.json", source)
+    _atomic_create_json(public_root / "parent_verification.json", parent)
+    _atomic_create_json(
+        public_root / "checkpoint_identity.json", checkpoint_identity
+    )
+    progress = Stage2AExecutionProgress()
+    started_monotonic = time.monotonic()
+    try:
+        (
+            camera_rows,
+            captured_routes,
+            route_summaries,
+            transactions,
+            provider_records,
+            route_receipts,
+            route_private,
+            environment_identity,
+            context_destroyed,
+        ) = _run_selection_simulator(
+            loaded_selection_config=loaded,
+            loaded_stage2a_config=stage2a,
+            qualification_config=qualification,
+            g0c_config=g0c,
+            data_config=data,
+            stats_root=Path(stats_root),
+            selected_checkpoint_path=checkpoint,
+            public_root=public_root,
+            journal=journal,
+            execution_progress=progress,
+            started_monotonic=started_monotonic,
+            preflight_one_route=True,
+        )
+        provider_freeze, private_inventory = (
+            journal.finalize_preflight_capture()
+        )
+        if (
+            not context_destroyed
+            or captured_routes
+            or len(camera_rows) != 92
+            or len(route_summaries) != 1
+            or len(transactions) != 1
+            or len(provider_records) != 4
+            or [len(value) for value in route_receipts] != [4]
+            or [len(value) for value in route_private] != [3]
+            or provider_freeze["row_count"] != 4
+            or transactions[0].get("memory_write_count") != 0
+            or transactions[0].get("shadow_action_generation") is not None
+        ):
+            raise RuntimeError("preflight 固定单路线 accounting 漂移")
+        _atomic_jsonl(public_root / "camera_pose_ledger.jsonl", camera_rows)
+        _atomic_create_json(public_root / "route_summary.json", route_summaries[0])
+        _atomic_create_json(public_root / "transaction.json", transactions[0])
+        _atomic_create_json(
+            public_root / "private_label_inventory.json", private_inventory
+        )
+        wall_seconds = time.monotonic() - started_monotonic
+        counts = {
+            "route_count": 1,
+            "camera_frame_count": 92,
+            "provider_forward_count": 4,
+            "private_label_capture_count": 3,
+            "memory_write_count": 0,
+            "fresh_shadow_action_generation_count": 0,
+            "branch_provider_forward_count": 0,
+            "fresh_test_read_count": 0,
+            "arm_motion_command_count": 0,
+            "tcp_motion_command_count": 0,
+            "gripper_command_count": 0,
+        }
+        receipt = {
+            "version": E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXECUTION_VERSION,
+            "status": "PREFLIGHT_ROUTE_COMPLETE_CONTEXT_DESTROYED",
+            "classification": (
+                "engineering-preflight-selection-capture-only-no-test-no-actuation/v1"
+            ),
+            "effect_claim": "no-effect-claim",
+            "experiment_id": E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXPERIMENT_ID,
+            "seed": STAGE2A_SELECTION_PREFLIGHT_SEED,
+            "config_raw_sha256": loaded.raw_sha256,
+            "config_canonical_sha256": loaded.canonical_sha256,
+            "source_git_commit": source["git_commit"],
+            "source_identity_sha256": source["identity_sha256"],
+            "parent_verification_sha256": parent["verification_sha256"],
+            "checkpoint_identity_sha256": checkpoint_identity[
+                "identity_sha256"
+            ],
+            "transaction_identity_sha256": transaction_identity,
+            "context_destroyed": True,
+            "provider_context_destroyed": True,
+            "environment_closed": True,
+            "counts": counts,
+            "environment_identity": environment_identity,
+            "gpu_wall_seconds": wall_seconds,
+            "formal_selection_identity_consumed": False,
+            "formal_completion_created": False,
+            "scoring_consumption_marker_created": False,
+            "result_root_created": False,
+            "fresh_test_status": "prohibited-unread",
+        }
+        receipt["receipt_sha256"] = canonical_sha256(receipt)
+        _atomic_create_json(public_root / "preflight_receipt.json", receipt)
+        precompletion_paths = sorted(
+            _PREFLIGHT_PUBLIC_FILES
+            - {"PREFLIGHT_COMPLETE.json"}
+            | {
+                f"prediction_commits/{index:06d}.commit.json"
+                for index in range(4)
+            }
+        )
+        completion = {
+            "version": E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXECUTION_VERSION,
+            "status": "PREFLIGHT_COMPLETE",
+            "experiment_id": E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXPERIMENT_ID,
+            "seed": STAGE2A_SELECTION_PREFLIGHT_SEED,
+            "transaction_identity_sha256": transaction_identity,
+            "preflight_receipt_internal_sha256": receipt["receipt_sha256"],
+            "private_inventory_internal_sha256": private_inventory[
+                "inventory_sha256"
+            ],
+            "counts": counts,
+            "context_destroyed": True,
+            "formal_selection_identity_consumed": False,
+            "public_artifact_inventory": _file_inventory(
+                public_root, precompletion_paths
+            ),
+            "completed_at_unix_ns": time.time_ns(),
+        }
+        completion["completion_sha256"] = canonical_sha256(completion)
+        _atomic_create_json(public_root / "PREFLIGHT_COMPLETE.json", completion)
+        return verify_e018_p1_stage2a_selection_preflight(
+            selection_config_path=selection_config_path,
+            artifact_root=artifact,
+            expected_source_git_commit=expected_source_git_commit,
+            expected_source_identity_sha256=expected_source_identity_sha256,
+        )
+    except Exception as error:
+        trace = "".join(
+            traceback.format_exception(type(error), error, error.__traceback__)
+        )
+        failure = {
+            "version": E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXECUTION_VERSION,
+            "status": "PREFLIGHT_FAILED_EVIDENCE_PRESERVED",
+            "experiment_id": E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXPERIMENT_ID,
+            "seed": STAGE2A_SELECTION_PREFLIGHT_SEED,
+            "transaction_identity_sha256": transaction_identity,
+            "error_type": type(error).__name__,
+            "error": str(error)[:1024],
+            "traceback_tail": trace[-8192:],
+            "traceback_sha256": hashlib.sha256(trace.encode()).hexdigest(),
+            "progress": progress.as_dict(),
+            "formal_selection_identity_consumed": False,
+            "fresh_test_reads": 0,
+            "failed_at_unix_ns": time.time_ns(),
+        }
+        failure["failure_sha256"] = canonical_sha256(failure)
+        _atomic_create_json(artifact / "PREFLIGHT_FAILURE.json", failure)
+        raise
+
+
+def verify_e018_p1_stage2a_selection_preflight(
+    *,
+    selection_config_path: str | Path,
+    artifact_root: str | Path,
+    expected_source_git_commit: str,
+    expected_source_identity_sha256: str,
+) -> dict[str, Any]:
+    """验证固定单路线 preflight；不打开 private label payload。"""
+
+    artifact = Path(artifact_root)
+    _assert_artifact_top_level_directories(
+        artifact,
+        expected_directories={"public_preflight", "private_labels"},
+    )
+    public_root = artifact / "public_preflight"
+    private_root = artifact / "private_labels"
+    commit_names = {f"{index:06d}.commit.json" for index in range(4)}
+    _assert_exact_tree(
+        public_root,
+        expected_files=_PREFLIGHT_PUBLIC_FILES,
+        expected_directory="prediction_commits",
+        expected_directory_files=commit_names,
+        name="selection preflight public artifact",
+    )
+    _assert_exact_tree(
+        private_root,
+        expected_files={"capture_state.json"},
+        expected_directory="label_commits",
+        expected_directory_files={
+            f"{index:06d}.json" for index in range(3)
+        },
+        name="selection preflight private artifact",
+    )
+    loaded = load_e018_p1_stage2a_selection_config(selection_config_path)
+    snapshot = _read_json(
+        public_root / "config_snapshot.json", "preflight config snapshot"
+    )
+    source = _read_json(
+        public_root / "source_identity.json", "preflight source identity"
+    )
+    if (
+        snapshot.get("version")
+        != E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXECUTION_VERSION
+        or snapshot.get("config_raw_sha256") != loaded.raw_sha256
+        or snapshot.get("config_canonical_sha256") != loaded.canonical_sha256
+        or snapshot.get("config") != loaded.payload
+        or _verify_internal_digest(
+            snapshot,
+            digest_key="snapshot_sha256",
+            name="preflight config snapshot",
+        )
+        != snapshot.get("snapshot_sha256")
+        or source.get("git_commit") != expected_source_git_commit
+        or source.get("identity_sha256") != expected_source_identity_sha256
+    ):
+        raise RuntimeError("preflight config/source identity 漂移")
+    receipt = _read_json(
+        public_root / "preflight_receipt.json", "preflight receipt"
+    )
+    completion = _read_json(
+        public_root / "PREFLIGHT_COMPLETE.json", "preflight completion"
+    )
+    expected_counts = {
+        "route_count": 1,
+        "camera_frame_count": 92,
+        "provider_forward_count": 4,
+        "private_label_capture_count": 3,
+        "memory_write_count": 0,
+        "fresh_shadow_action_generation_count": 0,
+        "branch_provider_forward_count": 0,
+        "fresh_test_read_count": 0,
+        "arm_motion_command_count": 0,
+        "tcp_motion_command_count": 0,
+        "gripper_command_count": 0,
+    }
+    if (
+        _verify_internal_digest(
+            receipt,
+            digest_key="receipt_sha256",
+            name="preflight receipt",
+        )
+        != receipt.get("receipt_sha256")
+        or receipt.get("version")
+        != E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXECUTION_VERSION
+        or receipt.get("status")
+        != "PREFLIGHT_ROUTE_COMPLETE_CONTEXT_DESTROYED"
+        or receipt.get("experiment_id")
+        != E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXPERIMENT_ID
+        or receipt.get("seed") != STAGE2A_SELECTION_PREFLIGHT_SEED
+        or receipt.get("counts") != expected_counts
+        or receipt.get("context_destroyed") is not True
+        or receipt.get("provider_context_destroyed") is not True
+        or receipt.get("environment_closed") is not True
+        or receipt.get("formal_selection_identity_consumed") is not False
+        or receipt.get("formal_completion_created") is not False
+        or receipt.get("scoring_consumption_marker_created") is not False
+        or receipt.get("result_root_created") is not False
+        or receipt.get("fresh_test_status") != "prohibited-unread"
+    ):
+        raise RuntimeError("preflight receipt identity/accounting 漂移")
+    if (
+        _verify_internal_digest(
+            completion,
+            digest_key="completion_sha256",
+            name="preflight completion",
+        )
+        != completion.get("completion_sha256")
+        or completion.get("version")
+        != E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXECUTION_VERSION
+        or completion.get("status") != "PREFLIGHT_COMPLETE"
+        or completion.get("experiment_id")
+        != E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXPERIMENT_ID
+        or completion.get("seed") != STAGE2A_SELECTION_PREFLIGHT_SEED
+        or completion.get("counts") != expected_counts
+        or completion.get("context_destroyed") is not True
+        or completion.get("formal_selection_identity_consumed") is not False
+        or completion.get("preflight_receipt_internal_sha256")
+        != receipt["receipt_sha256"]
+    ):
+        raise RuntimeError("preflight completion identity/accounting 漂移")
+    expected_inventory_paths = (
+        _PREFLIGHT_PUBLIC_FILES
+        - {"PREFLIGHT_COMPLETE.json"}
+        | {
+            f"prediction_commits/{index:06d}.commit.json"
+            for index in range(4)
+        }
+    )
+    inventory = completion.get("public_artifact_inventory")
+    if not isinstance(inventory, dict) or set(inventory) != expected_inventory_paths:
+        raise RuntimeError("preflight completion inventory key set 漂移")
+    for relative, identity in inventory.items():
+        path = public_root / relative
+        if (
+            not isinstance(identity, dict)
+            or set(identity) != {"raw_sha256", "size_bytes"}
+            or file_sha256(path) != identity["raw_sha256"]
+            or path.stat().st_size != identity["size_bytes"]
+        ):
+            raise RuntimeError(f"preflight frozen public artifact 漂移: {relative}")
+    camera_rows = _read_jsonl(
+        public_root / "camera_pose_ledger.jsonl", "preflight camera ledger"
+    )
+    provider_rows = _read_jsonl(
+        public_root / "provider_output_ledger.jsonl", "preflight provider ledger"
+    )
+    private_inventory = _read_json(
+        public_root / "private_label_inventory.json",
+        "preflight private inventory",
+    )
+    if (
+        len(camera_rows) != 92
+        or len(provider_rows) != 4
+        or private_inventory.get("version")
+        != E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXECUTION_VERSION
+        or private_inventory.get("experiment_id")
+        != E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXPERIMENT_ID
+        or private_inventory.get("seed") != STAGE2A_SELECTION_PREFLIGHT_SEED
+        or private_inventory.get("label_count") != 3
+        or not isinstance(private_inventory.get("rows"), list)
+        or len(private_inventory["rows"]) != 3
+        or _verify_internal_digest(
+            private_inventory,
+            digest_key="inventory_sha256",
+            name="preflight private inventory",
+        )
+        != private_inventory.get("inventory_sha256")
+        or completion.get("private_inventory_internal_sha256")
+        != private_inventory["inventory_sha256"]
+    ):
+        raise RuntimeError("preflight ledger/private inventory accounting 漂移")
+    for index, row in enumerate(private_inventory["rows"]):
+        path = private_root / f"label_commits/{index:06d}.json"
+        if (
+            row.get("label_index") != index
+            or row.get("prediction_row_index") != index + 1
+            or row.get("seed") != STAGE2A_SELECTION_PREFLIGHT_SEED
+            or row.get("route_frame_index") != STAGE2A_COLLECT_FRAME_INDICES[index]
+            or row.get("path") != f"label_commits/{index:06d}.json"
+            or row.get("raw_sha256") != file_sha256(path)
+            or row.get("size_bytes") != path.stat().st_size
+        ):
+            raise RuntimeError(f"preflight private inventory[{index}] 漂移")
+    transaction = _read_json(
+        public_root / "transaction.json", "preflight transaction"
+    )
+    if (
+        transaction.get("classification")
+        != "engineering-preflight-selection-capture-only-no-test-no-actuation/v1"
+        or transaction.get("seed") != STAGE2A_SELECTION_PREFLIGHT_SEED
+        or transaction.get("memory_write_count") != 0
+        or transaction.get("shadow_action_generation") is not None
+        or transaction.get("fresh_test_reads") != 0
+        or transaction.get("arm_motion_command_count") != 0
+        or transaction.get("gripper_close_command_count") != 0
+    ):
+        raise RuntimeError("preflight transaction 权限/accounting 漂移")
+    result = {
+        "version": E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXECUTION_VERSION,
+        "verified": True,
+        "experiment_id": E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXPERIMENT_ID,
+        "seed": STAGE2A_SELECTION_PREFLIGHT_SEED,
+        "config_raw_sha256": loaded.raw_sha256,
+        "config_canonical_sha256": loaded.canonical_sha256,
+        "source_git_commit": source["git_commit"],
+        "source_identity_sha256": source["identity_sha256"],
+        "counts": expected_counts,
+        "context_destroyed": True,
+        "formal_selection_identity_consumed": False,
+        "completion_sha256": completion["completion_sha256"],
+    }
+    result["verification_sha256"] = canonical_sha256(result)
+    return result
 
 
 def _record_capture_failure(

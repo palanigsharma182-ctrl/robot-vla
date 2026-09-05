@@ -12,12 +12,12 @@ import json
 import math
 import re
 import time
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Callable, Mapping, Sequence
+from typing import Any
 
 import numpy as np
-
 from robot_vla.executive.contracts import PhaseId
 from robot_vla.precision.active_front_camera import ExternalCameraMotionState
 from robot_vla.precision.active_front_memory import (
@@ -26,9 +26,9 @@ from robot_vla.precision.active_front_memory import (
     PendingActiveViewState,
 )
 from robot_vla.precision.active_front_memory_provider import (
+    ActiveFrontScoreComponents,
     ActiveFrontStage2Config,
     ActiveFrontStage2FrameEvidence,
-    ActiveFrontScoreComponents,
     ActiveFrontStage2ProviderIdentity,
     PassiveBaselineEvidence,
     PassiveHomeScoreEvidence,
@@ -53,8 +53,10 @@ from robot_vla.precision.e018_p1_g2c_qualification import (
 )
 from robot_vla.precision.e018_p1_stage2a import (
     E018_P1_STAGE2A_SELECTION_EXPERIMENT_ID,
+    E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXPERIMENT_ID,
     STAGE2A_COLLECT_FRAME_INDICES,
     STAGE2A_PROVIDER_FRAME_INDICES,
+    STAGE2A_SELECTION_PREFLIGHT_SEED,
     STAGE2A_SELECTION_SEEDS,
     Stage2AActionHistoryRuntime,
     load_e018_p1_stage2a_config,
@@ -76,14 +78,22 @@ E018_P1_STAGE2A_SELECTION_EXECUTION_VERSION = (
 E018_P1_STAGE2A_SELECTION_RESULT_VERSION = (
     "e018-p1-stage2a-min-information-gain-selection-result/v1"
 )
+E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXECUTION_VERSION = (
+    "e018-p1-stage2a-pass-a-one-route-preflight-execution/v1"
+)
 STAGE2A_SELECTION_GO = (
     "E018_P1_STAGE2A_MIN_INFORMATION_GAIN_SELECTION_GO_77001_77025_V1"
+)
+STAGE2A_SELECTION_PREFLIGHT_GO = (
+    "E018_P1_STAGE2A_PASS_A_ONE_ROUTE_PREFLIGHT_GO_76891_V1"
 )
 STAGE2A_SELECTION_GAINS = (0.02, 0.05, 0.10)
 STAGE2A_SELECTION_PREDICTION_COUNT = 100
 STAGE2A_SELECTION_LABEL_COUNT = 75
 STAGE2A_SELECTION_BRANCH_COUNT = 75
 STAGE2A_SELECTION_MIN_SUPPORT = 1
+STAGE2A_SELECTION_PREFLIGHT_PREDICTION_COUNT = 4
+STAGE2A_SELECTION_PREFLIGHT_LABEL_COUNT = 3
 
 _QUALIFICATION_OBJECT_LABEL_KEYS = {
     "gt_object_exists",
@@ -879,7 +889,7 @@ def verify_selection_parent_gate(
     inventory = _read_json(Path(artifact_inventory_path), "artifact inventory")
     records = inventory.get("backups")
     if not isinstance(records, list):
-        raise RuntimeError("artifact inventory backups schema 漂移")
+        raise TypeError("artifact inventory backups schema 漂移")
     matches = [
         value
         for value in records
@@ -1381,6 +1391,263 @@ class Stage2ASelectionJournal:
         return provider, inventory
 
 
+class Stage2ASelectionPreflightJournal:
+    """固定 76891 的 4 prediction / 3 write-only label preflight journal。"""
+
+    def __init__(
+        self,
+        *,
+        public_root: str | Path,
+        private_root: str | Path,
+        config_canonical_sha256: str,
+        transaction_identity_sha256: str,
+    ) -> None:
+        self.public_root = Path(public_root)
+        self.private_root = Path(private_root)
+        if self.public_root.exists() or self.private_root.exists():
+            raise FileExistsError("preflight public/private roots 必须同时全新")
+        if not _is_sha256(config_canonical_sha256) or not _is_sha256(
+            transaction_identity_sha256
+        ):
+            raise ValueError("preflight journal identity SHA 非法")
+        self.public_root.mkdir(mode=0o700, parents=True, exist_ok=False)
+        self.private_root.mkdir(mode=0o700, parents=True, exist_ok=False)
+        (self.public_root / "prediction_commits").mkdir(mode=0o700)
+        (self.private_root / "label_commits").mkdir(mode=0o700)
+        self.config_canonical_sha256 = config_canonical_sha256
+        self.transaction_identity_sha256 = transaction_identity_sha256
+        self.provider_writer = _AppendOnlyJsonl(
+            self.public_root / "provider_output_ledger.jsonl"
+        )
+        self.prediction_count = 0
+        self.label_count = 0
+        self.privileged_access_started_count = 0
+        self.previous_commit_receipt_sha256: str | None = None
+        self.private_inventory_rows: list[dict[str, Any]] = []
+        self._write_capture_state("initialized-before-privileged-read")
+
+    def _write_capture_state(self, status: str) -> None:
+        state = {
+            "version": E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXECUTION_VERSION,
+            "experiment_id": E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXPERIMENT_ID,
+            "status": status,
+            "seed": STAGE2A_SELECTION_PREFLIGHT_SEED,
+            "transaction_identity_sha256": self.transaction_identity_sha256,
+            "prediction_commit_count": self.prediction_count,
+            "privileged_access_started_count": self.privileged_access_started_count,
+            "privileged_capture_count": self.label_count,
+            "formal_selection_identity_consumed": False,
+        }
+        state["state_sha256"] = canonical_sha256(state)
+        _atomic_replace_json(self.private_root / "capture_state.json", state)
+
+    def commit_prediction(
+        self,
+        row: Mapping[str, Any],
+        *,
+        seed: int,
+        route_frame_index: int,
+        provider_output_digest: str,
+        model_input_digest: str,
+    ) -> dict[str, Any]:
+        row_index = self.prediction_count
+        if seed != STAGE2A_SELECTION_PREFLIGHT_SEED:
+            raise ValueError("preflight prediction 只接受固定 seed 76891")
+        if row_index >= STAGE2A_SELECTION_PREFLIGHT_PREDICTION_COUNT:
+            raise RuntimeError("preflight prediction 超过固定 4 次")
+        expected_frame = STAGE2A_PROVIDER_FRAME_INDICES[row_index]
+        if route_frame_index != expected_frame:
+            raise RuntimeError("preflight prediction frame exact order 漂移")
+        if not _is_sha256(provider_output_digest) or not _is_sha256(
+            model_input_digest
+        ):
+            raise ValueError("preflight provider/input digest 非法")
+        public_row = dict(row)
+        assert_qualification_prediction_deployable_only(public_row)
+        if (
+            public_row.get("provider_output_digest") != provider_output_digest
+            or public_row.get("model_input_digest") != model_input_digest
+        ):
+            raise RuntimeError("preflight provider ledger row/digest 未绑定")
+        self.provider_writer.append([public_row])
+        completed_at = time.time_ns()
+        receipt = {
+            "version": E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXECUTION_VERSION,
+            "row_index": row_index,
+            "seed": seed,
+            "route_frame_index": route_frame_index,
+            "provider_output_digest": provider_output_digest,
+            "model_input_digest": model_input_digest,
+            "transaction_identity_sha256": self.transaction_identity_sha256,
+            "provider_ledger_prefix_raw_sha256": file_sha256(
+                self.provider_writer.path
+            ),
+            "previous_prediction_commit_sha256": (
+                self.previous_commit_receipt_sha256
+            ),
+            "prediction_fsync_completed_at_unix_ns": completed_at,
+        }
+        receipt["commit_receipt_sha256"] = canonical_sha256(receipt)
+        path = self.public_root / "prediction_commits" / f"{row_index:06d}.commit.json"
+        _atomic_create_json(path, receipt)
+        self.previous_commit_receipt_sha256 = receipt["commit_receipt_sha256"]
+        self.prediction_count += 1
+        return receipt
+
+    def capture_private_label_after_prediction(
+        self,
+        *,
+        prediction_receipt: Mapping[str, Any],
+        seed: int,
+        route_frame_index: int,
+        rgb_sha256: str,
+        actual_pose_sha256: str,
+        provider_output_digest: str,
+        privileged_getter: Callable[[], Mapping[str, Any]],
+    ) -> dict[str, Any]:
+        label_index = self.label_count
+        if seed != STAGE2A_SELECTION_PREFLIGHT_SEED:
+            raise ValueError("preflight private label 只接受固定 seed 76891")
+        if label_index >= STAGE2A_SELECTION_PREFLIGHT_LABEL_COUNT:
+            raise RuntimeError("preflight private label 超过固定 3 次")
+        expected_frame = STAGE2A_COLLECT_FRAME_INDICES[label_index]
+        if route_frame_index != expected_frame:
+            raise RuntimeError("preflight private label frame exact order 漂移")
+        unsigned_receipt = dict(prediction_receipt)
+        stored_receipt_sha256 = unsigned_receipt.pop(
+            "commit_receipt_sha256", None
+        )
+        if (
+            prediction_receipt.get("row_index") != self.prediction_count - 1
+            or prediction_receipt.get("seed") != seed
+            or prediction_receipt.get("route_frame_index") != route_frame_index
+            or prediction_receipt.get("provider_output_digest")
+            != provider_output_digest
+            or stored_receipt_sha256 != canonical_sha256(unsigned_receipt)
+        ):
+            raise RuntimeError("preflight label 早于或未绑定 prediction commit")
+        for value, name in (
+            (rgb_sha256, "rgb_sha256"),
+            (actual_pose_sha256, "actual_pose_sha256"),
+            (provider_output_digest, "provider_output_digest"),
+        ):
+            if not _is_sha256(value):
+                raise ValueError(f"preflight label {name} 非法")
+        self.privileged_access_started_count += 1
+        self._write_capture_state("privileged-access-in-progress")
+        privileged = dict(privileged_getter())
+        if set(privileged) != _SELECTION_PRIVATE_CAPTURE_KEYS:
+            raise RuntimeError("preflight private label exact keys 漂移")
+        qualification_label = {
+            key: privileged[key] for key in _QUALIFICATION_OBJECT_LABEL_KEYS
+        }
+        _validate_qualification_object_label(qualification_label, committed=False)
+        position = np.asarray(
+            privileged["gt_object_position_base_m"], dtype=np.float64
+        )
+        contact = float(privileged["robot_object_contact_force_n"])
+        linear = float(privileged["object_linear_speed_m_s"])
+        angular = float(privileged["object_angular_speed_rad_s"])
+        if (
+            type(privileged["gt_object_exists"]) is not bool
+            or type(privileged["gt_observable"]) is not bool
+            or position.shape != (3,)
+            or not np.isfinite(position).all()
+            or any(
+                not math.isfinite(value) or value < 0.0
+                for value in (contact, linear, angular)
+            )
+            or privileged["object_motion_event"]
+            is not bool(linear > 0.01 or angular > 0.5)
+            or type(privileged["is_grasped"]) is not bool
+            or privileged["goal_gt_read_count"] != 0
+            or privileged["test_data_read"] is not False
+        ):
+            raise RuntimeError("preflight private scoring primitive 语义漂移")
+        captured_at = time.time_ns()
+        if captured_at <= int(
+            prediction_receipt["prediction_fsync_completed_at_unix_ns"]
+        ):
+            raise RuntimeError("preflight label capture 必须晚于 prediction fsync")
+        label = {
+            **privileged,
+            "version": E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXECUTION_VERSION,
+            "label_index": label_index,
+            "prediction_row_index": prediction_receipt["row_index"],
+            "seed": seed,
+            "route_frame_index": route_frame_index,
+            "rgb_sha256": rgb_sha256,
+            "actual_pose_sha256": actual_pose_sha256,
+            "provider_output_digest": provider_output_digest,
+            "prediction_commit_receipt_sha256": stored_receipt_sha256,
+            "transaction_identity_sha256": self.transaction_identity_sha256,
+            "motion_predicate_version": "pick-and-place-predicates/v1",
+            "motion_linear_threshold_m_s": 0.01,
+            "motion_angular_threshold_rad_s": 0.5,
+            "contact_threshold_n": 0.01,
+            "privileged_captured_at_unix_ns": captured_at,
+        }
+        label["label_sha256"] = canonical_sha256(label)
+        path = self.private_root / "label_commits" / f"{label_index:06d}.json"
+        raw_sha256, _ = _atomic_create_json(path, label)
+        scoring_primitive = {
+            key: label[key]
+            for key in (
+                "gt_object_exists",
+                "gt_observable",
+                "gt_object_position_base_m",
+                "robot_object_contact_force_n",
+                "object_linear_speed_m_s",
+                "object_angular_speed_rad_s",
+                "object_motion_event",
+                "is_grasped",
+            )
+        }
+        inventory_row = {
+            "label_index": label_index,
+            "prediction_row_index": prediction_receipt["row_index"],
+            "seed": seed,
+            "route_frame_index": route_frame_index,
+            "path": f"label_commits/{label_index:06d}.json",
+            "raw_sha256": raw_sha256,
+            "size_bytes": path.stat().st_size,
+            "scoring_primitive_sha256": canonical_sha256(scoring_primitive),
+        }
+        inventory_row["row_sha256"] = canonical_sha256(inventory_row)
+        self.private_inventory_rows.append(inventory_row)
+        self.label_count += 1
+        self._write_capture_state("capture-in-progress")
+        privileged.clear()
+        qualification_label.clear()
+        label.clear()
+        return dict(inventory_row)
+
+    def freeze(self) -> None:
+        """preflight 不能调用 formal selection freeze。"""
+
+        raise PermissionError("preflight journal 禁止 formal freeze")
+
+    def finalize_preflight_capture(self) -> tuple[dict[str, Any], dict[str, Any]]:
+        if (
+            self.prediction_count
+            != STAGE2A_SELECTION_PREFLIGHT_PREDICTION_COUNT
+            or self.label_count != STAGE2A_SELECTION_PREFLIGHT_LABEL_COUNT
+            or self.privileged_access_started_count != self.label_count
+        ):
+            raise RuntimeError("preflight journal 未达到固定 4/3 accounting")
+        provider = self.provider_writer.freeze()
+        inventory = {
+            "version": E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXECUTION_VERSION,
+            "experiment_id": E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXPERIMENT_ID,
+            "seed": STAGE2A_SELECTION_PREFLIGHT_SEED,
+            "label_count": self.label_count,
+            "rows": self.private_inventory_rows,
+        }
+        inventory["inventory_sha256"] = canonical_sha256(inventory)
+        self._write_capture_state("preflight-capture-complete-write-only")
+        return provider, inventory
+
+
 @dataclass(frozen=True)
 class GainBranchOutcome:
     seed: int
@@ -1834,7 +2101,7 @@ class CapturedSelectionRoute:
     def from_transaction_export(
         cls,
         value: Mapping[str, Any],
-    ) -> "CapturedSelectionRoute":
+    ) -> CapturedSelectionRoute:
         source_recheck = value.get("source_recheck_record")
         if source_recheck is None:
             raise RuntimeError("selection transaction export 缺 source recheck")
@@ -1927,7 +2194,7 @@ class CapturedSelectionRoute:
     def from_public_dict(
         cls,
         value: Mapping[str, Any],
-    ) -> "CapturedSelectionRoute":
+    ) -> CapturedSelectionRoute:
         expected = {
             "version",
             "seed",
@@ -2562,13 +2829,13 @@ __all__ = [
     "E018_P1_STAGE2A_SELECTION_CONFIG_VERSION",
     "E018_P1_STAGE2A_SELECTION_EXECUTION_VERSION",
     "E018_P1_STAGE2A_SELECTION_RESULT_VERSION",
-    "GainBranchOutcome",
-    "LoadedStage2ASelectionConfig",
     "STAGE2A_SELECTION_BRANCH_COUNT",
     "STAGE2A_SELECTION_GAINS",
     "STAGE2A_SELECTION_GO",
     "STAGE2A_SELECTION_LABEL_COUNT",
     "STAGE2A_SELECTION_PREDICTION_COUNT",
+    "GainBranchOutcome",
+    "LoadedStage2ASelectionConfig",
     "SelectionExecutionProgress",
     "Stage2ASelectionJournal",
     "load_e018_p1_stage2a_selection_config",

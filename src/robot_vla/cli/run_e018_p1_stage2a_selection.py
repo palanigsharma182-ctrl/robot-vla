@@ -9,12 +9,15 @@ from typing import Any
 
 from robot_vla.precision.e018_p1_stage2a_selection import (
     STAGE2A_SELECTION_GO,
+    STAGE2A_SELECTION_PREFLIGHT_GO,
     load_e018_p1_stage2a_selection_config,
     verify_selection_parent_gate,
 )
 from robot_vla.precision.e018_p1_stage2a_selection_runtime import (
     run_e018_p1_stage2a_selection_capture,
+    run_e018_p1_stage2a_selection_preflight_one_route,
     run_e018_p1_stage2a_selection_score_private,
+    verify_e018_p1_stage2a_selection_preflight,
     verify_e018_p1_stage2a_selection_public,
     verify_e018_p1_stage2a_selection_result,
 )
@@ -73,6 +76,29 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         help=f"必须精确为 {STAGE2A_SELECTION_GO}",
     )
+
+    preflight = subparsers.add_parser("preflight-one-route")
+    _add_base_configs(preflight)
+    _add_parent_artifacts(preflight)
+    _add_source_identity(preflight)
+    preflight.add_argument("--g0c-config", type=Path, required=True)
+    preflight.add_argument("--data-config", type=Path, required=True)
+    preflight.add_argument("--stats-root", type=Path, required=True)
+    preflight.add_argument("--selected-checkpoint", type=Path, required=True)
+    preflight.add_argument("--repository-root", type=Path, required=True)
+    preflight.add_argument("--artifact-root", type=Path, required=True)
+    preflight.add_argument("--expected-config-raw-sha256", required=True)
+    preflight.add_argument("--expected-config-canonical-sha256", required=True)
+    preflight.add_argument(
+        "--preflight-go",
+        required=True,
+        help=f"必须精确为 {STAGE2A_SELECTION_PREFLIGHT_GO}",
+    )
+
+    verify_preflight = subparsers.add_parser("verify-preflight")
+    verify_preflight.add_argument("--selection-config", type=Path, required=True)
+    verify_preflight.add_argument("--artifact-root", type=Path, required=True)
+    _add_source_identity(verify_preflight)
 
     verify_public = subparsers.add_parser("verify-public")
     _add_base_configs(verify_public)
@@ -162,6 +188,30 @@ def main(argv: list[str] | None = None) -> None:
                 args.expected_config_canonical_sha256
             ),
             exact_go_token=args.selection_go,
+        )
+    elif args.command == "preflight-one-route":
+        if args.preflight_go != STAGE2A_SELECTION_PREFLIGHT_GO:
+            raise PermissionError("Stage 2A preflight 缺 exact preflight token")
+        result = run_e018_p1_stage2a_selection_preflight_one_route(
+            **_parent_kwargs(args),
+            **_source_kwargs(args),
+            g0c_config_path=args.g0c_config,
+            data_config_path=args.data_config,
+            stats_root=args.stats_root,
+            selected_checkpoint_path=args.selected_checkpoint,
+            repository_root=args.repository_root,
+            artifact_root=args.artifact_root,
+            expected_config_raw_sha256=args.expected_config_raw_sha256,
+            expected_config_canonical_sha256=(
+                args.expected_config_canonical_sha256
+            ),
+            exact_preflight_token=args.preflight_go,
+        )
+    elif args.command == "verify-preflight":
+        result = verify_e018_p1_stage2a_selection_preflight(
+            selection_config_path=args.selection_config,
+            artifact_root=args.artifact_root,
+            **_source_kwargs(args),
         )
     elif args.command == "verify-public":
         result = verify_e018_p1_stage2a_selection_public(
