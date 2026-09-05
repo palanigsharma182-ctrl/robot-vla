@@ -2273,6 +2273,10 @@ receipt。Phase A 及所有后续阶段保持 HOLD。
 
 ## D040 — 修正 G2C formal TRAIN source identity，并重新签发 TRAIN-only GO
 
+> **Execution outcome（D041）：** D040 在 W-KV0 epoch 1 的 138 个 batch 完成后、首个 checkpoint 前，因
+> optimizer-state identity 无法处理 AdamW 0-D `step` Tensor 而工程失败。失败 artifact 保持原样，禁止
+> resume；D041 以新 source 和全新 output supersede D040 的 TRAIN execution GO。该结果不是模型效果负结果。
+
 **Decision:**
 
 D039 的 execution commit `46e816469661ad7485f6ac7de534c031d70a6138` 正确，但其中
@@ -2378,6 +2382,163 @@ source identity 是 formal checkpoint provenance、resume 和后续 prediction f
 
 **Implementation status:** D039 错误 identity 在 formal TRAIN 消费前被停止；D040 接受已重新验证的 train
 input，并在正确 identity 下重新签发 TRAIN-only GO。等待 D040 docs commit/push 与工程侧确认后启动。
+
+**Status:** failed-engineering-pre-checkpoint / superseded-by-D041
+
+## D041 — 修复 0-D optimizer-state identity，并从全新 output 重启 G2C formal TRAIN
+
+**Decision:**
+
+D040 formal TRAIN 按正确 identity 启动后，W-KV0 完成 epoch 1 的 138 个 batch，在生成 epoch trace 与
+crash-resume state 所需的 optimizer-state identity 时退出。精确根因是 `_tensor_sha256()` 对 AdamW
+`state[*].step` 的 0-D Float Tensor 直接执行 `tensor.view(torch.uint8)`；远端 PyTorch 2.11 对不同 element
+size 的 0-D dtype reinterpret 抛出：
+
+```text
+RuntimeError: self.dim() cannot be 0 to view Float as Byte (different element sizes)
+```
+
+这是 checkpoint/audit 工程兼容性失败，不是 loss、gradient 或 front-provider 效果负结果。由于失败发生在
+首个 immutable checkpoint 和完整 epoch trace 之前，D040 没有可恢复的正式 epoch，也不允许根据已执行 batch
+推断训练效果。
+
+D040 失败边界冻结为：
+
+```text
+candidate: W-KV0
+active attempt epoch/batch: 1 / 138
+completed optimizer steps: 138
+active GPU elapsed: 10.46814069100219 s
+last fully resumable epoch: 0
+formal checkpoint count: 0
+formal checkpoint companion count: 0
+formal resume state count: 0
+run_state persisted status: formal-training-in-progress（保持原样，不追认改写）
+artifact tree: 6 regular files / 10379 bytes
+artifact inventory SHA:
+  fe0dc478a7dbe2ce97cb0a89ce96f3fb92262b12ee119f79e9beb137c6862689
+run_state raw SHA:
+  4b5f443cde21c365c4f48793061ba2f190c7caae05813bc925ab2c7110929b59
+budget_state raw SHA:
+  80362ea159349ff9486496d8e583391415c1136e995476d09850bfd7d399d411
+console log raw SHA:
+  1b7f702d99dcf1acd9baa9f1463e7ccc5ec28464e4ebe2bc42f5b7fde019c6ba
+model-val/calibration/qualification/test consumption: 0
+```
+
+失败 output 和 console log 必须保留，不删除、不覆盖、不原地补 completion/failure receipt，也不得被 D041
+`--resume`。D041 使用全新、拒绝覆盖的 formal output，从 W-KV0 initialization 与 epoch 1 开始完整重跑，然后
+按冻结顺序运行 S；D040 的任何 model、optimizer、scheduler、RNG 或 sampler state 均不得加载。
+
+允许的 C 级 repair 只有：在 `_tensor_sha256()` 已把原 dtype 和原 shape 写入 digest 后，把 contiguous CPU
+Tensor 先 `reshape(-1)`，再做 `view(torch.uint8)` 读取原始 bytes。该修复不改变 Tensor 值、dtype、原 shape
+identity、非标量 bytes、state identity tree、canonical JSON、训练数值路径、checkpoint 格式、config、数据、
+模型、loss、optimizer、scheduler、seed、candidate、epoch 或 selection 协议。
+
+repair source 已冻结为：
+
+```text
+execution source git commit:
+  5bf05da5a22a07b8fabfc22b1f32da86fce40ba1
+raw git tree:
+  5db02bc1d7f6d26f0d6e9bbc01dc7495b52c2957
+source_tree_sha256:
+  13fe6ec20cc26e33ff56357fafd082c15f77710aae109511e56b08e971df55b6
+formal TRAIN identity:
+  95b0fb26db8585decb9488ce0086ef1f9f6c8bc2a6496797e3d9681b89f2af05
+
+production file SHA:
+  6c5edaab3fa37d3f6632c34e2b2a1c219890613cbb2ab612b1aee9724c41f3db
+test file SHA:
+  78f0e610462ea07b5650cdb8fcd3ec6bfc1da404de6009ecde503ef5c0aaf948
+frozen patch diff SHA:
+  bad23fbaa5287218bc65e599fb4a941c1df809fc9276e822a5a22cf582fb12ae
+```
+
+Decision Agent 与工程 Agent 均在 exact-clean source 上复算了 commit/tree/source-tree/formal identity。远端
+PyTorch 2.11 验收覆盖：4 项 critical scalar/legacy-hash/AdamW/companion node、52 项 training、76 项 G2C
+combined、102 项 related 与第二轮 full suite 902 passed、12 warnings、exit 0；Ruff、pycompile、diff-check
+均通过。本机无 Torch 路径为 43 passed、9 dependency skips。首轮 full suite 的唯一失败是临时 checkout
+ownership 造成的 rsync infra case；修正测试环境 ownership 后该节点单独通过，随后完整 902 项重跑通过，
+没有用 skip 或源码修改规避。
+
+D041 继续机械绑定 D040/D039 的全部科学协议、TRAIN config 和 accepted DATA/model parent：
+
+```text
+TRAIN config raw/internal SHA:
+  e58bfd38ec27cde9c68af72a790474e137e0d5a7f6da8812b8f0156680ba7948
+  6719acdfb95b1780bb6779ff48471bf78823ea062abb3f097d2564bcd0e203ab
+DATA identity:
+  07919f413224fba797d4c12df25e2d5aec8ded8213e3283a07feed282701cfa3
+candidate/seeds:
+  W-KV0=18021, S=18022, shared sampler=18020
+candidate epochs/checkpoints:
+  20 epochs each; checkpoints 5/10/15/20; 8 total
+```
+
+D040 已独立逐文件验收的 v2 `train-paired` input view 可以复用。其
+`source_identity_sha256=null` 是 train role 的冻结语义，不绑定旧 runner；receipt raw/internal SHA
+`69af12bd31fe83ba86001a183e88c55e0a95c682610560e07ccaf31c32538062` /
+`19eb1c1eea5fcf87f8e560bb14536285447795733d256929bc875621adf52c91`、verification SHA
+`302f0d905785598250bcad7661b23104d3fa686da67db8b87d1f62fae8ea95bf`、400 seeds/4400 rows 和三个
+inventory SHA 不变。新 exact source 已再次运行 full-byte verifier：label array open 与 test read 仍为零。
+
+D039 的总资源边界不因工程重启而重置。D040 已消费的 `10.46814069100219 s` 计入累计 10 h 上限，因此
+D041 新 output 的 active GPU receipt 上限为 `35989.531859309 s`；D040 failure artifact、console、复用的
+input view 与 D041 artifact 合计仍不得超过 20 GiB。runner 内部 10 h 检查不是放宽上述跨 output 总预算的
+理由；Decision Agent 另行按两次 artifact 高水位求和审计。
+
+D039 的全部停止条件继续适用，并增加以下 repair-specific fail-closed 条件：
+
+- checkout 不是 exact-clean `5bf05da`，或 source-tree/formal identity 不等于上述冻结值；
+- D041 output 已存在、指向 D040 output，或命令包含 `--resume`；
+- D040 failure artifact 的 6-file inventory、run/budget state 或 console SHA 发生改变；
+- scalar/non-scalar tensor identity、真实 AdamW optimizer-state identity 或 companion roundtrip gate 失败；
+- D041 active GPU 加 D040 的 10.46814069100219 s 超过 36000 s；
+- checkpoint provenance、resume、companion、receipt 或 verifier 出现 D040 identity
+  `368f30cf...`、DATA collector identity `a7944bf...` 或任何非 D041 identity；
+- 任何 model-validation/calibration/qualification/test、Memory、runtime 或 actuator 禁止计数非零。
+
+精确 GO 文句为：
+
+> GO — 工程 Agent 可以在美国 RTX 6000 Ada worker 上，以 detached exact-clean
+> `5bf05da5a22a07b8fabfc22b1f32da86fce40ba1`、source-tree identity
+> `13fe6ec20cc26e33ff56357fafd082c15f77710aae109511e56b08e971df55b6` 和 formal TRAIN identity
+> `95b0fb26db8585decb9488ce0086ef1f9f6c8bc2a6496797e3d9681b89f2af05`，复用已验收的
+> `train-paired` input view，在全新、拒绝覆盖且与 D040 隔离的 output 中，从零开始运行 W-KV0/S
+> `E018-P1-G2C-TRAIN/v1` FORMAL TRAIN；命令禁止 `--resume`。训练后只运行只读 formal verifier，除此之外
+> 全部 HOLD。
+
+本 GO 只有在包含 D041 的 docs-only commit 提交并推送、且工程 Agent 在消息边界明确确认新
+commit/source-tree/formal identity 与 no-resume/new-output 后才生效。D041 docs commit 只是决策记录，绝不是
+execution source。
+
+成功条件与允许结论仍完全沿用 D039：必须产生并验证 W-KV0/S × epochs 5/10/15/20 的 8 个 immutable
+checkpoint、8 个 companion、完整 trace/inventory/resume/receipt，数值 finite、两候选 sampler order 相同、
+累计资源在预算内且全部禁止计数为零。TRAIN PASS 只允许进入新的 Phase A 审查，不证明任何 checkpoint
+eligible 或 provider 有效。
+
+本 Gate 不放行 `prepare-model-val-deployable-input`、Phase A prediction freeze、
+`prepare-model-val-privileged-input`、Phase B、calibration、qualification、fresh test、Memory、closed-loop、
+canonical runtime 或 actuator。formal TRAIN 完成后必须先由 Decision Agent 独立 R2。
+
+**Reason:**
+
+0-D Tensor 是 AdamW state 的正常表示，修复 byte extraction 是恢复既定 checkpoint provenance 的必要工程
+兼容，不改变研究自变量或训练数值路径。D040 没有可恢复 checkpoint；跨 source resume 会混用代码身份和
+无法完整验证的 epoch state，因此从新 output 零开始是唯一可审计路线。train input 的 v2 role contract 则
+明确与 runner source 解耦，已经完成全量 byte/hash 验证，重复复制不会增加信息，只增加时间和存储风险。
+
+**Alternatives considered:**
+
+- 从 D040 epoch 1 内存状态或不完整 output 恢复：没有持久化的完整 resume state，且 source 已改变，拒绝。
+- 特判 AdamW `step` 并从 identity 中删除：会降低 optimizer provenance 覆盖，拒绝。
+- 把 scalar 转成 Python number 再 hash：会改变既有 Tensor dtype/shape/state-tree identity 语义，拒绝。
+- 用 D041 docs commit 运行：未经 source-level 测试且 identity 不同，拒绝。
+- 因修复属于 C 级而沿用同一 output：会覆盖 D040 失败现场并混合 source identity，拒绝。
+
+**Implementation status:** repair source 与 exact-source Gate 已通过；等待 D041 docs-only commit/push 和工程
+Agent 明确确认后，在全新 output 重启 formal TRAIN。Phase A 及后续阶段保持 HOLD。
 
 **Status:** active
 

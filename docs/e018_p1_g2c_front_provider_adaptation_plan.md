@@ -1,11 +1,11 @@
 # E018-P1-G2C Front Provider Adaptation 实验计划书
 
-> 状态：`formal-train-go / model-validation-hold / development-only`
+> 状态：`formal-train-repair-rerun-go / model-validation-hold / development-only`
 > 日期：2026-09-05
 > Experiment ID：`E018-P1-G2C-FRONT-PROVIDER-ADAPTATION-DEVELOPMENT/v1`
 > Data identity：`E018-P1-G2C-DATA/v1`
 > Train identity：`E018-P1-G2C-TRAIN/v1`
-> Decision Gate：[`D036`、`D037`、`D038`、`D039`、`D040`](decisions.md)
+> Decision Gate：[`D036`、`D037`、`D038`、`D039`、`D040`、`D041`](decisions.md)
 > 上位计划：[`E018-P1 三阶段主动视觉闭环`](e018_p1_three_stage_active_vision_closed_loop_plan.md)
 
 > 2026-09-05 DATA Gate：`E018-P1-G2C-DATA/v1` 已通过独立 verifier 与 R2，接受为 canonical
@@ -26,6 +26,14 @@
 > 记录决策，不能作为执行 source。提前准备的 `train-paired` input view 已由 D040 独立逐文件重验并接受；
 > `prepare-model-val-deployable-input`、Phase A、privileged staging、Phase B、calibration、qualification、
 > fresh test、Memory、closed-loop 和 actuator 全部继续 HOLD。
+
+> 2026-09-05 repair Gate：D040 formal TRAIN 在 W-KV0 epoch 1 的 138 个 batch 后、首个 checkpoint 前，因
+> AdamW 0-D `step` Tensor 的 byte-identity 兼容 bug 工程失败；它不是模型效果负结果。D041 只修复 scalar
+> byte extraction，唯一新 execution source 为 `5bf05da5a22a07b8fabfc22b1f32da86fce40ba1`，source-tree identity
+> 为 `13fe6ec20cc26e33ff56357fafd082c15f77710aae109511e56b08e971df55b6`，formal identity 为
+> `95b0fb26db8585decb9488ce0086ef1f9f6c8bc2a6496797e3d9681b89f2af05`。D040 output 冻结且禁止 resume；
+> D041 允许复用已重验的 `train-paired` input，但必须在全新 output 从 W-KV0 epoch 1 开始完整重跑。D040
+> 已消费 10.46814069100219 s 继续计入 10 h 总预算；所有 model-validation 与后续阶段仍 HOLD。
 
 本实验是 E018 Stage 2 的上游 provider 资格实验。它只回答“受限动态 front 视角是否能产生可部署语义的
 object measurement”，不评价 Active 相对 Passive 的任务收益，也不授予 canonical runtime、机械臂、夹爪、
