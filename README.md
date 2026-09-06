@@ -177,6 +177,8 @@ cd /path/to/robot-vla
 
 两项均为隔离仿真诊断；场景与夹爪条件不同，不能直接比较两次实验的成功率，也不代表主线策略已采用显式控制。
 
+同日完成的[Qwen 空间读出实验](experiments/qwen_spatial_readout/results.md)在48个新场景上冻结比较Layer12、Layer24与当前Adapter：有粗定位正信号，但精细定位与泛化仍不足，不能据此认定Qwen缺少空间信息；[设计与复现代码](experiments/qwen_spatial_readout/README.md)、[聚合指标](experiments/qwen_spatial_readout/summary.json)。
+
 新实现按依赖方向渐进落地：
 
 ```text
