@@ -2,7 +2,7 @@
 
 2026-09-06；接续 [原始接入清单](e018-main-integration-checklist.md)，工程基线 `b244c3a`。
 按用户确认补实际接线和全部 33 项验收对应关系，直接维护 main。训练、数据、执行仍保留原归属。
-下方追加正式 G2C / D049 的真实工程消费验收；前一阶段的 synthetic-debug 结果保持原边界。
+下方追加正式 G2C / D049 与真实 V1 VLA 暂停恢复验收；前一阶段结果保持原边界。
 
 ## 前一阶段接线（合成验收）
 
@@ -43,10 +43,10 @@ front 输入仍 qualification-only，未具备合格三维测量时 `geometry_va
 |---|---|---|---|---|
 | A01 机器人合同 / 映射 | `contracts.py`、`adapters.py` → data/runtime/controller | front 输入复用现有 normalizer；不把关节映射放进 FC | `contracts`、`adapters` | 单位、shape、归一化规则；真实硬件驱动未验 |
 | A02 trajectory/v2 / 审计 | `data/` → Dataset/training | 无直接依赖；观测工具不改 dataset label | `trajectory_v2`、`dataset_v2`、`writer`、`data_audit` | 合成文件 schema/mask/统计；真实数据 manifest/stats 未恢复 |
-| A03 Qwen / Expert / Flow | `model/`、`training/flow_matching.py` → VLA | 无直接依赖；五模块不接管模型架构 | `policy`、`expert`、`qwen_context`、`flow_matching` | Fake Qwen、小张量 forward/loss；真实 Qwen/Processor 未验 |
-| A04 Stage1 / checkpoint | `training/`、`evaluation/checkpoint_selection.py` | 无直接依赖；Precision 继续用原 checkpoint loader | `stage1_training`、`checkpoint`、`checkpoint_selection` | ToyPolicy 保存/恢复与选择规则；正式权重/CUDA resume 未验 |
+| A03 Qwen / Expert / Flow | `model/`、`training/flow_matching.py` → VLA | 无直接依赖；五模块不接管模型架构 | `policy`、`expert`、`qwen_context`、`flow_matching` | Fake Qwen、小张量 forward/loss；现已恢复真实 Qwen/Processor 与冻结 V1 Layer-12 基线；V2 训练权重未恢复 |
+| A04 Stage1 / checkpoint | `training/`、`evaluation/checkpoint_selection.py` | 无直接依赖；Precision 继续用原 checkpoint loader | `stage1_training`、`checkpoint`、`checkpoint_selection` | ToyPolicy 保存/恢复与选择规则；冻结 V1 权重 CUDA 推理 strict reload 已验，训练 optimizer/RNG resume 未验 |
 | A05 action 执行语义 | `execution/chunk_executor.py` → controller | 无直接依赖；OM validity 不授予 actuator 权限 | `chunk_executor`、`adapters` | commanded reference、correction、reset；不切换官方控制模式 |
-| A06 任务 / 采集 / rollout | `tasks/`、`sim/`、`evaluation/` | EO 是观测 sidecar；不代替任务/evaluator | `pick_place_tasks`、`atomic_rollout_evaluation`、`rollout_evaluation`、`maniskill_observation_boundary` | 合成任务/失败规则与观测边界；完整模型 rollout 未验 |
+| A06 任务 / 采集 / rollout | `tasks/`、`sim/`、`evaluation/` | EO 是观测 sidecar；不代替任务/evaluator | `pick_place_tasks`、`atomic_rollout_evaluation`、`rollout_evaluation`、`maniskill_observation_boundary` | 合成任务/失败规则与观测边界；真实 V1 基线两次 replan/8步和隔离暂停恢复已验，完整任务效果未验 |
 | A07 event / sampling / loss | `data/events.py`、`data/sampler.py`、Flow loss | 无直接依赖 | `events`、`sampler`、`flow_matching` | 标签/采样/权重运算；不重跑 E006/E007 效果 |
 | A08 temporal / anomaly | `execution/temporal_ensemble.py`、`runtime/` | 无直接依赖；保留原消费者 | `temporal_ensemble`、`runtime` | 组合/replan 回归；不继承主动视觉收益 |
 | A09 probe / Oracle 诊断 | `diagnostics/`、`evaluation/checkpoint_sweep.py` | 无直接依赖；Oracle 不进入五模块部署输入 | `oracle_reach`、`qwen_layer_reach`、`qwen_spatial_probe`、`gradient_conflict`、`checkpoint_sweep` | 合成诊断/冻结规则；无真实 Qwen probe 复现 |
@@ -75,12 +75,12 @@ front 输入仍 qualification-only，未具备合格三维测量时 `geometry_va
 | C01 Object Memory | `precision/object_memory.py` | **OM/OO 直接实现**，五模块回放消费 | `e018_object_memory`、`e018_object_observability`、`object_memory_replay`、`five_common_replay` | 正式 G2C → 条件平面三维测量 → OM 已接通；真实工程 smoke 验证一次提交与一次拒写，详见追加验收 |
 | C02 相机路线 | 历史 `e018_p1_g0.py::_run_route` | **FC/EO 工具已接入**；原 route runner 保留实验 | `e018_active_front_camera`、`e018_active_external_observation`、`five_common_replay` | 几何、来源、运动阶段规则；本轮没有重跑真实路线 |
 | C03 视角筛选/动态路线 | 历史 G0B/G0C runner | FC/EO 可复用；筛选协议不并入工具 | 无专属当前 runner 验收 | **历史实验保留**；工具测试不证明视角合格，不在线用 GT 选视角 |
-| C04 动态观测/supervisor | EO；历史 `active_front_reobserve.py` | **EO 与 D049 supervisor 源码已接入**；实验入口显式请求固定 PRIMARY | `e018_active_external_observation`、`five_common_replay`、`precision_module_integration` | HOME-only 四帧已真实验收；实际为空的历史组件已清除；自动触发、非空 VLA 缓存和完整 G1 编排仍未验 |
+| C04 动态观测/supervisor | EO；历史 `active_front_reobserve.py` | **EO 与 D049 supervisor 源码已接入**；实验入口显式请求固定 PRIMARY | `e018_active_external_observation`、`five_common_replay`、`precision_module_integration` | HOME-only 四帧已真实验收；实际为空的历史组件已清除；非空 VLA temporal/reference 清理与 fresh replan 已验；自动触发、动态 Executive 和完整 G1 编排仍未验 |
 | C05 wrist→front 适配 | **新增** `precision/active_front_provider.py` → 模型消费者 | 消费 EO/FC，输出资格验证输入 | `e018_active_front_provider`、`precision_module_integration` | 相机角色/42维/时间/skew/来源；原 G2A inconclusive 不变 |
 | C06 covariance 校准 | CP 与历史 G2B runner | **CP/OO 已接预测 mask、sigma** | `e018_calibrated_front_provider`、`precision_module_integration` | 数值/通道/batch 对应；CAL-v2 protocol-invalid，不宣称校准机制失败或通过 |
 | C07 G2C 训练/选择 | 原 G2C data/training/model_val 实验 | 基础 Precision loader 已复用；不搬训练到 CP | 无专属 G2C 验收；基础接口见 A13 | 正式 epoch15 已恢复并严格加载；**训练/选择 runner 未恢复或重跑**，不改变历史 checkpoint 选择 |
 | C08 D048 qualified provider | `qualified_front_provider.py` → D049 frame | **正式权重、统计、D046/D048 包已恢复并核验**；EO/FC/OO/CP 共同消费 | `qualified_front_provider`；远端 CUDA BF16 严格加载及真实相机 forward | D049 score 保持 raw sigma，scale 仅乘 covariance；绑定实际 HOME/PRIMARY K 与 pose，Memory-write 限 PRIMARY，资格仍限 simulation development |
-| C09 Stage2A/D049 编排 | `active_front_memory*`、`active_front_reobserve`；实验局部 consumer | **三帧 → HOME 四帧 → source recheck → commit/no-commit 已接入** | `e018_active_front_memory`、`e018_active_front_reobserve`；两条真实工程 route | seed 1000001 拒写；已知历史开发样例 76903 提交一次。非独立效果证据；7/25=28% 的负结果不变；未接 VLA 重规划/操纵 |
+| C09 Stage2A/D049 编排 | `active_front_memory*`、`active_front_reobserve`；实验局部 consumer | **三帧 → HOME 四帧 → source recheck → commit/no-commit 已接入** | `e018_active_front_memory`、`e018_active_front_reobserve`；两条真实工程 route | seed 1000001 拒写；已知历史开发样例 76903 提交一次。非独立效果证据；7/25=28% 的负结果不变；现已补固定阶段的真实 V1 暂停/重规划/继续执行，见下方追加验收 |
 | C10 wrist 触发语义 | D050 capability/observability 区分 | OO predicate 不等同 qualified wrist capability | 无专属 qualifier 当前验收 | **语义保留，资格证据不足**；无效输入不自动触发相机运动 |
 | C11 Stage2B 七视角 | 历史配置 + 用户未跟踪草稿 | 未来按问题消费 EO/FC/CP；本轮不接 | 未运行、未修改用户草稿 | **候选/未验收**；不为编号完整而启动 |
 | C12 Stage3A/B | D051 冻结方案 | 未来 fault/comparison 消费工具，保持实验归属 | 无完整矩阵/效果对照验收 | **计划/未实施**；局部 fault 单测不替代 Stage3A/B |
@@ -112,6 +112,38 @@ front 输入仍 qualification-only，未具备合格三维测量时 `geometry_va
 分别按实际接口和冻结 8° pitch 修复，未放宽资格阈值。最初快照缺配置的测试失败也保持原记录。
 私有恢复包、逐帧证据、运行命令/退出码及 SHA manifest 位于本轮本机审查产物目录，不进入 Git。
 
+## 追加验收：真实 V1 VLA 基线与运行中暂停恢复（2026-09-06）
+
+[运行入口](../../experiments/g2c_memory_integration/vla.py) 恢复 E012 冻结初始化基线
+`e011-layer12-best.pt`，SHA-256 `a542076f291e29b68e3d28930b15c40396d511a44eb358c2eaeb4e113c041ad6`。
+它是 V1 / Layer-12 策略，不是已训练的 Observation V2 策略，也不改变 canonical 默认层。
+固定 Qwen revision 的 4,548,221,488 字节权重恢复后，整文件 SHA-256 与来源元数据一致。
+checkpoint 中原统计、Processor、模型结构和 Adapter/Expert strict reload 均通过。
+
+| 验收 | 原始执行结果及边界 |
+|---|---|
+| 真实前向 | 实际仿真双相机 RGB → Qwen/Expert/Flow → 有限 `[16,8]` chunk；每视角 64 个视觉 token，context 197；该检查不发送动作 |
+| 真实基线 | 新开发 seed 1000001，两次 replan，8 个动作步；`engineering-baseline-passed`，退出码 0 |
+| 非空历史暂停 | 已知历史开发 seed 76903，真实 VLA 执行2步后中断；tick7时 ensemble=1、command reference 非空；随后清除并暂停 |
+| D049与恢复 | 4次正式 G2C forward、HOME4帧、5.9秒提交1次；随后 fresh VLA 执行4步，再继续执行4步，最终tick126；退出码0 |
+| 新计划证据 | sampling index 0→1→2；恢复首个 ensemble buffer=1，下一次为2；无旧chunk复用；基线/route identity 完全相等 |
+| 真实拒绝分支 | 新开发seed1000001，VLA先执行2步，G2C完成4次forward及HOME4帧后因信息增益不足拒写；0次Memory写入、未恢复VLA、没有后续模型动作；CLI明确退出1，按拒绝路径记录，不冒充成功恢复 |
+| 定向回归 | 本轮 review-v4 快照212 passed，0 failure/skip，4.99秒；包含17个新增暂停恢复/提前终止用例；不是上一阶段同为212项的那批测试 |
+| 独立审查 | Sol/high 独立R2先发现baseline提前终止边界问题；修复并执行terminated/truncated四组反例后，对固定phase隔离工程route给出限定PASS |
+
+核心 Runtime 新增独立于 Episode reset 的 pause/resume，保留时钟/采样序列，清除 temporal/RTC/reference；
+拒绝旧代际、padding、旧帧、不同步模态及残留控制状态。恢复失败保持暂停，失败凭据不能复用。
+Executor 沿用已有逐控制步 stop，只新增 `interrupted` 结果字段；实验局部控制器逐步检测场景终止。
+调用方先验证真实HOME几何及四帧屏障，再允许Runtime重新推理。Memory内容不注入VLA，不产生控制命令。
+
+范围：固定 ACQUIRE_TRACK、单一开发runner、无外部Executive或qualified wrist owner，不证明动态
+Executive source recheck。暂停后的20步稳定阶段未建立hold参考，日志用null漂移及
+`hold_reference_available=false`标记；后续相机路线实测arm/TCP平移漂移为0。
+历史正样例只验证工程成功分支，不是新的独立效果证据。未训练、未消费受保护split、未验证任务成功率、
+物理闭环、动态触发或Memory对VLA的收益；V2权重与真实八图V2前向仍未恢复。
+原始快照/依赖/哈希、测试、baseline与逐帧route证据保存在本机忽略的
+`artifacts/reviews/vla-resume-20260906/`，不提交权重或私有日志。
+
 ## 前一阶段执行证据与后续入口
 
 远端已有 Python 3.10.12 / PyTorch 2.11.0+cu128 / NumPy 1.26.4 / pytest 9.1.1 环境，
@@ -140,6 +172,6 @@ score 互不继承。最终独立 R2 复核确认模型接线 PASS，核对最�
 source hash；另一只读审查确认 33 项/57 文件映射完整。审查 PASS 限定上述工程边界。
 本轮不修改原始 33 项静态 inventory、用户未跟踪 Stage2B 或冻结结果。
 
-下一处实际缺口是 **C08 的冻结 G2C 权重、normalizer、校准包和视角身份消费**。
+本段为前一阶段入口记录；C08 正式包消费和固定阶段真实 V1 暂停恢复现已完成，见上述两份追加验收。
 需先核验 artifact 和评分语义，再做只读预测回放；不能将本轮合成 calibration 或分数阈值直接用于 D048。
 C09 接在合格测量之后；Stage2B/3 继续按研究问题决定，不属于本轮补工程对应关系的必做项。

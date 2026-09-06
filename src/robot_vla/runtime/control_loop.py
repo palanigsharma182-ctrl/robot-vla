@@ -6,6 +6,8 @@ from dataclasses import dataclass, replace
 
 import numpy as np
 
+from robot_vla.observation import ObservationV2Window
+
 from robot_vla.executive.shadow import (
     ShadowExecutiveObservation,
     ShadowExecutiveObserver,
@@ -28,6 +30,7 @@ from robot_vla.execution.temporal_ensemble import (
 from robot_vla.runtime.policy_runtime import (
     OnlineObservation,
     QwenVLARuntime,
+    QwenVLAObservationV2Runtime,
     RuntimeActionChunk,
     SamplingTrace,
 )
@@ -49,6 +52,17 @@ class ReplanResult:
 class _RTCStoredChunk:
     origin_control_step: int
     normalized_action: np.ndarray
+
+
+@dataclass(frozen=True)
+class ObservationPause:
+    """当前循环在 Chunk 边界暂停时的实际历史摘要；只对创建它的循环有效。"""
+
+    generation: int
+    control_step: int
+    ensemble_chunks: int
+    rtc_chunk_present: bool
+    command_reference_present: bool
 
 
 class QwenVLAReplanLoop:
@@ -88,6 +102,8 @@ class QwenVLAReplanLoop:
         self._rtc_previous_chunk: _RTCStoredChunk | None = None
         self.shadow_observer = shadow_observer
         self._shadow_reset_error: str | None = None
+        self._observation_pause: ObservationPause | None = None
+        self._history_generation = 0
 
     def reset(self) -> None:
         """清空跨 Chunk 历史；每个新 Episode 必须从普通 Flow 开始。"""
@@ -98,11 +114,98 @@ class QwenVLAReplanLoop:
         self.control_step = 0
         self._consecutive_anomaly_replans = 0
         self._shadow_reset_error = None
+        self._observation_pause = None
+        self._history_generation += 1
         if self.shadow_observer is not None:
             try:
                 self.shadow_observer.reset()
             except Exception as error:  # noqa: BLE001 - shadow 失败不得阻断 Runtime reset
                 self._shadow_reset_error = f"{type(error).__name__}: {error}"
+
+    @property
+    def observation_paused(self) -> bool:
+        return self._observation_pause is not None
+
+    def pause_for_observation(self) -> ObservationPause:
+        """在同步 Chunk 调用之间撤销动作历史，保留 Episode 时钟和采样序列。
+
+        调用方负责暂停期间的实际 hold、相机控制与 HOME 验证。此方法不执行
+        env.step，也不允许从其他线程抢占正在执行的 Chunk。
+        """
+
+        if self.observation_paused:
+            raise RuntimeError("当前已经暂停观测，不能重复创建暂停")
+        self._history_generation += 1
+        pause = ObservationPause(
+            self._history_generation,
+            self.control_step,
+            self.ensembler.buffer_size,
+            self._rtc_previous_chunk is not None,
+            self.executor.previous_command_q is not None,
+        )
+        self._observation_pause = pause
+        self.ensembler.clear()
+        self._rtc_previous_chunk = None
+        self.executor.reset()
+        self._consecutive_anomaly_replans = 0
+        return pause
+
+    def resume_after_observation(
+        self,
+        pause: ObservationPause,
+        window: ObservationV2Window,
+        controller: FrankaController,
+    ) -> ReplanResult:
+        """消费调用方已验证 HOME 的四个新同步帧，重新推理后执行新 Chunk。
+
+        本层只验证时序、缓存与策略版本；相机 HOME 几何、重观察终态和
+        Memory 提交资格由重观察消费者验证，不由布尔占位参数代替。
+        V1 仍读取最新双图/15维状态，绝不把 V1 权重冒充八图 V2 策略。
+        """
+
+        if pause is not self._observation_pause or pause is None:
+            raise RuntimeError("暂停身份已过期、已消费或不属于当前循环")
+        window.validate(self.executor.spec, require_current_complete=True)
+        if not window.history_valid.all() or not window.modality_valid.all():
+            raise ValueError("恢复要求四个完整有效的新观测帧")
+        hz = self.executor.spec.control_hz
+        step = round(window.timestamp_s * hz)
+        expected = (step - np.arange(3, -1, -1)) / hz
+        if (step - 3 <= pause.control_step
+                or not np.isclose(window.timestamp_s, step / hz, rtol=0, atol=1e-8)
+                or not np.allclose(window.frame_timestamp_s, expected, rtol=0, atol=1e-8)
+                or not np.allclose(window.modality_timestamp_s,
+                                   expected[:, None], rtol=0, atol=1e-8)):
+            raise ValueError("恢复帧必须位于暂停之后且是连续同步控制步")
+        if (window.controller_valid.any() or self.ensembler.buffer_size
+                or self._rtc_previous_chunk is not None
+                or self.executor.previous_command_q is not None
+                or self.executor.previous_action is not None):
+            raise RuntimeError("恢复前不得残留旧 command reference 或动作历史")
+        if isinstance(self.runtime, QwenVLAObservationV2Runtime):
+            observation = window
+        else:
+            observation = OnlineObservation(
+                window.rgb_external[-1].copy(), window.rgb_wrist[-1].copy(),
+                window.physical_proprio[-1].copy(), window.instruction,
+            )
+        self.control_step = step
+        self._observation_pause = None
+        try:
+            result = self.replan_and_execute(observation, controller)
+        except Exception:
+            self.ensembler.clear()
+            self._rtc_previous_chunk = None
+            self.executor.reset()
+            self._observation_pause = replace(pause, control_step=self.control_step)
+            raise
+        if not result.execution.success or result.execution.replan_required:
+            # 失败不会自动放行普通 VLA；由调用方保持 hold 并结束本次恢复。
+            self.ensembler.clear()
+            self._rtc_previous_chunk = None
+            self.executor.reset()
+            self._observation_pause = replace(pause, control_step=self.control_step)
+        return result
 
     def _observe_shadow(
         self,
@@ -180,6 +283,8 @@ class QwenVLAReplanLoop:
         observation: OnlineObservation,
         controller: FrankaController,
     ) -> ReplanResult:
+        if self.observation_paused:
+            raise RuntimeError("观测暂停期间禁止 VLA 推理和执行旧动作")
         origin_control_step = self.control_step
         try:
             if self.inference_strategy == ChunkInferenceStrategy.RTC:

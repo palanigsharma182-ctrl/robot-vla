@@ -1,6 +1,7 @@
 """正式 G2C → D049 Memory 的单 seed 工程 smoke；结束于 HOME commit/no-commit。
 
-不加载 VLA，不执行操纵动作，不消费历史评估 seed。机械臂只沿用 G0 的 hold-open。
+默认不加载 VLA；显式传入 Runtime 时验证执行、暂停及 HOME 后重新规划。
+不消费历史评估 seed，不把工程路线当成任务效果实验。
 """
 from __future__ import annotations
 
@@ -15,6 +16,7 @@ from robot_vla.adapters import FrankaObservationAdapter
 from robot_vla.contracts import RobotSpec
 from robot_vla.execution.chunk_executor import RecedingHorizonChunkExecutor
 from robot_vla.execution.temporal_ensemble import TemporalChunkEnsembler
+from robot_vla.execution.maniskill_controller import ManiSkillFrankaController
 from robot_vla.executive.contracts import PhaseId
 from robot_vla.observation import ObservationV2History
 from robot_vla.precision.active_external_observation import extract_active_external_observation
@@ -37,9 +39,32 @@ from robot_vla.precision.active_front_reobserve import (
 from robot_vla.precision.calibrated_front_provider import canonical_sha256, array_sha256
 from robot_vla.precision.object_memory import ExplicitObjectStateMemory, ObjectMemorySafetyContext
 from robot_vla.precision.qualified_front_provider import D049FrontProvider, _check_camera_geometry
+from robot_vla.runtime.control_loop import QwenVLAReplanLoop
+from robot_vla.runtime.policy_runtime import OnlineObservation, QwenVLARuntime
 
 
-def run(bundle: Path, output: Path, *, case: str = "new-scene") -> dict:
+class DevelopmentController(ManiSkillFrankaController):
+    """开发 runner 的逐步终止检测，并可在指定控制步停止当前 Chunk。"""
+
+    def __init__(self, env, spec, *, pause_after_steps=None):
+        super().__init__(env, spec)
+        self.sent = 0
+        self.pause_after_steps = pause_after_steps
+        self.chunk_stop_requested = False
+        self.episode_done = False
+
+    def send_action(self, value):
+        if self.episode_done:
+            raise RuntimeError("已终止的开发 Episode 禁止继续发送动作")
+        super().send_action(value)
+        self.sent += 1
+        _, _, terminated, truncated, _ = self.last_step_output
+        self.episode_done = bool(terminated.item()) or bool(truncated.item())
+        self.chunk_stop_requested = self.sent == self.pause_after_steps or self.episode_done
+
+
+def run(bundle: Path, output: Path, *, case: str = "new-scene",
+        vla_runtime: QwenVLARuntime | None = None) -> dict:
     import gymnasium as gym
     import sapien
     from mani_skill.utils import sapien_utils
@@ -62,6 +87,11 @@ def run(bundle: Path, output: Path, *, case: str = "new-scene") -> dict:
     # 本 smoke 从未加载 VLA；这里验证实际为空的缓存失效，不冒充非空策略缓存验收。
     executor = RecedingHorizonChunkExecutor(spec)
     ensembler = TemporalChunkEnsembler(spec)
+    loop = None if vla_runtime is None else QwenVLAReplanLoop(vla_runtime, executor)
+    if loop is not None:
+        ensembler = loop.ensembler
+    vla_records = []
+    pause = None
     pending_action = rtc_overlap = None
     home_history = ObservationV2History(spec)
     env = gym.make("RobotVLAPickCubeToRegion-v1", robot_uids="panda_wristcam", num_envs=1,
@@ -78,6 +108,19 @@ def run(bundle: Path, output: Path, *, case: str = "new-scene") -> dict:
     # G0C 冻结配置：yaw offset 12°，本 PRIMARY 的 pitch offset 为 8°。
     pitch = np.deg2rad(8.)
     action = np.zeros(8, np.float32); action[-1] = 1.
+
+    def record_vla(result, label):
+        vla_records.append(dict(stage=label, execution=asdict(result.execution),
+            sampling=None if result.sampling is None else asdict(result.sampling),
+            action_sha256=None if result.action_chunk is None else array_sha256(result.action_chunk.normalized_action),
+            ensemble_buffer=None if result.ensemble_trace is None else result.ensemble_trace.buffer_size,
+            control_step=loop.control_step))
+        if not result.execution.success or result.execution.replan_required:
+            raise RuntimeError(f"VLA {label} 未完成: {result.execution.failure_stage}")
+        if controller.last_step_output is not None:
+            _, _, terminated, truncated, _ = controller.last_step_output
+            if bool(terminated.item()) or bool(truncated.item()):
+                raise RuntimeError(f"VLA {label} 时场景已经终止")
 
     def sample(position, pitch_angle, motion, primitive, *, settled=False):
         nonlocal tick
@@ -116,7 +159,10 @@ def run(bundle: Path, output: Path, *, case: str = "new-scene") -> dict:
             primitive=primitive, settled=settled, control_timestamp_s=sidecar.control_timestamp_s,
             rgb_timestamp_s=sidecar.rgb_timestamp_s, camera_pose_timestamp_s=sidecar.camera_pose_timestamp_s,
             base_from_external_camera_cv=sidecar.base_from_external_camera_cv.tolist(),
-            arm_drift_rad=arm_drift, tcp_drift_m=tcp_drift, tcp_drift_rad=tcp_angle,
+            hold_reference_available=baseline_q is not None and baseline_tcp is not None,
+            arm_drift_rad=None if baseline_q is None else arm_drift,
+            tcp_drift_m=None if baseline_tcp is None else tcp_drift,
+            tcp_drift_rad=None if baseline_tcp is None else tcp_angle,
             safety=asdict(active), rgb_sha256=array_sha256(frame.rgb_external)))
         if active.failure() is not None:
             raise RuntimeError(f"hold-open 失败: {active.failure().value}")
@@ -141,14 +187,41 @@ def run(bundle: Path, output: Path, *, case: str = "new-scene") -> dict:
         baseline_q = env.unwrapped.agent.robot.get_qpos().detach().cpu().numpy()[0,:7].copy()
         baseline_tcp = frame.base_from_tcp.copy()
         home = infer(frame, sidecar, safety)
+        baseline_timestamp = frame.timestamp_s
+        if loop is not None:
+            # 执行真实策略的前两步后，在现有 executor 的控制步边界中断。
+            controller = DevelopmentController(env, spec, pause_after_steps=2)
+            loop.control_step = tick
+            before = loop.replan_and_execute(OnlineObservation(frame.rgb_external,
+                frame.rgb_wrist, frame.physical_proprio, "pick the cube and place it in the target region"), controller)
+            record_vla(before, "before-pause")
+            if not before.execution.interrupted or before.execution.executed_steps != 2:
+                raise RuntimeError("未在指定控制步边界中断")
+            tick = loop.control_step
+            pause = loop.pause_for_observation()
+            controller.chunk_stop_requested = False
+            action[-1] = 2 * controller.read_state().gripper_opening - 1
+            # 暂停初始状态必须允许 hold-open；不通过重新开夹爪伪造资格。
+            if controller.read_state().gripper_opening < .975:
+                raise RuntimeError("暂停时夹爪不满足既有 hold-open 条件")
+            trigger_tick, trigger_timestamp = tick, tick / spec.control_hz
+            baseline_q = baseline_tcp = None
+            for _ in range(20):
+                frame, sidecar, safety, active = sample(home_position, 0., Motion.HOME_ANCHOR, HOME, settled=True)
+            baseline_q = env.unwrapped.agent.robot.get_qpos().detach().cpu().numpy()[0,:7].copy()
+            baseline_tcp = frame.base_from_tcp.copy()
+        else:
+            trigger_tick, trigger_timestamp = tick, frame.timestamp_s
         wrist_absent_sha = canonical_sha256({"scope":"engineering-no-wrist-provider", "episode":episode})
-        request = ActiveFrontReobserveRequest(episode, 1, request_id, phase, phase, tick,
-            frame.timestamp_s, ActiveFrontTriggerReason.NO_QUALIFIED_WRIST_PROVIDER_IN_PARENT, 1, PRIMARY, f"command-{tick}")
-        baseline = PassiveBaselineEvidence(episode,1,request_id,frame.timestamp_s,False,wrist_absent_sha,
+        request = ActiveFrontReobserveRequest(episode, 1, request_id, phase, phase, trigger_tick,
+            trigger_timestamp, ActiveFrontTriggerReason.NO_QUALIFIED_WRIST_PROVIDER_IN_PARENT, 1, PRIMARY, f"command-{trigger_tick}")
+        baseline = PassiveBaselineEvidence(episode,1,request_id,baseline_timestamp,False,wrist_absent_sha,
             home,False,None,None)
         pending_action = rtc_overlap = None
-        ensembler.clear(); executor.reset()
-        reset = ActionHistoryResetReceipt(episode, request_id, tick, 0, 1,
+        if loop is None:
+            ensembler.clear(); executor.reset()
+        generation = 1 if pause is None else pause.generation
+        reset = ActionHistoryResetReceipt(episode, request_id, trigger_tick, generation-1, generation,
             pending_action is None, ensembler.buffer_size==0, rtc_overlap is None,
             executor.previous_command_q is None and executor.previous_action is None)
         transaction.begin_collection(request, reset_receipt=reset, baseline=baseline)
@@ -174,7 +247,7 @@ def run(bundle: Path, output: Path, *, case: str = "new-scene") -> dict:
             home_history.append(frame)
             transaction.accept_home_v2_barrier_frame(HomeV2BarrierFrame(sidecar.observation_sequence_id,
                 True, bool(frame.modality_valid.all()), True, False), timestamp_s=frame.timestamp_s, safety=active)
-        window = home_history.snapshot("hold open; return external camera HOME",
+        window = home_history.snapshot("pick the cube and place it in the target region",
             previous_command_q=executor.previous_command_q, previous_action=executor.previous_action)
         if not window.history_valid.all() or not window.modality_valid.all() or window.controller_valid.any():
             raise RuntimeError("HOME V2 完整性或失效后的 command reference 不匹配")
@@ -189,10 +262,27 @@ def run(bundle: Path, output: Path, *, case: str = "new-scene") -> dict:
                             or transaction.state is not PendingActiveViewState.HOME_VERIFIED_FAILED_SAFE_HOLD
                             or transaction.memory_write_count != 0):
                         raise
+        if loop is not None and transaction.commit_receipt is not None:
+            # HOME 的实际几何、四帧和 source recheck 已在上方通过；Memory 不进入 VLA 输入。
+            resumed = loop.resume_after_observation(pause, window, controller)
+            record_vla(resumed, "after-home-fresh-replan")
+            tick = loop.control_step
+            if resumed.ensemble_trace.buffer_size != 1:
+                raise RuntimeError("恢复推理混入了暂停前的旧动作")
+            observation = controller.last_step_output[0]
+            latest = _read_observation_v2_frame(observation, env.unwrapped, adapter, spec, control_step=tick)
+            continued = loop.replan_and_execute(OnlineObservation(latest.rgb_external,
+                latest.rgb_wrist, latest.physical_proprio, window.instruction), controller)
+            record_vla(continued, "continued-execution")
+            tick = loop.control_step
         result = dict(status="engineering-smoke", case=case, seed=seed,
             independent_effect_evidence=False, state=transaction.state.value,
             memory_write_count=transaction.memory_write_count, provider_forward_count=provider.forward_count,
-            action_reset=asdict(reset), action_history_initially_empty=True, vla_inference_executed=False,
+            action_reset=asdict(reset), action_history_initially_empty=loop is None,
+            vla_inference_executed=bool(vla_records), vla_execution=vla_records,
+            pause_history=None if pause is None else asdict(pause),
+            vla_resumed=any(r["stage"] == "continued-execution" for r in vla_records),
+            source_scope="isolated-development-fixed-phase/no-external-executive/no-qualified-wrist-owner",
             home_v2_frames=int(window.history_valid.sum()), candidate=None if candidate is None else {
                 "digest":candidate.digest,"eligible":candidate.commit_eligible,"reasons":candidate.rejection_reasons,
                 "minimum_score":candidate.minimum_candidate_score,"information_gain":candidate.information_gain},
@@ -211,6 +301,7 @@ def run(bundle: Path, output: Path, *, case: str = "new-scene") -> dict:
         env.close()
         (output/"camera.jsonl").write_text("".join(json.dumps(r)+"\n" for r in rows))
         (output/"provider.jsonl").write_text("".join(json.dumps(r)+"\n" for r in frames))
+        (output/"vla.jsonl").write_text("".join(json.dumps(r)+"\n" for r in vla_records))
 
 
 if __name__ == "__main__":

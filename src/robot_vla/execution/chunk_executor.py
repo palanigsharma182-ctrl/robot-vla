@@ -38,6 +38,7 @@ class ChunkExecutionResult:
     applied_correction_abs_max_rad: float | None = None
     replan_required: bool = False
     anomaly_kind: str | None = None
+    interrupted: bool = False
 
 
 class RecedingHorizonChunkExecutor:
@@ -273,6 +274,7 @@ class RecedingHorizonChunkExecutor:
                 return ChunkExecutionResult(
                     success=True,
                     executed_steps=executed_steps,
+                    interrupted=True,
                     correction_saturation_steps=correction_saturation_steps,
                     requested_correction_abs_max_rad=requested_correction_abs_max_rad,
                     applied_correction_abs_max_rad=applied_correction_abs_max_rad,

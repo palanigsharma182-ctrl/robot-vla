@@ -29,3 +29,36 @@ PYTHONPATH=src python experiments/g2c_memory_integration/run.py --bundle /privat
 定向单测见 `test_qualified_front_provider.py`、`test_e018_active_front_memory.py` 和
 `test_e018_active_front_reobserve.py`。真实运行结果与未验证边界见项目能力接入矩阵；
 单个开发 smoke 不能改变 E018 Stage2A 的既有负结果或授予 manipulation 控制权。
+
+## 真实 VLA 基线与运行中暂停恢复
+
+`vla.py` 显式恢复 E012 冻结初始化 V1 基线（E011 Layer-12），固定 checkpoint SHA-256，
+从该 checkpoint 恢复统计、Adapter/Expert，并严格检查原模型、Processor 与 Qwen revision。
+不把 V1 权重加载为 V2，不训练、不消费历史 selection/final test。
+
+```bash
+PYTHONPATH=src python experiments/g2c_memory_integration/vla.py \
+  --checkpoint /private/e011-layer12-best.pt --model-cache /private/model-cache \
+  --mode baseline --output /new/baseline
+PYTHONPATH=src python experiments/g2c_memory_integration/vla.py \
+  --checkpoint /private/e011-layer12-best.pt --model-cache /private/model-cache \
+  --mode reobserve --bundle /private/bundle --case historical-positive-76903 \
+  --output /new/reobserve
+```
+
+基线入口在一个固定新开发场景执行两次真实 VLA replan；重观察入口在真实策略执行两步后，
+利用 executor 已有的控制步中断边界停止旧 chunk。Runtime 暂停后清除 temporal/RTC/reference，
+保留 Episode 控制时间和随机采样序列；调用方负责 hold 和相机路线。只有 HOME 实际几何、
+四个全新连续同步帧、source recheck 与 D049 commit 均通过，才调用 fresh VLA replan 并继续执行。
+失败或拒写保持暂停，不自动改用不合格测量。Memory 内容不注入 VLA，也不输出操作命令。
+
+四帧 HOME 是恢复屏障，冻结 V1 策略仍只使用最新一帧双图与 15 维 proprio。
+此入口暂只恢复 V1；通用 Runtime 的 V2 分支另有合成接口测试，不构成已训练 V2 验收。
+重观察的固定请求不代表自主触发；历史正样例不代表独立效果证据。
+当前为单线程同步仿真，不能跨线程抢占正在执行的 chunk，也不证明真实硬件时延。
+实际执行结果及限制以本次能力矩阵追加记录为准。
+
+来源复核的当前范围是单个隔离开发 runner：phase 固定为 ACQUIRE_TRACK，未构造外部
+Executive 或 qualified wrist owner，也没有其他控制写入者。它不证明运行中真实 Executive
+的动态 phase/owner 重读取。暂停后的 20 个稳定步尚未建立 hold 参考，日志以 null 漂移及
+`hold_reference_available=false` 标记；只有之后的相机路线才按固定参考验证 hold。
