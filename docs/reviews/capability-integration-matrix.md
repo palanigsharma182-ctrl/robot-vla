@@ -1,9 +1,10 @@
 # 33 项能力：模块归属、实际接线与验收
 
 2026-09-06；接续 [原始接入清单](e018-main-integration-checklist.md)，工程基线 `b244c3a`。
-本轮按用户确认补实际接线和全部 33 项验收对应关系，直接维护 main。训练、数据、执行仍保留原归属。
+按用户确认补实际接线和全部 33 项验收对应关系，直接维护 main。训练、数据、执行仍保留原归属。
+下方追加正式 G2C / D049 的真实工程消费验收；前一阶段的 synthetic-debug 结果保持原边界。
 
-## 本轮实际接线
+## 前一阶段接线（合成验收）
 
 ```text
 现有 checkpoint 加载 / 冻结 Precision U-Net
@@ -52,7 +53,7 @@ front 输入仍 qualification-only，未具备合格三维测量时 `geometry_va
 | A10 RTC | `execution/rtc.py` → runtime 可选路径 | 无直接依赖，保留默认关闭 | `rtc`、`runtime` | CPU VJP/关闭 parity；排除 CUDA 节点；E011 不晋级结论不变 |
 | A11 Local DAgger | `local_dagger_protocol.py`、trajectory/dataset | 无直接依赖，保留来源兼容 | `local_dagger_action_budget`、`trajectory_v2`、`dataset_v2` | 合同/预算规则；六候选不 eligible 的历史不变 |
 | A12 V2 observation | `observation.py` → Dataset/Processor/runtime | EO 复用位姿转换；front 适配复用单帧 42 维状态布局 | `observation_v2`、`dataset_v2`、`qwen_processor_contract`、`runtime`、`checkpoint`、`e018_active_front_provider` | 单帧适配不代替 V2 四帧时序；真实 Qwen V2 forward 未验 |
-| A13 Precision 感知 | `precision/{model,provider,geometry,checkpoint,data,training,held_out}.py` | **新增真实模型输出 → CP/OO；front 输入消费 EO/FC** | `precision_unet`、`precision_detection_provider`、`precision_geometry_control`、`precision_checkpoint`、`precision_module_integration`、`precision_detection_adapter`、`precision_data`、`precision_training`、`precision_held_out` | 模型/重载、标签隔离、训练配置和评估规则；G2C 权重、front 资格、deployable 3D 未验 |
+| A13 Precision 感知 | `precision/{model,provider,geometry,checkpoint,data,training,held_out}.py` | **新增真实模型输出 → CP/OO；front 输入消费 EO/FC** | `precision_unet`、`precision_detection_provider`、`precision_geometry_control`、`precision_checkpoint`、`precision_module_integration`、`precision_detection_adapter`、`precision_data`、`precision_training`、`precision_held_out` | 模型/重载、标签隔离、训练配置和评估规则；正式 G2C / D048 消费见 C08；三维仅限固定高度 FREE_STATIC 平面，不代表任意物体高度估计 |
 | A14 shadow / Executive | `precision/{control,shadow}.py`、`executive/` | 不把 OO 分数或 OM 有效性直接接 actuator | `precision_geometry_control`、`hierarchical_executive`、`deployable_state_estimator`、`shadow_executive_observer`、`runtime` | observer/控制仲裁边界；完整 shadow rollout 和物理控制未验 |
 
 ### B：E014–E017（7 项）
@@ -71,20 +72,47 @@ front 输入仍 qualification-only，未具备合格三维测量时 `geometry_va
 
 | ID / 能力 | 原归属与消费者 | 与五模块关系 | 定向测试 | 本轮验收边界 / 剩余项 |
 |---|---|---|---|---|
-| C01 Object Memory | `precision/object_memory.py` | **OM/OO 直接实现**，五模块回放消费 | `e018_object_memory`、`e018_object_observability`、`object_memory_replay`、`five_common_replay` | 合成状态与时间回归；真实模型→合格 3D measurement→OM 尚未接通 |
+| C01 Object Memory | `precision/object_memory.py` | **OM/OO 直接实现**，五模块回放消费 | `e018_object_memory`、`e018_object_observability`、`object_memory_replay`、`five_common_replay` | 正式 G2C → 条件平面三维测量 → OM 已接通；真实工程 smoke 验证一次提交与一次拒写，详见追加验收 |
 | C02 相机路线 | 历史 `e018_p1_g0.py::_run_route` | **FC/EO 工具已接入**；原 route runner 保留实验 | `e018_active_front_camera`、`e018_active_external_observation`、`five_common_replay` | 几何、来源、运动阶段规则；本轮没有重跑真实路线 |
 | C03 视角筛选/动态路线 | 历史 G0B/G0C runner | FC/EO 可复用；筛选协议不并入工具 | 无专属当前 runner 验收 | **历史实验保留**；工具测试不证明视角合格，不在线用 GT 选视角 |
-| C04 动态观测/supervisor | EO；历史 `active_front_reobserve.py` | **EO 已接线**；完整 supervisor 尚未接入 | `e018_active_external_observation`、`five_common_replay`、`precision_module_integration` | 观测输入/阶段规则；HOME-only 四帧、清 Chunk、完整 G1 编排未验 |
+| C04 动态观测/supervisor | EO；历史 `active_front_reobserve.py` | **EO 与 D049 supervisor 源码已接入**；实验入口显式请求固定 PRIMARY | `e018_active_external_observation`、`five_common_replay`、`precision_module_integration` | HOME-only 四帧已真实验收；实际为空的历史组件已清除；自动触发、非空 VLA 缓存和完整 G1 编排仍未验 |
 | C05 wrist→front 适配 | **新增** `precision/active_front_provider.py` → 模型消费者 | 消费 EO/FC，输出资格验证输入 | `e018_active_front_provider`、`precision_module_integration` | 相机角色/42维/时间/skew/来源；原 G2A inconclusive 不变 |
 | C06 covariance 校准 | CP 与历史 G2B runner | **CP/OO 已接预测 mask、sigma** | `e018_calibrated_front_provider`、`precision_module_integration` | 数值/通道/batch 对应；CAL-v2 protocol-invalid，不宣称校准机制失败或通过 |
-| C07 G2C 训练/选择 | 原 G2C data/training/model_val 实验 | 基础 Precision loader 已复用；不搬训练到 CP | 无专属 G2C 验收；基础接口见 A13 | **训练/选择入口未恢复**；debug checkpoint 不等于 epoch15 |
-| C08 D048 qualified provider | 历史静态校准/动态资格消费者 | CP/EO/front 模型接口具备；冻结 artifact 消费未恢复 | 基础数值/模型接口见 C05/C06；无 D048 本轮验收 | **真实权重/校准/视角身份待核验**；当前 calibrated-sigma score 不能继承 D048 raw-sigma 阈值；原资格限 simulation development，首个 Memory-write 消费限 PRIMARY |
-| C09 Stage2A/D049 编排 | 历史 `active_front_memory*`、supervisor | OM 支持延迟规则；完整三帧/返回 HOME 事务仍属实验 | `e018_object_memory`、`five_common_replay` 仅验底层规则 | **完整编排未接入**；7/25=28% 的负结果不因底层测试而改变 |
+| C07 G2C 训练/选择 | 原 G2C data/training/model_val 实验 | 基础 Precision loader 已复用；不搬训练到 CP | 无专属 G2C 验收；基础接口见 A13 | 正式 epoch15 已恢复并严格加载；**训练/选择 runner 未恢复或重跑**，不改变历史 checkpoint 选择 |
+| C08 D048 qualified provider | `qualified_front_provider.py` → D049 frame | **正式权重、统计、D046/D048 包已恢复并核验**；EO/FC/OO/CP 共同消费 | `qualified_front_provider`；远端 CUDA BF16 严格加载及真实相机 forward | D049 score 保持 raw sigma，scale 仅乘 covariance；绑定实际 HOME/PRIMARY K 与 pose，Memory-write 限 PRIMARY，资格仍限 simulation development |
+| C09 Stage2A/D049 编排 | `active_front_memory*`、`active_front_reobserve`；实验局部 consumer | **三帧 → HOME 四帧 → source recheck → commit/no-commit 已接入** | `e018_active_front_memory`、`e018_active_front_reobserve`；两条真实工程 route | seed 1000001 拒写；已知历史开发样例 76903 提交一次。非独立效果证据；7/25=28% 的负结果不变；未接 VLA 重规划/操纵 |
 | C10 wrist 触发语义 | D050 capability/observability 区分 | OO predicate 不等同 qualified wrist capability | 无专属 qualifier 当前验收 | **语义保留，资格证据不足**；无效输入不自动触发相机运动 |
 | C11 Stage2B 七视角 | 历史配置 + 用户未跟踪草稿 | 未来按问题消费 EO/FC/CP；本轮不接 | 未运行、未修改用户草稿 | **候选/未验收**；不为编号完整而启动 |
 | C12 Stage3A/B | D051 冻结方案 | 未来 fault/comparison 消费工具，保持实验归属 | 无完整矩阵/效果对照验收 | **计划/未实施**；局部 fault 单测不替代 Stage3A/B |
 
-## 执行证据与后续入口
+## 追加验收：正式 G2C → D049 Memory（2026-09-06）
+
+[实验入口与运行说明](../../experiments/g2c_memory_integration/README.md) 复用冻结 E018 `37851ad`
+的 D049 三文件，仅新增薄 provider/实验 consumer，没有引入整套 G0/G2C/Stage2A runner。
+原始 sigma score 与校准 covariance 分开，固定 FREE_STATIC 方块中心高度 0.02 m；
+严格绑定权重、normalizer、D046/D048 receipt 和同源实际相机几何。
+
+修复了 main OM 与旧事务消费者的两处兼容问题：提交后保留 RGB 采集时间；普通 commit 拒绝不应用
+只读 preview 产生的年龄状态。安全失效规则保持。main `object_memory.py` 和 V2 evaluator 未变。
+独立 R2 检查覆盖 provider 身份替换、低分字段一致性、相机资格、可变数组、校准数学，以及实验时序/拒绝落盘。
+
+| 实际执行 | 结果与边界 |
+|---|---|
+| 冻结包恢复 | epoch15 文件 SHA-256 `97e3b7289911bc73f67755a8d9c3598c50b6c80ef01e1af13cec698ec59d3d77`；两份统计和全部资格/校准组件匹配；远端 CUDA/BF16 严格加载通过 |
+| 最终定向测试 | 212 passed，2.62 s，退出码 0；无 skip；与前一阶段 435 项不直接相加 |
+| 新开发场景 1000001 | 96 simulator ticks、4 次正式 G2C forward、PRIMARY 三帧合格、HOME 四帧；信息增益不足，0 次写入，正常拒绝终态，退出码 0 |
+| 已知历史开发样例 76903 | 96 ticks、4 次 forward、HOME 四帧；minimum score 0.6212714911、gain 0.6200649013；4.8 s 时提交 1 次，退出码 0 |
+| Action / 控制边界 | 无 VLA 推理；实际缓存最初为空并已失效；Memory 提交后 observable_now=false、contact_authorized=false |
+
+拒写 route 使用增加固定 case 和日志字段之前的 consumer 快照；其 provider/Memory 与交付一致。
+成功 route 的 manifest 与当前 consumer/provider/Memory 完全匹配。
+所有真实 route 的 arm/TCP 平移漂移为 0。76903 按已有正样例选定，属于工程回放，不能计为新 unseen
+效果或成功率。未消费历史 selection/final-test，不恢复 Stage2B/3 或训练。
+两次前置工程失败均保留：ManiSkill batched quaternion 形状适配、PRIMARY pitch 错用 yaw 角度；
+分别按实际接口和冻结 8° pitch 修复，未放宽资格阈值。最初快照缺配置的测试失败也保持原记录。
+私有恢复包、逐帧证据、运行命令/退出码及 SHA manifest 位于本轮本机审查产物目录，不进入 Git。
+
+## 前一阶段执行证据与后续入口
 
 远端已有 Python 3.10.12 / PyTorch 2.11.0+cu128 / NumPy 1.26.4 / pytest 9.1.1 环境，
 本轮使用 CPU，限制 OMP/OpenBLAS 为 2 线程，禁用额外 pytest plugin 与 HF 网络下载：

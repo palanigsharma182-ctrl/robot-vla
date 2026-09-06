@@ -1,0 +1,100 @@
+{
+  "version": "e018-p1-stage2b-seven-view-information-gain-shadow-development/v1",
+  "status": "implementation-ready-shadow-only-no-memory-write",
+  "decision": {
+    "gate": "D049",
+    "d049_gate_commit": "de48f1305098c86d7d49ab4a487eb1f36aea544c",
+    "d049_home_clarification_commit": "22d2719c2614dee2b02ebf396a55817b644810aa",
+    "online_view_selection": "HOLD",
+    "deterministic_fallback": "HOLD-until-new-decision-and-identity",
+    "fresh_test": "HOLD"
+  },
+  "parents": {
+    "stage2a_config": "e018_p1_stage2a_primary_memory_development_v1.json",
+    "d048_artifact_id": "g2c-formal-dynamic-qualification-d048-c2eb57a-20260905-v1",
+    "d048_result_receipt_raw_sha256": "a3edafd7cb31476bf19ec79544fa92d6ee4471e7cee61673e5cd93a24b987770",
+    "d048_result_receipt_internal_sha256": "dbf167a0a487102cb967d15b5bc206db1f515f56e1dcce6eec95265735a86953"
+  },
+  "viewpoints": {
+    "qualified_shadow_only": [
+      "LEFT_LOW__CENTER",
+      "LEFT_LOW__YAW_RIGHT",
+      "LEFT_LOW__PITCH_UP",
+      "LEFT_LOW__PITCH_DOWN",
+      "RIGHT_LOW__CENTER",
+      "RIGHT_LOW__YAW_RIGHT",
+      "RIGHT_LOW__PITCH_DOWN"
+    ],
+    "prohibited_memory_write": [
+      "HOME__CENTER",
+      "LEFT_LOW__YAW_LEFT",
+      "RIGHT_LOW__YAW_LEFT",
+      "RIGHT_LOW__PITCH_UP"
+    ],
+    "primary": "LEFT_LOW__PITCH_UP",
+    "one_independent_env_reset_per_seed_view": true
+  },
+  "evidence": {
+    "home_role": "raw-score-baseline-only-no-state-resolution/v1",
+    "score_semantics": "min-visibility-projection-object-mask-not-goal-not-entropy-inverse-sigma/v1",
+    "alternate_settled_collect_frames": 3,
+    "relative_gain_uses_minimum_alternate_score": true,
+    "position_average_allowed": false,
+    "covariance_division_allowed": false,
+    "record_score_components": true,
+    "record_covariance_spread_and_innovation": true,
+    "oracle_labels_open_after_prediction_decision_freeze_only": true,
+    "hidden_gt_online_selection_allowed": false
+  },
+  "home_baseline": {
+    "role": "raw-score-comparison-only-no-measurement-no-memory-write-no-state-resolution/v1",
+    "primitive_id": "HOME__CENTER",
+    "camera_motion_state": "home_anchor",
+    "settled_required": true,
+    "provider_identity_sha256": "d2323bc30a64341e49b73576b26894702ec0478f316cdb138241d8d78187401e",
+    "provider_family_sha256": "04a38f7f6ab80e09c6d4ea21783d294b930bb463583ff4fb782cef2d9bc8b7a4",
+    "calibration_identity_sha256": "7091db69c2bdc65dc904c5ebb3fcd048beb51dc37e13acf484c072f5bece2d8e",
+    "calibration_scale_factor": 1.0,
+    "write_threshold": 0.6123920381069183,
+    "score_semantics": "min-visibility-projection-object-mask-not-goal-not-entropy-inverse-sigma/v1",
+    "actual_pose_source": "same-observation.sensor_param.base_camera.cam2world_gl/v1",
+    "expected_base_from_external_camera_cv": [
+      [0.0, 0.7808687686920166, -0.6246950626373291, 0.9150000214576721],
+      [1.0, 0.0, 0.0, -7.275957614183426e-11],
+      [0.0, -0.6246950626373291, -0.7808687686920166, 0.6000000387430191],
+      [0.0, 0.0, 0.0, 1.0]
+    ],
+    "maximum_position_error_m": 0.00001,
+    "maximum_orientation_error_rad": 0.0001,
+    "model_input_digest_required": true,
+    "provider_output_digest_required": true
+  },
+  "execution": {
+    "memory_write_allowed": false,
+    "online_view_selection_allowed": false,
+    "canonical_runtime_allowed": false,
+    "physical_camera_allowed": false,
+    "arm_gripper_actuation_allowed": false
+  },
+  "splits": {
+    "shadow": [77101, 77150],
+    "stage3_reserved": [77201, 77250]
+  },
+  "seed_count": 50,
+  "viewpoint_count": 7,
+  "maximum_routes": 350,
+  "budgets": {
+    "gpu_wall_seconds_max": 2700,
+    "artifact_bytes_max": 3221225472
+  },
+  "permissions": {
+    "fresh_test_reads": 0,
+    "runtime_object_gt_reads": 0,
+    "offline_label_reads": "only-after-prediction-and-decision-freeze",
+    "memory_writes": 0,
+    "physical_camera_actuation": 0,
+    "arm_gripper_actuation": 0,
+    "manipulation_progression": 0,
+    "checkpoint_writes": 0
+  }
+}
