@@ -74,9 +74,22 @@ class ReachDiagnosticEpisodeResult:
 
 
 class _DistanceTraceController(_TrackingManiSkillController):
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *args: Any, max_policy_steps: int, **kwargs: Any) -> None:
+        if max_policy_steps <= 0:
+            raise ValueError("max_policy_steps 必须为正数")
+        self.max_policy_steps = max_policy_steps
         super().__init__(*args, **kwargs)
         self.distance_trace_m = [float(self.progress.outcome.tcp_to_object_distance_m)]
+
+    @property
+    def done(self) -> bool:
+        # 异常重规划会打断四步前缀；必须在块内阻止超过协议上限的 env.step。
+        return super().done or self.environment_steps >= self.max_policy_steps
+
+    @property
+    def chunk_stop_requested(self) -> bool:
+        # 通知执行器停止记账，避免把未发送的块尾部计入步数和 command reference。
+        return self.done
 
     def send_action(self, controller_action):
         steps_before = self.environment_steps
@@ -109,12 +122,15 @@ def run_reach_diagnostic_episode(
         raise ValueError("Atomic Reach 前置状态必须没有已完成技能")
     _reset_atomic_time_limit(env)
     started = time.monotonic()
+    observation_adapter = FrankaObservationAdapter(spec)
     controller = _DistanceTraceController(
         env,
         spec,
         preparation.observation,
         preparation.tracker,
         preparation.progress,
+        observation_adapter,
+        max_policy_steps=max_policy_steps,
     )
     loop = QwenVLAReplanLoop(
         runtime,
@@ -123,7 +139,6 @@ def run_reach_diagnostic_episode(
         recency_decay=recency_decay,
         max_anomaly_replans=max_anomaly_replans,
     )
-    observation_adapter = FrankaObservationAdapter(spec)
     replans = 0
     sampling_seeds: list[int] = []
     action_chunks = 0

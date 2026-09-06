@@ -170,6 +170,13 @@ cd /path/to/robot-vla
 全部 33 项的模块归属、实际接线、定向测试与剩余缺口见 [验收对应表](docs/reviews/capability-integration-matrix.md)；
 真实小型 Precision 模型到观测/校准工具的连接见 [模型接口回放](experiments/precision_module_integration/README.md)。
 
+2026-09-07 的两项 Reach 诊断：
+
+- [历史 Oracle Reach 权重推理复现](experiments/oracle_reach_reproduction/results.md)：历史场景 4/5 成功，包含评估入口与实际控制步数上限修复。
+- [GT 几何下的学习策略与显式控制对照](experiments/oracle_reach_control/results.md)：10 个 development 场景中，Oracle 学习策略 6/10、显式位置控制 10/10；[冻结方案与运行说明](experiments/oracle_reach_control/README.md)。
+
+两项均为隔离仿真诊断；场景与夹爪条件不同，不能直接比较两次实验的成功率，也不代表主线策略已采用显式控制。
+
 新实现按依赖方向渐进落地：
 
 ```text
