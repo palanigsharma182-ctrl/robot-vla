@@ -1,0 +1,460 @@
+{
+  "schema": "tcp-memory-combined-public-result/v1",
+  "date": "2026-09-07",
+  "status": "completed-bounded-development-experiment",
+  "outcome": "modules and low-amplitude control verified; learned TCP candidate stopped in all four cases due to project joint-step limit; no demonstrated full-task benefit",
+  "protocol": {
+    "schema": "tcp-memory-joint-intervention/v1",
+    "arms": [
+      "joint-world",
+      "tcp-relative"
+    ],
+    "train_seeds": [
+      1500000,
+      1500001,
+      1500003,
+      1500004,
+      1500006,
+      1500007,
+      1500009,
+      1500010,
+      1500012,
+      1500013,
+      1500015,
+      1500016,
+      1500018,
+      1500019,
+      1500021,
+      1500022
+    ],
+    "development_seeds": [
+      1500002,
+      1500005,
+      1500008,
+      1500011,
+      1500014,
+      1500017,
+      1500020,
+      1500023
+    ],
+    "rollout_seeds": [
+      1600100,
+      1600101,
+      1600102,
+      1600103
+    ],
+    "control_seeds": [
+      1600000
+    ],
+    "steps": 256,
+    "accumulation": 2,
+    "learning_rate": 1e-05,
+    "memory_dropout": 0.25,
+    "seed": 42,
+    "horizon": 16,
+    "execute_steps": 4,
+    "control_hz": 20,
+    "policy_steps": 88,
+    "reach_threshold_m": 0.02,
+    "action_spec": {
+      "translation_limit_m": 0.01,
+      "rotation_component_limit_rad": 0.1,
+      "horizon": 16,
+      "execute_steps": 4,
+      "schema": "tcp-anchor-command-delta-rotvec-gripper/v1"
+    },
+    "feature_schema": "target-relative-to-actual-tcp-memory/12d/v1",
+    "provider": "front-rgbd-known-cube-three-planes-m0/v1:c5c77699f2fa904bdbbefe0bfe38ab65acf6357e0b3d2304de92c72d04f7d03f",
+    "offset_base_m": [
+      0.0,
+      0.0,
+      0.08
+    ],
+    "shared_initialization": "same upstream trunk; both action input/output projections reset; same memory initialization",
+    "command_reference": "both arms reset to actual at every replan; first label uses actual-to-next-command, later labels successive commanded targets",
+    "flow_sampling": "same per-microbatch seed and flow time; action dimensions differ, no channelwise noise equivalence claim",
+    "data": "same verified 24 teacher trajectories; FK of actual and commanded joints; no object GT in model inputs",
+    "variable": "base Memory + joint action versus TCP-relative target Memory + TCP pose delta action",
+    "primary": "per-control-step Reach and paired final distance; raw FlowMSE not compared across action spaces",
+    "scope": "bounded development pregrasp, same static no-collision fixture, gripper held open"
+  },
+  "data": {
+    "scenes": 24,
+    "train_scenes": 16,
+    "development_scenes": 8,
+    "train_windows": 176,
+    "development_windows": 88,
+    "available_train_windows": 57,
+    "available_development_windows": 26
+  },
+  "training": {
+    "joint-world": {
+      "steps": 256,
+      "exposure": 141,
+      "masked": 371,
+      "memory_gradient_steps": 120,
+      "memory_parameter_change_l2": 0.022250903851254472,
+      "strict_reload": true,
+      "checkpoint_sha256": "e96be4bf0224fcc0c598cc534a72add602dc19239a090e50734da7b8899ea571",
+      "gpu_peak_allocated_bytes": 7060963840
+    },
+    "tcp-relative": {
+      "steps": 256,
+      "exposure": 141,
+      "masked": 371,
+      "memory_gradient_steps": 120,
+      "memory_parameter_change_l2": 0.021852739590261214,
+      "strict_reload": true,
+      "checkpoint_sha256": "eaf50c82b8a897261ecca1a25154e750bc23b477d0382c54d9c53023dd449a27",
+      "gpu_peak_allocated_bytes": 7063815680
+    }
+  },
+  "evaluation": {
+    "joint-world": {
+      "scenes": 4,
+      "completed": 4,
+      "stopped": 0,
+      "reached": 0,
+      "policy_steps": 352,
+      "memory_actions": 80,
+      "occluded_memory_actions": 45,
+      "visual_fallbacks": 1,
+      "mean_terminal_distance_m": 0.07796002935461543
+    },
+    "tcp-relative": {
+      "scenes": 4,
+      "completed": 0,
+      "stopped": 4,
+      "reached": 0,
+      "policy_steps": 12,
+      "memory_actions": 4,
+      "occluded_memory_actions": 0,
+      "visual_fallbacks": 0,
+      "mean_terminal_distance_m": 0.11671540528224165
+    }
+  },
+  "cases": [
+    {
+      "arm": "joint-world",
+      "seed": 1600100,
+      "status": "completed",
+      "policy_steps": 88,
+      "initial_distance_m": 0.11228877566253732,
+      "final_distance_m": 0.10271292616878419,
+      "minimum_distance_m": 0.09574546795909067,
+      "reached": false,
+      "memory_actions": 64,
+      "occluded_memory_actions": 45,
+      "ending_reason": null,
+      "distance_after_4_steps_m": 0.1104697919679051,
+      "initial_memory_available": true
+    },
+    {
+      "arm": "joint-world",
+      "seed": 1600101,
+      "status": "completed",
+      "policy_steps": 88,
+      "initial_distance_m": 0.08670059545917953,
+      "final_distance_m": 0.040985540159080396,
+      "minimum_distance_m": 0.02013133094137851,
+      "reached": false,
+      "memory_actions": 8,
+      "occluded_memory_actions": 0,
+      "ending_reason": null,
+      "distance_after_4_steps_m": 0.08328941522425634,
+      "initial_memory_available": false
+    },
+    {
+      "arm": "joint-world",
+      "seed": 1600102,
+      "status": "completed",
+      "policy_steps": 88,
+      "initial_distance_m": 0.10725931030615443,
+      "final_distance_m": 0.04838144145053008,
+      "minimum_distance_m": 0.04838144145053008,
+      "reached": false,
+      "memory_actions": 8,
+      "occluded_memory_actions": 0,
+      "ending_reason": null,
+      "distance_after_4_steps_m": 0.10688522087168513,
+      "initial_memory_available": false
+    },
+    {
+      "arm": "joint-world",
+      "seed": 1600103,
+      "status": "completed",
+      "policy_steps": 88,
+      "initial_distance_m": 0.17213068283567162,
+      "final_distance_m": 0.11976020964006706,
+      "minimum_distance_m": 0.11976020964006706,
+      "reached": false,
+      "memory_actions": 0,
+      "occluded_memory_actions": 0,
+      "ending_reason": null,
+      "distance_after_4_steps_m": 0.172462826681909,
+      "initial_memory_available": false
+    },
+    {
+      "arm": "tcp-relative",
+      "seed": 1600100,
+      "status": "stopped",
+      "policy_steps": 4,
+      "initial_distance_m": 0.11228877566253732,
+      "final_distance_m": 0.10919058031096002,
+      "minimum_distance_m": 0.10919058031096002,
+      "reached": false,
+      "memory_actions": 4,
+      "occluded_memory_actions": 0,
+      "ending_reason": "TCP动作对应的关节增量过大，拒绝而不改写动作",
+      "distance_after_4_steps_m": 0.10919058031096002,
+      "initial_memory_available": true
+    },
+    {
+      "arm": "tcp-relative",
+      "seed": 1600101,
+      "status": "stopped",
+      "policy_steps": 4,
+      "initial_distance_m": 0.08670059545917953,
+      "final_distance_m": 0.08108928981198484,
+      "minimum_distance_m": 0.08108928981198484,
+      "reached": false,
+      "memory_actions": 0,
+      "occluded_memory_actions": 0,
+      "ending_reason": "TCP动作对应的关节增量过大，拒绝而不改写动作",
+      "distance_after_4_steps_m": 0.08108928981198484,
+      "initial_memory_available": false
+    },
+    {
+      "arm": "tcp-relative",
+      "seed": 1600102,
+      "status": "stopped",
+      "policy_steps": 0,
+      "initial_distance_m": 0.10725931030615443,
+      "final_distance_m": 0.10725931030615443,
+      "minimum_distance_m": 0.10725931030615443,
+      "reached": false,
+      "memory_actions": 0,
+      "occluded_memory_actions": 0,
+      "ending_reason": "TCP动作对应的关节增量过大，拒绝而不改写动作",
+      "distance_after_4_steps_m": null,
+      "initial_memory_available": false
+    },
+    {
+      "arm": "tcp-relative",
+      "seed": 1600103,
+      "status": "stopped",
+      "policy_steps": 4,
+      "initial_distance_m": 0.17213068283567162,
+      "final_distance_m": 0.16932244069986732,
+      "minimum_distance_m": 0.16932244069986732,
+      "reached": false,
+      "memory_actions": 0,
+      "occluded_memory_actions": 0,
+      "ending_reason": "TCP动作对应的关节增量过大，拒绝而不改写动作",
+      "distance_after_4_steps_m": 0.16932244069986732,
+      "initial_memory_available": false
+    }
+  ],
+  "comparison_limit": "terminal distances are measured after unequal horizons (88 vs 0/4 steps); do not use their means as equal-time performance ranking",
+  "first4_diagnostic": "post hoc: all three TCP cases that executed four steps reduced distance and were closer than joint at four steps; fourth rejected before any action; not an independent success claim",
+  "ik_diagnostic": {
+    "post_hoc": true,
+    "gpu_used": false,
+    "actuator_steps": 0,
+    "rows": [
+      {
+        "seed": 1600100,
+        "step_before": 4,
+        "max_translation_component_m": 0.009182125329971313,
+        "max_rotation_component_rad": 0.07444919645786285,
+        "counterfactuals": {
+          "original": {
+            "ik_error": null,
+            "max_abs_joint_delta_rad": 0.0974365621805191,
+            "all4_within_005": false
+          },
+          "translation-only": {
+            "ik_error": null,
+            "max_abs_joint_delta_rad": 0.016552746295928955,
+            "all4_within_005": true
+          },
+          "rotation-only": {
+            "ik_error": null,
+            "max_abs_joint_delta_rad": 0.09590709954500198,
+            "all4_within_005": false
+          }
+        }
+      },
+      {
+        "seed": 1600101,
+        "step_before": 4,
+        "max_translation_component_m": 0.006688613910228014,
+        "max_rotation_component_rad": 0.06747059524059296,
+        "counterfactuals": {
+          "original": {
+            "ik_error": null,
+            "max_abs_joint_delta_rad": 0.08489520847797394,
+            "all4_within_005": false
+          },
+          "translation-only": {
+            "ik_error": null,
+            "max_abs_joint_delta_rad": 0.02022993564605713,
+            "all4_within_005": true
+          },
+          "rotation-only": {
+            "ik_error": null,
+            "max_abs_joint_delta_rad": 0.08666479587554932,
+            "all4_within_005": false
+          }
+        }
+      },
+      {
+        "seed": 1600102,
+        "step_before": 0,
+        "max_translation_component_m": 0.0035715680569410324,
+        "max_rotation_component_rad": 0.04282623156905174,
+        "counterfactuals": {
+          "original": {
+            "ik_error": null,
+            "max_abs_joint_delta_rad": 0.06935590505599976,
+            "all4_within_005": false
+          },
+          "translation-only": {
+            "ik_error": null,
+            "max_abs_joint_delta_rad": 0.007606983184814453,
+            "all4_within_005": true
+          },
+          "rotation-only": {
+            "ik_error": null,
+            "max_abs_joint_delta_rad": 0.06591576337814331,
+            "all4_within_005": false
+          }
+        }
+      },
+      {
+        "seed": 1600103,
+        "step_before": 4,
+        "max_translation_component_m": 0.008308964781463146,
+        "max_rotation_component_rad": 0.0591466911137104,
+        "counterfactuals": {
+          "original": {
+            "ik_error": null,
+            "max_abs_joint_delta_rad": 0.07867489755153656,
+            "all4_within_005": false
+          },
+          "translation-only": {
+            "ik_error": null,
+            "max_abs_joint_delta_rad": 0.015000581741333008,
+            "all4_within_005": true
+          },
+          "rotation-only": {
+            "ik_error": null,
+            "max_abs_joint_delta_rad": 0.07916392385959625,
+            "all4_within_005": false
+          }
+        }
+      }
+    ],
+    "limitation": "translation-only and rotation-only are offline IK counterfactuals, not evaluated policies or demonstrated task benefits",
+    "rotation_only_exceeding_steps": 13,
+    "rotation_only_total_steps": 16
+  },
+  "verification": {
+    "targeted_tests": 19,
+    "test_exit_code": 0,
+    "smoke_axes": 6,
+    "smoke_actuator_steps": 24,
+    "smoke_saturation_steps": 0,
+    "training_identity_sha256": "7c458d4ac1607ed372dc5dd331c2b51c9b066fdc5b0cbb7c82da89621279d817",
+    "source_sha256": "83b931053734232fe5a7059c7b59382970b366ce19c4ae4936e7a74bebf4d123",
+    "artifact_hashes": {
+      "training-v1/result.json": "39706064ebc40f3e746f161558d6e04bf084ef385ed87db9a1c5321f665f81a4",
+      "evaluation-v1/result.json": "0639b396a96f1e866b6a905e11e462c8a592cdca25ad09ad039608e64a0d170c",
+      "ik-diagnostic.json": "6bed8ea22029dbaa32205b6543d83a48a0c6826247b6e7c3df6c196ab3c74aee",
+      "smoke-v1/result.json": "a533eb7644e29337ff8393636fd4a1348dd02a8fd046397e400f835c4b946325"
+    },
+    "dual_copy": {
+      "files": 232,
+      "payload_bytes": 824591133,
+      "mismatches": [],
+      "manifest_sha256": "ae8ebfebeb6145428bb3cf8c2595142861ed2da50166575f3a62f550e84ae7ad"
+    },
+    "parent_exposure_audit": {
+      "actual_train_availability": 176,
+      "available": 57,
+      "schedule_token_on": 141,
+      "metadata_hashes_verified": 24,
+      "qwen_frozen_evidence": "requires_grad_(False), no-gradient runtime assertion and exit0 of frozen train.py; not inferred from JSON gradient fields alone"
+    },
+    "independent_reviews": {
+      "execution": {
+        "model": "gpt-5.6-sol",
+        "effort": "high",
+        "status": "limited static pass with source-v2 anchor and saturation fixes; six-axis actual smoke passed",
+        "result_audit": {
+          "status": "limited pass",
+          "confirmed": [
+            "8 complete denominators and trace action counts",
+            "per-step recorded-distance Reach predicate",
+            "identical paired initial state",
+            "six-axis smoke",
+            "all four rejected chunks violate joint-step limit; translation-only 4/4 pass; rotation-only 0/4 pass"
+          ],
+          "limits": [
+            "world-frame distances not independently reconstructed from coordinates because world_from_base/world TCP were not saved",
+            "offline IK decomposition is not policy efficacy or unique model root cause",
+            "unequal terminal horizons do not support equal-time ranking"
+          ]
+        }
+      },
+      "data_training": {
+        "model": "gpt-5.6-terra",
+        "effort": "max",
+        "status": "limited R2 pass, source-v4 required manifest fix verified",
+        "result_audit": {
+          "status": "limited pass",
+          "confirmed": [
+            "identity hash",
+            "256x2 schedule and dropout regenerated",
+            "141 exposure and 120 gradient updates equal in both training outputs",
+            "strict-reload fields and nonzero memory parameter changes"
+          ],
+          "limits": [
+            "141 exposure cannot be independently reconstructed from identity/result JSON alone; parent separately checked 24 raw metadata hashes and reconstructed it",
+            "no independent parameter-level Qwen-freeze verification"
+          ]
+        }
+      },
+      "models": "same existing reviewers whose actual runtime model was verified in preceding stage; no model override requested"
+    },
+    "distance_audit_limit": "Reach recomputed from per-step recorded GT distances; world_from_base or world TCP not saved, so distances not independently reconstructed from raw spatial coordinates",
+    "final_source_files_matched": 182
+  },
+  "resources": {
+    "gpu_limit_s": 1800,
+    "gpu_process_wall_s": 254.11096782099776,
+    "disk_limit_all_copies_bytes": 4000000000,
+    "stages": [
+      {
+        "stage": "smoke",
+        "elapsed_s": 7.612511692001135,
+        "returncode": 0
+      },
+      {
+        "stage": "train",
+        "elapsed_s": 185.612850325997,
+        "returncode": 0
+      },
+      {
+        "stage": "evaluate",
+        "elapsed_s": 60.885605802999635,
+        "returncode": 0
+      }
+    ],
+    "disk_accounting": "logical file sizes in remote run root, local private run root, and new local experiment directory, including caches and all retained source archives; existing reused inputs excluded",
+    "remote_run_bytes": 825572614,
+    "local_private_bytes": 827130186,
+    "local_experiment_bytes": 98539,
+    "new_disk_all_copies_bytes": 1652801339
+  }
+}
