@@ -74,19 +74,19 @@ from robot_vla.precision.e018_p1_stage2a_selection import (
 )
 
 _FORMAL_CLASSIFICATION = (
-    "formal-development-evaluation-no-test-no-actuation/v1"
+    "formal-development-evaluation-no-test-no-actuation/v2"
 )
 _FORMAL_CAPTURE_CLASSIFICATION = (
-    "formal-development-selected-gain-capture-only-no-test-no-actuation/v1"
+    "formal-development-selected-gain-capture-only-no-test-no-actuation/v2"
 )
 _PREFLIGHT_CLASSIFICATION = (
-    "engineering-preflight-selected-gain-evaluation-no-formal-claim/v1"
+    "engineering-recovery-preflight-selected-gain-evaluation-no-formal-claim/v2"
 )
 _PREFLIGHT_CAPTURE_CLASSIFICATION = (
-    "engineering-preflight-selected-gain-capture-only-no-test-no-actuation/v1"
+    "engineering-preflight-selected-gain-capture-only-no-test-no-actuation/v2"
 )
 _FORMAL_EXECUTION_GO_VERSION = (
-    "e018-p1-stage2a-d049-final-formal-go-receipt/v1"
+    "e018-p1-stage2a-d049-final-formal-go-receipt/v2"
 )
 _EVALUATION_ARTIFACT_ROLE_IDENTITY_VERSION = (
     "e018-p1-stage2a-evaluation-artifact-role/v1"
@@ -230,6 +230,8 @@ def _verify_gate_record(
     if file_sha256(gate_path) != config["experiment"]["gate_record_raw_sha256"]:
         raise RuntimeError("D049 conditional evaluation Gate raw SHA 漂移")
     gate = _read_json(gate_path, "D049 conditional evaluation Gate")
+    supersedes = gate.get("supersedes")
+    recovery = gate.get("recovery")
     selection = gate.get("selection_parent")
     inputs = gate.get("frozen_inputs")
     preflight = gate.get("preflight")
@@ -238,13 +240,20 @@ def _verify_gate_record(
     oracle = gate.get("oracle_and_gate")
     routing = gate.get("outcome_routing")
     permissions = gate.get("permissions")
+    continuation = gate.get("continuation")
     persistence = config["selection_parent"]["persistence"]
     if (
-        gate.get("version") != "e018-p1-d049-conditional-evaluation-gate/v1"
+        gate.get("version")
+        != "e018-p1-d049-conditional-evaluation-recovery-gate/v3"
         or gate.get("status")
-        != "implementation-go-formal-hold-until-final-source-r2-and-preflight"
+        != (
+            "implementation-recovery-go-formal-hold-until-final-source-r2-"
+            "and-recovery-preflight-scope-amended"
+        )
         or gate.get("authority")
         != "user-authorized-b-level-offline-no-actuation-decision-agent"
+        or not isinstance(supersedes, dict)
+        or not isinstance(recovery, dict)
         or not isinstance(selection, dict)
         or not isinstance(inputs, dict)
         or not isinstance(preflight, dict)
@@ -253,11 +262,30 @@ def _verify_gate_record(
         or not isinstance(oracle, dict)
         or not isinstance(routing, dict)
         or not isinstance(permissions, dict)
+        or not isinstance(continuation, dict)
+        or supersedes.get("conditional_gate_v1_raw_sha256")
+        != "cf64fe03e706b578fc3c8e86ea2697e5147c7cf10d409b93098448aa573a8845"
+        or supersedes.get("scope_amendment_raw_sha256")
+        != "04b688c1da004fe93463465bd3e9bf331ba8c9e6e9c2f3f4100e15756514a3af"
+        or supersedes.get("scope_amendment_internal_sha256")
+        != "9acaa2554a8863f393f4d9609c5e95a8eabcd2450fa3e99a6e0a334a97815328"
+        or supersedes.get("historical_records_mutated") is not False
+        or recovery.get("failed_preflight_seed") != 76892
+        or recovery.get("failed_preflight_rerun_allowed") is not False
+        or recovery.get("allowed_code_change")
+        != (
+            "call-the-existing-shared-viewpoint-normalizer-before-pass-b-"
+            "frame-binding"
+        )
+        or recovery.get("replay_hash_or_tolerance_relaxation_allowed")
+        is not False
+        or recovery.get("research_variable_change") is not False
+        or recovery.get("formal_v1_consumed") is not False
         or gate.get("experiment")
         != {
             "id": E018_P1_STAGE2A_EVALUATION_EXPERIMENT_ID,
             "config_version": config["version"],
-            "gate": "D049-R2",
+            "gate": "D049-R2-RECOVERY-SCOPE-AMENDED",
             "classification": _FORMAL_CLASSIFICATION,
             "exact_go_token": STAGE2A_EVALUATION_GO,
             "same_identity_rerun_allowed": False,
@@ -316,23 +344,45 @@ def _verify_gate_record(
         or phase.get("pass_b_provider_forward_count") != 0
         or phase.get("pass_b_decision_change_count") != 0
         or phase.get("consumption_marker_before_first_gt_read") is not True
+        or phase.get("pass_b_viewpoint_normalization")
+        != "same-shared-helper-before-frame-binding-and-hash"
         or oracle.get("exact_recovery_comparison")
         != "10*recovered_count >= 7*common_denominator_count"
         or routing.get("substantive_safety_failure")
-        != "safety-negative-continue-stage2b"
+        != "safety-negative-persist-publish-pause-for-reusability-refactor"
         or routing.get("stage2b_continuation_required_for_every_complete_outcome")
-        is not True
+        is not False
+        or routing.get("stage2b_execution_authorized") is not False
+        or routing.get("d050_execution_authorized") is not False
+        or routing.get("stage3_execution_authorized") is not False
+        or routing.get("post_d049_endpoint")
+        != (
+            "complete-D049-v2-then-persist-publish-and-enter-"
+            "PAUSE_FOR_REUSABILITY_REFACTOR-no-Stage2B-D050-Stage3-execution"
+        )
         or permissions.get("fresh_test_reads") != 0
         or permissions.get("canonical_runtime_mutation") != 0
         or permissions.get("physical_camera_actuation") != 0
         or permissions.get("arm_tcp_actuation") != 0
         or permissions.get("gripper_close") != 0
         or permissions.get("manipulation_progression") != 0
+        or permissions.get("stage2b_execution") != 0
+        or permissions.get("d050_execution") != 0
+        or permissions.get("stage3_execution") != 0
+        or continuation.get("policy")
+        != (
+            "complete-D049-v2-then-persist-publish-and-enter-"
+            "PAUSE_FOR_REUSABILITY_REFACTOR-no-Stage2B-D050-Stage3-execution"
+        )
+        or continuation.get("d049_runner_failure_recovery_required_until_complete")
+        is not True
+        or continuation.get("pause_before_reusability_refactor") is not True
+        or continuation.get("gpu_release_owner") != "user"
     ):
         raise RuntimeError("D049 conditional evaluation Gate identity/语义漂移")
     return {
         "version": gate["version"],
-        "status": "verified-implementation-go-formal-runtime-hold",
+        "status": "verified-recovery-implementation-go-formal-runtime-hold",
         "gate_raw_sha256": file_sha256(gate_path),
         "formal_execution_requires_final_go": True,
     }
@@ -561,20 +611,20 @@ def _validate_formal_execution_go_receipt(
         != "user-authorized-b-level-offline-no-actuation-decision-agent"
         or conditional_gate
         != {
-            "filename": "D049_CONDITIONAL_EVALUATION_GATE.json",
+            "filename": "D049_CONDITIONAL_EVALUATION_RECOVERY_GATE_V3.json",
             "raw_sha256": loaded.payload["experiment"][
                 "gate_record_raw_sha256"
             ],
             "status": (
-                "implementation-go-formal-hold-until-final-source-r2-and-"
-                "preflight"
+                "implementation-recovery-go-formal-hold-until-final-source-"
+                "r2-and-recovery-preflight-scope-amended"
             ),
         }
         or evaluation_config
         != {
             "path": (
                 "configs/"
-                "e018_p1_stage2a_selected_gain_evaluation_development_v1.json"
+                "e018_p1_stage2a_selected_gain_evaluation_development_v2.json"
             ),
             "version": loaded.payload["version"],
             "raw_sha256": loaded.raw_sha256,
@@ -676,13 +726,13 @@ def _validate_formal_execution_go_receipt(
         or any(type(item) is not int or item != 0 for item in permissions.values())
         or continuation
         != {
-            "stage2b_required_for_every_complete_outcome": True,
+            "stage2b_required_for_every_complete_outcome": False,
             "integrity_failure_policy": (
-                "freeze-current-identity-preserve-evidence-and-recover-under-"
-                "new-experiment-config-and-unused-seed-identity"
+                "freeze-current-identity-preserve-evidence-and-recover-D049-"
+                "under-new-experiment-config-and-unused-seed-identity"
             ),
             "substantive_negative_result_policy": (
-                "freeze-negative-result-and-continue-stage2b-without-"
+                "persist-publish-pause-for-reusability-refactor-without-"
                 "threshold-or-seed-retuning"
             ),
         }
@@ -739,7 +789,7 @@ def verify_e018_p1_stage2a_evaluation_formal_go(
     expected_execution_id: str,
     expected_worker_artifact_root: str | Path,
 ) -> dict[str, Any]:
-    """机械验证独立 final-GO 文件与完成的 76892 two-pass preflight。"""
+    """机械验证独立 final-GO 文件与完成的 76894 recovery preflight。"""
 
     path = Path(formal_go_receipt_path)
     if (
@@ -1535,7 +1585,8 @@ def _verify_evaluation_route_row(
     stored = unsigned.pop("route_row_sha256")
     seed = mode.seeds[route_index]
     episode = (
-        f"e018-p1-stage2a-selected-gain-evaluation-preflight-seed-{seed}"
+        "e018-p1-stage2a-selected-gain-evaluation-recovery-preflight-"
+        f"seed-{seed}"
         if mode.preflight
         else f"e018-p1-stage2a-selected-gain-evaluation-seed-{seed}"
     )
@@ -2843,6 +2894,26 @@ def _verify_replay_frame_binding(
     }
 
 
+def _normalize_and_verify_replay_frame_binding(
+    *,
+    replay_row: dict[str, Any],
+    public_row: Mapping[str, Any],
+    replay_prefix_rows: Sequence[Mapping[str, Any]],
+    expected_action_prefix_sha256: str,
+    rgb: np.ndarray,
+) -> dict[str, str]:
+    """先复用 Pass A 视角规范化，再执行原有严格 replay 绑定。"""
+
+    _stage2a._normalize_stage2a_motion_row_viewpoint(replay_row)
+    return _verify_replay_frame_binding(
+        replay_row=replay_row,
+        public_row=public_row,
+        replay_prefix_rows=replay_prefix_rows,
+        expected_action_prefix_sha256=expected_action_prefix_sha256,
+        rgb=rgb,
+    )
+
+
 def _run_deterministic_private_label_replay(
     *,
     mode: _EvaluationMode,
@@ -2945,7 +3016,7 @@ def _run_deterministic_private_label_replay(
             ):
                 raise TimeoutError("evaluation Pass B GPU wall budget 已到")
             episode = (
-                "e018-p1-stage2a-selected-gain-evaluation-preflight-"
+                "e018-p1-stage2a-selected-gain-evaluation-recovery-preflight-"
                 f"seed-{seed}"
                 if mode.preflight
                 else f"e018-p1-stage2a-selected-gain-evaluation-seed-{seed}"
@@ -2976,10 +3047,13 @@ def _run_deterministic_private_label_replay(
                     provider_index_by_frame
                 ),
             ) -> None:
+                # Pass A 在冻结 route row 前会把 G0 的物理视角 ID 规范为
+                # Stage 2A 逻辑 primitive。Pass B 必须走同一规范化，再比较
+                # action-prefix、整行与 pose/RGB identity；这里不放宽任何绑定。
                 frame_index = int(row["frame_index"])
                 public_row = _route_public_camera[frame_index]
                 _replay_prefix.append(row)
-                binding = _verify_replay_frame_binding(
+                binding = _normalize_and_verify_replay_frame_binding(
                     replay_row=row,
                     public_row=public_row,
                     replay_prefix_rows=_replay_prefix,
@@ -3351,15 +3425,23 @@ def _recompute_evaluation_summary(
     protocol = sum(row["protocol_violation_count"] for row in rows)
     rate = None if support == 0 else recovered / support
     if any(value != 0 for value in (false_count, catastrophic, unsafe, protocol)):
-        classification = "safety-negative-continue-stage2b"
+        classification = (
+            "safety-negative-persist-publish-pause-for-reusability-refactor"
+        )
     elif support < 10:
-        classification = "insufficient-support-inconclusive-continue-stage2b"
+        classification = (
+            "insufficient-support-inconclusive-persist-publish-pause-for-"
+            "reusability-refactor"
+        )
     elif 10 * recovered >= 7 * support:
         classification = (
-            "development-absolute-recovery-pass-no-effect-no-actuation"
+            "development-absolute-recovery-pass-no-effect-no-actuation-"
+            "persist-publish-pause"
         )
     else:
-        classification = "effect-negative-continue-stage2b"
+        classification = (
+            "effect-negative-persist-publish-pause-for-reusability-refactor"
+        )
     summary = {
         "version": E018_P1_STAGE2A_EVALUATION_RESULT_VERSION,
         "status": "complete-selected-gain-development-evaluation",
@@ -3376,7 +3458,7 @@ def _recompute_evaluation_summary(
         "catastrophic_recovery_count": catastrophic,
         "unsafe_recovery_count": unsafe,
         "protocol_violation_count": protocol,
-        "stage2b_continuation_required": True,
+        "stage2b_continuation_required": False,
         "fresh_test_reads": 0,
         "runtime_object_gt_reads": 0,
         "goal_gt_reads": 0,
@@ -3588,7 +3670,7 @@ def _verify_e018_p1_stage2a_evaluation_result(
         or receipt.get("formal_identity_consumed") is not (not mode.preflight)
         or receipt.get("formal_claim_allowed") is not False
         or receipt.get("fresh_test_status") != "prohibited-unread"
-        or receipt.get("stage2b_continuation_required") is not True
+        or receipt.get("stage2b_continuation_required") is not False
     ):
         raise RuntimeError("evaluation result receipt identity/accounting 漂移")
     precompletion = {
@@ -3624,7 +3706,7 @@ def _verify_e018_p1_stage2a_evaluation_result(
         "oracle_recoverable_support": summary["oracle_recoverable_support"],
         "recovered_count": summary["recovered_count"],
         "classification": summary["classification"],
-        "stage2b_continuation_required": True,
+        "stage2b_continuation_required": False,
         "fresh_test_reads": 0,
         "producer_process_identity": producer,
         "scorer_process_identity": scorer,
@@ -3787,7 +3869,7 @@ def _publish_evaluation_result(
         "formal_identity_consumed": not mode.preflight,
         "formal_claim_allowed": False,
         "fresh_test_status": "prohibited-unread",
-        "stage2b_continuation_required": True,
+        "stage2b_continuation_required": False,
         "completed_at_unix_ns": time.time_ns(),
     }
     receipt["receipt_sha256"] = canonical_sha256(receipt)

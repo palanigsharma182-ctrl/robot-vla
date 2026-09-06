@@ -34,7 +34,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 EVALUATION_CONFIG = (
     REPOSITORY_ROOT
     / "configs"
-    / "e018_p1_stage2a_selected_gain_evaluation_development_v1.json"
+    / "e018_p1_stage2a_selected_gain_evaluation_development_v2.json"
 )
 
 
@@ -191,18 +191,42 @@ def _gate_record(config: dict[str, object]) -> dict[str, object]:
     persistence = selection["persistence"]
     assert isinstance(persistence, dict)
     return {
-        "version": "e018-p1-d049-conditional-evaluation-gate/v1",
+        "version": "e018-p1-d049-conditional-evaluation-recovery-gate/v3",
         "status": (
-            "implementation-go-formal-hold-until-final-source-r2-and-preflight"
+            "implementation-recovery-go-formal-hold-until-final-source-r2-"
+            "and-recovery-preflight-scope-amended"
         ),
         "authority": "user-authorized-b-level-offline-no-actuation-decision-agent",
+        "supersedes": {
+            "conditional_gate_v1_raw_sha256": (
+                "cf64fe03e706b578fc3c8e86ea2697e5147c7cf10d409b93098448aa573a8845"
+            ),
+            "scope_amendment_raw_sha256": (
+                "04b688c1da004fe93463465bd3e9bf331ba8c9e6e9c2f3f4100e15756514a3af"
+            ),
+            "scope_amendment_internal_sha256": (
+                "9acaa2554a8863f393f4d9609c5e95a8eabcd2450fa3e99a6e0a334a97815328"
+            ),
+            "historical_records_mutated": False,
+        },
         "experiment": {
             "id": config["experiment"]["id"],
             "config_version": config["version"],
-            "gate": "D049-R2",
+            "gate": "D049-R2-RECOVERY-SCOPE-AMENDED",
             "classification": config["experiment"]["classification"],
             "exact_go_token": config["experiment"]["exact_go_token"],
             "same_identity_rerun_allowed": False,
+        },
+        "recovery": {
+            "failed_preflight_seed": 76892,
+            "failed_preflight_rerun_allowed": False,
+            "allowed_code_change": (
+                "call-the-existing-shared-viewpoint-normalizer-before-pass-b-"
+                "frame-binding"
+            ),
+            "replay_hash_or_tolerance_relaxation_allowed": False,
+            "research_variable_change": False,
+            "formal_v1_consumed": False,
         },
         "selection_parent": {
             "artifact_id": selection["artifact_id"],
@@ -265,6 +289,9 @@ def _gate_record(config: dict[str, object]) -> dict[str, object]:
             "pass_b_provider_forward_count": 0,
             "pass_b_decision_change_count": 0,
             "consumption_marker_before_first_gt_read": True,
+            "pass_b_viewpoint_normalization": (
+                "same-shared-helper-before-frame-binding-and-hash"
+            ),
         },
         "oracle_and_gate": {
             "exact_recovery_comparison": (
@@ -272,8 +299,17 @@ def _gate_record(config: dict[str, object]) -> dict[str, object]:
             )
         },
         "outcome_routing": {
-            "substantive_safety_failure": "safety-negative-continue-stage2b",
-            "stage2b_continuation_required_for_every_complete_outcome": True,
+            "substantive_safety_failure": (
+                "safety-negative-persist-publish-pause-for-reusability-refactor"
+            ),
+            "stage2b_continuation_required_for_every_complete_outcome": False,
+            "stage2b_execution_authorized": False,
+            "d050_execution_authorized": False,
+            "stage3_execution_authorized": False,
+            "post_d049_endpoint": (
+                "complete-D049-v2-then-persist-publish-and-enter-"
+                "PAUSE_FOR_REUSABILITY_REFACTOR-no-Stage2B-D050-Stage3-execution"
+            ),
         },
         "permissions": {
             "fresh_test_reads": 0,
@@ -282,6 +318,18 @@ def _gate_record(config: dict[str, object]) -> dict[str, object]:
             "arm_tcp_actuation": 0,
             "gripper_close": 0,
             "manipulation_progression": 0,
+            "stage2b_execution": 0,
+            "d050_execution": 0,
+            "stage3_execution": 0,
+        },
+        "continuation": {
+            "policy": (
+                "complete-D049-v2-then-persist-publish-and-enter-"
+                "PAUSE_FOR_REUSABILITY_REFACTOR-no-Stage2B-D050-Stage3-execution"
+            ),
+            "d049_runner_failure_recovery_required_until_complete": True,
+            "pause_before_reusability_refactor": True,
+            "gpu_release_owner": "user",
         },
     }
 
@@ -313,7 +361,7 @@ def _formal_go_receipt(
     formal_roles = roles(formal_mode)
     worker_root = worker_parent / execution_id
     receipt: dict[str, object] = {
-        "version": "e018-p1-stage2a-d049-final-formal-go-receipt/v1",
+        "version": "e018-p1-stage2a-d049-final-formal-go-receipt/v2",
         "decision_id": "D049",
         "status": (
             "GO-exactly-once-selected-gain-development-evaluation-"
@@ -321,17 +369,17 @@ def _formal_go_receipt(
         ),
         "authority": "user-authorized-b-level-offline-no-actuation-decision-agent",
         "conditional_gate": {
-            "filename": "D049_CONDITIONAL_EVALUATION_GATE.json",
+            "filename": "D049_CONDITIONAL_EVALUATION_RECOVERY_GATE_V3.json",
             "raw_sha256": loaded.payload["experiment"]["gate_record_raw_sha256"],
             "status": (
-                "implementation-go-formal-hold-until-final-source-r2-and-"
-                "preflight"
+                "implementation-recovery-go-formal-hold-until-final-source-"
+                "r2-and-recovery-preflight-scope-amended"
             ),
         },
         "evaluation_config": {
             "path": (
                 "configs/"
-                "e018_p1_stage2a_selected_gain_evaluation_development_v1.json"
+                "e018_p1_stage2a_selected_gain_evaluation_development_v2.json"
             ),
             "version": loaded.payload["version"],
             "raw_sha256": loaded.raw_sha256,
@@ -358,7 +406,7 @@ def _formal_go_receipt(
         },
         "preflight": {
             "experiment_id": preflight_mode.experiment_id,
-            "seed": 76892,
+            "seed": 76894,
             "transaction_identity_sha256": "6" * 64,
             "public_output_identity_sha256": preflight_roles["public_execution"],
             "private_output_identity_sha256": preflight_roles["private_labels"],
@@ -421,13 +469,13 @@ def _formal_go_receipt(
             "checkpoint_writes": 0,
         },
         "continuation": {
-            "stage2b_required_for_every_complete_outcome": True,
+            "stage2b_required_for_every_complete_outcome": False,
             "integrity_failure_policy": (
-                "freeze-current-identity-preserve-evidence-and-recover-under-"
-                "new-experiment-config-and-unused-seed-identity"
+                "freeze-current-identity-preserve-evidence-and-recover-D049-"
+                "under-new-experiment-config-and-unused-seed-identity"
             ),
             "substantive_negative_result_policy": (
-                "freeze-negative-result-and-continue-stage2b-without-"
+                "persist-publish-pause-for-reusability-refactor-without-"
                 "threshold-or-seed-retuning"
             ),
         },
@@ -440,10 +488,10 @@ def _formal_go_receipt(
 def test_config_is_strict_and_has_frozen_identity(tmp_path: Path) -> None:
     loaded = load_e018_p1_stage2a_evaluation_config(EVALUATION_CONFIG)
     assert loaded.raw_sha256 == (
-        "de17c5d4471b47eff2fda9e899fc082a1c854025e673ca481adfadafd69b7358"
+        "9105ea421709951636c7778f94f83bd07144ed14f52033e5dabaf8930a24e08a"
     )
     assert loaded.canonical_sha256 == (
-        "1f058f95689d9371971f30feb7946a34fa97c9189ec8238896bb7f5c64b1deee"
+        "ce1b78a80745fa86c8f630f42ed16ee28600ca7f0369f46acd036b89c6bfc1ee"
     )
     assert loaded.payload["selection_parent"]["selection_reason"] == (
         "maximize-integer-recovered-count-then-larger-gain-after-three-way-tie"
@@ -485,8 +533,15 @@ def test_gate_verifier_exactly_binds_selection_reason(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     ("recovered_count", "expected"),
     [
-        (7, "development-absolute-recovery-pass-no-effect-no-actuation"),
-        (6, "effect-negative-continue-stage2b"),
+        (
+            7,
+            "development-absolute-recovery-pass-no-effect-no-actuation-"
+            "persist-publish-pause",
+        ),
+        (
+            6,
+            "effect-negative-persist-publish-pause-for-reusability-refactor",
+        ),
     ],
 )
 def test_integer_recovery_gate_boundaries(
@@ -497,13 +552,14 @@ def test_integer_recovery_gate_boundaries(
     assert summary["oracle_recoverable_support"] == 10
     assert summary["recovered_count"] == recovered_count
     assert summary["classification"] == expected
-    assert summary["stage2b_continuation_required"] is True
+    assert summary["stage2b_continuation_required"] is False
 
 
-def test_low_support_and_safety_failure_both_continue_stage2b() -> None:
+def test_low_support_and_safety_failure_both_route_to_persist_publish_pause() -> None:
     _, low_support = _score_case(recovered_count=7, support=9)
     assert low_support["classification"] == (
-        "insufficient-support-inconclusive-continue-stage2b"
+        "insufficient-support-inconclusive-persist-publish-pause-for-"
+        "reusability-refactor"
     )
 
     seeds = tuple(STAGE2A_EVALUATION_SEEDS[:10])
@@ -514,8 +570,10 @@ def test_low_support_and_safety_failure_both_continue_stage2b() -> None:
     ]
     _, safety = score_selected_gain_evaluation(branches, labels, seeds=seeds)
     assert safety["false_recovery_count"] == 1
-    assert safety["classification"] == "safety-negative-continue-stage2b"
-    assert safety["stage2b_continuation_required"] is True
+    assert safety["classification"] == (
+        "safety-negative-persist-publish-pause-for-reusability-refactor"
+    )
+    assert safety["stage2b_continuation_required"] is False
 
 
 @pytest.mark.parametrize(
@@ -568,7 +626,7 @@ def test_nonfrozen_scoring_parameters_and_label_identity_are_rejected() -> None:
 def test_private_labels_independently_reject_rehashed_scored_row_tampering(
     tamper: str,
 ) -> None:
-    seeds = (76892,)
+    seeds = (76894,)
     branch = _branch(seeds[0], committed_position=(0.0, 0.0, 0.0))
     labels = [_private_label(index, seeds=seeds) for index in range(3)]
     scored, _ = score_selected_gain_evaluation([branch], labels, seeds=seeds)
@@ -1099,7 +1157,7 @@ def test_evaluation_journal_enforces_four_prediction_order_and_no_private_api(
                 "provider_output_digest": provider_digest,
                 "model_input_digest": input_digest,
             },
-            seed=76892,
+            seed=76894,
             route_frame_index=frame,
             provider_output_digest=provider_digest,
             model_input_digest=input_digest,
@@ -1184,6 +1242,37 @@ def test_replay_binding_rejects_action_rgb_and_pose_drift() -> None:
             replay_row=changed_pose,
             public_row=public,
             replay_prefix_rows=[changed_pose],
+            expected_action_prefix_sha256=expected_action,
+            rgb=rgb,
+        )
+
+
+def test_replay_binding_normalizes_physical_home_before_strict_comparison() -> None:
+    rgb = np.zeros((128, 128, 3), dtype=np.uint8)
+    public = _camera_row(rgb)
+    public["camera_motion_state"] = "home_anchor"
+    physical_replay = copy.deepcopy(public)
+    physical_replay["viewpoint_primitive_id"] = "HOME"
+
+    expected_action = evaluation_runtime._action_prefix_sha256s([public])[-1]
+    binding = evaluation_runtime._normalize_and_verify_replay_frame_binding(
+        replay_row=physical_replay,
+        public_row=public,
+        replay_prefix_rows=[physical_replay],
+        expected_action_prefix_sha256=expected_action,
+        rgb=rgb,
+    )
+
+    assert physical_replay["viewpoint_primitive_id"] == "HOME__CENTER"
+    assert binding["rgb_sha256"] == public["rgb_sha256"]
+
+    invalid_physical = copy.deepcopy(public)
+    invalid_physical["viewpoint_primitive_id"] = "LEFT_LOW__PITCH_UP"
+    with pytest.raises(RuntimeError, match="physical motion viewpoint"):
+        evaluation_runtime._normalize_and_verify_replay_frame_binding(
+            replay_row=invalid_physical,
+            public_row=public,
+            replay_prefix_rows=[invalid_physical],
             expected_action_prefix_sha256=expected_action,
             rgb=rgb,
         )

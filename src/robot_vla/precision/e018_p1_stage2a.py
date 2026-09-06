@@ -128,11 +128,11 @@ E018_P1_STAGE2A_SELECTION_PREFLIGHT_EXPERIMENT_ID = (
 )
 STAGE2A_SELECTED_GAIN_EVALUATION_SEEDS = tuple(range(77626, 77651))
 E018_P1_STAGE2A_SELECTED_GAIN_EVALUATION_EXPERIMENT_ID = (
-    "E018-P1-S2A-SELECTED-GAIN-DEVELOPMENT-EVALUATION/v1"
+    "E018-P1-S2A-SELECTED-GAIN-DEVELOPMENT-EVALUATION/v2"
 )
-STAGE2A_SELECTED_GAIN_EVALUATION_PREFLIGHT_SEED = 76892
+STAGE2A_SELECTED_GAIN_EVALUATION_PREFLIGHT_SEED = 76894
 E018_P1_STAGE2A_SELECTED_GAIN_EVALUATION_PREFLIGHT_EXPERIMENT_ID = (
-    "E018-P1-S2A-SELECTED-GAIN-EVALUATION-PREFLIGHT/v1"
+    "E018-P1-S2A-SELECTED-GAIN-EVALUATION-RECOVERY-PREFLIGHT/v2"
 )
 _STAGE2A_SELECTION_CAPTURE_TOKEN = object()
 _STAGE2A_SELECTION_PREFLIGHT_CAPTURE_TOKEN = object()
@@ -263,10 +263,11 @@ class Stage2AExecutionProgress:
         ):
             raise PermissionError("Stage 2A evaluation preflight identity 漂移")
         if seed != STAGE2A_SELECTED_GAIN_EVALUATION_PREFLIGHT_SEED:
-            raise ValueError("Stage 2A evaluation preflight 只接受固定 seed 76892")
+            raise ValueError("Stage 2A evaluation recovery preflight 只接受固定 seed 76894")
         self.current_seed = seed
         self.episode_id = (
-            f"e018-p1-stage2a-selected-gain-evaluation-preflight-seed-{seed}"
+            "e018-p1-stage2a-selected-gain-evaluation-recovery-preflight-"
+            f"seed-{seed}"
         )
         self.request_id = None
         self.current_frame_index = None
@@ -2892,7 +2893,7 @@ class Stage2ARouteTransaction:
             capture_only = True
             capture_classification = (
                 "formal-development-selected-gain-capture-only-"
-                "no-test-no-actuation/v1"
+                "no-test-no-actuation/v2"
             )
         elif (
             _selection_capture_token
@@ -2900,17 +2901,17 @@ class Stage2ARouteTransaction:
         ):
             if seed != STAGE2A_SELECTED_GAIN_EVALUATION_PREFLIGHT_SEED:
                 raise ValueError(
-                    "Stage 2A selected-gain evaluation preflight "
-                    "只接受固定 seed 76892"
+                    "Stage 2A selected-gain evaluation recovery preflight "
+                    "只接受固定 seed 76894"
                 )
             episode_id = (
-                "e018-p1-stage2a-selected-gain-evaluation-preflight-"
+                "e018-p1-stage2a-selected-gain-evaluation-recovery-preflight-"
                 f"seed-{seed}"
             )
             capture_only = True
             capture_classification = (
                 "engineering-preflight-selected-gain-capture-only-"
-                "no-test-no-actuation/v1"
+                "no-test-no-actuation/v2"
             )
         else:
             raise PermissionError("Stage 2A selection capture token 非法")
@@ -3184,7 +3185,7 @@ class Stage2ARouteTransaction:
             | None
         ) = None,
     ) -> Stage2ARouteTransaction:
-        """建立 evaluation 固定 seed 76892 的 capture-only supervisor。"""
+        """建立 evaluation 固定 seed 76894 的 recovery capture-only supervisor。"""
 
         if (
             experiment_identity

@@ -32,22 +32,22 @@ from robot_vla.precision.e018_p1_stage2a_selection import (
 )
 
 E018_P1_STAGE2A_EVALUATION_CONFIG_VERSION = (
-    "e018-p1-stage2a-selected-gain-development-evaluation/v1"
+    "e018-p1-stage2a-selected-gain-development-evaluation/v2"
 )
 E018_P1_STAGE2A_EVALUATION_EXPERIMENT_ID = (
     E018_P1_STAGE2A_SELECTED_GAIN_EVALUATION_EXPERIMENT_ID
 )
 E018_P1_STAGE2A_EVALUATION_EXECUTION_VERSION = (
-    "e018-p1-stage2a-selected-gain-development-evaluation-execution/v1"
+    "e018-p1-stage2a-selected-gain-development-evaluation-execution/v2"
 )
 E018_P1_STAGE2A_EVALUATION_RESULT_VERSION = (
-    "e018-p1-stage2a-selected-gain-development-evaluation-result/v1"
+    "e018-p1-stage2a-selected-gain-development-evaluation-result/v2"
 )
 STAGE2A_EVALUATION_GO = (
-    "E018_P1_STAGE2A_SELECTED_GAIN_EVALUATION_GO_77626_77650_V1"
+    "E018_P1_STAGE2A_SELECTED_GAIN_EVALUATION_GO_77626_77650_V2"
 )
 STAGE2A_EVALUATION_PREFLIGHT_GO = (
-    "E018_P1_STAGE2A_SELECTED_GAIN_EVALUATION_PREFLIGHT_GO_76892_V1"
+    "E018_P1_STAGE2A_SELECTED_GAIN_EVALUATION_RECOVERY_PREFLIGHT_GO_76894_V2"
 )
 STAGE2A_EVALUATION_SEEDS = STAGE2A_SELECTED_GAIN_EVALUATION_SEEDS
 STAGE2A_EVALUATION_SELECTED_GAIN = 0.10
@@ -124,16 +124,16 @@ def _validate_evaluation_config(config: dict[str, Any]) -> None:
     )
     if experiment != {
         "id": E018_P1_STAGE2A_EVALUATION_EXPERIMENT_ID,
-        "gate": "D049-R2",
+        "gate": "D049-R2-RECOVERY-SCOPE-AMENDED",
         "gate_record_raw_sha256": (
-            "cf64fe03e706b578fc3c8e86ea2697e5147c7cf10d409b93098448aa573a8845"
+            "cae0d7b69248146a5767e9dbd909e6560d553f7034bacbebbded9530cb7f49e8"
         ),
-        "classification": "formal-development-evaluation-no-test-no-actuation/v1",
+        "classification": "formal-development-evaluation-no-test-no-actuation/v2",
         "exact_go_token": STAGE2A_EVALUATION_GO,
         "rerun_under_same_identity_allowed": False,
         "allowed_conclusion": (
             "fresh-development-absolute-recovery-pass-negative-or-"
-            "inconclusive-no-effect-no-actuation/v1"
+            "inconclusive-no-effect-no-actuation/v2"
         ),
     }:
         raise ValueError("Stage 2A evaluation experiment identity 漂移")
@@ -311,7 +311,7 @@ def _validate_evaluation_config(config: dict[str, Any]) -> None:
         "execution_order": "ascending-seed-once/v1",
         "test_once": (
             "fresh-development-conditional-evaluation-one-transaction-"
-            "no-same-identity-rerun/v1"
+            "no-same-identity-rerun/v2"
         ),
         "prior_status": "planning-only-unread",
         "stage2b_shadow_seeds": [77101, 77150],
@@ -332,7 +332,7 @@ def _validate_evaluation_config(config: dict[str, Any]) -> None:
         "two_pass_replay_required": True,
         "formal_identity_consumed": False,
         "allowed_conclusion": (
-            "engineering-preflight-no-formal-evaluation-claim/v1"
+            "engineering-recovery-preflight-no-formal-evaluation-claim/v2"
         ),
     }:
         raise ValueError("Stage 2A evaluation preflight identity/protocol 漂移")
@@ -362,17 +362,21 @@ def _validate_evaluation_config(config: dict[str, Any]) -> None:
         "public_complete_required_before_pass_b": True,
         "provider_and_environment_destroyed_before_pass_b": True,
         "pass_b": (
-            "new-process-deterministic-label-replay-and-exact-once-scoring/v1"
+            "new-process-deterministic-label-replay-and-exact-once-scoring/v2"
+        ),
+        "pass_b_viewpoint_normalization": (
+            "shared-stage2a-logical-viewpoint-normalizer-before-all-replay-bindings/v2"
         ),
         "pass_b_checkpoint_load_count": 0,
         "pass_b_provider_forward_count": 0,
         "pass_b_decision_change_count": 0,
         "pass_b_new_process_exact_once": True,
         "pass_b_first_gt_read_requires_o_excl_fsync_marker": True,
-        "pass_b_replay_bindings": [
-            "seed",
-            "action-prefix",
-            "rgb-sha256",
+            "pass_b_replay_bindings": [
+                "seed",
+                "normalized-logical-viewpoint",
+                "action-prefix",
+                "rgb-sha256",
             "actual-pose-raw-and-canonical",
             "model-input-digest",
             "provider-output-digest",
@@ -411,14 +415,18 @@ def _validate_evaluation_config(config: dict[str, Any]) -> None:
         "false_recovery_count_max": 0,
         "protocol_violation_count_max": 0,
         "pass_classification": (
-            "development-absolute-recovery-pass-no-effect-no-actuation"
+            "development-absolute-recovery-pass-no-effect-no-actuation-"
+            "persist-publish-pause"
         ),
-        "low_recovery_classification": "effect-negative-continue-stage2b",
+        "low_recovery_classification": (
+            "effect-negative-persist-publish-pause-for-reusability-refactor"
+        ),
         "low_support_classification": (
-            "insufficient-support-inconclusive-continue-stage2b"
+            "insufficient-support-inconclusive-persist-publish-pause-for-"
+            "reusability-refactor"
         ),
         "safety_failure_classification": (
-            "safety-negative-continue-stage2b"
+            "safety-negative-persist-publish-pause-for-reusability-refactor"
         ),
     }:
         raise ValueError("Stage 2A evaluation promotion gate 漂移")
@@ -480,12 +488,12 @@ class CapturedStage2AEvaluationRoute(CapturedSelectionRoute):
             f"e018-p1-stage2a-selected-gain-evaluation-seed-{self.seed}"
         )
         preflight_episode = (
-            "e018-p1-stage2a-selected-gain-evaluation-preflight-"
+            "e018-p1-stage2a-selected-gain-evaluation-recovery-preflight-"
             f"seed-{self.seed}"
         )
         if self.seed in STAGE2A_EVALUATION_SEEDS:
             expected_episode = formal_episode
-        elif self.seed == 76892:
+        elif self.seed == STAGE2A_SELECTED_GAIN_EVALUATION_PREFLIGHT_SEED:
             expected_episode = preflight_episode
         else:
             raise ValueError("captured evaluation route seed 不在冻结 split/preflight")
@@ -548,7 +556,10 @@ class SelectedGainEvaluationBranch(GainBranchOutcome):
     """固定 gain=0.10 的单分支结果，不接受 selection 的三候选语义。"""
 
     def __post_init__(self) -> None:
-        if self.seed not in (*STAGE2A_EVALUATION_SEEDS, 76892):
+        if self.seed not in (
+            *STAGE2A_EVALUATION_SEEDS,
+            STAGE2A_SELECTED_GAIN_EVALUATION_PREFLIGHT_SEED,
+        ):
             raise ValueError("evaluation branch seed 不在冻结 split/preflight")
         if self.gain != STAGE2A_EVALUATION_SELECTED_GAIN:
             raise ValueError("evaluation branch 必须使用 selection 固定的 gain=0.10")
@@ -901,15 +912,23 @@ def score_selected_gain_evaluation(
             protocol_count,
         )
     ):
-        classification = "safety-negative-continue-stage2b"
+        classification = (
+            "safety-negative-persist-publish-pause-for-reusability-refactor"
+        )
     elif support < minimum_support:
-        classification = "insufficient-support-inconclusive-continue-stage2b"
+        classification = (
+            "insufficient-support-inconclusive-persist-publish-pause-for-"
+            "reusability-refactor"
+        )
     elif 10 * recovered_count >= 7 * support:
         classification = (
-            "development-absolute-recovery-pass-no-effect-no-actuation"
+            "development-absolute-recovery-pass-no-effect-no-actuation-"
+            "persist-publish-pause"
         )
     else:
-        classification = "effect-negative-continue-stage2b"
+        classification = (
+            "effect-negative-persist-publish-pause-for-reusability-refactor"
+        )
     summary = {
         "version": E018_P1_STAGE2A_EVALUATION_RESULT_VERSION,
         "status": "complete-selected-gain-development-evaluation",
@@ -926,7 +945,7 @@ def score_selected_gain_evaluation(
         "catastrophic_recovery_count": catastrophic_count,
         "unsafe_recovery_count": unsafe_count,
         "protocol_violation_count": protocol_count,
-        "stage2b_continuation_required": True,
+        "stage2b_continuation_required": False,
         "fresh_test_reads": 0,
         "runtime_object_gt_reads": 0,
         "goal_gt_reads": 0,
