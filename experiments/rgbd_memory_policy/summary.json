@@ -1,0 +1,579 @@
+{
+  "schema": "rgbd-memory-policy-public-result/v1",
+  "date": "2026-09-07",
+  "status": "completed-development-run",
+  "engineering_consumption": "confirmed",
+  "performance": "no positive task-performance signal; 0/4 Reach in all three arms",
+  "protocol": {
+    "schema": "rgbd-memory-policy/v1",
+    "seeds": [
+      1500000,
+      1500001,
+      1500002,
+      1500003,
+      1500004,
+      1500005,
+      1500006,
+      1500007,
+      1500008,
+      1500009,
+      1500010,
+      1500011,
+      1500012,
+      1500013,
+      1500014,
+      1500015,
+      1500016,
+      1500017,
+      1500018,
+      1500019,
+      1500020,
+      1500021,
+      1500022,
+      1500023
+    ],
+    "train_seeds": [
+      1500000,
+      1500001,
+      1500003,
+      1500004,
+      1500006,
+      1500007,
+      1500009,
+      1500010,
+      1500012,
+      1500013,
+      1500015,
+      1500016,
+      1500018,
+      1500019,
+      1500021,
+      1500022
+    ],
+    "development_seeds": [
+      1500002,
+      1500005,
+      1500008,
+      1500011,
+      1500014,
+      1500017,
+      1500020,
+      1500023
+    ],
+    "rollout_seeds": [
+      1500100,
+      1500101,
+      1500102,
+      1500103
+    ],
+    "teacher_steps": 96,
+    "policy_steps": 88,
+    "horizon": 16,
+    "execute_steps": 4,
+    "anchor_stride": 8,
+    "occlusion_start": 16,
+    "occlusion_end": 76,
+    "train_steps_per_arm": 256,
+    "accumulation": 2,
+    "learning_rate": 1e-05,
+    "memory_dropout": 0.25,
+    "seed": 42,
+    "approach_offset_m": 0.08,
+    "reach_threshold_m": 0.02,
+    "arms": [
+      "visual",
+      "memory"
+    ],
+    "evaluation_arms": [
+      "visual",
+      "memory",
+      "memory-masked"
+    ],
+    "provider": "front-rgbd-known-cube-three-planes-m0/v1:c5c77699f2fa904bdbbefe0bfe38ab65acf6357e0b3d2304de92c72d04f7d03f",
+    "qwen_frozen": true,
+    "adapter_frozen": true,
+    "geometry": "unchanged stage-one known 4cm red cube / three-plane provider",
+    "scope": "kinematic no-collision static target; open-gripper pregrasp approach only",
+    "feedback": "fresh RGB-D/Memory/proprio every real control step; new Qwen context each replan",
+    "success_claim": "development evidence only; not full pick-place or physical control"
+  },
+  "data": {
+    "collected_scenes": 24,
+    "completed_scenes": 24,
+    "teacher_steps_per_scene": 96,
+    "teacher_reach_scenes": 24,
+    "coverage": {
+      "train": {
+        "samples": 176,
+        "available": 57,
+        "available_scenes": 12,
+        "reasons": {
+          "memory_stale": 25,
+          "memory_not_valid_free_static": 119,
+          "memory_uninitialized": 94,
+          "source_camera_mismatch": 94,
+          "source_model_identity_mismatch": 94,
+          "geometry_missing": 94
+        }
+      },
+      "development": {
+        "samples": 88,
+        "available": 26,
+        "available_scenes": 5,
+        "reasons": {
+          "memory_stale": 9,
+          "memory_not_valid_free_static": 62,
+          "memory_uninitialized": 53,
+          "source_camera_mismatch": 53,
+          "source_model_identity_mismatch": 53,
+          "geometry_missing": 53
+        }
+      }
+    }
+  },
+  "training": {
+    "visual": {
+      "steps": 256,
+      "checkpoint_sha256": "8d96a2db08cd48ce53e81c46ac2f035d33eb3bdae4ace942c6b8d3a1cffdc1bb",
+      "exposure": {
+        "masked": 512
+      },
+      "memory_gradient_steps": 0,
+      "max_memory_gradient_l2": 0.0,
+      "memory_parameter_change_l2": 0.0,
+      "strict_reload": true,
+      "gpu_peak_allocated_bytes": 6639503872,
+      "gpu_peak_reserved_bytes": 6727663616,
+      "development_flow_mse": 0.006629766460140341,
+      "masked_development_flow_mse": 0.006629766460140341
+    },
+    "memory": {
+      "steps": 256,
+      "checkpoint_sha256": "6a43236b0bc6244ccc1d48dfe7942db2dd32f0319f829d30e5aa199fd8dfbf27",
+      "exposure": {
+        "masked": 371,
+        "token-on": 141
+      },
+      "memory_gradient_steps": 120,
+      "max_memory_gradient_l2": 0.00018577994257697845,
+      "memory_parameter_change_l2": 0.016736922413421024,
+      "strict_reload": true,
+      "gpu_peak_allocated_bytes": 6641449472,
+      "gpu_peak_reserved_bytes": 6748635136,
+      "development_flow_mse": 0.006625141903482886,
+      "masked_development_flow_mse": 0.006625092626398493
+    }
+  },
+  "evaluation": {
+    "visual": {
+      "reached": 0,
+      "policy_steps": 352,
+      "replans": 88,
+      "memory_replans": 0,
+      "memory_actions": 0,
+      "occluded_memory_actions": 0,
+      "visual_fallbacks": 0,
+      "memory_invalidation_interrupts": 0,
+      "reacquired_after_loss": 0,
+      "execution_failures": 0,
+      "scenes": 4,
+      "completed": 4,
+      "mean_initial_distance_m": 0.11023088193667699,
+      "mean_final_distance_m": 0.17876570749530618,
+      "final_farther_than_initial": 4
+    },
+    "memory": {
+      "reached": 0,
+      "policy_steps": 352,
+      "replans": 88,
+      "memory_replans": 26,
+      "memory_actions": 104,
+      "occluded_memory_actions": 64,
+      "visual_fallbacks": 2,
+      "memory_invalidation_interrupts": 2,
+      "reacquired_after_loss": 0,
+      "execution_failures": 0,
+      "scenes": 4,
+      "completed": 4,
+      "mean_initial_distance_m": 0.11023088193667699,
+      "mean_final_distance_m": 0.1771189642080645,
+      "final_farther_than_initial": 4
+    },
+    "memory-masked": {
+      "reached": 0,
+      "policy_steps": 352,
+      "replans": 88,
+      "memory_replans": 0,
+      "memory_actions": 0,
+      "occluded_memory_actions": 0,
+      "visual_fallbacks": 0,
+      "memory_invalidation_interrupts": 0,
+      "reacquired_after_loss": 0,
+      "execution_failures": 0,
+      "scenes": 4,
+      "completed": 4,
+      "mean_initial_distance_m": 0.11023088193667699,
+      "mean_final_distance_m": 0.17852811989241016,
+      "final_farther_than_initial": 4
+    }
+  },
+  "paired_memory_on_improvement_m": 0.0014091556843456587,
+  "per_scene_evaluation": [
+    {
+      "arm": "visual",
+      "seed": 1500100,
+      "status": "completed",
+      "initial_pair_status": "reference",
+      "initial_distance_m": 0.0872492004682857,
+      "final_distance_m": 0.203856900131144,
+      "minimum_distance_m": 0.08927724521018504,
+      "reached": false,
+      "memory_actions": 0,
+      "occluded_memory_actions": 0,
+      "visual_fallbacks": 0,
+      "reacquired_after_loss": false,
+      "counterfactual_joint_chunk_l2": null
+    },
+    {
+      "arm": "visual",
+      "seed": 1500101,
+      "status": "completed",
+      "initial_pair_status": "reference",
+      "initial_distance_m": 0.07799528564191929,
+      "final_distance_m": 0.20545248580709327,
+      "minimum_distance_m": 0.0796855937439017,
+      "reached": false,
+      "memory_actions": 0,
+      "occluded_memory_actions": 0,
+      "visual_fallbacks": 0,
+      "reacquired_after_loss": false,
+      "counterfactual_joint_chunk_l2": null
+    },
+    {
+      "arm": "visual",
+      "seed": 1500102,
+      "status": "completed",
+      "initial_pair_status": "reference",
+      "initial_distance_m": 0.1047620725439804,
+      "final_distance_m": 0.12610875235772384,
+      "minimum_distance_m": 0.09394372458005186,
+      "reached": false,
+      "memory_actions": 0,
+      "occluded_memory_actions": 0,
+      "visual_fallbacks": 0,
+      "reacquired_after_loss": false,
+      "counterfactual_joint_chunk_l2": null
+    },
+    {
+      "arm": "visual",
+      "seed": 1500103,
+      "status": "completed",
+      "initial_pair_status": "reference",
+      "initial_distance_m": 0.17091696909252257,
+      "final_distance_m": 0.1796446916852636,
+      "minimum_distance_m": 0.16360794211542032,
+      "reached": false,
+      "memory_actions": 0,
+      "occluded_memory_actions": 0,
+      "visual_fallbacks": 0,
+      "reacquired_after_loss": false,
+      "counterfactual_joint_chunk_l2": null
+    },
+    {
+      "arm": "memory",
+      "seed": 1500100,
+      "status": "completed",
+      "initial_pair_status": "matched",
+      "initial_distance_m": 0.0872492004682857,
+      "final_distance_m": 0.19985328244007383,
+      "minimum_distance_m": 0.08924747386831922,
+      "reached": false,
+      "memory_actions": 48,
+      "occluded_memory_actions": 32,
+      "visual_fallbacks": 1,
+      "reacquired_after_loss": false,
+      "counterfactual_joint_chunk_l2": 0.0036330963484942913
+    },
+    {
+      "arm": "memory",
+      "seed": 1500101,
+      "status": "completed",
+      "initial_pair_status": "matched",
+      "initial_distance_m": 0.07799528564191929,
+      "final_distance_m": 0.20263270595408342,
+      "minimum_distance_m": 0.07968136925880316,
+      "reached": false,
+      "memory_actions": 48,
+      "occluded_memory_actions": 32,
+      "visual_fallbacks": 1,
+      "reacquired_after_loss": false,
+      "counterfactual_joint_chunk_l2": 0.004483539145439863
+    },
+    {
+      "arm": "memory",
+      "seed": 1500102,
+      "status": "completed",
+      "initial_pair_status": "matched",
+      "initial_distance_m": 0.1047620725439804,
+      "final_distance_m": 0.126967585652846,
+      "minimum_distance_m": 0.09372184393217883,
+      "reached": false,
+      "memory_actions": 0,
+      "occluded_memory_actions": 0,
+      "visual_fallbacks": 0,
+      "reacquired_after_loss": false,
+      "counterfactual_joint_chunk_l2": null
+    },
+    {
+      "arm": "memory",
+      "seed": 1500103,
+      "status": "completed",
+      "initial_pair_status": "matched",
+      "initial_distance_m": 0.17091696909252257,
+      "final_distance_m": 0.17902228278525478,
+      "minimum_distance_m": 0.1634213285183006,
+      "reached": false,
+      "memory_actions": 8,
+      "occluded_memory_actions": 0,
+      "visual_fallbacks": 0,
+      "reacquired_after_loss": false,
+      "counterfactual_joint_chunk_l2": 0.002982367528602481
+    },
+    {
+      "arm": "memory-masked",
+      "seed": 1500100,
+      "status": "completed",
+      "initial_pair_status": "matched",
+      "initial_distance_m": 0.0872492004682857,
+      "final_distance_m": 0.20343551461994847,
+      "minimum_distance_m": 0.08927261651617655,
+      "reached": false,
+      "memory_actions": 0,
+      "occluded_memory_actions": 0,
+      "visual_fallbacks": 0,
+      "reacquired_after_loss": false,
+      "counterfactual_joint_chunk_l2": null
+    },
+    {
+      "arm": "memory-masked",
+      "seed": 1500101,
+      "status": "completed",
+      "initial_pair_status": "matched",
+      "initial_distance_m": 0.07799528564191929,
+      "final_distance_m": 0.2046650616841391,
+      "minimum_distance_m": 0.07967516961929755,
+      "reached": false,
+      "memory_actions": 0,
+      "occluded_memory_actions": 0,
+      "visual_fallbacks": 0,
+      "reacquired_after_loss": false,
+      "counterfactual_joint_chunk_l2": null
+    },
+    {
+      "arm": "memory-masked",
+      "seed": 1500102,
+      "status": "completed",
+      "initial_pair_status": "matched",
+      "initial_distance_m": 0.1047620725439804,
+      "final_distance_m": 0.126967585652846,
+      "minimum_distance_m": 0.09372184393217883,
+      "reached": false,
+      "memory_actions": 0,
+      "occluded_memory_actions": 0,
+      "visual_fallbacks": 0,
+      "reacquired_after_loss": false,
+      "counterfactual_joint_chunk_l2": null
+    },
+    {
+      "arm": "memory-masked",
+      "seed": 1500103,
+      "status": "completed",
+      "initial_pair_status": "matched",
+      "initial_distance_m": 0.17091696909252257,
+      "final_distance_m": 0.17904431761270706,
+      "minimum_distance_m": 0.1634213285183006,
+      "reached": false,
+      "memory_actions": 0,
+      "occluded_memory_actions": 0,
+      "visual_fallbacks": 0,
+      "reacquired_after_loss": false,
+      "counterfactual_joint_chunk_l2": null
+    }
+  ],
+  "posthoc_xyz_diagnostic": {
+    "selected_scenes": 5,
+    "development_denominator": [
+      {
+        "seed": 1500002,
+        "status": "selected"
+      },
+      {
+        "seed": 1500005,
+        "status": "no-available-memory"
+      },
+      {
+        "seed": 1500008,
+        "status": "selected"
+      },
+      {
+        "seed": 1500011,
+        "status": "selected"
+      },
+      {
+        "seed": 1500014,
+        "status": "no-available-memory"
+      },
+      {
+        "seed": 1500017,
+        "status": "selected"
+      },
+      {
+        "seed": 1500020,
+        "status": "no-available-memory"
+      },
+      {
+        "seed": 1500023,
+        "status": "selected"
+      }
+    ],
+    "selection": "first available anchor in each development scene; no prediction-based selection",
+    "repeat_bitwise_equal": true,
+    "actuator_steps": 0,
+    "effects": {
+      "mask": {
+        "min_first4_joint_rms_rad": 1.560271812195424e-05,
+        "mean_first4_joint_rms_rad": 2.1331744210328907e-05,
+        "max_first4_joint_rms_rad": 2.6371686544734985e-05
+      },
+      "x-plus-10cm": {
+        "min_first4_joint_rms_rad": 1.440062806068454e-05,
+        "mean_first4_joint_rms_rad": 2.0113371647312306e-05,
+        "max_first4_joint_rms_rad": 2.495734042895492e-05
+      },
+      "z-plus-10cm": {
+        "min_first4_joint_rms_rad": 1.1948019164265133e-05,
+        "mean_first4_joint_rms_rad": 1.5953429829096423e-05,
+        "max_first4_joint_rms_rad": 1.867880200734362e-05
+      },
+      "zero-xyz": {
+        "min_first4_joint_rms_rad": 1.3344271792448126e-05,
+        "mean_first4_joint_rms_rad": 1.8623863070388325e-05,
+        "max_first4_joint_rms_rad": 2.053231764875818e-05
+      }
+    },
+    "limitation": "Counterfactual numeric sensitivity, not accuracy, directional correctness or task benefit. Mask changes context length; XYZ variants retain token and mask.",
+    "script_sha256": "75abb0c020dfa00d742cc33a9952675bea3c3f333c0c844ab45080dbe9767410"
+  },
+  "resource": {
+    "gpu_process_wall_s": 445.3064894830022,
+    "gpu_limit_s": 1800,
+    "artifact_budget_bytes": 4000000000,
+    "stages": [
+      {
+        "stage": "collect",
+        "elapsed_s": 124.63472593500046,
+        "returncode": 0
+      },
+      {
+        "stage": "train",
+        "elapsed_s": 149.68299326200213,
+        "returncode": 0
+      },
+      {
+        "stage": "evaluate",
+        "elapsed_s": 145.73362633500074,
+        "returncode": 0
+      },
+      {
+        "stage": "diagnose",
+        "elapsed_s": 25.2551439509989,
+        "returncode": 0
+      }
+    ],
+    "remote_all_bytes": 1682302319,
+    "local_private_all_bytes": 1686071145,
+    "local_source_and_reports_bytes": 91677,
+    "total_new_artifact_and_source_bytes": 3368465141
+  },
+  "verification": {
+    "targeted_tests_passed": 77,
+    "test_exit_code": 0,
+    "test_source_manifest_sha256": "2136ba1128f8c796a234c0bb1830521593ea2cb58575a30bd30b2567e4102df2",
+    "training_identity_sha256": "b3bf6a7b5dbbb037cc974b8b00310c296084a8ca474375401693fd33ef052e03",
+    "artifact_sha256": {
+      "source-manifest-v5.json": "60b19e46585fd6d45727421643d0fc6dda438731c3db5463310191b7e0d0f013",
+      "source-manifest-v7.json": "2136ba1128f8c796a234c0bb1830521593ea2cb58575a30bd30b2567e4102df2",
+      "collection-v1/collection.json": "63a7b6c16b54a0fb71349eb4356078ef945402f28726531c2d8dcd374815d4c6",
+      "training-v1/result.json": "a2ff0a6f36c0bc45fd4b55b8b07c8b5dbb8122f13e789aa7e6f7a0e618272fa8",
+      "evaluation-v1/result.json": "24fdf8ae08a7f1e89a954fd125a834237569bb42d490097023d47a22931d18cb",
+      "diagnostic-v1/result.json": "e57c567769c8ab1c57fb8f43b6cef5abe3c36eb0cc13bcc528c3d03682606f03"
+    },
+    "independent_reviews": {
+      "collect": {
+        "reviewer": "gpt-5.6-sol",
+        "effort": "high",
+        "actual_model_verified": true,
+        "source": "source-v5",
+        "status": "limited-static-pass plus 71 actual CPU tests"
+      },
+      "training": {
+        "reviewer": "gpt-5.6-terra",
+        "effort": "max",
+        "actual_model_verified": true,
+        "status": "limited-static-pass; source-v7 decompression and external manifest changes separately reviewed"
+      },
+      "evaluation": {
+        "reviewer": "gpt-5.6-sol",
+        "effort": "high",
+        "actual_model_verified": true,
+        "status": "limited independent result audit passed; 12/12 cases farther than initial; 0/4 Reach per arm; no task benefit",
+        "cross_checked_raw_counts": {
+          "memory_actions": 104,
+          "occluded_memory_actions": 64,
+          "true_visual_fallbacks": 2,
+          "reacquisitions_after_loss": 0,
+          "sources": [
+            "plans.json",
+            "runtime-reads.json",
+            "observations.jsonl"
+          ]
+        }
+      },
+      "latest_cpu_tests": {
+        "source": "source-v7",
+        "passed": 77,
+        "exit_code": 0,
+        "seconds": 4.11
+      },
+      "cpu_audit_repair": "Stopped one task-owned repeated-NPZ-decompression CPU audit; materialized arrays once; completed same checks in 3.51s; no GPU experiment rerun",
+      "data_results": {
+        "model": "gpt-5.6-terra",
+        "effort": "max",
+        "status": "independent JSON/JSONL recount passed",
+        "verified": [
+          "24 scenes;176 train/88 development windows",
+          "141 token-on;371 masked;50 unique samples",
+          "120 encoder gradient updates;L2 change 0.0167369224",
+          "same-checkpoint development on/off MSE has no positive signal"
+        ]
+      },
+      "diagnostic": {
+        "model": "gpt-5.6-sol",
+        "effort": "high",
+        "status": "limited implementation and result audit passed",
+        "selected": 5,
+        "denominator": 8,
+        "repeat_equal": true,
+        "actuator_steps": 0,
+        "limitation": "numeric sensitivity only; direction and BF16 causal role unverified"
+      }
+    },
+    "dual_copy": {
+      "verified_files": 2868,
+      "payload_bytes": 1680740384,
+      "mismatches": [],
+      "method": "SHA256 and byte length, remote manifest compared with local mirror",
+      "manifest_sha256": "0014a2bab14b3a972b8e3f3804fa7ac5f62811a9bb2e87e9288185c4deb6994f"
+    }
+  }
+}
