@@ -1,0 +1,3238 @@
+{
+  "schema": "main-integration-source-inventory/v1",
+  "date": "2026-09-06",
+  "scope": "all currently available local/origin branch tips; source modules only; not a line-by-line correctness certification",
+  "refs": {
+    "codex/e012-local-dagger": "54afcb55e0680faa3b8b2e1d67b4dacfd58fe577",
+    "codex/e013-minimum-deployable-state": "cef61f0a6216b8504215a6745ab5a3925bfb0cc0",
+    "codex/e018-active-front-reobserve": "37851ad648c42713511f869eb782eb897aafecc5",
+    "codex/oracle-geometry-reach": "7f7594aea537d6600e65f0ce13519e80ec2ccb33",
+    "codex/world-model-critic-v0": "8f525c76a77b6096bf7d5d919854c985c8eb02b0",
+    "main": "e8eae165816e8d3a63846fd97e1b97379cf5a9a7",
+    "origin/codex/e012-local-dagger": "c3c0acc4000e268b3f58468a988363b93602e17f",
+    "origin/codex/e013-minimum-deployable-state": "cef61f0a6216b8504215a6745ab5a3925bfb0cc0",
+    "origin/codex/e018-active-front-reobserve": "37851ad648c42713511f869eb782eb897aafecc5",
+    "origin/codex/oracle-geometry-reach": "7f7594aea537d6600e65f0ce13519e80ec2ccb33",
+    "origin/codex/world-model-critic-v0": "8f525c76a77b6096bf7d5d919854c985c8eb02b0",
+    "origin/main": "1508f2c0f8d07373cbdeac22167dd5ff38574967"
+  },
+  "source_counts": {
+    "codex/e012-local-dagger": 63,
+    "codex/e013-minimum-deployable-state": 116,
+    "codex/e018-active-front-reobserve": 163,
+    "codex/oracle-geometry-reach": 49,
+    "codex/world-model-critic-v0": 41,
+    "main": 116,
+    "origin/codex/e012-local-dagger": 75,
+    "origin/codex/e013-minimum-deployable-state": 116,
+    "origin/codex/e018-active-front-reobserve": 163,
+    "origin/codex/oracle-geometry-reach": 49,
+    "origin/codex/world-model-critic-v0": 41,
+    "origin/main": 37
+  },
+  "union_source_files": 167,
+  "main_vs_e018_counts": {
+    "identical": 114,
+    "missing-from-main": 47,
+    "separate-branch-only": 4,
+    "different": 2
+  },
+  "group_counts": {
+    "action-runtime-and-ensemble": 4,
+    "data-contract-and-sampling": 8,
+    "e008-e010-oracle-and-diagnostics": 10,
+    "e011-unpromoted-rtc": 1,
+    "e012-provenance-and-historical-experiment": 16,
+    "e013-precision-base": 15,
+    "e014-e017-experiment-entries": 5,
+    "e015-static-goal-memory": 3,
+    "e016-wrist-observability": 3,
+    "e017-rejected-finetuning": 1,
+    "e018-experiment-runners-and-protocols": 37,
+    "e018-memory-evaluation": 1,
+    "e018-reusable-core-candidates": 9,
+    "executive-shadow-only": 5,
+    "package-exports": 13,
+    "precision-training-and-diagnostic-entries": 5,
+    "simulation-task-and-evaluation": 12,
+    "stable-contracts-and-adapters": 2,
+    "training-and-checkpoint": 4,
+    "v2-observation-runtime": 2,
+    "vla-model-and-flow": 7,
+    "wmc-separate-candidate": 4
+  },
+  "files": [
+    {
+      "path": "src/robot_vla/__init__.py",
+      "capability_group": "package-exports",
+      "main_vs_e018": "identical",
+      "main_blob": "9b93747ff4041b31e5c78d76da58827c790950ba",
+      "e018_blob": "9b93747ff4041b31e5c78d76da58827c790950ba",
+      "blob_ref_groups": {
+        "9b93747ff4041b31e5c78d76da58827c790950ba": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "codex/oracle-geometry-reach",
+          "codex/world-model-critic-v0",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve",
+          "origin/codex/oracle-geometry-reach",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/adapters.py",
+      "capability_group": "stable-contracts-and-adapters",
+      "main_vs_e018": "identical",
+      "main_blob": "d72996fc3c34482d6475fb2ed9dda34a8d72a1c5",
+      "e018_blob": "d72996fc3c34482d6475fb2ed9dda34a8d72a1c5",
+      "blob_ref_groups": {
+        "3ab1f07b26432a518bd67f601794ec401bb1534d": [
+          "codex/e012-local-dagger",
+          "codex/oracle-geometry-reach",
+          "codex/world-model-critic-v0",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/oracle-geometry-reach",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ],
+        "d72996fc3c34482d6475fb2ed9dda34a8d72a1c5": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/__init__.py",
+      "capability_group": "package-exports",
+      "main_vs_e018": "identical",
+      "main_blob": "2b78dd9708fc03c47439ac2f53a606340944a1fa",
+      "e018_blob": "2b78dd9708fc03c47439ac2f53a606340944a1fa",
+      "blob_ref_groups": {
+        "2b78dd9708fc03c47439ac2f53a606340944a1fa": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "codex/oracle-geometry-reach",
+          "codex/world-model-critic-v0",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve",
+          "origin/codex/oracle-geometry-reach",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/analyze_e012_paired_evaluation.py",
+      "capability_group": "e012-provenance-and-historical-experiment",
+      "main_vs_e018": "identical",
+      "main_blob": "f9746bf743c9ea2eb664b78717cad5ea21bba4ee",
+      "e018_blob": "f9746bf743c9ea2eb664b78717cad5ea21bba4ee",
+      "blob_ref_groups": {
+        "f9746bf743c9ea2eb664b78717cad5ea21bba4ee": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/analyze_precision_outliers.py",
+      "capability_group": "precision-training-and-diagnostic-entries",
+      "main_vs_e018": "identical",
+      "main_blob": "9fe539f35a1e0b55ec1c58e1dee55e06cdb522d9",
+      "e018_blob": "9fe539f35a1e0b55ec1c58e1dee55e06cdb522d9",
+      "blob_ref_groups": {
+        "9fe539f35a1e0b55ec1c58e1dee55e06cdb522d9": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/build_e012_d1.py",
+      "capability_group": "e012-provenance-and-historical-experiment",
+      "main_vs_e018": "identical",
+      "main_blob": "8080bd6d8dbe1aea093a76ce824197cdd94a6e10",
+      "e018_blob": "8080bd6d8dbe1aea093a76ce824197cdd94a6e10",
+      "blob_ref_groups": {
+        "8080bd6d8dbe1aea093a76ce824197cdd94a6e10": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/collect_local_dagger.py",
+      "capability_group": "e012-provenance-and-historical-experiment",
+      "main_vs_e018": "identical",
+      "main_blob": "d70ebc8c5f7005a878e7b8af1c64624efc65ad2b",
+      "e018_blob": "d70ebc8c5f7005a878e7b8af1c64624efc65ad2b",
+      "blob_ref_groups": {
+        "4cd5559404f801ef2c26eb5a4e851f6f277373a4": [
+          "codex/e012-local-dagger"
+        ],
+        "d70ebc8c5f7005a878e7b8af1c64624efc65ad2b": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/collect_local_dagger_amended_pool.py",
+      "capability_group": "e012-provenance-and-historical-experiment",
+      "main_vs_e018": "identical",
+      "main_blob": "8cc3a03968781fb1d940fc1f990e5180741e7147",
+      "e018_blob": "8cc3a03968781fb1d940fc1f990e5180741e7147",
+      "blob_ref_groups": {
+        "8cc3a03968781fb1d940fc1f990e5180741e7147": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/collect_local_dagger_pool.py",
+      "capability_group": "e012-provenance-and-historical-experiment",
+      "main_vs_e018": "identical",
+      "main_blob": "143a30c5c1b3d1347724ab65b878c1ef387b18ff",
+      "e018_blob": "143a30c5c1b3d1347724ab65b878c1ef387b18ff",
+      "blob_ref_groups": {
+        "143a30c5c1b3d1347724ab65b878c1ef387b18ff": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/collect_maniskill.py",
+      "capability_group": "simulation-task-and-evaluation",
+      "main_vs_e018": "identical",
+      "main_blob": "640975dc58a1b1e65f42b43e63b6a6d9cdc574c6",
+      "e018_blob": "640975dc58a1b1e65f42b43e63b6a6d9cdc574c6",
+      "blob_ref_groups": {
+        "a44bc3105f18d5127e1487cae4c43ad9f7e95372": [
+          "codex/e012-local-dagger",
+          "codex/oracle-geometry-reach",
+          "codex/world-model-critic-v0",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/oracle-geometry-reach",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ],
+        "640975dc58a1b1e65f42b43e63b6a6d9cdc574c6": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/diagnose_oracle_reach.py",
+      "capability_group": "e008-e010-oracle-and-diagnostics",
+      "main_vs_e018": "identical",
+      "main_blob": "7f3184b367b45c53c73f293ae588801b80168e26",
+      "e018_blob": "7f3184b367b45c53c73f293ae588801b80168e26",
+      "blob_ref_groups": {
+        "5fd5897815d4dd0f2a5c756cf241214cf09ec294": [
+          "codex/e012-local-dagger",
+          "codex/oracle-geometry-reach",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/oracle-geometry-reach"
+        ],
+        "7f3184b367b45c53c73f293ae588801b80168e26": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/evaluate_atomic_maniskill.py",
+      "capability_group": "simulation-task-and-evaluation",
+      "main_vs_e018": "identical",
+      "main_blob": "575252701c35208fb9eb1aa0259e8650f4ba16ea",
+      "e018_blob": "575252701c35208fb9eb1aa0259e8650f4ba16ea",
+      "blob_ref_groups": {
+        "3a451870a1d1c0ec658c736209b47c703f865da5": [
+          "codex/e012-local-dagger",
+          "codex/oracle-geometry-reach",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/oracle-geometry-reach"
+        ],
+        "575252701c35208fb9eb1aa0259e8650f4ba16ea": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ],
+        "0188ff9f3a3cddc061674c269d876e6154c3e50f": [
+          "codex/world-model-critic-v0",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/evaluate_checkpoint_sweep.py",
+      "capability_group": "e008-e010-oracle-and-diagnostics",
+      "main_vs_e018": "identical",
+      "main_blob": "993101bcf5b5bbd9f11f96de4ace6e30bf0403c9",
+      "e018_blob": "993101bcf5b5bbd9f11f96de4ace6e30bf0403c9",
+      "blob_ref_groups": {
+        "993101bcf5b5bbd9f11f96de4ace6e30bf0403c9": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "codex/oracle-geometry-reach",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve",
+          "origin/codex/oracle-geometry-reach"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/evaluate_maniskill.py",
+      "capability_group": "simulation-task-and-evaluation",
+      "main_vs_e018": "identical",
+      "main_blob": "aba26e29988bc758adbdab2dee19b82021b0bd9e",
+      "e018_blob": "aba26e29988bc758adbdab2dee19b82021b0bd9e",
+      "blob_ref_groups": {
+        "a9b5d75c0b2132579941d742a38cb5f774453fa1": [
+          "codex/e012-local-dagger",
+          "codex/oracle-geometry-reach",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/oracle-geometry-reach"
+        ],
+        "aba26e29988bc758adbdab2dee19b82021b0bd9e": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ],
+        "8bfcdffb8f6c9f8b7d9c281d1d8401322a22372b": [
+          "codex/world-model-critic-v0",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/evaluate_precision.py",
+      "capability_group": "precision-training-and-diagnostic-entries",
+      "main_vs_e018": "identical",
+      "main_blob": "6d2032976ecfa7d010f9c83e4b723f755edcfe7c",
+      "e018_blob": "6d2032976ecfa7d010f9c83e4b723f755edcfe7c",
+      "blob_ref_groups": {
+        "6d2032976ecfa7d010f9c83e4b723f755edcfe7c": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/freeze_e018_p1_g2c_model_val.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "253fbe07c4782ce069eb56277ebd113acd35ab68",
+      "blob_ref_groups": {
+        "253fbe07c4782ce069eb56277ebd113acd35ab68": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/probe_qwen_spatial.py",
+      "capability_group": "e008-e010-oracle-and-diagnostics",
+      "main_vs_e018": "identical",
+      "main_blob": "74c0afee6ffcc189eadb4ef53a0ad102e38d5210",
+      "e018_blob": "74c0afee6ffcc189eadb4ef53a0ad102e38d5210",
+      "blob_ref_groups": {
+        "74c0afee6ffcc189eadb4ef53a0ad102e38d5210": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "codex/oracle-geometry-reach",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve",
+          "origin/codex/oracle-geometry-reach"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/probe_skill_gradients.py",
+      "capability_group": "e008-e010-oracle-and-diagnostics",
+      "main_vs_e018": "identical",
+      "main_blob": "caf03aba3f873b3ab5b51643387c7e47606d6a47",
+      "e018_blob": "caf03aba3f873b3ab5b51643387c7e47606d6a47",
+      "blob_ref_groups": {
+        "caf03aba3f873b3ab5b51643387c7e47606d6a47": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "codex/oracle-geometry-reach",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve",
+          "origin/codex/oracle-geometry-reach"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/probe_v2_online_geometry.py",
+      "capability_group": "precision-training-and-diagnostic-entries",
+      "main_vs_e018": "identical",
+      "main_blob": "f771da10a8a9244ac88881afba38962795ed764f",
+      "e018_blob": "f771da10a8a9244ac88881afba38962795ed764f",
+      "blob_ref_groups": {
+        "f771da10a8a9244ac88881afba38962795ed764f": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/replay_local_dagger_budget_counterfactual.py",
+      "capability_group": "e012-provenance-and-historical-experiment",
+      "main_vs_e018": "identical",
+      "main_blob": "738d300b9ecd77ab2ff53590f5c0759903444dd1",
+      "e018_blob": "738d300b9ecd77ab2ff53590f5c0759903444dd1",
+      "blob_ref_groups": {
+        "738d300b9ecd77ab2ff53590f5c0759903444dd1": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/replay_local_dagger_failures.py",
+      "capability_group": "e012-provenance-and-historical-experiment",
+      "main_vs_e018": "identical",
+      "main_blob": "233e0871babe82c083c51b66f732878af70fa2af",
+      "e018_blob": "233e0871babe82c083c51b66f732878af70fa2af",
+      "blob_ref_groups": {
+        "233e0871babe82c083c51b66f732878af70fa2af": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/run_e015_precision_memory.py",
+      "capability_group": "e014-e017-experiment-entries",
+      "main_vs_e018": "identical",
+      "main_blob": "eb4e88e0848f611f57a262dcd13433cd0c93fd50",
+      "e018_blob": "eb4e88e0848f611f57a262dcd13433cd0c93fd50",
+      "blob_ref_groups": {
+        "eb4e88e0848f611f57a262dcd13433cd0c93fd50": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/run_e016_p0.py",
+      "capability_group": "e014-e017-experiment-entries",
+      "main_vs_e018": "identical",
+      "main_blob": "78e122b74b4eb7da289cce454713c0492309dd87",
+      "e018_blob": "78e122b74b4eb7da289cce454713c0492309dd87",
+      "blob_ref_groups": {
+        "78e122b74b4eb7da289cce454713c0492309dd87": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/run_e016_p1_held_out.py",
+      "capability_group": "e014-e017-experiment-entries",
+      "main_vs_e018": "identical",
+      "main_blob": "c8e105e85ea639ad68013f098b1385cc063d701b",
+      "e018_blob": "c8e105e85ea639ad68013f098b1385cc063d701b",
+      "blob_ref_groups": {
+        "c8e105e85ea639ad68013f098b1385cc063d701b": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/run_e018_p0_development.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "1bdbb77c62f8b1e4a884bed9ee7444ccec9febd3",
+      "blob_ref_groups": {
+        "1bdbb77c62f8b1e4a884bed9ee7444ccec9febd3": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/run_e018_p1_g0.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "cf887058f826aa8ba51b4d96d8ce949afd3c72e2",
+      "blob_ref_groups": {
+        "cf887058f826aa8ba51b4d96d8ce949afd3c72e2": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/run_e018_p1_g0c.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "58cf41b328f7e11d14bf6cfdeddd1ed573065709",
+      "blob_ref_groups": {
+        "58cf41b328f7e11d14bf6cfdeddd1ed573065709": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/run_e018_p1_g1.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "274f7518a28b4e534c76c337fd76c1a238e9610c",
+      "blob_ref_groups": {
+        "274f7518a28b4e534c76c337fd76c1a238e9610c": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/run_e018_p1_g1a.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "b11f67524d5ee297160c78a32a064501bd3953ef",
+      "blob_ref_groups": {
+        "b11f67524d5ee297160c78a32a064501bd3953ef": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/run_e018_p1_g2a.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "e912691f34940030ffde6fa083503af1586d3836",
+      "blob_ref_groups": {
+        "e912691f34940030ffde6fa083503af1586d3836": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/run_e018_p1_g2b.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "222ccce1bdbd07712a6266ceba24ff5ff4375326",
+      "blob_ref_groups": {
+        "222ccce1bdbd07712a6266ceba24ff5ff4375326": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/run_e018_p1_g2c.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "fb515e4cf89b507fcf88e90ce6d832689f7cf8da",
+      "blob_ref_groups": {
+        "fb515e4cf89b507fcf88e90ce6d832689f7cf8da": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/run_e018_p1_g2c_calibration.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "499c96f059dfa41d59f03468b77fb8a5b0f3e0ae",
+      "blob_ref_groups": {
+        "499c96f059dfa41d59f03468b77fb8a5b0f3e0ae": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/run_e018_p1_g2c_qualification.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "c7bf061f5a26e7a34484484afb18265a6315284c",
+      "blob_ref_groups": {
+        "c7bf061f5a26e7a34484484afb18265a6315284c": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/run_e018_p1_g2c_training.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "b708b70a24caa108b821a5ac87ba252fc7616946",
+      "blob_ref_groups": {
+        "b708b70a24caa108b821a5ac87ba252fc7616946": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/run_e018_p1_stage2a.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "badb3d25fe078cd7c1519b815ff76b9a6c9a2eef",
+      "blob_ref_groups": {
+        "badb3d25fe078cd7c1519b815ff76b9a6c9a2eef": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/run_e018_p1_stage2a_evaluation.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "2e8a2e4d10adcd34779ca87b31ead3fa54e6e6dd",
+      "blob_ref_groups": {
+        "2e8a2e4d10adcd34779ca87b31ead3fa54e6e6dd": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/run_e018_p1_stage2a_selection.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "4d1c2f57d454c2e1a11b9dc84f999c70dd41aa05",
+      "blob_ref_groups": {
+        "4d1c2f57d454c2e1a11b9dc84f999c70dd41aa05": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/run_e018_p1_viewpoint_screen.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "77aeedf5f4137bb27567dc6ec3726694bf9f2110",
+      "blob_ref_groups": {
+        "77aeedf5f4137bb27567dc6ec3726694bf9f2110": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/run_precision_shadow.py",
+      "capability_group": "precision-training-and-diagnostic-entries",
+      "main_vs_e018": "identical",
+      "main_blob": "26717e797078a77d631845b7e0f54a7607b4fafd",
+      "e018_blob": "26717e797078a77d631845b7e0f54a7607b4fafd",
+      "blob_ref_groups": {
+        "26717e797078a77d631845b7e0f54a7607b4fafd": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/score_e018_p1_g2c_model_val.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "4e981369b0156e8c45642618e4a98faf1b406d8e",
+      "blob_ref_groups": {
+        "4e981369b0156e8c45642618e4a98faf1b406d8e": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/select_e012_checkpoint.py",
+      "capability_group": "e012-provenance-and-historical-experiment",
+      "main_vs_e018": "identical",
+      "main_blob": "acd3291f6416da925889a0505335a86089a4bbd2",
+      "e018_blob": "acd3291f6416da925889a0505335a86089a4bbd2",
+      "blob_ref_groups": {
+        "acd3291f6416da925889a0505335a86089a4bbd2": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/select_stage1_checkpoint.py",
+      "capability_group": "training-and-checkpoint",
+      "main_vs_e018": "identical",
+      "main_blob": "bb18b2987ca0af0b41d3a5fa42bc63a511434ee1",
+      "e018_blob": "bb18b2987ca0af0b41d3a5fa42bc63a511434ee1",
+      "blob_ref_groups": {
+        "bb18b2987ca0af0b41d3a5fa42bc63a511434ee1": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "codex/oracle-geometry-reach",
+          "codex/world-model-critic-v0",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve",
+          "origin/codex/oracle-geometry-reach",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/smoke_local_dagger_budget_counterfactual.py",
+      "capability_group": "e012-provenance-and-historical-experiment",
+      "main_vs_e018": "identical",
+      "main_blob": "9cf8d7bc2b6dfb12fb84fc9da90fed6966d6747f",
+      "e018_blob": "9cf8d7bc2b6dfb12fb84fc9da90fed6966d6747f",
+      "blob_ref_groups": {
+        "9cf8d7bc2b6dfb12fb84fc9da90fed6966d6747f": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/train_e016_p1.py",
+      "capability_group": "e014-e017-experiment-entries",
+      "main_vs_e018": "identical",
+      "main_blob": "40995295dda1b1432cf9608fce818e2bbd519339",
+      "e018_blob": "40995295dda1b1432cf9608fce818e2bbd519339",
+      "blob_ref_groups": {
+        "40995295dda1b1432cf9608fce818e2bbd519339": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/train_e017_p0.py",
+      "capability_group": "e014-e017-experiment-entries",
+      "main_vs_e018": "identical",
+      "main_blob": "3d3b1740cf99b649108a5b59346928604c3ad94d",
+      "e018_blob": "3d3b1740cf99b649108a5b59346928604c3ad94d",
+      "blob_ref_groups": {
+        "3d3b1740cf99b649108a5b59346928604c3ad94d": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/train_precision.py",
+      "capability_group": "precision-training-and-diagnostic-entries",
+      "main_vs_e018": "identical",
+      "main_blob": "083ea6361046f1e409860f03d4a28c3809a33db2",
+      "e018_blob": "083ea6361046f1e409860f03d4a28c3809a33db2",
+      "blob_ref_groups": {
+        "083ea6361046f1e409860f03d4a28c3809a33db2": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/train_stage1.py",
+      "capability_group": "training-and-checkpoint",
+      "main_vs_e018": "identical",
+      "main_blob": "c1bb9d0c45c205f7e506ac2d053d0e5f3b83bb5e",
+      "e018_blob": "c1bb9d0c45c205f7e506ac2d053d0e5f3b83bb5e",
+      "blob_ref_groups": {
+        "282add24480f3590889e9dc64b258548fd45ca8a": [
+          "codex/e012-local-dagger",
+          "codex/oracle-geometry-reach",
+          "origin/codex/oracle-geometry-reach"
+        ],
+        "c1bb9d0c45c205f7e506ac2d053d0e5f3b83bb5e": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ],
+        "ff50b356a5976373880863d1e0a8c5f05d3ef8ac": [
+          "codex/world-model-critic-v0",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ],
+        "5f96da93c4e3ef5cc956ca5c8dfa8fb6f00e8a07": [
+          "origin/codex/e012-local-dagger"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/cli/verify_e012_paired_training.py",
+      "capability_group": "e012-provenance-and-historical-experiment",
+      "main_vs_e018": "identical",
+      "main_blob": "9f88ab2fc56d35d9e9c966fc978b49ad3471358f",
+      "e018_blob": "9f88ab2fc56d35d9e9c966fc978b49ad3471358f",
+      "blob_ref_groups": {
+        "9f88ab2fc56d35d9e9c966fc978b49ad3471358f": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/contracts.py",
+      "capability_group": "stable-contracts-and-adapters",
+      "main_vs_e018": "identical",
+      "main_blob": "a34333b8932f0137fca0b39832152cef1e0b5747",
+      "e018_blob": "a34333b8932f0137fca0b39832152cef1e0b5747",
+      "blob_ref_groups": {
+        "8e9e6db1222208d7c384e427185dfaab42bec67a": [
+          "codex/e012-local-dagger",
+          "codex/oracle-geometry-reach",
+          "codex/world-model-critic-v0",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/oracle-geometry-reach",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ],
+        "a34333b8932f0137fca0b39832152cef1e0b5747": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/data/__init__.py",
+      "capability_group": "package-exports",
+      "main_vs_e018": "identical",
+      "main_blob": "bac2e50b9f7f4aaf5418976f050add7e058a6008",
+      "e018_blob": "bac2e50b9f7f4aaf5418976f050add7e058a6008",
+      "blob_ref_groups": {
+        "f19c6f51bcb3003a08d524d77c2da94b1d62714c": [
+          "codex/e012-local-dagger"
+        ],
+        "bac2e50b9f7f4aaf5418976f050add7e058a6008": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/data/audit.py",
+      "capability_group": "data-contract-and-sampling",
+      "main_vs_e018": "identical",
+      "main_blob": "0716619275fac64687c27e80a240b0c15e96320e",
+      "e018_blob": "0716619275fac64687c27e80a240b0c15e96320e",
+      "blob_ref_groups": {
+        "e7407c088582f2443abe513d4dae6e593f387332": [
+          "codex/e012-local-dagger",
+          "origin/codex/e012-local-dagger"
+        ],
+        "0716619275fac64687c27e80a240b0c15e96320e": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/data/collator.py",
+      "capability_group": "data-contract-and-sampling",
+      "main_vs_e018": "identical",
+      "main_blob": "749e27cfe734964fab666685d6e8c57175baad97",
+      "e018_blob": "749e27cfe734964fab666685d6e8c57175baad97",
+      "blob_ref_groups": {
+        "b7bacdb58fb24a71c5fa3e00cf92cc57e5991a6d": [
+          "codex/e012-local-dagger",
+          "origin/codex/e012-local-dagger"
+        ],
+        "749e27cfe734964fab666685d6e8c57175baad97": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/data/dataset.py",
+      "capability_group": "data-contract-and-sampling",
+      "main_vs_e018": "identical",
+      "main_blob": "508ec8cffc84bf119cd051731b3f510413eb5e95",
+      "e018_blob": "508ec8cffc84bf119cd051731b3f510413eb5e95",
+      "blob_ref_groups": {
+        "6eb688d00b303851fa51289ba479e5dd73aa3afe": [
+          "codex/e012-local-dagger"
+        ],
+        "508ec8cffc84bf119cd051731b3f510413eb5e95": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ],
+        "a72dce99003ec19d531b91f48c9fb8a7f3fbfd64": [
+          "origin/codex/e012-local-dagger"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/data/events.py",
+      "capability_group": "data-contract-and-sampling",
+      "main_vs_e018": "identical",
+      "main_blob": "4496db865c150739a6e935657e1da1d187c51acb",
+      "e018_blob": "4496db865c150739a6e935657e1da1d187c51acb",
+      "blob_ref_groups": {
+        "4496db865c150739a6e935657e1da1d187c51acb": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/data/recovery.py",
+      "capability_group": "data-contract-and-sampling",
+      "main_vs_e018": "identical",
+      "main_blob": "65c284c3b04d7ff040a9f55dd13268cc287315c5",
+      "e018_blob": "65c284c3b04d7ff040a9f55dd13268cc287315c5",
+      "blob_ref_groups": {
+        "65c284c3b04d7ff040a9f55dd13268cc287315c5": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/data/sampler.py",
+      "capability_group": "data-contract-and-sampling",
+      "main_vs_e018": "identical",
+      "main_blob": "e828ff13bc760591ba1eb2684cf372a0520faf21",
+      "e018_blob": "e828ff13bc760591ba1eb2684cf372a0520faf21",
+      "blob_ref_groups": {
+        "880f38af6da9752ec7b971671270b83d29ddb013": [
+          "codex/e012-local-dagger"
+        ],
+        "e828ff13bc760591ba1eb2684cf372a0520faf21": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/data/trajectory.py",
+      "capability_group": "data-contract-and-sampling",
+      "main_vs_e018": "identical",
+      "main_blob": "74164aad746223a6cb330c6d4d13a78a296f7f68",
+      "e018_blob": "74164aad746223a6cb330c6d4d13a78a296f7f68",
+      "blob_ref_groups": {
+        "353496093e47cc48127045172d102f1b39092a3c": [
+          "codex/e012-local-dagger"
+        ],
+        "74164aad746223a6cb330c6d4d13a78a296f7f68": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ],
+        "af3f5e2e11038aa1b747d0d6a4cdd983a2cb7f57": [
+          "origin/codex/e012-local-dagger"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/data/writer.py",
+      "capability_group": "data-contract-and-sampling",
+      "main_vs_e018": "identical",
+      "main_blob": "e9cbd84bdd47660d37cceed667167d634f2ea3e4",
+      "e018_blob": "e9cbd84bdd47660d37cceed667167d634f2ea3e4",
+      "blob_ref_groups": {
+        "b739f0c2259939c31c927fd879cafbba7e9989cf": [
+          "codex/e012-local-dagger",
+          "origin/codex/e012-local-dagger"
+        ],
+        "e9cbd84bdd47660d37cceed667167d634f2ea3e4": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/diagnostics/__init__.py",
+      "capability_group": "package-exports",
+      "main_vs_e018": "identical",
+      "main_blob": "adc88eb09693e073d4fd85a69d92a028f83cedde",
+      "e018_blob": "adc88eb09693e073d4fd85a69d92a028f83cedde",
+      "blob_ref_groups": {
+        "adc88eb09693e073d4fd85a69d92a028f83cedde": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "codex/oracle-geometry-reach",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve",
+          "origin/codex/oracle-geometry-reach"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/diagnostics/gradient_conflict.py",
+      "capability_group": "e008-e010-oracle-and-diagnostics",
+      "main_vs_e018": "identical",
+      "main_blob": "b439732e12b5f73e369cbc36e42c51b7f37d6873",
+      "e018_blob": "b439732e12b5f73e369cbc36e42c51b7f37d6873",
+      "blob_ref_groups": {
+        "b439732e12b5f73e369cbc36e42c51b7f37d6873": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "codex/oracle-geometry-reach",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve",
+          "origin/codex/oracle-geometry-reach"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/diagnostics/oracle_reach.py",
+      "capability_group": "e008-e010-oracle-and-diagnostics",
+      "main_vs_e018": "identical",
+      "main_blob": "9e385df8c4702aea2b2cd0fab5b83aae3453e17d",
+      "e018_blob": "9e385df8c4702aea2b2cd0fab5b83aae3453e17d",
+      "blob_ref_groups": {
+        "196522bf71757e592db0fa9da682c83aa15078bc": [
+          "codex/e012-local-dagger",
+          "codex/oracle-geometry-reach",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/oracle-geometry-reach"
+        ],
+        "9e385df8c4702aea2b2cd0fab5b83aae3453e17d": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/diagnostics/oracle_reach_evaluation.py",
+      "capability_group": "e008-e010-oracle-and-diagnostics",
+      "main_vs_e018": "identical",
+      "main_blob": "843076af087f9205581b17963c27eb4acee74a13",
+      "e018_blob": "843076af087f9205581b17963c27eb4acee74a13",
+      "blob_ref_groups": {
+        "843076af087f9205581b17963c27eb4acee74a13": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "codex/oracle-geometry-reach",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve",
+          "origin/codex/oracle-geometry-reach"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/diagnostics/qwen_layer_reach.py",
+      "capability_group": "e008-e010-oracle-and-diagnostics",
+      "main_vs_e018": "identical",
+      "main_blob": "d414c42fc307e2ea3db5c468cc83dce0414a189b",
+      "e018_blob": "d414c42fc307e2ea3db5c468cc83dce0414a189b",
+      "blob_ref_groups": {
+        "d414c42fc307e2ea3db5c468cc83dce0414a189b": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "codex/oracle-geometry-reach",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve",
+          "origin/codex/oracle-geometry-reach"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/diagnostics/qwen_spatial_probe.py",
+      "capability_group": "e008-e010-oracle-and-diagnostics",
+      "main_vs_e018": "identical",
+      "main_blob": "ae966e790a3e8b9b03fefb1a5bcd13d55c725b23",
+      "e018_blob": "ae966e790a3e8b9b03fefb1a5bcd13d55c725b23",
+      "blob_ref_groups": {
+        "ae966e790a3e8b9b03fefb1a5bcd13d55c725b23": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "codex/oracle-geometry-reach",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve",
+          "origin/codex/oracle-geometry-reach"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/diagnostics/v2_online_geometry_probe.py",
+      "capability_group": "e008-e010-oracle-and-diagnostics",
+      "main_vs_e018": "identical",
+      "main_blob": "70828800477b334ddd3c93aec14376a54ebdf91f",
+      "e018_blob": "70828800477b334ddd3c93aec14376a54ebdf91f",
+      "blob_ref_groups": {
+        "70828800477b334ddd3c93aec14376a54ebdf91f": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/evaluation/__init__.py",
+      "capability_group": "package-exports",
+      "main_vs_e018": "identical",
+      "main_blob": "8b78ad97fc9e6b0bdd588945074bd91cb9582bc6",
+      "e018_blob": "8b78ad97fc9e6b0bdd588945074bd91cb9582bc6",
+      "blob_ref_groups": {
+        "8b78ad97fc9e6b0bdd588945074bd91cb9582bc6": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "codex/oracle-geometry-reach",
+          "codex/world-model-critic-v0",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve",
+          "origin/codex/oracle-geometry-reach",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/evaluation/action_consistency.py",
+      "capability_group": "wmc-separate-candidate",
+      "main_vs_e018": "separate-branch-only",
+      "main_blob": null,
+      "e018_blob": null,
+      "blob_ref_groups": {
+        "1c070823eedea8be64a28a688397ca8748e87dd4": [
+          "codex/world-model-critic-v0",
+          "origin/codex/world-model-critic-v0"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/evaluation/atomic.py",
+      "capability_group": "simulation-task-and-evaluation",
+      "main_vs_e018": "identical",
+      "main_blob": "93a6d15224bd384c2f7ff266a3a27c433f6c62f2",
+      "e018_blob": "93a6d15224bd384c2f7ff266a3a27c433f6c62f2",
+      "blob_ref_groups": {
+        "93a6d15224bd384c2f7ff266a3a27c433f6c62f2": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "codex/oracle-geometry-reach",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve",
+          "origin/codex/oracle-geometry-reach"
+        ],
+        "111fa308e9a6b84387ab69f240d9127ece3449d2": [
+          "codex/world-model-critic-v0",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/evaluation/checkpoint_selection.py",
+      "capability_group": "simulation-task-and-evaluation",
+      "main_vs_e018": "identical",
+      "main_blob": "8ab25909e843e39b5cbaaaa024811fc57ceec898",
+      "e018_blob": "8ab25909e843e39b5cbaaaa024811fc57ceec898",
+      "blob_ref_groups": {
+        "8ab25909e843e39b5cbaaaa024811fc57ceec898": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "codex/oracle-geometry-reach",
+          "codex/world-model-critic-v0",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve",
+          "origin/codex/oracle-geometry-reach",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/evaluation/checkpoint_sweep.py",
+      "capability_group": "simulation-task-and-evaluation",
+      "main_vs_e018": "identical",
+      "main_blob": "1ff023fe40fdb0ff2dae9489010f47a65937ba93",
+      "e018_blob": "1ff023fe40fdb0ff2dae9489010f47a65937ba93",
+      "blob_ref_groups": {
+        "1ff023fe40fdb0ff2dae9489010f47a65937ba93": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "codex/oracle-geometry-reach",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve",
+          "origin/codex/oracle-geometry-reach"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/evaluation/e012_checkpoint_selection.py",
+      "capability_group": "e012-provenance-and-historical-experiment",
+      "main_vs_e018": "identical",
+      "main_blob": "2a967892ecc8d9562d955579ad4fadfae5b59918",
+      "e018_blob": "2a967892ecc8d9562d955579ad4fadfae5b59918",
+      "blob_ref_groups": {
+        "2a967892ecc8d9562d955579ad4fadfae5b59918": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/evaluation/e012_paired.py",
+      "capability_group": "e012-provenance-and-historical-experiment",
+      "main_vs_e018": "identical",
+      "main_blob": "cd917739c6d804b1b16900a014caaf247f7613f0",
+      "e018_blob": "cd917739c6d804b1b16900a014caaf247f7613f0",
+      "blob_ref_groups": {
+        "cd917739c6d804b1b16900a014caaf247f7613f0": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/evaluation/maniskill.py",
+      "capability_group": "simulation-task-and-evaluation",
+      "main_vs_e018": "different",
+      "main_blob": "51d376be31e2bc185fb2ebcb7e22be71614abea0",
+      "e018_blob": "08349a86b6850e0386805bfc9e23443f86e0b1ee",
+      "blob_ref_groups": {
+        "0e258836da36d78f9a912bf2e6eb75b431f28a69": [
+          "codex/e012-local-dagger",
+          "codex/oracle-geometry-reach",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/oracle-geometry-reach"
+        ],
+        "08349a86b6850e0386805bfc9e23443f86e0b1ee": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ],
+        "5edc557faf369d3bde15210369b97280f5a57444": [
+          "codex/world-model-critic-v0",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ],
+        "51d376be31e2bc185fb2ebcb7e22be71614abea0": [
+          "main"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/evaluation/rollout.py",
+      "capability_group": "simulation-task-and-evaluation",
+      "main_vs_e018": "identical",
+      "main_blob": "28d9249c01a62ce339e97c644990fda609d9f3c2",
+      "e018_blob": "28d9249c01a62ce339e97c644990fda609d9f3c2",
+      "blob_ref_groups": {
+        "338ab858204e07f17fead64662c9a1b617239a10": [
+          "codex/e012-local-dagger",
+          "codex/oracle-geometry-reach",
+          "origin/codex/oracle-geometry-reach"
+        ],
+        "28d9249c01a62ce339e97c644990fda609d9f3c2": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ],
+        "5f2f50c696f1360edffdc72f5614273682fbc094": [
+          "codex/world-model-critic-v0",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/execution/__init__.py",
+      "capability_group": "package-exports",
+      "main_vs_e018": "identical",
+      "main_blob": "a6812140ac3a2959ecc020efffdb67fc1daf2349",
+      "e018_blob": "a6812140ac3a2959ecc020efffdb67fc1daf2349",
+      "blob_ref_groups": {
+        "a6812140ac3a2959ecc020efffdb67fc1daf2349": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "codex/oracle-geometry-reach",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve",
+          "origin/codex/oracle-geometry-reach"
+        ],
+        "81c7e7e9ae9b4a8130de4f8a3d52420ff54d8a11": [
+          "codex/world-model-critic-v0",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/execution/chunk_executor.py",
+      "capability_group": "action-runtime-and-ensemble",
+      "main_vs_e018": "identical",
+      "main_blob": "c684543d7479e4b62ac3a5d6eef1e1f4dee1d6cf",
+      "e018_blob": "c684543d7479e4b62ac3a5d6eef1e1f4dee1d6cf",
+      "blob_ref_groups": {
+        "bd4d2e07e11a16319c854efbd610ca952c48c93d": [
+          "codex/e012-local-dagger",
+          "origin/codex/e012-local-dagger"
+        ],
+        "c684543d7479e4b62ac3a5d6eef1e1f4dee1d6cf": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ],
+        "9362400383330953fd0756443102808810cf939b": [
+          "codex/oracle-geometry-reach",
+          "codex/world-model-critic-v0",
+          "origin/codex/oracle-geometry-reach",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/execution/maniskill_controller.py",
+      "capability_group": "action-runtime-and-ensemble",
+      "main_vs_e018": "identical",
+      "main_blob": "4abbb116247149408e9affabd2057b0a1b8f43e2",
+      "e018_blob": "4abbb116247149408e9affabd2057b0a1b8f43e2",
+      "blob_ref_groups": {
+        "4abbb116247149408e9affabd2057b0a1b8f43e2": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "codex/oracle-geometry-reach",
+          "codex/world-model-critic-v0",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve",
+          "origin/codex/oracle-geometry-reach",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/execution/rtc.py",
+      "capability_group": "e011-unpromoted-rtc",
+      "main_vs_e018": "identical",
+      "main_blob": "3f58c23a9d9ae316302a292814687fb7ca160e2e",
+      "e018_blob": "3f58c23a9d9ae316302a292814687fb7ca160e2e",
+      "blob_ref_groups": {
+        "3f58c23a9d9ae316302a292814687fb7ca160e2e": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "codex/oracle-geometry-reach",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve",
+          "origin/codex/oracle-geometry-reach"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/execution/temporal_ensemble.py",
+      "capability_group": "action-runtime-and-ensemble",
+      "main_vs_e018": "identical",
+      "main_blob": "ed6b47ef34575a3baebe522aac9c700f214cb911",
+      "e018_blob": "ed6b47ef34575a3baebe522aac9c700f214cb911",
+      "blob_ref_groups": {
+        "ed6b47ef34575a3baebe522aac9c700f214cb911": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ],
+        "4b04e61767b125e7e99036a773846e8966e596af": [
+          "codex/oracle-geometry-reach",
+          "codex/world-model-critic-v0",
+          "origin/codex/oracle-geometry-reach",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/executive/__init__.py",
+      "capability_group": "package-exports",
+      "main_vs_e018": "identical",
+      "main_blob": "71083507a8e52bc40e9612ed1598e1adeb9686ca",
+      "e018_blob": "71083507a8e52bc40e9612ed1598e1adeb9686ca",
+      "blob_ref_groups": {
+        "71083507a8e52bc40e9612ed1598e1adeb9686ca": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/executive/contracts.py",
+      "capability_group": "executive-shadow-only",
+      "main_vs_e018": "identical",
+      "main_blob": "e95d8cc98b93a0dce49f25f952d7152da76d3426",
+      "e018_blob": "e95d8cc98b93a0dce49f25f952d7152da76d3426",
+      "blob_ref_groups": {
+        "e95d8cc98b93a0dce49f25f952d7152da76d3426": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/executive/estimation.py",
+      "capability_group": "executive-shadow-only",
+      "main_vs_e018": "identical",
+      "main_blob": "b46812476e5d08a06bdfe8b577648d5a53a98f4f",
+      "e018_blob": "b46812476e5d08a06bdfe8b577648d5a53a98f4f",
+      "blob_ref_groups": {
+        "b46812476e5d08a06bdfe8b577648d5a53a98f4f": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/executive/executive.py",
+      "capability_group": "executive-shadow-only",
+      "main_vs_e018": "identical",
+      "main_blob": "fd509ebda85b1bb04a70a5c890eca997d779c5bc",
+      "e018_blob": "fd509ebda85b1bb04a70a5c890eca997d779c5bc",
+      "blob_ref_groups": {
+        "fd509ebda85b1bb04a70a5c890eca997d779c5bc": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/executive/planning.py",
+      "capability_group": "executive-shadow-only",
+      "main_vs_e018": "identical",
+      "main_blob": "473c498590c4c58a34c8bf9757647fd4d7239a7c",
+      "e018_blob": "473c498590c4c58a34c8bf9757647fd4d7239a7c",
+      "blob_ref_groups": {
+        "473c498590c4c58a34c8bf9757647fd4d7239a7c": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/executive/shadow.py",
+      "capability_group": "executive-shadow-only",
+      "main_vs_e018": "identical",
+      "main_blob": "8223e6266733095738fcbbab4ef3657998941beb",
+      "e018_blob": "8223e6266733095738fcbbab4ef3657998941beb",
+      "blob_ref_groups": {
+        "8223e6266733095738fcbbab4ef3657998941beb": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/local_dagger_protocol.py",
+      "capability_group": "e012-provenance-and-historical-experiment",
+      "main_vs_e018": "identical",
+      "main_blob": "d2be6d51f69e29b5d1c5cd6afe5f2682f5f167f5",
+      "e018_blob": "d2be6d51f69e29b5d1c5cd6afe5f2682f5f167f5",
+      "blob_ref_groups": {
+        "d2be6d51f69e29b5d1c5cd6afe5f2682f5f167f5": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/model/__init__.py",
+      "capability_group": "package-exports",
+      "main_vs_e018": "identical",
+      "main_blob": "c3a2c02cb08f680ee56dca0bab27f0ad061cfea9",
+      "e018_blob": "c3a2c02cb08f680ee56dca0bab27f0ad061cfea9",
+      "blob_ref_groups": {
+        "e508165f441e73f402440ce6414365bae540098e": [
+          "codex/e012-local-dagger",
+          "codex/oracle-geometry-reach",
+          "codex/world-model-critic-v0",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/oracle-geometry-reach",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ],
+        "c3a2c02cb08f680ee56dca0bab27f0ad061cfea9": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/model/expert.py",
+      "capability_group": "vla-model-and-flow",
+      "main_vs_e018": "identical",
+      "main_blob": "0b4969497666c0a4aa7ad913e13a7ab110e2de83",
+      "e018_blob": "0b4969497666c0a4aa7ad913e13a7ab110e2de83",
+      "blob_ref_groups": {
+        "43ccaac0431bdd2194434550e1350868b7a6a89d": [
+          "codex/e012-local-dagger",
+          "codex/oracle-geometry-reach",
+          "codex/world-model-critic-v0",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/oracle-geometry-reach",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ],
+        "0b4969497666c0a4aa7ad913e13a7ab110e2de83": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/model/factory.py",
+      "capability_group": "vla-model-and-flow",
+      "main_vs_e018": "identical",
+      "main_blob": "77427872a71d7f24ef85c27f16d9aa58a7fc024f",
+      "e018_blob": "77427872a71d7f24ef85c27f16d9aa58a7fc024f",
+      "blob_ref_groups": {
+        "422792bdd8266d8bcfecde3984aa113980a21172": [
+          "codex/e012-local-dagger",
+          "codex/oracle-geometry-reach",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/oracle-geometry-reach"
+        ],
+        "77427872a71d7f24ef85c27f16d9aa58a7fc024f": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ],
+        "ee604c84725f7b4cdf3bd3941a8c92a3307e87b6": [
+          "codex/world-model-critic-v0",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/model/layers.py",
+      "capability_group": "vla-model-and-flow",
+      "main_vs_e018": "identical",
+      "main_blob": "c88db7b93fc540717ef4a3f0c875d45619c746e9",
+      "e018_blob": "c88db7b93fc540717ef4a3f0c875d45619c746e9",
+      "blob_ref_groups": {
+        "c88db7b93fc540717ef4a3f0c875d45619c746e9": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "codex/oracle-geometry-reach",
+          "codex/world-model-critic-v0",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve",
+          "origin/codex/oracle-geometry-reach",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/model/policy.py",
+      "capability_group": "vla-model-and-flow",
+      "main_vs_e018": "identical",
+      "main_blob": "882fcc85c8e00299f8a93d109036446054672a9b",
+      "e018_blob": "882fcc85c8e00299f8a93d109036446054672a9b",
+      "blob_ref_groups": {
+        "212d58f1f242065d16c91266e5dea6a71ec39a10": [
+          "codex/e012-local-dagger",
+          "codex/oracle-geometry-reach",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/oracle-geometry-reach"
+        ],
+        "882fcc85c8e00299f8a93d109036446054672a9b": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ],
+        "51e128effca8252bcda80071e81ef114fb31fc63": [
+          "codex/world-model-critic-v0",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/model/qwen_context.py",
+      "capability_group": "vla-model-and-flow",
+      "main_vs_e018": "identical",
+      "main_blob": "ae5719973a303424319b0daab74c9ab4e7ca0df7",
+      "e018_blob": "ae5719973a303424319b0daab74c9ab4e7ca0df7",
+      "blob_ref_groups": {
+        "768d9298f6a366c7f56c37f404bbf25942faff79": [
+          "codex/e012-local-dagger",
+          "codex/oracle-geometry-reach",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/oracle-geometry-reach"
+        ],
+        "ae5719973a303424319b0daab74c9ab4e7ca0df7": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ],
+        "f029d2cf11b6cf38b88bca6ddd1ad99f99a26c96": [
+          "codex/world-model-critic-v0",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/model/qwen_processor.py",
+      "capability_group": "vla-model-and-flow",
+      "main_vs_e018": "identical",
+      "main_blob": "bd7dc07e1763da93b0e25cdc75437ddda91b41ae",
+      "e018_blob": "bd7dc07e1763da93b0e25cdc75437ddda91b41ae",
+      "blob_ref_groups": {
+        "c129c13fa7d7d8918dfa98a179aacb20bc18c89b": [
+          "codex/e012-local-dagger",
+          "codex/oracle-geometry-reach",
+          "codex/world-model-critic-v0",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/oracle-geometry-reach",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ],
+        "bd7dc07e1763da93b0e25cdc75437ddda91b41ae": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/model/structured_world_model.py",
+      "capability_group": "wmc-separate-candidate",
+      "main_vs_e018": "separate-branch-only",
+      "main_blob": null,
+      "e018_blob": null,
+      "blob_ref_groups": {
+        "343a51b89d0bdebb5378366fe43d52f26b5ee075": [
+          "codex/world-model-critic-v0",
+          "origin/codex/world-model-critic-v0"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/observation.py",
+      "capability_group": "v2-observation-runtime",
+      "main_vs_e018": "identical",
+      "main_blob": "c3539a2cd85cb65a9d36c2c0782844a092ebe128",
+      "e018_blob": "c3539a2cd85cb65a9d36c2c0782844a092ebe128",
+      "blob_ref_groups": {
+        "c3539a2cd85cb65a9d36c2c0782844a092ebe128": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/__init__.py",
+      "capability_group": "package-exports",
+      "main_vs_e018": "identical",
+      "main_blob": "1d84696c84ce7a4921fd30ae4e43e48a6f5f7200",
+      "e018_blob": "1d84696c84ce7a4921fd30ae4e43e48a6f5f7200",
+      "blob_ref_groups": {
+        "1d84696c84ce7a4921fd30ae4e43e48a6f5f7200": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/active_external_observation.py",
+      "capability_group": "e018-reusable-core-candidates",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "aa6b44cd48b362308bb1a41e8dc300b2c9cdc45e",
+      "blob_ref_groups": {
+        "aa6b44cd48b362308bb1a41e8dc300b2c9cdc45e": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/active_front_camera.py",
+      "capability_group": "e018-reusable-core-candidates",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "bf8e59c30e61e767a2d4bd35214090e173865700",
+      "blob_ref_groups": {
+        "bf8e59c30e61e767a2d4bd35214090e173865700": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/active_front_memory.py",
+      "capability_group": "e018-reusable-core-candidates",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "6c010194a9f87427234dbb09f110a6bab5e9f88d",
+      "blob_ref_groups": {
+        "6c010194a9f87427234dbb09f110a6bab5e9f88d": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/active_front_memory_provider.py",
+      "capability_group": "e018-reusable-core-candidates",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "cfe14c582cedb1fc31e5bb8b8c2c574d9b73099c",
+      "blob_ref_groups": {
+        "cfe14c582cedb1fc31e5bb8b8c2c574d9b73099c": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/active_front_provider.py",
+      "capability_group": "e018-reusable-core-candidates",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "d396c0d1fcb662d2bb6a401568dd64c2832dc7b5",
+      "blob_ref_groups": {
+        "d396c0d1fcb662d2bb6a401568dd64c2832dc7b5": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/active_front_reobserve.py",
+      "capability_group": "e018-reusable-core-candidates",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "c78dfba7828988d8d7de7c3d38faf8e334bd75d9",
+      "blob_ref_groups": {
+        "c78dfba7828988d8d7de7c3d38faf8e334bd75d9": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/calibrated_front_provider.py",
+      "capability_group": "e018-reusable-core-candidates",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "f02138363004ff667a38bb664719a977f9b2c4c6",
+      "blob_ref_groups": {
+        "f02138363004ff667a38bb664719a977f9b2c4c6": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/checkpoint.py",
+      "capability_group": "e013-precision-base",
+      "main_vs_e018": "identical",
+      "main_blob": "fe1a2722c28a7100fe519019bed5b4792447c9f0",
+      "e018_blob": "fe1a2722c28a7100fe519019bed5b4792447c9f0",
+      "blob_ref_groups": {
+        "fe1a2722c28a7100fe519019bed5b4792447c9f0": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/collection.py",
+      "capability_group": "e013-precision-base",
+      "main_vs_e018": "identical",
+      "main_blob": "d9c8506d906c717e177b90e68d4f3eea82b93762",
+      "e018_blob": "d9c8506d906c717e177b90e68d4f3eea82b93762",
+      "blob_ref_groups": {
+        "d9c8506d906c717e177b90e68d4f3eea82b93762": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/contracts.py",
+      "capability_group": "e013-precision-base",
+      "main_vs_e018": "identical",
+      "main_blob": "a298498713e03697885c8d1c550af6d9cb6751e9",
+      "e018_blob": "a298498713e03697885c8d1c550af6d9cb6751e9",
+      "blob_ref_groups": {
+        "a298498713e03697885c8d1c550af6d9cb6751e9": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/control.py",
+      "capability_group": "e013-precision-base",
+      "main_vs_e018": "identical",
+      "main_blob": "be2194d2e4cb8c431f2068d2450d4d79321c8c96",
+      "e018_blob": "be2194d2e4cb8c431f2068d2450d4d79321c8c96",
+      "blob_ref_groups": {
+        "be2194d2e4cb8c431f2068d2450d4d79321c8c96": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/data.py",
+      "capability_group": "e013-precision-base",
+      "main_vs_e018": "identical",
+      "main_blob": "fe8062855d88a054e2aaf42002d978ea954190c1",
+      "e018_blob": "fe8062855d88a054e2aaf42002d978ea954190c1",
+      "blob_ref_groups": {
+        "fe8062855d88a054e2aaf42002d978ea954190c1": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/detection.py",
+      "capability_group": "e013-precision-base",
+      "main_vs_e018": "identical",
+      "main_blob": "5e3ef2543229ec3e10cd71fa349ff6ae137948d0",
+      "e018_blob": "5e3ef2543229ec3e10cd71fa349ff6ae137948d0",
+      "blob_ref_groups": {
+        "5e3ef2543229ec3e10cd71fa349ff6ae137948d0": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/e016_evaluation.py",
+      "capability_group": "e016-wrist-observability",
+      "main_vs_e018": "identical",
+      "main_blob": "217353404309bda7df887725746127f9270c48a9",
+      "e018_blob": "217353404309bda7df887725746127f9270c48a9",
+      "blob_ref_groups": {
+        "217353404309bda7df887725746127f9270c48a9": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/e016_pretraining.py",
+      "capability_group": "e016-wrist-observability",
+      "main_vs_e018": "identical",
+      "main_blob": "3355bc3b9601f6e0f9028243dce99b7f9d336061",
+      "e018_blob": "3355bc3b9601f6e0f9028243dce99b7f9d336061",
+      "blob_ref_groups": {
+        "3355bc3b9601f6e0f9028243dce99b7f9d336061": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/e016_training.py",
+      "capability_group": "e016-wrist-observability",
+      "main_vs_e018": "identical",
+      "main_blob": "53b2bf20a67a72475328de2ca21c3de8f9d62a37",
+      "e018_blob": "53b2bf20a67a72475328de2ca21c3de8f9d62a37",
+      "blob_ref_groups": {
+        "53b2bf20a67a72475328de2ca21c3de8f9d62a37": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/e017_training.py",
+      "capability_group": "e017-rejected-finetuning",
+      "main_vs_e018": "identical",
+      "main_blob": "d351e0e8e80d92ee845c2db5d711298135da738b",
+      "e018_blob": "d351e0e8e80d92ee845c2db5d711298135da738b",
+      "blob_ref_groups": {
+        "d351e0e8e80d92ee845c2db5d711298135da738b": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/e018_evaluation.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "c67fa9071ec475c26ac29c374ed0dffdf3638c79",
+      "blob_ref_groups": {
+        "c67fa9071ec475c26ac29c374ed0dffdf3638c79": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/e018_p1_g0.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "2ddb037434ab99a54127421c25df124633d237c7",
+      "blob_ref_groups": {
+        "2ddb037434ab99a54127421c25df124633d237c7": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/e018_p1_g0c.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "6e1ae6d57980c85989cd3fdc03f2d1b4738c9409",
+      "blob_ref_groups": {
+        "6e1ae6d57980c85989cd3fdc03f2d1b4738c9409": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/e018_p1_g1.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "9dafe8f151a6aa59a56ca66c053d6d81a098fce0",
+      "blob_ref_groups": {
+        "9dafe8f151a6aa59a56ca66c053d6d81a098fce0": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/e018_p1_g1a.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "6c30c1ab02b704b7a8e05c5519f195b57f1883ad",
+      "blob_ref_groups": {
+        "6c30c1ab02b704b7a8e05c5519f195b57f1883ad": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/e018_p1_g2a.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "4ff3d533b44bdd1d53731513e30342173e7144da",
+      "blob_ref_groups": {
+        "4ff3d533b44bdd1d53731513e30342173e7144da": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/e018_p1_g2b.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "1c4a5cec84701141629772d106f77a30b3fc4ded",
+      "blob_ref_groups": {
+        "1c4a5cec84701141629772d106f77a30b3fc4ded": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/e018_p1_g2b_calibration_protocol.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "28de9ec763d9816fb9ea1dfeeba62a8856523c0e",
+      "blob_ref_groups": {
+        "28de9ec763d9816fb9ea1dfeeba62a8856523c0e": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/e018_p1_g2c.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "1fdfe812a0142b30e3a0501f27e3db6fb3a3940b",
+      "blob_ref_groups": {
+        "1fdfe812a0142b30e3a0501f27e3db6fb3a3940b": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/e018_p1_g2c_calibration.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "a00f11653e2d120a66b054300c7357dadda35e86",
+      "blob_ref_groups": {
+        "a00f11653e2d120a66b054300c7357dadda35e86": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/e018_p1_g2c_data.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "367955d47885bcdf7ac399ec7d4c07dd154245f4",
+      "blob_ref_groups": {
+        "367955d47885bcdf7ac399ec7d4c07dd154245f4": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/e018_p1_g2c_model_val.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "3943a01359d28a48b0953483be34906bc004b2e6",
+      "blob_ref_groups": {
+        "3943a01359d28a48b0953483be34906bc004b2e6": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/e018_p1_g2c_qualification.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "36e2fea1d4d11331ffd24b9afdbdf59ea0a521f2",
+      "blob_ref_groups": {
+        "36e2fea1d4d11331ffd24b9afdbdf59ea0a521f2": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/e018_p1_g2c_training.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "8d0ee5e2e2fc155571eff5bef031dd6ae0a841d8",
+      "blob_ref_groups": {
+        "8d0ee5e2e2fc155571eff5bef031dd6ae0a841d8": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/e018_p1_stage2a.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "e3c34f392a75e1bf535d72d1ecd59c46845b7c4c",
+      "blob_ref_groups": {
+        "e3c34f392a75e1bf535d72d1ecd59c46845b7c4c": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/e018_p1_stage2a_evaluation.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "d95d54413ad49dc2546e16add4f504888f4f80f9",
+      "blob_ref_groups": {
+        "d95d54413ad49dc2546e16add4f504888f4f80f9": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/e018_p1_stage2a_evaluation_runtime.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "2d294b593a8c2d8630e8fe29e7049fcf8c170af4",
+      "blob_ref_groups": {
+        "2d294b593a8c2d8630e8fe29e7049fcf8c170af4": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/e018_p1_stage2a_selection.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "13dfe96323dfdf38b64564968bfb777223e40076",
+      "blob_ref_groups": {
+        "13dfe96323dfdf38b64564968bfb777223e40076": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/e018_p1_stage2a_selection_runtime.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "b61095d8944bd52caf1df6d445a101dd7d22fe3c",
+      "blob_ref_groups": {
+        "b61095d8944bd52caf1df6d445a101dd7d22fe3c": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/e018_p1_viewpoint_screen.py",
+      "capability_group": "e018-experiment-runners-and-protocols",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "e20a5bdb49613b05dda732b625eb9c8fd773379f",
+      "blob_ref_groups": {
+        "e20a5bdb49613b05dda732b625eb9c8fd773379f": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/evaluation.py",
+      "capability_group": "e013-precision-base",
+      "main_vs_e018": "identical",
+      "main_blob": "111ec06fca70ebb70cef96cacc2714fb41848ba6",
+      "e018_blob": "111ec06fca70ebb70cef96cacc2714fb41848ba6",
+      "blob_ref_groups": {
+        "111ec06fca70ebb70cef96cacc2714fb41848ba6": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/geometry.py",
+      "capability_group": "e013-precision-base",
+      "main_vs_e018": "identical",
+      "main_blob": "d6165a5bd31f03685d2b24e578d205cfd9415053",
+      "e018_blob": "d6165a5bd31f03685d2b24e578d205cfd9415053",
+      "blob_ref_groups": {
+        "d6165a5bd31f03685d2b24e578d205cfd9415053": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/held_out.py",
+      "capability_group": "e013-precision-base",
+      "main_vs_e018": "identical",
+      "main_blob": "0159abfef378dabcad7d7236d6666be4c4d6b59d",
+      "e018_blob": "0159abfef378dabcad7d7236d6666be4c4d6b59d",
+      "blob_ref_groups": {
+        "0159abfef378dabcad7d7236d6666be4c4d6b59d": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/losses.py",
+      "capability_group": "e013-precision-base",
+      "main_vs_e018": "different",
+      "main_blob": "5c20e5320bd588bd3549b217cfeb3fd60be24c12",
+      "e018_blob": "082e422333bb62db45dd6cc84878f0e64cd0ab15",
+      "blob_ref_groups": {
+        "5c20e5320bd588bd3549b217cfeb3fd60be24c12": [
+          "codex/e013-minimum-deployable-state",
+          "main",
+          "origin/codex/e013-minimum-deployable-state"
+        ],
+        "082e422333bb62db45dd6cc84878f0e64cd0ab15": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/memory_evaluation.py",
+      "capability_group": "e015-static-goal-memory",
+      "main_vs_e018": "identical",
+      "main_blob": "0d70f529a256754a3226b05c6bce488319ca997d",
+      "e018_blob": "0d70f529a256754a3226b05c6bce488319ca997d",
+      "blob_ref_groups": {
+        "0d70f529a256754a3226b05c6bce488319ca997d": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/model.py",
+      "capability_group": "e013-precision-base",
+      "main_vs_e018": "identical",
+      "main_blob": "4701bbcfea489708590019a0cdca0fb00a496a41",
+      "e018_blob": "4701bbcfea489708590019a0cdca0fb00a496a41",
+      "blob_ref_groups": {
+        "4701bbcfea489708590019a0cdca0fb00a496a41": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/object_memory.py",
+      "capability_group": "e018-reusable-core-candidates",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "8257b3475cbbdd03e654e44be930403c82c6a93e",
+      "blob_ref_groups": {
+        "8257b3475cbbdd03e654e44be930403c82c6a93e": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/object_memory_evaluation.py",
+      "capability_group": "e018-memory-evaluation",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "b6483ec4257f133ec2688ddc9ce26c8597acf7d8",
+      "blob_ref_groups": {
+        "b6483ec4257f133ec2688ddc9ce26c8597acf7d8": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/object_observability.py",
+      "capability_group": "e018-reusable-core-candidates",
+      "main_vs_e018": "missing-from-main",
+      "main_blob": null,
+      "e018_blob": "1fc9f3ec3738fdfbcb059f4bf6b8a862ee765eea",
+      "blob_ref_groups": {
+        "1fc9f3ec3738fdfbcb059f4bf6b8a862ee765eea": [
+          "codex/e018-active-front-reobserve",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/observability.py",
+      "capability_group": "e015-static-goal-memory",
+      "main_vs_e018": "identical",
+      "main_blob": "b6900d299d5449b3bba96d5b5b4b9a194239504b",
+      "e018_blob": "b6900d299d5449b3bba96d5b5b4b9a194239504b",
+      "blob_ref_groups": {
+        "b6900d299d5449b3bba96d5b5b4b9a194239504b": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/outliers.py",
+      "capability_group": "e013-precision-base",
+      "main_vs_e018": "identical",
+      "main_blob": "fc866cadd2539af9e20e0d7110054a84d1f1b189",
+      "e018_blob": "fc866cadd2539af9e20e0d7110054a84d1f1b189",
+      "blob_ref_groups": {
+        "fc866cadd2539af9e20e0d7110054a84d1f1b189": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/provider.py",
+      "capability_group": "e013-precision-base",
+      "main_vs_e018": "identical",
+      "main_blob": "c38c07d97a1f7e28a990563e608920b751823c27",
+      "e018_blob": "c38c07d97a1f7e28a990563e608920b751823c27",
+      "blob_ref_groups": {
+        "c38c07d97a1f7e28a990563e608920b751823c27": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/shadow.py",
+      "capability_group": "e013-precision-base",
+      "main_vs_e018": "identical",
+      "main_blob": "b4f38a44e57c57aeebec9593a4b0c9a9a05ad5dd",
+      "e018_blob": "b4f38a44e57c57aeebec9593a4b0c9a9a05ad5dd",
+      "blob_ref_groups": {
+        "b4f38a44e57c57aeebec9593a4b0c9a9a05ad5dd": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/state_memory.py",
+      "capability_group": "e015-static-goal-memory",
+      "main_vs_e018": "identical",
+      "main_blob": "5f71f53d7a544317346ceb4da9ec30c43bba77ee",
+      "e018_blob": "5f71f53d7a544317346ceb4da9ec30c43bba77ee",
+      "blob_ref_groups": {
+        "5f71f53d7a544317346ceb4da9ec30c43bba77ee": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/precision/training.py",
+      "capability_group": "e013-precision-base",
+      "main_vs_e018": "identical",
+      "main_blob": "2b856c29ed9466f379b9a8f8d4fd69e6822e40df",
+      "e018_blob": "2b856c29ed9466f379b9a8f8d4fd69e6822e40df",
+      "blob_ref_groups": {
+        "2b856c29ed9466f379b9a8f8d4fd69e6822e40df": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/runtime/__init__.py",
+      "capability_group": "package-exports",
+      "main_vs_e018": "identical",
+      "main_blob": "02ef374e4d4a0f3c0f81aa9cca604f42587caf06",
+      "e018_blob": "02ef374e4d4a0f3c0f81aa9cca604f42587caf06",
+      "blob_ref_groups": {
+        "05bd440a7ab6b75a9e792b455f4c061cd6aea5d1": [
+          "codex/e012-local-dagger",
+          "codex/oracle-geometry-reach",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/oracle-geometry-reach"
+        ],
+        "02ef374e4d4a0f3c0f81aa9cca604f42587caf06": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ],
+        "b494e5ab7b457542773c86c2a43779acbc8795b9": [
+          "codex/world-model-critic-v0",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/runtime/candidate_evaluation.py",
+      "capability_group": "wmc-separate-candidate",
+      "main_vs_e018": "separate-branch-only",
+      "main_blob": null,
+      "e018_blob": null,
+      "blob_ref_groups": {
+        "30a827085699de828ab3947532cfa001aebb3cb9": [
+          "codex/world-model-critic-v0",
+          "origin/codex/world-model-critic-v0"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/runtime/control_loop.py",
+      "capability_group": "action-runtime-and-ensemble",
+      "main_vs_e018": "identical",
+      "main_blob": "cf4c9c0faf5bba230bfba13fce5cacd3aa47a209",
+      "e018_blob": "cf4c9c0faf5bba230bfba13fce5cacd3aa47a209",
+      "blob_ref_groups": {
+        "8aa73a724b0ae7b4b4a90d194a91aee0c0475209": [
+          "codex/e012-local-dagger",
+          "codex/oracle-geometry-reach",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/oracle-geometry-reach"
+        ],
+        "cf4c9c0faf5bba230bfba13fce5cacd3aa47a209": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ],
+        "c62fbef1df68e9e3a0a23fd6eba8ff60e248df59": [
+          "codex/world-model-critic-v0",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/runtime/policy_runtime.py",
+      "capability_group": "v2-observation-runtime",
+      "main_vs_e018": "identical",
+      "main_blob": "813c956301548432b1a9516614de537b35dcd265",
+      "e018_blob": "813c956301548432b1a9516614de537b35dcd265",
+      "blob_ref_groups": {
+        "8a29fb486c9585acb4d5cac0a5e85bf5d1bce6c1": [
+          "codex/e012-local-dagger",
+          "codex/oracle-geometry-reach",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/oracle-geometry-reach"
+        ],
+        "813c956301548432b1a9516614de537b35dcd265": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ],
+        "3d10c4e23596bb2089869c06ae878304c8851f52": [
+          "codex/world-model-critic-v0",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/sim/__init__.py",
+      "capability_group": "package-exports",
+      "main_vs_e018": "identical",
+      "main_blob": "aedc25e89663c0fc8e7f45755683ffc9c0af27fd",
+      "e018_blob": "aedc25e89663c0fc8e7f45755683ffc9c0af27fd",
+      "blob_ref_groups": {
+        "aedc25e89663c0fc8e7f45755683ffc9c0af27fd": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "codex/oracle-geometry-reach",
+          "codex/world-model-critic-v0",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve",
+          "origin/codex/oracle-geometry-reach",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/sim/collector.py",
+      "capability_group": "simulation-task-and-evaluation",
+      "main_vs_e018": "identical",
+      "main_blob": "2ebb07782d89b86390e133438a5807a8182fdc05",
+      "e018_blob": "2ebb07782d89b86390e133438a5807a8182fdc05",
+      "blob_ref_groups": {
+        "341b5085d72b6a1bca4c2547116aaaa59ec10c78": [
+          "codex/e012-local-dagger"
+        ],
+        "2ebb07782d89b86390e133438a5807a8182fdc05": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ],
+        "1e026810ee9ba80b739e407b074cbbc17228b2c8": [
+          "codex/oracle-geometry-reach",
+          "codex/world-model-critic-v0",
+          "origin/codex/oracle-geometry-reach",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ],
+        "012651439cc7ade5c80314a34d6a1ec4f820b53f": [
+          "origin/codex/e012-local-dagger"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/sim/local_dagger.py",
+      "capability_group": "e012-provenance-and-historical-experiment",
+      "main_vs_e018": "identical",
+      "main_blob": "9cff02de22b88abcbff54d9f7843ee807085d69a",
+      "e018_blob": "9cff02de22b88abcbff54d9f7843ee807085d69a",
+      "blob_ref_groups": {
+        "d94979c384dc8e1ad537e85359e837182a6c70ef": [
+          "codex/e012-local-dagger"
+        ],
+        "9cff02de22b88abcbff54d9f7843ee807085d69a": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ],
+        "91ca6ee9f10f1f2820e257521923e5aea059d980": [
+          "origin/codex/e012-local-dagger"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/sim/local_dagger_diagnostics.py",
+      "capability_group": "e012-provenance-and-historical-experiment",
+      "main_vs_e018": "identical",
+      "main_blob": "9af7d1ecd8fa0fd4803c177f3c0d211e102406fd",
+      "e018_blob": "9af7d1ecd8fa0fd4803c177f3c0d211e102406fd",
+      "blob_ref_groups": {
+        "9af7d1ecd8fa0fd4803c177f3c0d211e102406fd": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/sim/local_dagger_risk.py",
+      "capability_group": "e012-provenance-and-historical-experiment",
+      "main_vs_e018": "identical",
+      "main_blob": "7fea825ee17fd6aef9b941cdbd23677db2d44a5a",
+      "e018_blob": "7fea825ee17fd6aef9b941cdbd23677db2d44a5a",
+      "blob_ref_groups": {
+        "7fea825ee17fd6aef9b941cdbd23677db2d44a5a": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/sim/pick_cube_to_region.py",
+      "capability_group": "simulation-task-and-evaluation",
+      "main_vs_e018": "identical",
+      "main_blob": "14d664cd0009bcf38fa6ffe04f52cd51fa0f928a",
+      "e018_blob": "14d664cd0009bcf38fa6ffe04f52cd51fa0f928a",
+      "blob_ref_groups": {
+        "14d664cd0009bcf38fa6ffe04f52cd51fa0f928a": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "codex/oracle-geometry-reach",
+          "codex/world-model-critic-v0",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve",
+          "origin/codex/oracle-geometry-reach",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/sim/snapshot.py",
+      "capability_group": "simulation-task-and-evaluation",
+      "main_vs_e018": "identical",
+      "main_blob": "662d7f7d8f70238abfd2f48b02bc1618939e0321",
+      "e018_blob": "662d7f7d8f70238abfd2f48b02bc1618939e0321",
+      "blob_ref_groups": {
+        "662d7f7d8f70238abfd2f48b02bc1618939e0321": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/tasks/__init__.py",
+      "capability_group": "package-exports",
+      "main_vs_e018": "identical",
+      "main_blob": "ac39221f0e595c373e8108784bfa43e0e73e1433",
+      "e018_blob": "ac39221f0e595c373e8108784bfa43e0e73e1433",
+      "blob_ref_groups": {
+        "ac39221f0e595c373e8108784bfa43e0e73e1433": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "codex/oracle-geometry-reach",
+          "codex/world-model-critic-v0",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve",
+          "origin/codex/oracle-geometry-reach",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/tasks/pick_place.py",
+      "capability_group": "simulation-task-and-evaluation",
+      "main_vs_e018": "identical",
+      "main_blob": "9cf9d0c75e43640ecff07e2aea912519da9b70d9",
+      "e018_blob": "9cf9d0c75e43640ecff07e2aea912519da9b70d9",
+      "blob_ref_groups": {
+        "9cf9d0c75e43640ecff07e2aea912519da9b70d9": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "codex/oracle-geometry-reach",
+          "codex/world-model-critic-v0",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve",
+          "origin/codex/oracle-geometry-reach",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/training/__init__.py",
+      "capability_group": "package-exports",
+      "main_vs_e018": "identical",
+      "main_blob": "2ce5bdd15c7e83ffbdbe1cb613f811ada3316c88",
+      "e018_blob": "2ce5bdd15c7e83ffbdbe1cb613f811ada3316c88",
+      "blob_ref_groups": {
+        "2ce5bdd15c7e83ffbdbe1cb613f811ada3316c88": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "codex/oracle-geometry-reach",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve",
+          "origin/codex/oracle-geometry-reach"
+        ],
+        "27613d155dc35d491db1344bd0756a1443bc4e1d": [
+          "codex/world-model-critic-v0",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/training/checkpoint.py",
+      "capability_group": "training-and-checkpoint",
+      "main_vs_e018": "identical",
+      "main_blob": "69d0358dd9586338ce604f2049bdc6f2befb715b",
+      "e018_blob": "69d0358dd9586338ce604f2049bdc6f2befb715b",
+      "blob_ref_groups": {
+        "21f7734324d310d30fc13c3fe9ae7d3996def210": [
+          "codex/e012-local-dagger",
+          "codex/oracle-geometry-reach",
+          "origin/codex/oracle-geometry-reach"
+        ],
+        "69d0358dd9586338ce604f2049bdc6f2befb715b": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ],
+        "8a3b13a7f475235b081a08b1b43c7149e0e52837": [
+          "codex/world-model-critic-v0",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ],
+        "041a246b0445136673417b3796045c4c391be811": [
+          "origin/codex/e012-local-dagger"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/training/flow_matching.py",
+      "capability_group": "vla-model-and-flow",
+      "main_vs_e018": "identical",
+      "main_blob": "e4783beb30823c28579e8fac63ac54aff571520f",
+      "e018_blob": "e4783beb30823c28579e8fac63ac54aff571520f",
+      "blob_ref_groups": {
+        "e4783beb30823c28579e8fac63ac54aff571520f": [
+          "codex/e012-local-dagger",
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "codex/oracle-geometry-reach",
+          "main",
+          "origin/codex/e012-local-dagger",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve",
+          "origin/codex/oracle-geometry-reach"
+        ],
+        "3765d6df8adabf6dfb2d1957e622128b895c745c": [
+          "codex/world-model-critic-v0",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/training/stage1.py",
+      "capability_group": "training-and-checkpoint",
+      "main_vs_e018": "identical",
+      "main_blob": "46d8b3bae46156aa80bf9b489add9a0b36780900",
+      "e018_blob": "46d8b3bae46156aa80bf9b489add9a0b36780900",
+      "blob_ref_groups": {
+        "cf1f9b51351c57db92da7d2c5c4d821c75caecf5": [
+          "codex/e012-local-dagger"
+        ],
+        "46d8b3bae46156aa80bf9b489add9a0b36780900": [
+          "codex/e013-minimum-deployable-state",
+          "codex/e018-active-front-reobserve",
+          "main",
+          "origin/codex/e013-minimum-deployable-state",
+          "origin/codex/e018-active-front-reobserve"
+        ],
+        "c468844fa1b52b710ce9d3aec62e0bdc405cc9ce": [
+          "codex/oracle-geometry-reach",
+          "codex/world-model-critic-v0",
+          "origin/codex/oracle-geometry-reach",
+          "origin/codex/world-model-critic-v0",
+          "origin/main"
+        ],
+        "968c2dd6d8f5e95553c14dfa6b3174f876fd672a": [
+          "origin/codex/e012-local-dagger"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    },
+    {
+      "path": "src/robot_vla/training/structured_world_model.py",
+      "capability_group": "wmc-separate-candidate",
+      "main_vs_e018": "separate-branch-only",
+      "main_blob": null,
+      "e018_blob": null,
+      "blob_ref_groups": {
+        "d3f412b46d2de24143d23d575ebe2a9eca76d230": [
+          "codex/world-model-critic-v0",
+          "origin/codex/world-model-critic-v0"
+        ]
+      },
+      "review_level": "file-inventory-and-capability-triage; see checklist for semantic/evidence review; no fresh test"
+    }
+  ],
+  "untracked_inputs": [
+    {
+      "path": "src/robot_vla/precision/e018_p1_stage2b.py",
+      "sha256": "8180f1d1e6b507df94d5b5b623c9ae51f3182185771134ead29ed1fd9fd4129e",
+      "status": "user-untracked; static-only; untouched; not an accepted branch implementation"
+    },
+    {
+      "path": "tests/test_e018_p1_stage2b.py",
+      "sha256": "22bcc37df58bda04984acad540af62a0b029ff194349d008ef77ab8ed4dba033",
+      "status": "user-untracked; static-only; untouched; not an accepted branch implementation"
+    }
+  ],
+  "excluded_from_source_coverage": [
+    "tests and configs are reviewed by linked capability evidence, not exhaustively certified",
+    "data, weights, raw logs, generated reports",
+    "historical commits not present at selected branch tips"
+  ]
+}
