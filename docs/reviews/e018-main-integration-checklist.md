@@ -1,7 +1,21 @@
 # 截至 E018 的 main 能力接入清单
 
 日期：2026-09-06。用途：确定主线保留、下一批接入、实验维护和历史保留的范围。
-本清单是静态接入审查，不修改研究结论，不代表全部源码已逐行审查或当前环境已通过全部验收。
+初始清单是静态接入审查，不修改研究结论，不代表全部源码已逐行审查或当前环境已通过全部验收。
+后续工程进展见下方记录及对应能力行；其余审查输入、数量和历史证据保持原快照含义。
+
+## 后续接入记录：2026-09-06 第一批
+
+- C01 的 `object_memory.py`、`object_observability.py` 及两份历史测试已从 E018 `37851ad` 原样接入 main。
+  新增 [最小合成回放](../../experiments/object_memory_replay/README.md)，默认运行链与 Goal Memory 源码不变。
+- 本机 23 项原测试 + 5 项集成测试通过；4 Episode / 19 Tick 回放退出码 0。
+  另有 13 项原 Goal Memory 测试体在临时目录隔离运行通过；原整份测试因 CLI 依赖缺少 torch 无法收集，
+  CLI claim 用例未验证。具体命令、范围和输入身份见回放说明。
+- 验证等级为合成接口/状态规则；真实 provider、延迟提交、实际相机/控制闭环仍未验证。
+  本次不晋级研究结论，不删除分支；配套源码覆盖 JSON 保留初始审查快照，不表示接入后的文件数量。
+- 独立审查隔离运行 28 项测试通过；发现两项历史时间边界问题：重复/倒退 RGB 可被计入候选窗口，
+  age 从接受 tick 起算会少计图像延迟。同步合成回放不受影响；接真实/异步 provider 前必须修复并回归，
+  反例见回放说明。不得将本批结果称作完整时间合同已通过。
 
 ## 结论与范围
 
@@ -97,7 +111,7 @@ E014/E015/E016已消费的数据用途保持原记录。D036的旧validation lif
 
 | ID / 能力 | 已复核证据与结论 | main 状态 / 建议 | 合入前必须核验 |
 |---|---|---|---|
-| C01 P0 Object Memory / object observability | [P0结果][e018p0] navigation availability 130/1135→504/1135；但41个真正不可观察帧都在冷启动，Memory覆盖0/41。支持跨低分/拒绝保持，未证明先见后遮挡恢复 | 缺失，**按需接入状态机制**；探索阈值留实验 | `object_memory.py`、`object_observability.py`，对应两份test及既有Goal Memory回归；reset/time/source/contact、navigation与contact分离；2秒age未获可靠上限证明 |
+| C01 P0 Object Memory / object observability | [P0结果][e018p0] navigation availability 130/1135→504/1135；但41个真正不可观察帧都在冷启动，Memory覆盖0/41。支持跨低分/拒绝保持，未证明先见后遮挡恢复 | **已接入状态机制，合成接口验证通过**；探索阈值留实验；见本页后续接入记录 | 两份历史test及新回放28 passed，Goal Memory隔离子集13 passed；真实provider/延迟提交待验，2秒age未获可靠上限证明 |
 | C02 G0 相机位姿/时延/回HOME | [G0结果][g0] 16/16路线通过；没有provider forward或Memory write | 几何工具缺失，**按需接入**；路线runner **实验保留** | `active_front_camera.py`、`test_e018_active_front_camera.py`；actual/commanded pose、SO(3)、settle与运动帧禁写。真实route engine仍在`e018_p1_g0.py::_run_route`，按消费者需要局部提取 |
 | C03 G0B视角筛选 / G0C动态路线 | [G0B][g0b] 50场景×25pose，10个低位alternate静态合格，env.step=0；[G0C v2][g0c] 40/40路线、3,680帧通过 | 缺失，**实验/历史保留** | `test_e018_p1_viewpoint_screen.py`、`test_e018_p1_g0c.py`；静态GT筛选不能用于在线选视角，RenderCamera无真实质量/碰撞/回差 |
 | C04 G1A动态观测 / G1 supervisor replay | [三阶段计划][stages]记录Stage1 development通过；G1测试验证两条成功路径和六类失败，实际是合成证据replay，无provider/Memory/actuation | `active_external_observation.py` **按需接入**；`active_front_reobserve.py` **实验保留** | 对应active_external_observation、active_front_reobserve、G1/G1A测试；同步actual pose、HOME-only四帧、旧Chunk清空、reset/latch。尚无canonical VLA真实接通证据 |
@@ -175,7 +189,7 @@ HOME和三个淘汰alternate，另5条raw catastrophic全部来自HOME且被拒�
 5. 接入后再基于原始既有记录分析 Stage2A未恢复样本；区分实现错误、无测量、误差、跨帧稳定性和提交条件。
    Stage2B/Stage3的执行要由明确问题与数据用途决定，不能因代码已经存在就启动。
 
-以上是建议执行次序，**本清单不声称这些接入已经完成**。每批完成后只更新对应行的来源、回归结果与剩余缺口。
+以上是建议执行次序；目前仅 C01 完成状态机制接入，其余接入仍待执行。每批完成后只更新对应行的来源、回归结果与剩余缺口。
 归档指维护分类；本轮不删除历史文件、分支、产物或 checkpoint。
 
 ## 审查记录与复核限制
