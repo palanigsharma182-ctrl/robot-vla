@@ -166,6 +166,7 @@ cd /path/to/robot-vla
 将验证过的通用能力回收到主体，并维护或归档实验入口；历史冻结结果保留原身份。
 基础接口的无模型、无渲染检查见 [ManiSkill 接口 smoke](experiments/maniskill-interface-smoke/README.md)。
 截至 E018 的能力状态、证据限制与接入次序见 [main 接入清单](docs/reviews/e018-main-integration-checklist.md)。
+五个通用模块已接入 main，串联入口、时间修复及验证范围见 [五模块接入说明](experiments/five_common_replay/README.md)。
 
 新实现按依赖方向渐进落地：
 

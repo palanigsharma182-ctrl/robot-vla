@@ -4,7 +4,23 @@
 初始清单是静态接入审查，不修改研究结论，不代表全部源码已逐行审查或当前环境已通过全部验收。
 后续工程进展见下方记录及对应能力行；其余审查输入、数量和历史证据保持原快照含义。
 
-## 后续接入记录：2026-09-06 第一批
+## 最新接入记录：2026-09-06 五个通用模块
+
+五个模块现已在 main 完成工程接入：`object_memory`、`object_observability`、
+`active_external_observation`、`active_front_camera`、`calibrated_front_provider`。
+具体修复、命令与边界见 [五模块接入说明](../../experiments/five_common_replay/README.md)。
+
+- 远端定向回归 138 passed，包含完整 Goal Memory、V2 观测、runtime、adapter 和执行器回归。
+- 五模块合成串联 4 Episode / 23 Tick；实际 ManiSkill RGB/位姿 smoke 2 Episode / 8 step / 10 capture，
+  坐标往返最大误差 0 m。后者使用静止相机，不代表主动移动路线或真实 provider 已接入。
+- 第一批发现的两个时间问题已修复；同时修复候选采集间隔、过期帧支持、延迟拒绝老化、
+  重复消费/reset 时间边界、相机来源审计、协方差缩放和姿态输入校验。
+- 默认控制链与研究结论不变；五模块范围不包含真实 G2C 推理消费、D049 编排及新实验晋级。
+  下方初始源码覆盖数字及 JSON 仍是历史静态快照，不按当前工作树追改。
+- 两个独立只读审查分别完成 Memory 与相机/校准/串联复核；第一遍缺陷已修复，第二遍在
+  对应源码 SHA-256 匹配后通过。本结论是工程接入验收，不是研究效果或物理控制资格。
+
+## 历史接入记录：2026-09-06 第一批（79160c4）
 
 - C01 的 `object_memory.py`、`object_observability.py` 及两份历史测试已从 E018 `37851ad` 原样接入 main。
   新增 [最小合成回放](../../experiments/object_memory_replay/README.md)，默认运行链与 Goal Memory 源码不变。
@@ -111,12 +127,12 @@ E014/E015/E016已消费的数据用途保持原记录。D036的旧validation lif
 
 | ID / 能力 | 已复核证据与结论 | main 状态 / 建议 | 合入前必须核验 |
 |---|---|---|---|
-| C01 P0 Object Memory / object observability | [P0结果][e018p0] navigation availability 130/1135→504/1135；但41个真正不可观察帧都在冷启动，Memory覆盖0/41。支持跨低分/拒绝保持，未证明先见后遮挡恢复 | **已接入状态机制，合成接口验证通过**；探索阈值留实验；见本页后续接入记录 | 两份历史test及新回放28 passed，Goal Memory隔离子集13 passed；真实provider/延迟提交待验，2秒age未获可靠上限证明 |
-| C02 G0 相机位姿/时延/回HOME | [G0结果][g0] 16/16路线通过；没有provider forward或Memory write | 几何工具缺失，**按需接入**；路线runner **实验保留** | `active_front_camera.py`、`test_e018_active_front_camera.py`；actual/commanded pose、SO(3)、settle与运动帧禁写。真实route engine仍在`e018_p1_g0.py::_run_route`，按消费者需要局部提取 |
+| C01 P0 Object Memory / object observability | [P0结果][e018p0] navigation availability 130/1135→504/1135；但41个真正不可观察帧都在冷启动，Memory覆盖0/41。支持跨低分/拒绝保持，未证明先见后遮挡恢复 | **已接入状态机制，合成接口验证通过**；探索阈值留实验；见本页后续接入记录 | 已纳入远端138项回归；采集时间/重复帧/延迟提交已修复并验证；真实provider待验，2秒age未获可靠上限证明 |
+| C02 G0 相机位姿/时延/回HOME | [G0结果][g0] 16/16路线通过；没有provider forward或Memory write | 几何工具**已接入并回归**；实际观测接口smoke通过，路线runner **实验保留** | `active_front_camera.py`、`test_e018_active_front_camera.py`；actual/commanded pose、SO(3)、settle与运动帧禁写。真实route engine仍在`e018_p1_g0.py::_run_route`，按消费者需要局部提取 |
 | C03 G0B视角筛选 / G0C动态路线 | [G0B][g0b] 50场景×25pose，10个低位alternate静态合格，env.step=0；[G0C v2][g0c] 40/40路线、3,680帧通过 | 缺失，**实验/历史保留** | `test_e018_p1_viewpoint_screen.py`、`test_e018_p1_g0c.py`；静态GT筛选不能用于在线选视角，RenderCamera无真实质量/碰撞/回差 |
-| C04 G1A动态观测 / G1 supervisor replay | [三阶段计划][stages]记录Stage1 development通过；G1测试验证两条成功路径和六类失败，实际是合成证据replay，无provider/Memory/actuation | `active_external_observation.py` **按需接入**；`active_front_reobserve.py` **实验保留** | 对应active_external_observation、active_front_reobserve、G1/G1A测试；同步actual pose、HOME-only四帧、旧Chunk清空、reset/latch。尚无canonical VLA真实接通证据 |
+| C04 G1A动态观测 / G1 supervisor replay | [三阶段计划][stages]记录Stage1 development通过；G1测试验证两条成功路径和六类失败，实际是合成证据replay，无provider/Memory/actuation | `active_external_observation.py` **已接入并验证**；`active_front_reobserve.py` **实验保留** | 对应active_external_observation、active_front_reobserve、G1/G1A测试；同步actual pose、HOME-only四帧、旧Chunk清空、reset/latch。尚无canonical VLA真实接通证据 |
 | C05 G2A wrist→front直接迁移 | [provider计划][provider-plan] native wrist covariance-95=0.64<0.90；front正式资格因parent健康失败为inconclusive；附加诊断front XYZ p90约141.474mm | 资格runner **历史保留**；`active_front_provider.py` **按需实验适配** | camera角色、来源和parent failure→inconclusive；不能只改camera名称获得front资格，也不能把诊断均值误差说成正常资格协议结果 |
-| C06 G2B covariance校准 | D036记录CAL-v2的1,135帧cohort有reset-first-frame contact-cache异常，整体protocol-invalid；fit/selection未执行，校准gate未评估。CAL-v1完整归因本轮不足 | `calibrated_front_provider.py` **按需复用数值原语**，旧runner/cohort **历史保留** | 对应calibrated-provider/G2B测试；finite/sample support/奇异covariance、一致scale、全cohort判定；“未评估”不能写成“校准机制无效” |
+| C06 G2B covariance校准 | D036记录CAL-v2的1,135帧cohort有reset-first-frame contact-cache异常，整体protocol-invalid；fit/selection未执行，校准gate未评估。CAL-v1完整归因本轮不足 | `calibrated_front_provider.py` **数值原语已接入并验证**，旧runner/cohort **历史保留** | 对应calibrated-provider/G2B测试；finite/sample support/奇异covariance、一致scale、全cohort判定；“未评估”不能写成“校准机制无效” |
 | C07 G2C数据/训练/模型选择 | [provider计划][provider-plan] W-KV0/S对照选W-KV0 epoch15，model-validation中10/10 alternate eligible | 新数据与训练runner缺失，**实验保留**；基础U-Net已有 | G2C data/training/model_val及test；初始化/公平采样、split/label隔离、prediction freeze；model-val通过不等于动态资格 |
 | C08 G2C静态校准 / D048动态provider | 静态10/10 non-HOME，accepted/oracle-safe=497/499；[D048][d048]动态500路线、7/10 alternate合格；PRIMARY `LEFT_LOW__PITCH_UP`为47/47，XYZ p90约1.753mm；失败尾部见下文 | **按冻结身份消费合格object provider**；校准/资格runner保留实验 | qualification/test中raw/canonical pose边界与逐视角分母；HOME及3个淘汰视角禁止active Memory write；其余6个合格视角仅shadow；Goal辅助输出不获得Goal Memory资格 |
 | C09 Stage2A候选/Memory提交/恢复编排 | [最新结果][s2a] selection三gain都是5/24，0.10按平局规则选择；evaluation为7/25=28%<70%，support通过、effect失败，offline/no-actuation | `active_front_memory*.py`及stage2a runner缺失，**实验保留/按消费者适配**；负结果历史保留 | 三帧稳定性、第三帧原值、HOME后延迟提交、2.5秒pending、重复/部分提交、source recheck；D049身份硬绑定不能直接称通用层。10-seed真实integration完成证据本轮待核实 |
@@ -128,13 +144,13 @@ E014/E015/E016已消费的数据用途保持原记录。D036的旧validation lif
 
 | 模块 | 建议位置/身份 | 当前判定 |
 |---|---|---|
-| `object_memory.py`、`object_observability.py` | 主体中可检查的状态/观测工具 | 按需接入，保留明确的phase/contact和来源合同；不携带探索参数的有效性承诺 |
-| `active_external_observation.py`、`active_front_camera.py` | 主体几何/观测工具，消费者显式调用 | 按需接入；相机实际移动runner保持实验身份 |
-| `calibrated_front_provider.py` | 可复用校准/证据数值工具 | 按需接入；历史已校准权重/视角/输入身份另行核验 |
+| `object_memory.py`、`object_observability.py` | 主体中可检查的状态/观测工具 | 已接入并完成时间修复及串联回归；不携带探索参数的有效性承诺 |
+| `active_external_observation.py`、`active_front_camera.py` | 主体几何/观测工具，消费者显式调用 | 已接入并完成合成与实际观测接口 smoke；相机实际移动runner保持实验身份 |
+| `calibrated_front_provider.py` | 可复用校准/证据数值工具 | 已接入，校准身份/PSD/串联回归通过；历史已校准权重资格另行核验 |
 | `active_front_provider.py` | 显式角色替换/资格适配 | 只在已明确provider身份的实验消费者中接入，不能直接变成默认wrist/front互换 |
 | `active_front_memory.py`、`active_front_memory_provider.py`、`active_front_reobserve.py` | D049实验编排与supervisor | 实验保留，按真实消费者做局部适配；不整套抽成通用框架、不挂默认Executive |
 
-源码入口（均固定E018提交，当前main尚无这些文件）：
+历史源码入口（均固定 E018 提交；前五项已接入 main，当前修复见上述最新记录）：
 [Object Memory][code-object-memory]、[object observability][code-object-observability]、
 [dynamic observation][code-external]、[camera geometry][code-camera]、[calibration][code-calibration]、
 [front adapter][code-front]、[Memory transaction][code-memory]、[Memory provider][code-memory-provider]、
@@ -189,7 +205,8 @@ HOME和三个淘汰alternate，另5条raw catastrophic全部来自HOME且被拒�
 5. 接入后再基于原始既有记录分析 Stage2A未恢复样本；区分实现错误、无测量、误差、跨帧稳定性和提交条件。
    Stage2B/Stage3的执行要由明确问题与数据用途决定，不能因代码已经存在就启动。
 
-以上是建议执行次序；目前仅 C01 完成状态机制接入，其余接入仍待执行。每批完成后只更新对应行的来源、回归结果与剩余缺口。
+以上是建议执行次序；第 1 项五个通用模块的工程接入已完成，第 2–3 项真实 provider 消费与 D049 编排仍待执行。
+每批完成后只更新对应行的来源、回归结果与剩余缺口。
 归档指维护分类；本轮不删除历史文件、分支、产物或 checkpoint。
 
 ## 审查记录与复核限制

@@ -1,5 +1,9 @@
 # Object Memory 最小合成回放
 
+后续状态：五模块完整接入已修复本文末尾记录的时间问题，并完成远端完整 Goal Memory 回归及
+delayed preview/commit 定向测试，见 [五模块接入说明](../five_common_replay/README.md)。
+本文的原样复用与首轮测试数字描述 `79160c4` 时的历史状态。
+
 目的：在 `main` 验证观测预测、候选窗口、Object Memory 与既有 Goal Memory 的接口连接。
 这是工程接入验证，不是新的研究实验；全部输入均为显式标记的合成测量。
 
@@ -8,7 +12,7 @@
 位置使用 robot-base 米制三维向量，协方差为 `[3,3]`、单位 m²；RGB/相机位姿/TCP 时间在此回放中相等。
 离线 `derive_object_observability` 的 privileged label 不参与回放的写入判断。
 
-`src/robot_vla/precision/object_memory.py`、`object_observability.py` 及其两份
+首批 `src/robot_vla/precision/object_memory.py`、`object_observability.py` 及其两份
 `test_e018_object_*` 测试逐字节复用 E018 提交 `37851ad648c42713511f869eb782eb897aafecc5`。
 复用完整模块保留原 API；其中 delayed preview/commit 路径本批没有消费者，尚未在当前 main 验证。
 Goal Memory 源码及默认运行链未修改。历史测试中的模型身份仅是合成 fixture，不能作为真实模型资格证据。

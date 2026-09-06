@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import numpy as np
 import pytest
 
@@ -129,6 +131,130 @@ def test_verified_candidate_initializes_free_static_memory() -> None:
     assert update.state.observable_now
     assert update.state.position_base_m == pytest.approx((0.4, 0.1, 0.02))
     assert update.state.source_camera == "hand_camera"
+
+
+@pytest.mark.parametrize("first_rgb,second_rgb", [(0.005, 0.005), (0.005, 0.004)])
+def test_reused_or_reversed_rgb_cannot_complete_candidate(first_rgb, second_rgb) -> None:
+    memory, verifier = _pipeline()
+    _update(memory, verifier, _measurement(0.005, rgb_timestamp_s=first_rgb))
+    result = _update(memory, verifier, _measurement(0.010, rgb_timestamp_s=second_rgb))
+    assert not result.measurement_accepted
+    assert "rgb_timestamp_not_increasing" in result.rejection_reasons
+    assert not result.state.valid
+    # 拒绝后不能降低图像时间水位；两个新的、有序图像才能重建窗口。
+    result = _update(memory, verifier, _measurement(0.011, rgb_timestamp_s=first_rgb))
+    assert not result.measurement_accepted
+    _update(memory, verifier, _measurement(0.015))
+    assert _update(memory, verifier, _measurement(0.020)).measurement_accepted
+
+
+def test_memory_age_includes_image_acquisition_delay() -> None:
+    memory, verifier = _pipeline(_config(max_age_s=0.5))
+    _update(memory, verifier, _measurement(0.0))
+    accepted = _update(memory, verifier, _measurement(0.05, rgb_timestamp_s=0.041))
+    assert accepted.measurement_accepted
+    assert accepted.state.age_s == pytest.approx(0.009)
+    held = _update(memory, verifier, _measurement(0.55, position=None, observable=False, gate=False))
+    assert held.state.age_s == pytest.approx(0.509)
+    assert not resolve_object_state(held, requirement=ObjectStateRequirement.NAVIGATION).available
+
+
+@pytest.mark.parametrize("delayed", [False, True])
+def test_already_stale_image_cannot_write_even_inside_sensor_skew(delayed) -> None:
+    config = replace(_config(max_age_s=0.001), min_candidate_frames=1)
+    memory, verifier = _pipeline(config)
+    candidate = verifier.observe(_measurement(0.009, rgb_timestamp_s=0.0),
+                                 episode_id="episode-a", safety=_safe())
+    if delayed:
+        update = memory.commit_delayed_candidate(candidate, episode_id="episode-a", safety=_safe(),
+                                                 commit_timestamp_s=0.009, max_pending_age_s=1.0)
+    else:
+        update = memory.update(candidate, episode_id="episode-a", safety=_safe())
+    assert not update.measurement_accepted
+    assert not update.state.valid
+
+
+def test_delayed_preview_ages_from_rgb_and_cannot_reconsume_candidate() -> None:
+    config = replace(_config(max_age_s=0.5), covariance_growth_m2_per_s=1e-6)
+    memory, verifier = _pipeline(config)
+    verifier.observe(_measurement(0.0), episode_id="episode-a", safety=_safe())
+    candidate = verifier.observe(_measurement(0.05, rgb_timestamp_s=0.041),
+                                 episode_id="episode-a", safety=_safe())
+    previous = memory.state
+    preview = memory.preview_delayed_candidate(candidate, episode_id="episode-a", safety=_safe(),
+                                               commit_timestamp_s=0.1, max_pending_age_s=0.5)
+    assert memory.state == previous
+    assert preview.measurement_accepted
+    assert preview.state.age_s == pytest.approx(0.059)
+    assert np.diag(preview.state.covariance_base_m2) == pytest.approx([1.059e-6] * 3)
+    assert not preview.state.observable_now
+    expired = memory.preview_delayed_candidate(candidate, episode_id="episode-a", safety=_safe(),
+                                               commit_timestamp_s=0.55, max_pending_age_s=1.0)
+    assert not expired.measurement_accepted
+    assert "memory_stale_at_commit" in expired.rejection_reasons
+    applied = memory.apply_delayed_candidate_preview(
+        preview, candidate, episode_id="episode-a", safety=_safe(), commit_timestamp_s=0.1,
+        max_pending_age_s=0.5, expected_previous_state=previous,
+    )
+    assert applied.state == preview.state
+    repeated = memory.commit_delayed_candidate(candidate, episode_id="episode-a", safety=_safe(),
+                                                commit_timestamp_s=0.11, max_pending_age_s=0.5)
+    assert not repeated.measurement_accepted
+    assert repeated.state.accepted_update_count == 1
+
+
+def test_direct_write_ages_covariance_and_rejects_duplicate_decision() -> None:
+    config = replace(_config(), min_candidate_frames=1, covariance_growth_m2_per_s=1e-6)
+    memory, verifier = _pipeline(config)
+    candidate = verifier.observe(_measurement(0.009, rgb_timestamp_s=0.0),
+                                 episode_id="episode-a", safety=_safe())
+    update = memory.update(candidate, episode_id="episode-a", safety=_safe())
+    assert np.diag(update.state.covariance_base_m2) == pytest.approx([1.009e-6] * 3)
+    repeated = memory.update(candidate, episode_id="episode-a", safety=_safe())
+    assert not repeated.measurement_accepted
+    assert repeated.state.accepted_update_count == 1
+
+
+def test_rgb_gap_and_stale_early_frame_cannot_supply_window_support() -> None:
+    memory, verifier = _pipeline()
+    _update(memory, verifier, _measurement(0.009, rgb_timestamp_s=0.0))
+    result = _update(memory, verifier, _measurement(0.105))
+    assert not result.measurement_accepted
+    assert "candidate_time_gap" in result.rejection_reasons
+    memory, verifier = _pipeline(_config(max_age_s=0.001))
+    _update(memory, verifier, _measurement(0.009, rgb_timestamp_s=0.0))
+    result = _update(memory, verifier, _measurement(0.010))
+    assert not result.measurement_accepted
+    assert "candidate_too_short" in result.rejection_reasons
+
+
+def test_rejected_delayed_preview_ages_old_state_without_mutating_it() -> None:
+    memory, verifier = _pipeline(_config(max_age_s=0.5))
+    _update(memory, verifier, _measurement(0.0))
+    candidate = verifier.observe(_measurement(0.05), episode_id="episode-a", safety=_safe())
+    memory.update(candidate, episode_id="episode-a", safety=_safe())
+    previous = memory.state
+    preview = memory.preview_delayed_candidate(candidate, episode_id="episode-a", safety=_safe(),
+                                               commit_timestamp_s=0.6, max_pending_age_s=1.0)
+    assert memory.state == previous
+    assert not preview.measurement_accepted and not preview.state.valid
+    assert preview.state.age_s == pytest.approx(0.55)
+    assert not resolve_object_state(preview, requirement=ObjectStateRequirement.NAVIGATION).available
+    memory.apply_delayed_candidate_preview(preview, candidate, episode_id="episode-a", safety=_safe(),
+        commit_timestamp_s=0.6, max_pending_age_s=1.0, expected_previous_state=previous)
+    assert memory.state == preview.state
+
+
+def test_delayed_candidate_cannot_cross_reset_time_boundary() -> None:
+    memory, verifier = _pipeline()
+    verifier.observe(_measurement(0.1), episode_id="episode-a", safety=_safe())
+    candidate = verifier.observe(_measurement(0.15), episode_id="episode-a", safety=_safe())
+    memory.reset("episode-a", timestamp_s=0.2)
+    verifier.reset("episode-a")
+    result = memory.commit_delayed_candidate(candidate, episode_id="episode-a", safety=_safe(),
+                                              commit_timestamp_s=0.25, max_pending_age_s=1.0)
+    assert not result.measurement_accepted and not result.state.valid
+    assert "measurement_before_reset" in result.rejection_reasons
 
 
 def test_single_frame_or_rejected_input_cannot_initialize_memory() -> None:

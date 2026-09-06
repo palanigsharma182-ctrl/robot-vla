@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 
 import numpy as np
@@ -474,6 +474,7 @@ class ObjectCandidateWindowVerifier:
         self._window_start_timestamp_s: float | None = None
         self._measurements: list[ObjectMeasurement] = []
         self._last_timestamp_s: float | None = None
+        self._latest_rgb_timestamp_s: float | None = None
 
     def reset(self, episode_id: str) -> None:
         self._episode_id = _required_identity(episode_id, "candidate episode_id")
@@ -482,6 +483,7 @@ class ObjectCandidateWindowVerifier:
         self._window_start_timestamp_s = None
         self._measurements = []
         self._last_timestamp_s = None
+        self._latest_rgb_timestamp_s = None
 
     def _clear_window(self) -> None:
         self._window_id = None
@@ -530,6 +532,8 @@ class ObjectCandidateWindowVerifier:
             reasons.append("source_model_identity_mismatch")
         if self._sensor_skew_s(measurement) > self.config.max_sensor_skew_s + 1e-12:
             reasons.append("sensor_timestamp_unsynchronized")
+        if measurement.timestamp_s - measurement.rgb_timestamp_s > self.config.max_unobserved_age_s + 1e-12:
+            reasons.append("measurement_stale")
         return tuple(dict.fromkeys(reasons))
 
     @staticmethod
@@ -567,6 +571,14 @@ class ObjectCandidateWindowVerifier:
         self._last_timestamp_s = measurement.timestamp_s
 
         rejected = self._input_rejection_reasons(measurement, safety)
+        # 控制 tick 前进不代表收到新图像；拒绝乱序后也不能降低已见时间水位。
+        if (
+            self._latest_rgb_timestamp_s is not None
+            and measurement.rgb_timestamp_s <= self._latest_rgb_timestamp_s + 1e-12
+        ):
+            rejected = (*rejected, "rgb_timestamp_not_increasing")
+        else:
+            self._latest_rgb_timestamp_s = measurement.rgb_timestamp_s
         if rejected:
             self._clear_window()
             return ObjectCandidateDecision(
@@ -583,8 +595,11 @@ class ObjectCandidateWindowVerifier:
         restart_reason: str | None = None
         if (
             previous_timestamp is not None
-            and measurement.timestamp_s - previous_timestamp
-            > self.config.max_candidate_gap_s + 1e-12
+            and (
+                measurement.timestamp_s - previous_timestamp > self.config.max_candidate_gap_s + 1e-12
+                or (self._measurements and measurement.rgb_timestamp_s
+                    - self._measurements[-1].rgb_timestamp_s > self.config.max_candidate_gap_s + 1e-12)
+            )
         ):
             restart_reason = "candidate_time_gap"
             self._clear_window()
@@ -659,6 +674,7 @@ class ExplicitObjectStateMemory:
             raise TypeError("config 必须是 ObjectMemoryConfig")
         self.config = config
         self._state: ObjectState | None = None
+        self._reset_timestamp_s = 0.0
 
     @property
     def state(self) -> ObjectState:
@@ -670,6 +686,7 @@ class ExplicitObjectStateMemory:
         if not isinstance(episode_id, str) or not episode_id.strip():
             raise ValueError("episode_id 不能为空")
         timestamp = _timestamp(timestamp_s, "reset timestamp")
+        self._reset_timestamp_s = timestamp
         self._state = ObjectState(
             episode_id=episode_id,
             mode=ObjectMemoryMode.UNINITIALIZED,
@@ -705,6 +722,7 @@ class ExplicitObjectStateMemory:
         measurement: ObjectMeasurement,
         *,
         forced_reasons: tuple[str, ...] = (),
+        apply: bool = True,
     ) -> ObjectState:
         previous = self.state
         covariance = self._aged_covariance(
@@ -753,7 +771,8 @@ class ExplicitObjectStateMemory:
             source_model_identity=previous.source_model_identity,
             invalid_reasons=tuple(reasons),
         )
-        self._state = state
+        if apply:
+            self._state = state
         return state
 
     def invalidate_for_safety(
@@ -821,6 +840,8 @@ class ExplicitObjectStateMemory:
     ) -> tuple[str, ...]:
         measurement = candidate.measurement
         reasons: list[str] = []
+        if measurement.rgb_timestamp_s + 1e-12 < self._reset_timestamp_s:
+            reasons.append("measurement_before_reset")
         if not measurement.projection_valid:
             reasons.append("projection_invalid")
         elif not measurement.in_fov:
@@ -851,6 +872,11 @@ class ExplicitObjectStateMemory:
         )
         if max(timestamps) - min(timestamps) > self.config.max_sensor_skew_s + 1e-12:
             reasons.append("sensor_timestamp_unsynchronized")
+        if measurement.timestamp_s - measurement.rgb_timestamp_s > self.config.max_unobserved_age_s + 1e-12:
+            reasons.append("measurement_stale")
+        last_observed = self.state.last_observed_timestamp_s
+        if last_observed is not None and measurement.rgb_timestamp_s <= last_observed + 1e-12:
+            reasons.append("measurement_already_consumed")
         if not candidate.verified:
             reasons.extend(candidate.rejection_reasons)
         elif candidate.frame_count < self.config.min_candidate_frames:
@@ -918,6 +944,18 @@ class ExplicitObjectStateMemory:
 
         if measurement.position_base_m is None or measurement.covariance_base_m2 is None:
             raise RuntimeError("通过 Object write gate 的 measurement 状态不完整")
+        # 协方差属于图像采集时刻；接受测量前先累计采集到当前 tick 的不确定性。
+        covariance = self._aged_covariance(
+            measurement.covariance_base_m2,
+            measurement.timestamp_s - measurement.rgb_timestamp_s,
+        )
+        if _max_std(covariance) > self.config.max_position_std_m + 1e-12:
+            return ObjectMemoryUpdate(
+                state=self._retained_state(measurement),
+                measurement_accepted=False,
+                rejection_reasons=("measurement_uncertain_at_update",),
+                innovation_m=None,
+            )
         innovation = None
         if previous.position_base_m is not None:
             innovation = float(
@@ -942,9 +980,9 @@ class ExplicitObjectStateMemory:
             episode_id=previous.episode_id,
             mode=ObjectMemoryMode.FREE_STATIC,
             position_base_m=measurement.position_base_m,
-            covariance_base_m2=measurement.covariance_base_m2,
+            covariance_base_m2=covariance,
             measurement_confidence=measurement.confidence,
-            last_observed_timestamp_s=measurement.timestamp_s,
+            last_observed_timestamp_s=measurement.rgb_timestamp_s,
             state_timestamp_s=measurement.timestamp_s,
             observable_now=True,
             valid=True,
@@ -998,6 +1036,7 @@ class ExplicitObjectStateMemory:
             raise ValueError("delayed commit timestamp 不能早于 candidate observation")
 
         pending_age_s = commit_timestamp - measurement.timestamp_s
+        observation_age_s = commit_timestamp - measurement.rgb_timestamp_s
         safety_reasons: list[str] = list(safety.invalidation_reasons)
         safety_reasons.extend(
             reason
@@ -1009,12 +1048,12 @@ class ExplicitObjectStateMemory:
         reasons.extend(self._measurement_rejection_reasons(candidate))
         if pending_age_s > max_pending_age_s + 1e-12:
             reasons.append("pending_candidate_expired")
-        if pending_age_s > self.config.max_unobserved_age_s + 1e-12:
+        if observation_age_s > self.config.max_unobserved_age_s + 1e-12:
             reasons.append("memory_stale_at_commit")
 
         aged_covariance = self._aged_covariance(
             measurement.covariance_base_m2,
-            pending_age_s,
+            observation_age_s,
         )
         aged_std = _max_std(aged_covariance)
         if self.config.require_covariance and aged_covariance is None:
@@ -1035,14 +1074,18 @@ class ExplicitObjectStateMemory:
 
         rejected = tuple(dict.fromkeys((*safety_reasons, *reasons)))
         if rejected:
-            state = previous
-            if safety_reasons:
-                state = self._build_safety_invalidated_state(
-                    previous,
-                    episode_id=episode_id,
-                    timestamp_s=commit_timestamp,
-                    reasons=tuple(safety_reasons),
-                )
+            # 拒绝新写入仍要推进旧状态年龄；preview 只构造结果，不修改当前状态。
+            forced = tuple(dict.fromkeys((*safety_reasons, *(
+                reason for reason in reasons if reason in {
+                    "source_camera_mismatch", "source_model_identity_mismatch",
+                    "sensor_timestamp_unsynchronized",
+                }
+            ))))
+            state = self._retained_state(
+                replace(measurement, timestamp_s=commit_timestamp,
+                        observable=False, write_gate_passed=False),
+                forced_reasons=forced, apply=False,
+            )
             return ObjectMemoryUpdate(
                 state=state,
                 measurement_accepted=False,
@@ -1058,7 +1101,7 @@ class ExplicitObjectStateMemory:
             position_base_m=measurement.position_base_m,
             covariance_base_m2=aged_covariance,
             measurement_confidence=measurement.confidence,
-            last_observed_timestamp_s=measurement.timestamp_s,
+            last_observed_timestamp_s=measurement.rgb_timestamp_s,
             state_timestamp_s=commit_timestamp,
             observable_now=False,
             valid=True,
