@@ -135,6 +135,7 @@ class DecodedPrecisionPrediction:
     projection_validity_probability: torch.Tensor
     keypoint_sigma_px: torch.Tensor
     motion_sigma: torch.Tensor
+    mask_probability: torch.Tensor | None = None
 
 
 @dataclass(frozen=True)
@@ -159,7 +160,10 @@ class PrecisionUNetOutput:
         self,
         *,
         temperature: float = 1.0,
+        include_mask_probability: bool = False,
     ) -> DecodedPrecisionPrediction:
+        if not isinstance(include_mask_probability, bool):
+            raise TypeError("include_mask_probability 必须是 bool")
         keypoints = self.decode_keypoints(temperature=temperature)
         height, width = self.heatmap_logits.shape[-2:]
         pixel_scale = torch.tensor(
@@ -178,6 +182,9 @@ class PrecisionUNetOutput:
             keypoint_sigma_px=torch.exp(0.5 * self.keypoint_log_variance.float())
             * pixel_scale,
             motion_sigma=torch.exp(0.5 * self.motion_log_variance.float()),
+            # 证据消费者按需获取同次 forward 的 mask；默认控制输出不增加密集张量。
+            mask_probability=(torch.sigmoid(self.mask_logits.float())
+                              if include_mask_probability else None),
         )
 
 

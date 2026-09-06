@@ -135,7 +135,10 @@ class PrecisionCheckpointProvenance:
         ):
             if not isinstance(value, int) or isinstance(value, bool) or value < 0:
                 raise ValueError(f"{name} 必须是非负整数")
-        if self.examples_seen == 0 or self.optimizer_steps == 0:
+        # 合成接口验收允许保存未训练的调试权重；正式身份仍要求真实训练进度。
+        if self.role is PrecisionCheckpointRole.FORMAL_TRAINING and (
+            self.examples_seen == 0 or self.optimizer_steps == 0
+        ):
             raise ValueError("Precision checkpoint 必须来自至少一个 example/optimizer step")
 
     def to_dict(self) -> dict[str, Any]:

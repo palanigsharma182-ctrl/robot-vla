@@ -18,6 +18,8 @@ import numpy as np
 
 from robot_vla.observation import validate_se3
 from robot_vla.precision.object_observability import ObjectWriteEvidence
+from robot_vla.precision.detection import precision_prediction_to_wrist_detection
+from robot_vla.precision.observability import mask_probability_at_normalized_uv
 
 SCALAR_COVARIANCE_CALIBRATION_METHOD = (
     "split-conformal-xy-mahalanobis-scalar/alpha-0.05-chi2-5.991/v1"
@@ -304,7 +306,56 @@ def build_calibrated_object_write_evidence(
     return evidence, calibrated_sigma
 
 
+def build_calibrated_object_evidence_from_prediction(
+    prediction: Any,
+    *,
+    keypoint_names: tuple[str, ...],
+    mask_names: tuple[str, ...],
+    image_size_hw: tuple[int, int],
+    timestamp_s: float,
+    calibration: ScalarCovarianceCalibration,
+    geometry_valid: bool,
+    min_object_mask_probability: float = 0.5,
+    max_goal_mask_probability: float = 0.5,
+) -> tuple[ObjectWriteEvidence, np.ndarray]:
+    """把同次模型 forward 的 keypoint/mask 证据接入校准，不产生状态写入权限。"""
+    if len(set(mask_names)) != len(mask_names) or not {"object", "goal"}.issubset(mask_names):
+        raise ValueError("mask_names 必须唯一且包含 object/goal")
+    mask = getattr(prediction, "mask_probability", None)
+    if mask is None:
+        raise ValueError("预测缺少同次 forward 的 mask_probability；不能用常数或 GT 补造")
+    if getattr(mask, "requires_grad", False):
+        raise ValueError("校准证据消费者只接受冻结推理输出")
+    if hasattr(mask, "detach"):
+        mask = mask.detach().cpu().numpy()
+    mask = np.asarray(mask)
+    if mask.shape != (1, len(mask_names), *image_size_hw):
+        raise ValueError("mask_probability 必须是与相机分辨率一致的 [1,M,H,W]")
+    if tuple(prediction.keypoints.normalized_uv.shape) != (1, len(keypoint_names), 2):
+        raise ValueError("normalized_uv 必须与单帧 mask 对应，为 [1,K,2]")
+    # 复用已有数值校验，只取关键点证据；不发布该适配器的 wrist Detection。
+    keypoint = precision_prediction_to_wrist_detection(
+        prediction, keypoint_names=keypoint_names, timestamp_s=timestamp_s,
+    ).object_evidence
+    object_probability = mask_probability_at_normalized_uv(
+        mask[0, mask_names.index("object")], keypoint.normalized_uv,
+    )
+    goal_probability = mask_probability_at_normalized_uv(
+        mask[0, mask_names.index("goal")], keypoint.normalized_uv,
+    )
+    return build_calibrated_object_write_evidence(
+        calibration=calibration, raw_sigma_xy_px=np.asarray(keypoint.sigma_px),
+        visibility_probability=keypoint.visibility_probability,
+        projection_validity_probability=keypoint.projection_validity_probability,
+        object_mask_probability=object_probability, goal_mask_probability=goal_probability,
+        normalized_entropy=keypoint.normalized_entropy, geometry_valid=geometry_valid,
+        min_object_mask_probability=min_object_mask_probability,
+        max_goal_mask_probability=max_goal_mask_probability,
+    )
+
+
 __all__ = [
+    "build_calibrated_object_evidence_from_prediction",
     "CALIBRATED_PROVIDER_EXECUTION_MODE",
     "CALIBRATED_PROVIDER_IDENTITY_VERSION",
     "SCALAR_COVARIANCE_CALIBRATION_METHOD",

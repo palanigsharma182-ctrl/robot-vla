@@ -169,3 +169,23 @@ def test_precision_checkpoint_provenance_requires_real_training_progress() -> No
             examples_seen=0,
             optimizer_steps=0,
         )
+
+
+def test_synthetic_debug_checkpoint_records_zero_training_without_formal_role(tmp_path) -> None:
+    provenance = PrecisionCheckpointProvenance(
+        role=PrecisionCheckpointRole.SYNTHETIC_DEBUG, data_identity_sha256="1"*64,
+        training_config_sha256="2"*64, source_tree_sha256="3"*64,
+        seed=0, examples_seen=0, optimizer_steps=0,
+    )
+    path = tmp_path/"untrained.pt"
+    receipt = save_precision_checkpoint(path, PrecisionThreeHeadUNet(_config()), provenance)
+    loaded = load_precision_checkpoint(path, expected_checkpoint_sha256=receipt.checkpoint_sha256,
+                                      expected_provenance_sha256=receipt.provenance_sha256)
+    assert loaded.provenance == provenance
+    with pytest.raises(RuntimeError, match="role"):
+        load_torch_precision_frame_predictor(
+            path, expected_checkpoint_sha256=receipt.checkpoint_sha256,
+            expected_provenance_sha256=receipt.provenance_sha256,
+            expected_role=PrecisionCheckpointRole.FORMAL_TRAINING,
+            predictor_config=TorchPrecisionFramePredictorConfig(device="cpu"),
+        )

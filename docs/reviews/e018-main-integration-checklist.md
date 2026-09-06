@@ -4,7 +4,15 @@
 初始清单是静态接入审查，不修改研究结论，不代表全部源码已逐行审查或当前环境已通过全部验收。
 后续工程进展见下方记录及对应能力行；其余审查输入、数量和历史证据保持原快照含义。
 
-## 最新接入记录：2026-09-06 五个通用模块
+## 最新接入记录：2026-09-06 33 项对应关系与模型接线
+
+完整逐项归属、实际依赖、测试和未验收边界见 [33 项验收对应表](capability-integration-matrix.md)。
+新增 front qualification 输入适配，以及真实小型 Precision 模型输出到预测 mask 采样/校准证据的连接；
+训练、数据、执行仍放在原模块。定向回归去重 435 个测试节点通过，1 个 CUDA 节点未运行。
+这是合成模型接口和现有工程规则验收；真实 G2C artifact 消费、D049 完整编排、Stage2B/3 均未据此验收。
+以下静态行与历史记录保持原审查时点，最新接线状态以对应表为准。
+
+## 历史接入记录：2026-09-06 五个通用模块
 
 五个模块现已在 main 完成工程接入：`object_memory`、`object_observability`、
 `active_external_observation`、`active_front_camera`、`calibrated_front_provider`。

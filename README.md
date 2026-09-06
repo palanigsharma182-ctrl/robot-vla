@@ -167,6 +167,8 @@ cd /path/to/robot-vla
 基础接口的无模型、无渲染检查见 [ManiSkill 接口 smoke](experiments/maniskill-interface-smoke/README.md)。
 截至 E018 的能力状态、证据限制与接入次序见 [main 接入清单](docs/reviews/e018-main-integration-checklist.md)。
 五个通用模块已接入 main，串联入口、时间修复及验证范围见 [五模块接入说明](experiments/five_common_replay/README.md)。
+全部 33 项的模块归属、实际接线、定向测试与剩余缺口见 [验收对应表](docs/reviews/capability-integration-matrix.md)；
+真实小型 Precision 模型到观测/校准工具的连接见 [模型接口回放](experiments/precision_module_integration/README.md)。
 
 新实现按依赖方向渐进落地：
 

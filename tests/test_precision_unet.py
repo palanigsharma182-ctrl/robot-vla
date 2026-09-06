@@ -59,6 +59,12 @@ def test_three_head_unet_preserves_dense_resolution_and_zero_initializes_residua
     assert decoded.motion_sigma.shape == (2, config.motion_spec.motion_dim)
     assert torch.all(decoded.keypoint_sigma_px > 0.0)
     assert torch.all(decoded.motion_sigma > 0.0)
+    assert decoded.mask_probability is None
+    with_mask = output.decode_for_control(include_mask_probability=True)
+    torch.testing.assert_close(with_mask.mask_probability, output.mask_logits.float().sigmoid())
+    torch.testing.assert_close(with_mask.keypoints.normalized_uv, decoded.keypoints.normalized_uv)
+    torch.testing.assert_close(with_mask.motion_residual, decoded.motion_residual)
+    torch.testing.assert_close(with_mask.visibility_probability, decoded.visibility_probability)
 
 
 def test_localization_head_is_image_only_while_state_changes_other_heads() -> None:

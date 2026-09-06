@@ -289,6 +289,8 @@ class TorchPrecisionFramePredictor:
         rgb_wrist: np.ndarray,
         structured_state: np.ndarray,
         geometric_motion: np.ndarray,
+        *,
+        include_mask_probability: bool = False,
     ) -> Any:
         image = np.asarray(rgb_wrist)
         if (
@@ -329,7 +331,10 @@ class TorchPrecisionFramePredictor:
                 enabled=self.config.use_bf16,
             ):
                 output = self.model(image_tensor, state_tensor, motion_tensor)
-            decoded = output.decode_for_control(temperature=self.config.temperature)
+            decoded = output.decode_for_control(
+                temperature=self.config.temperature,
+                include_mask_probability=include_mask_probability,
+            )
         if self.device.type == "cuda" and self.config.synchronize_cuda_for_latency:
             self._torch.cuda.synchronize(self.device)
         return decoded
