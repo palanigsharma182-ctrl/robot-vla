@@ -172,7 +172,8 @@ def test_executor_saturates_tracking_correction_at_step_limit_and_records_it() -
         controller.gripper = float((controller_action[-1] + 1.0) * 0.5)
 
     controller.send_action = ignore_motion
-    result = RecedingHorizonChunkExecutor(spec).execute(
+    executor = RecedingHorizonChunkExecutor(spec)
+    result = executor.execute(
         _chunk(spec, delta=0.05),
         controller,
     )
@@ -188,6 +189,22 @@ def test_executor_saturates_tracking_correction_at_step_limit_and_records_it() -
     assert result.anomaly_kind == "tracking_correction_saturation"
     assert len(controller.actions) == 2
     assert max(abs(float(action[0])) for action in controller.actions) == pytest.approx(0.5)
+    assert executor.previous_command_q is None
+    assert executor.previous_action is None
+
+    # 限幅后不能沿用未实际发送的累计目标；下一次从最新 actual q 重建。
+    controller.q[0] = 0.015
+    actual_before_replan = controller.q.copy()
+    controller.send_action = FakeController.send_action.__get__(controller)
+    resumed = executor.execute(_chunk(spec, delta=0.01), controller)
+
+    assert resumed.success is True
+    assert resumed.replan_required is False
+    first_target = (
+        actual_before_replan + controller.actions[2][:7] * spec.maniskill_arm_delta_range_rad
+    )
+    assert first_target[0] == pytest.approx(actual_before_replan[0] + 0.01)
+    assert executor.previous_command_q[0] == pytest.approx(actual_before_replan[0] + 0.04)
 
 
 def test_executor_reports_chunk_target_position_limit_violation() -> None:

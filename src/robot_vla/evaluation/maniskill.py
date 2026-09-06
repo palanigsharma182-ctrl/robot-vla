@@ -35,6 +35,7 @@ from robot_vla.observation import (
     OBSERVATION_MODALITIES,
     ObservationV2Frame,
     ObservationV2History,
+    ObservationV2Window,
     invert_se3,
     opengl_camera_to_opencv,
     validate_se3,
@@ -383,8 +384,14 @@ def run_maniskill_episode(
         completed_before = controller.progress.completed_skill_count
         tcp_distance_before = controller.progress.outcome.tcp_to_object_distance_m
         tcp_speed_before = controller.last_tcp_linear_speed_m_s
+        # 诊断使用当前物理状态；V2 的完整四帧历史仍原样传给 runtime。
+        current_proprio = (
+            online_observation.physical_proprio[-1]
+            if isinstance(online_observation, ObservationV2Window)
+            else online_observation.physical_proprio
+        )
         joint_velocity_abs_max = float(
-            np.max(np.abs(online_observation.physical_proprio[spec.arm_dof : spec.arm_dof * 2]))
+            np.max(np.abs(current_proprio[spec.arm_dof : spec.arm_dof * 2]))
         )
         result = loop.replan_and_execute(online_observation, controller)
         execution = result.execution
