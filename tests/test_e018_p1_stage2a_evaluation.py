@@ -535,8 +535,10 @@ def test_gate_verifier_exactly_binds_selection_reason(tmp_path: Path) -> None:
     [
         (
             7,
-            "development-absolute-recovery-pass-no-effect-no-actuation-"
-            "persist-publish-pause",
+            (
+                "development-absolute-recovery-pass-no-effect-no-actuation-"
+                "persist-publish-pause"
+            ),
         ),
         (
             6,
