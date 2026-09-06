@@ -64,7 +64,8 @@ class DevelopmentController(ManiSkillFrankaController):
 
 
 def run(bundle: Path, output: Path, *, case: str = "new-scene",
-        vla_runtime: QwenVLARuntime | None = None) -> dict:
+        vla_runtime: QwenVLARuntime | None = None,
+        development_seed: int | None = None, after_commit=None) -> dict:
     import gymnasium as gym
     import sapien
     from mani_skill.utils import sapien_utils
@@ -75,6 +76,14 @@ def run(bundle: Path, output: Path, *, case: str = "new-scene",
     if case not in cases:
         raise ValueError("只允许本轮固定开发样例，不开放 selection/final-test seed")
     seed = cases[case]
+    if development_seed is not None:
+        if development_seed not in range(1000100, 1000112):
+            raise ValueError("Memory 小试仅允许冻结的十二个 development seeds")
+        if vla_runtime is not None:
+            raise ValueError("Memory 数据采集 seed 禁止模型接入 actuator")
+        seed = development_seed
+    if after_commit is not None and (vla_runtime is not None or development_seed is None):
+        raise ValueError("采集回调仅用于隔离开发 seed，不能与 VLA 争用执行器")
     output.mkdir(parents=True, exist_ok=False)
     provider = D049FrontProvider(bundle)
     spec = RobotSpec()
@@ -262,6 +271,10 @@ def run(bundle: Path, output: Path, *, case: str = "new-scene",
                             or transaction.state is not PendingActiveViewState.HOME_VERIFIED_FAILED_SAFE_HOLD
                             or transaction.memory_write_count != 0):
                         raise
+        capture = None
+        if after_commit is not None and transaction.commit_receipt is not None:
+            capture = after_commit(env=env, frame=frame, memory=memory,
+                safety=safety, episode=episode, tick=tick, output=output)
         if loop is not None and transaction.commit_receipt is not None:
             # HOME 的实际几何、四帧和 source recheck 已在上方通过；Memory 不进入 VLA 输入。
             resumed = loop.resume_after_observation(pause, window, controller)
@@ -275,7 +288,7 @@ def run(bundle: Path, output: Path, *, case: str = "new-scene",
                 latest.rgb_wrist, latest.physical_proprio, window.instruction), controller)
             record_vla(continued, "continued-execution")
             tick = loop.control_step
-        result = dict(status="engineering-smoke", case=case, seed=seed,
+        result = dict(status="engineering-smoke", case=case, seed=seed, capture=capture,
             independent_effect_evidence=False, state=transaction.state.value,
             memory_write_count=transaction.memory_write_count, provider_forward_count=provider.forward_count,
             action_reset=asdict(reset), action_history_initially_empty=loop is None,
