@@ -1,0 +1,72 @@
+{
+  "version": "e018-p1-stage2a-d049-selected-gain-public/v2",
+  "decision_id": "D049",
+  "experiment_id": "E018-P1-S2A-SELECTED-GAIN-DEVELOPMENT-EVALUATION/v2",
+  "status": "completed",
+  "classification": "effect-negative-persist-publish-pause-for-reusability-refactor",
+  "evidence_scope": {
+    "data_scope": "development",
+    "evaluation_mode": "offline",
+    "test_split_read": false,
+    "actuation_mode": "none",
+    "canonical_runtime_mutated": false
+  },
+  "identity": {
+    "source_commit": "d8a721612858995c40602f0e755a5cbd071f3d12",
+    "source_identity_sha256": "9a13827a5e22973a8f3e9bb2e935c4f70f9315806e6a93d3d4260e590ee63140",
+    "config_raw_sha256": "9105ea421709951636c7778f94f83bd07144ed14f52033e5dabaf8930a24e08a",
+    "config_canonical_sha256": "ce1b78a80745fa86c8f630f42ed16ee28600ca7f0369f46acd036b89c6bfc1ee",
+    "transaction_identity_sha256": "3a1276542416ae7ad4f07dc316d5100d98a9d2fbe49b00b122bf320b81f86d2f",
+    "public_verification_sha256": "8a3209f4794e4912a20c4d9b52084c2b38e532225d450593de449635c7391395",
+    "result_verification_sha256": "3bee7e9c7735f5034e69a9e5f4066eea04a2ab3d21dbca716517701ac69d6fa9",
+    "result_complete_internal_sha256": "09ace7cb1236370c879319ac3067ca5e1fede22de4d1a29f7d330cd5969261c8"
+  },
+  "selection": {
+    "selected_gain": 0.1,
+    "selection_rule": "largest-preregistered-gain-on-exact-tie",
+    "support": 24,
+    "recovered": 5,
+    "recovery_rate": 0.20833333333333334,
+    "gain_superiority_established": false
+  },
+  "formal_development_aggregate": {
+    "route_count": 25,
+    "oracle_recoverable_support": 25,
+    "recovered_count": 7,
+    "recovery_rate": 0.28,
+    "required_recovery_rate": 0.7,
+    "minimum_support": 10,
+    "recovery_distance_max_m": 0.005,
+    "catastrophic_distance_strictly_greater_than_m": 0.02,
+    "unsafe_count": 0,
+    "catastrophic_count": 0,
+    "false_recovery_count": 0,
+    "protocol_violation_count": 0,
+    "support_gate_passed": true,
+    "effect_gate_passed": false
+  },
+  "boundary_counters": {
+    "fresh_test_reads": 0,
+    "runtime_ground_truth_reads": 0,
+    "goal_ground_truth_reads": 0,
+    "physical_camera_actuation": 0,
+    "arm_tcp_actuation": 0,
+    "gripper_close": 0,
+    "canonical_runtime_mutations": 0
+  },
+  "interpretation": {
+    "selection_to_formal_rate_delta": 0.07166666666666666,
+    "generalization_sufficient": false,
+    "threshold_retuning_allowed": false,
+    "consumed_identity_reuse_allowed": false,
+    "stage2b_continuation_required": false,
+    "next_state": "PAUSE_FOR_REUSABILITY_REFACTOR"
+  },
+  "claim_boundaries": {
+    "gain_superiority": false,
+    "actuator_safety": false,
+    "canonical_promotion": false,
+    "physical_closed_loop_success": false,
+    "deployment_readiness": false
+  }
+}
