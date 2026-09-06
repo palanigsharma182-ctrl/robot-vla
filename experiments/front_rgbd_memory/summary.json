@@ -1,0 +1,230 @@
+{
+  "experiment": "front-rgbd-memory-stage1-20260907",
+  "execution_status": "completed",
+  "overall_candidate_goal": "not_met",
+  "signal": "precision-positive; coverage-negative",
+  "evidence_type": "isolated simulator measurement and Memory readout",
+  "base_commit": "d562dc85948ffe8fb7cdd62978c6f8b415f76c15",
+  "source_manifest_sha256": "ae49aa375e8702069bb4a4dc732e0eec6fe330d527a24ba0c4d197335d9b8ca4",
+  "experiment_source_sha256": {
+    "memory.py": "65e6a4d7cf0d7f1d6b7c6692e3ce6ce7e77f94bdd63c470017d27d8f5279a487",
+    "runner.py": "1f08de69adc3f2cb8c6d2075ed5efd544e64c0677f33de948e33009ecd587341",
+    "geometry.py": "c5c77699f2fa904bdbbefe0bfe38ab65acf6357e0b3d2304de92c72d04f7d03f",
+    "test_geometry.py": "221645b4e3faf64dc60a9eb4bccefb0d8de7c6dce67e89087b4acaa1ad5c89d5"
+  },
+  "planned_scenes": 24,
+  "completed_scenes": 24,
+  "execution_errors": 0,
+  "frames": 192,
+  "split": "new development scenes",
+  "scene_seeds": [
+    1400000,
+    1400001,
+    1400002,
+    1400003,
+    1400004,
+    1400005,
+    1400006,
+    1400007,
+    1400008,
+    1400009,
+    1400010,
+    1400011,
+    1400012,
+    1400013,
+    1400014,
+    1400015,
+    1400016,
+    1400017,
+    1400018,
+    1400019,
+    1400020,
+    1400021,
+    1400022,
+    1400023
+  ],
+  "visible": {
+    "frames": 144,
+    "valid": 90,
+    "coverage": 0.625,
+    "median_3d_m": 0.001010363211081249,
+    "p90_3d_m": 0.0012014422687809776,
+    "p90_abs_z_m": 0.0008762449709059462,
+    "within_1cm_full_denominator": 0.625,
+    "rejection_counts": {
+      "insufficient_depth_points": 3,
+      "target_too_small": 6,
+      "three_independent_faces_required": 45
+    }
+  },
+  "by_height": {
+    "0.05": {
+      "frames": 36,
+      "valid": 24,
+      "coverage": 0.6666666666666666,
+      "median_3d_m": 0.0011913507930149541,
+      "p90_3d_m": 0.0012482099981291851,
+      "p90_abs_z_m": 0.0008928248578844826,
+      "within_1cm_full_denominator": 0.6666666666666666,
+      "rejection_counts": {
+        "target_too_small": 3,
+        "three_independent_faces_required": 9
+      }
+    },
+    "0.12": {
+      "frames": 36,
+      "valid": 21,
+      "coverage": 0.5833333333333334,
+      "median_3d_m": 0.0010956635184448458,
+      "p90_3d_m": 0.0011222614140630528,
+      "p90_abs_z_m": 0.0008291976658686973,
+      "within_1cm_full_denominator": 0.5833333333333334,
+      "rejection_counts": {
+        "target_too_small": 3,
+        "three_independent_faces_required": 12
+      }
+    },
+    "0.19": {
+      "frames": 36,
+      "valid": 21,
+      "coverage": 0.5833333333333334,
+      "median_3d_m": 0.0009797493063069677,
+      "p90_3d_m": 0.0010162622438063282,
+      "p90_abs_z_m": 0.0007719152783137728,
+      "within_1cm_full_denominator": 0.5833333333333334,
+      "rejection_counts": {
+        "insufficient_depth_points": 3,
+        "three_independent_faces_required": 12
+      }
+    },
+    "0.26": {
+      "frames": 36,
+      "valid": 24,
+      "coverage": 0.6666666666666666,
+      "median_3d_m": 0.0008794600494048105,
+      "p90_3d_m": 0.0009404989149552358,
+      "p90_abs_z_m": 0.0006932487027999146,
+      "within_1cm_full_denominator": 0.6666666666666666,
+      "rejection_counts": {
+        "three_independent_faces_required": 12
+      }
+    }
+  },
+  "by_view": {
+    "0": {
+      "frames": 72,
+      "valid": 42,
+      "coverage": 0.5833333333333334,
+      "median_3d_m": 0.0009946160324919079,
+      "p90_3d_m": 0.0012000584542135062,
+      "p90_abs_z_m": 0.0008787917228203837,
+      "within_1cm_full_denominator": 0.5833333333333334,
+      "rejection_counts": {
+        "three_independent_faces_required": 30
+      }
+    },
+    "1": {
+      "frames": 72,
+      "valid": 48,
+      "coverage": 0.6666666666666666,
+      "median_3d_m": 0.0010267755773953338,
+      "p90_3d_m": 0.0012138965998882193,
+      "p90_abs_z_m": 0.0008759619984710088,
+      "within_1cm_full_denominator": 0.6666666666666666,
+      "rejection_counts": {
+        "insufficient_depth_points": 3,
+        "target_too_small": 6,
+        "three_independent_faces_required": 15
+      }
+    }
+  },
+  "occluded": {
+    "frames": 48,
+    "valid": 0,
+    "coverage": 0.0,
+    "median_3d_m": null,
+    "p90_3d_m": null,
+    "p90_abs_z_m": null,
+    "within_1cm_full_denominator": 0.0,
+    "rejection_counts": {
+      "target_missing": 30,
+      "target_too_small": 18
+    }
+  },
+  "memory": {
+    "initialized_episodes": 18,
+    "never_initialized_episodes": 6,
+    "commits": 30,
+    "snapshot_reads": 78,
+    "held_initialized_episodes": 18,
+    "expired_initialized_episodes": 18,
+    "reset_and_view_window_assertions_passed": true,
+    "occluded_last_observed_not_refreshed": true
+  },
+  "view_audit": {
+    "committing_view_0_episodes": 14,
+    "committing_view_1_episodes": 16,
+    "both_views_committing_episodes": 12,
+    "view_1_rescued_episodes": 4,
+    "view_1_lost_measurement_episodes": 2,
+    "cross_view_center_difference_max_m": 0.0001608026282746522
+  },
+  "measurement_audit": {
+    "valid_frame_max_3d_error_m": 0.0012618508919465883,
+    "valid_mask_purity_min": 1.0,
+    "occluded_gt_visible_pixel_max": 0,
+    "max_sampled_q_drift_rad": 0.0,
+    "max_sampled_tcp_drift_m": 0.0,
+    "depth_dtypes": [
+      "int16"
+    ]
+  },
+  "acceptance": {
+    "precision_p90_threshold_m": 0.01,
+    "precision_pass": true,
+    "coverage_threshold": 0.75,
+    "coverage_pass": false,
+    "evidence_all_heights": true
+  },
+  "tests": {
+    "command": "CUDA_VISIBLE_DEVICES=\"\" PYTHONPATH=.:src OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 python -m pytest -q experiments/front_rgbd_memory/test_geometry.py",
+    "passed": 11,
+    "exit_code": 0,
+    "elapsed_s": 1.46,
+    "source_manifest_sha256": "ae49aa375e8702069bb4a4dc732e0eec6fe330d527a24ba0c4d197335d9b8ca4",
+    "environment": "remote existing interface-smoke Python 3.10.12; no GPU"
+  },
+  "independent_review": {
+    "model": "gpt-5.6-sol",
+    "effort": "high",
+    "actual_runtime_metadata_verified": true,
+    "pre_run_source_v4": "limited-static-pass",
+    "post_run_results": "limited-pass-valid-execution-precision-positive-coverage-negative"
+  },
+  "resources": {
+    "gpu_process_wall_s": 23.241862871000194,
+    "runner_internal_s": 19.58789889500622,
+    "gpu_exit_code": 0,
+    "gpu_attempts": 1,
+    "current_gpu_limit_s": 300,
+    "previous_gpu_s": 295.5409204219941,
+    "combined_gpu_s": 318.7827832929943,
+    "combined_gpu_limit_s": 900,
+    "artifact_dual_copy_bytes_approx": 191100000,
+    "artifact_current_limit_bytes": 200000000
+  },
+  "transfer": {
+    "files_verified": 342,
+    "verified_bytes": 94334671,
+    "errors": [],
+    "method": "remote SHA256 and byte counts independently verified against local copied files"
+  },
+  "limitations": [
+    "Known 4cm red cube with three sufficiently visible faces; not arbitrary shapes or full 6D pose.",
+    "Ideal rendered depth and simulator calibration; no physical precision claim.",
+    "Three frames per view are correlated; 24 scenes, not 192 independent trials.",
+    "Heuristic covariance is uncalibrated; no D049 qualification.",
+    "Fixed hold and prescribed camera relocation only; no learned active observation, Qwen, Action Expert, training or manipulation success.",
+    "Six uninitialized episodes excluded from hold and expiry success denominators."
+  ]
+}
