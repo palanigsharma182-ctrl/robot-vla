@@ -240,6 +240,16 @@ class RecedingHorizonChunkExecutor:
                     applied_correction_abs_max_rad=applied_correction_abs_max_rad,
                 )
             try:
+                interrupt = getattr(controller, "should_interrupt_before_action", None)
+                if interrupt is not None and interrupt(controller_action):
+                    # 尚未发送该步，时钟和 executed_steps 均不能增加。
+                    self.reset()
+                    return ChunkExecutionResult(
+                        success=True, executed_steps=executed_steps, interrupted=True,
+                        correction_saturation_steps=correction_saturation_steps,
+                        requested_correction_abs_max_rad=requested_correction_abs_max_rad,
+                        applied_correction_abs_max_rad=applied_correction_abs_max_rad,
+                    )
                 controller.send_action(controller_action)
             except Exception as error:  # noqa: BLE001 - 控制器错误必须停止当前 Chunk
                 return self.stop_for_failure(

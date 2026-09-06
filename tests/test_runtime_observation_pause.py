@@ -210,3 +210,35 @@ def test_development_controllers_stop_on_first_terminal_step(terminal_kind, paus
     with pytest.raises(RuntimeError, match='已终止'):
         controller.send_action(np.zeros(8, np.float32))
     assert env.calls == 1
+
+
+@pytest.mark.parametrize('strategy', ['temporal-ensemble', 'rtc', 'newest-only'])
+def test_context_invalidation_clears_old_actions_without_restarting_episode(strategy):
+    loop, runtime, controller = setup(strategy)
+    loop._consecutive_anomaly_replans = 2
+    loop.clear_action_history()
+    assert loop.control_step == 4 and not loop.observation_paused
+    assert loop._consecutive_anomaly_replans == 2
+    assert loop.executor.previous_command_q is None and loop.executor.previous_action is None
+    result = loop.replan_and_execute(object(), controller)
+    assert result.sampling.sample_index == 1 and loop.control_step == 8
+    if strategy == 'rtc':
+        assert runtime.calls[-1][1]['rtc_previous_overlap'] is None
+    if strategy == 'temporal-ensemble':
+        assert result.ensemble_trace.buffer_size == 1
+    pause = loop.pause_for_observation()
+    loop.clear_action_history()
+    assert loop._observation_pause is pause
+    with pytest.raises(RuntimeError, match='暂停期间'):
+        loop.replan_and_execute(object(), controller)
+
+
+@pytest.mark.parametrize('stop_after', [0, 2])
+def test_pre_send_veto_does_not_send_or_count_the_rejected_action(stop_after):
+    controller = Controller()
+    controller.should_interrupt_before_action = lambda action: len(controller.actions) == stop_after
+    loop = QwenVLAReplanLoop(Runtime(), RecedingHorizonChunkExecutor(RobotSpec()))
+    result = loop.replan_and_execute(object(), controller)
+    assert result.execution.interrupted and result.execution.success
+    assert result.execution.executed_steps == loop.control_step == len(controller.actions) == stop_after
+    assert controller.holds == 0 and loop.executor.previous_command_q is None

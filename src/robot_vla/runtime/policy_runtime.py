@@ -150,6 +150,13 @@ class QwenVLARuntime:
         self._last_sampling_trace = trace
         return trace
 
+    def _prepare_model_inputs(self, observation: OnlineObservation):
+        """编码本次 V1 观测；实验子类可添加本次调用的显式条件。"""
+        processed = self.processor_adapter.encode(
+            observation.rgb_external, observation.rgb_wrist, observation.instruction,
+        )
+        return processed, _move_model_inputs(processed.model_inputs, self.device)
+
     @torch.no_grad()
     def infer_action_chunk(
         self,
@@ -164,12 +171,7 @@ class QwenVLARuntime:
             self.spec,
         )
         normalized_proprio = self.proprio_normalizer.normalize(physical_proprio)
-        processed = self.processor_adapter.encode(
-            observation.rgb_external,
-            observation.rgb_wrist,
-            observation.instruction,
-        )
-        model_inputs = _move_model_inputs(processed.model_inputs, self.device)
+        processed, model_inputs = self._prepare_model_inputs(observation)
         proprio_tensor = torch.from_numpy(normalized_proprio).unsqueeze(0).to(self.device)
         generator = torch.Generator(device=self.device)
         generator.manual_seed(sampling.seed)

@@ -1,0 +1,1088 @@
+{
+  "schema": "memory-reobserve-development-summary/v1",
+  "status": "complete",
+  "source_results": {
+    "training_sha256": "5c1e5192f923c4b8bcb53ed0b5b82badf7f33056e152e4c55f08ec210fe7bc82",
+    "evaluation_sha256": "177c2ab5b850fea350c6451267cf2449b67f1f5585396885ed6dea66a7742d2a"
+  },
+  "data_coverage": {
+    "train": {
+      "available": 27,
+      "unavailable": 83,
+      "transition_seeds": [
+        1010102,
+        1010118,
+        1010120
+      ],
+      "invalidation_reasons": {
+        "memory_uninitialized": 76,
+        "memory_not_valid_free_static": 76,
+        "source_camera_mismatch": 76,
+        "source_model_identity_mismatch": 76,
+        "geometry_missing": 76,
+        "memory_stale": 7
+      }
+    },
+    "development": {
+      "available": 8,
+      "unavailable": 23,
+      "transition_seeds": [
+        1010126,
+        1010130
+      ],
+      "invalidation_reasons": {
+        "memory_uninitialized": 16,
+        "memory_not_valid_free_static": 16,
+        "source_camera_mismatch": 16,
+        "source_model_identity_mismatch": 16,
+        "geometry_missing": 16,
+        "memory_stale": 7
+      }
+    }
+  },
+  "training_identity_sha256": "5e0779025f5d406b4d90773c1de118b9a5b5f5450c0c167e2ad1ec4f349514cd",
+  "train_conditions": {
+    "visual": {
+      "scene_mean_flow_mse": 0.0121522411334029,
+      "scene_flow_mse": {
+        "1010124": 0.006294436985626817,
+        "1010125": 0.009861242375336587,
+        "1010126": 0.011251410935074091,
+        "1010127": 0.01364353229291737,
+        "1010128": 0.009233910124748945,
+        "1010129": 0.02041935408487916,
+        "1010130": 0.012170042011088558,
+        "1010131": 0.01434400025755167
+      },
+      "masked_scene_mean_flow_mse": 0.0121522411334029,
+      "available_anchor_flow_mse": 0.014658954460173845,
+      "checkpoint_sha256": "d45d5303c4e486a7a0829c038bd37ef45df9576b9ff571a31ff4330321bddd89",
+      "steps": 1024
+    },
+    "memory": {
+      "scene_mean_flow_mse": 0.012180056951495186,
+      "scene_flow_mse": {
+        "1010124": 0.0060538058169186115,
+        "1010125": 0.009762563946424052,
+        "1010126": 0.011380254407413304,
+        "1010127": 0.013974469620734453,
+        "1010128": 0.00941091903951019,
+        "1010129": 0.020437445491552353,
+        "1010130": 0.012210749156240906,
+        "1010131": 0.014210248133167624
+      },
+      "masked_scene_mean_flow_mse": 0.012179991585677877,
+      "available_anchor_flow_mse": 0.014678530482342467,
+      "checkpoint_sha256": "1940554e0216e46e9ebcce6d7caeb8b0be93ae4ae5d60afa7d74beb19794bfcc",
+      "steps": 1024
+    }
+  },
+  "training_exposure": {
+    "d0/unavailable:d0-no-memory-history": 3072,
+    "g2c-sequence/unavailable:memory_uninitialized,memory_not_valid_free_static,source_camera_mismatch,source_model_identity_mismatch,geometry_missing": 690,
+    "g2c-sequence/unavailable:memory_stale": 72,
+    "g2c-sequence/token-on": 182,
+    "g2c-sequence/dropout": 80
+  },
+  "effective_memory_fraction": 0.04443359375,
+  "evaluation_protocol": {
+    "seeds": [
+      1010200,
+      1010201,
+      1010202,
+      1010203
+    ],
+    "cases": [
+      [
+        "reach",
+        0,
+        1,
+        160
+      ],
+      [
+        "grasp",
+        1,
+        2,
+        160
+      ],
+      [
+        "lift",
+        2,
+        3,
+        160
+      ],
+      [
+        "transport",
+        3,
+        4,
+        160
+      ],
+      [
+        "place",
+        4,
+        5,
+        160
+      ],
+      [
+        "reach+grasp",
+        0,
+        2,
+        240
+      ],
+      [
+        "grasp+lift",
+        1,
+        3,
+        240
+      ],
+      [
+        "lift+transport",
+        2,
+        4,
+        240
+      ],
+      [
+        "transport+place",
+        3,
+        5,
+        240
+      ],
+      [
+        "full-task",
+        0,
+        5,
+        400
+      ]
+    ],
+    "conditions": [
+      "visual",
+      "fixed",
+      "evidence"
+    ],
+    "home_cue_threshold": 0.6123920381069183,
+    "cue_scope": "unqualified HOME score candidate AND qualified wrist absent; not a qualified 3D measurement",
+    "cue_threshold_origin": "fixed development candidate borrowed from existing write-score value, not calibrated request threshold",
+    "maximum_process_seconds": 2600,
+    "attempts_per_episode": 1,
+    "return_steps": 10,
+    "visual_fallback": true,
+    "selection": "report all; no checkpoint/seed replacement",
+    "interpretation": "initial three real HOME ticks; no learned request head or repeated refresh; development only",
+    "atomic_scope": "expert preparation only at start; no teacher actions or reset between paired skills"
+  },
+  "evaluation_states": {
+    "completed": 120
+  },
+  "unique_evaluation_scenes": 4,
+  "execution_errors": [],
+  "memory_effect_evidence": "inconclusive-no-memory-consumption",
+  "observation_outcomes": [
+    {
+      "case": "reach",
+      "seed": 1010200,
+      "condition": "fixed",
+      "memory_write_count": 0,
+      "rejection_reasons": [
+        "information_gain_below_threshold"
+      ],
+      "information_gain": 0.011936306953430176,
+      "minimum_score": 0.6274988651275635
+    },
+    {
+      "case": "reach",
+      "seed": 1010201,
+      "condition": "fixed",
+      "memory_write_count": 0,
+      "rejection_reasons": [
+        "information_gain_below_threshold"
+      ],
+      "information_gain": 0.010268211364746094,
+      "minimum_score": 0.6268900632858276
+    },
+    {
+      "case": "reach",
+      "seed": 1010202,
+      "condition": "fixed",
+      "memory_write_count": 0,
+      "rejection_reasons": [
+        "information_gain_below_threshold"
+      ],
+      "information_gain": 0.007327556610107422,
+      "minimum_score": 0.6207306385040283
+    },
+    {
+      "case": "reach",
+      "seed": 1010203,
+      "condition": "fixed",
+      "memory_write_count": 0,
+      "rejection_reasons": [
+        "information_gain_below_threshold"
+      ],
+      "information_gain": 0.0013656914234161377,
+      "minimum_score": 0.6259164810180664
+    },
+    {
+      "case": "reach+grasp",
+      "seed": 1010200,
+      "condition": "fixed",
+      "memory_write_count": 0,
+      "rejection_reasons": [
+        "information_gain_below_threshold"
+      ],
+      "information_gain": 0.011936306953430176,
+      "minimum_score": 0.6274988651275635
+    },
+    {
+      "case": "reach+grasp",
+      "seed": 1010201,
+      "condition": "fixed",
+      "memory_write_count": 0,
+      "rejection_reasons": [
+        "information_gain_below_threshold"
+      ],
+      "information_gain": 0.010268211364746094,
+      "minimum_score": 0.6268900632858276
+    },
+    {
+      "case": "reach+grasp",
+      "seed": 1010202,
+      "condition": "fixed",
+      "memory_write_count": 0,
+      "rejection_reasons": [
+        "information_gain_below_threshold"
+      ],
+      "information_gain": 0.007327556610107422,
+      "minimum_score": 0.6207306385040283
+    },
+    {
+      "case": "reach+grasp",
+      "seed": 1010203,
+      "condition": "fixed",
+      "memory_write_count": 0,
+      "rejection_reasons": [
+        "information_gain_below_threshold"
+      ],
+      "information_gain": 0.0013656914234161377,
+      "minimum_score": 0.6259164810180664
+    },
+    {
+      "case": "full-task",
+      "seed": 1010200,
+      "condition": "fixed",
+      "memory_write_count": 0,
+      "rejection_reasons": [
+        "information_gain_below_threshold"
+      ],
+      "information_gain": 0.011936306953430176,
+      "minimum_score": 0.6274988651275635
+    },
+    {
+      "case": "full-task",
+      "seed": 1010201,
+      "condition": "fixed",
+      "memory_write_count": 0,
+      "rejection_reasons": [
+        "information_gain_below_threshold"
+      ],
+      "information_gain": 0.010268211364746094,
+      "minimum_score": 0.6268900632858276
+    },
+    {
+      "case": "full-task",
+      "seed": 1010202,
+      "condition": "fixed",
+      "memory_write_count": 0,
+      "rejection_reasons": [
+        "information_gain_below_threshold"
+      ],
+      "information_gain": 0.007327556610107422,
+      "minimum_score": 0.6207306385040283
+    },
+    {
+      "case": "full-task",
+      "seed": 1010203,
+      "condition": "fixed",
+      "memory_write_count": 0,
+      "rejection_reasons": [
+        "information_gain_below_threshold"
+      ],
+      "information_gain": 0.0013656914234161377,
+      "minimum_score": 0.6259164810180664
+    }
+  ],
+  "condition_overview": {
+    "visual": {
+      "completed": 40,
+      "requests": 0,
+      "memory_commits": 0,
+      "memory_inferences": 0,
+      "visual_inferences": 1279,
+      "cleanup_reasons": {}
+    },
+    "fixed": {
+      "completed": 40,
+      "requests": 12,
+      "memory_commits": 0,
+      "memory_inferences": 0,
+      "visual_inferences": 1304,
+      "cleanup_reasons": {}
+    },
+    "evidence": {
+      "completed": 40,
+      "requests": 0,
+      "memory_commits": 0,
+      "memory_inferences": 0,
+      "visual_inferences": 1304,
+      "cleanup_reasons": {}
+    }
+  },
+  "groups": {
+    "visual/reach": {
+      "planned": 4,
+      "completed": 4,
+      "success": 1,
+      "states": {
+        "completed": 4
+      },
+      "failures": {
+        "step-budget-exhausted": 3
+      },
+      "error_types": {},
+      "initial_skill_count": 0,
+      "target_skill_count": 1,
+      "first_skill_reached": 1,
+      "conditional_success_denominator": null,
+      "memory_inferences": 0,
+      "visual_inferences": 136,
+      "requests": 0,
+      "memory_commits": 0,
+      "policy_steps": 542,
+      "observation_prefix_steps": 20,
+      "final_skill_counts": {
+        "0": 3,
+        "1": 1
+      }
+    },
+    "visual/grasp": {
+      "planned": 4,
+      "completed": 4,
+      "success": 4,
+      "states": {
+        "completed": 4
+      },
+      "failures": {},
+      "error_types": {},
+      "initial_skill_count": 1,
+      "target_skill_count": 2,
+      "first_skill_reached": 4,
+      "conditional_success_denominator": null,
+      "memory_inferences": 0,
+      "visual_inferences": 4,
+      "requests": 0,
+      "memory_commits": 0,
+      "policy_steps": 13,
+      "observation_prefix_steps": 0,
+      "final_skill_counts": {
+        "2": 4
+      }
+    },
+    "visual/lift": {
+      "planned": 4,
+      "completed": 4,
+      "success": 4,
+      "states": {
+        "completed": 4
+      },
+      "failures": {},
+      "error_types": {},
+      "initial_skill_count": 2,
+      "target_skill_count": 3,
+      "first_skill_reached": 4,
+      "conditional_success_denominator": null,
+      "memory_inferences": 0,
+      "visual_inferences": 22,
+      "requests": 0,
+      "memory_commits": 0,
+      "policy_steps": 83,
+      "observation_prefix_steps": 0,
+      "final_skill_counts": {
+        "3": 4
+      }
+    },
+    "visual/transport": {
+      "planned": 4,
+      "completed": 4,
+      "success": 2,
+      "states": {
+        "completed": 4
+      },
+      "failures": {
+        "step-budget-exhausted": 2
+      },
+      "error_types": {},
+      "initial_skill_count": 3,
+      "target_skill_count": 4,
+      "first_skill_reached": 2,
+      "conditional_success_denominator": null,
+      "memory_inferences": 0,
+      "visual_inferences": 112,
+      "requests": 0,
+      "memory_commits": 0,
+      "policy_steps": 440,
+      "observation_prefix_steps": 0,
+      "final_skill_counts": {
+        "4": 2,
+        "3": 2
+      }
+    },
+    "visual/place": {
+      "planned": 4,
+      "completed": 4,
+      "success": 4,
+      "states": {
+        "completed": 4
+      },
+      "failures": {},
+      "error_types": {},
+      "initial_skill_count": 4,
+      "target_skill_count": 5,
+      "first_skill_reached": 4,
+      "conditional_success_denominator": null,
+      "memory_inferences": 0,
+      "visual_inferences": 7,
+      "requests": 0,
+      "memory_commits": 0,
+      "policy_steps": 26,
+      "observation_prefix_steps": 0,
+      "final_skill_counts": {
+        "5": 4
+      }
+    },
+    "visual/reach+grasp": {
+      "planned": 4,
+      "completed": 4,
+      "success": 1,
+      "states": {
+        "completed": 4
+      },
+      "failures": {
+        "step-budget-exhausted": 3
+      },
+      "error_types": {},
+      "initial_skill_count": 0,
+      "target_skill_count": 2,
+      "first_skill_reached": 2,
+      "conditional_success_denominator": 2,
+      "memory_inferences": 0,
+      "visual_inferences": 205,
+      "requests": 0,
+      "memory_commits": 0,
+      "policy_steps": 820,
+      "observation_prefix_steps": 20,
+      "final_skill_counts": {
+        "1": 1,
+        "0": 2,
+        "2": 1
+      }
+    },
+    "visual/grasp+lift": {
+      "planned": 4,
+      "completed": 4,
+      "success": 4,
+      "states": {
+        "completed": 4
+      },
+      "failures": {},
+      "error_types": {},
+      "initial_skill_count": 1,
+      "target_skill_count": 3,
+      "first_skill_reached": 4,
+      "conditional_success_denominator": 4,
+      "memory_inferences": 0,
+      "visual_inferences": 24,
+      "requests": 0,
+      "memory_commits": 0,
+      "policy_steps": 89,
+      "observation_prefix_steps": 0,
+      "final_skill_counts": {
+        "3": 4
+      }
+    },
+    "visual/lift+transport": {
+      "planned": 4,
+      "completed": 4,
+      "success": 3,
+      "states": {
+        "completed": 4
+      },
+      "failures": {
+        "step-budget-exhausted": 1
+      },
+      "error_types": {},
+      "initial_skill_count": 2,
+      "target_skill_count": 4,
+      "first_skill_reached": 4,
+      "conditional_success_denominator": 4,
+      "memory_inferences": 0,
+      "visual_inferences": 150,
+      "requests": 0,
+      "memory_commits": 0,
+      "policy_steps": 593,
+      "observation_prefix_steps": 0,
+      "final_skill_counts": {
+        "3": 1,
+        "4": 3
+      }
+    },
+    "visual/transport+place": {
+      "planned": 4,
+      "completed": 4,
+      "success": 1,
+      "states": {
+        "completed": 4
+      },
+      "failures": {
+        "step-budget-exhausted": 3
+      },
+      "error_types": {},
+      "initial_skill_count": 3,
+      "target_skill_count": 5,
+      "first_skill_reached": 4,
+      "conditional_success_denominator": 4,
+      "memory_inferences": 0,
+      "visual_inferences": 219,
+      "requests": 0,
+      "memory_commits": 0,
+      "policy_steps": 871,
+      "observation_prefix_steps": 0,
+      "final_skill_counts": {
+        "4": 3,
+        "5": 1
+      }
+    },
+    "visual/full-task": {
+      "planned": 4,
+      "completed": 4,
+      "success": 0,
+      "states": {
+        "completed": 4
+      },
+      "failures": {
+        "step-budget-exhausted": 4
+      },
+      "error_types": {},
+      "initial_skill_count": 0,
+      "target_skill_count": 5,
+      "first_skill_reached": 3,
+      "conditional_success_denominator": null,
+      "memory_inferences": 0,
+      "visual_inferences": 400,
+      "requests": 0,
+      "memory_commits": 0,
+      "policy_steps": 1600,
+      "observation_prefix_steps": 20,
+      "final_skill_counts": {
+        "2": 2,
+        "1": 1,
+        "0": 1
+      }
+    },
+    "fixed/reach": {
+      "planned": 4,
+      "completed": 4,
+      "success": 1,
+      "states": {
+        "completed": 4
+      },
+      "failures": {
+        "step-budget-exhausted": 3
+      },
+      "error_types": {},
+      "initial_skill_count": 0,
+      "target_skill_count": 1,
+      "first_skill_reached": 1,
+      "conditional_success_denominator": null,
+      "memory_inferences": 0,
+      "visual_inferences": 135,
+      "requests": 4,
+      "memory_commits": 0,
+      "policy_steps": 540,
+      "observation_prefix_steps": 264,
+      "final_skill_counts": {
+        "0": 3,
+        "1": 1
+      }
+    },
+    "fixed/grasp": {
+      "planned": 4,
+      "completed": 4,
+      "success": 4,
+      "states": {
+        "completed": 4
+      },
+      "failures": {},
+      "error_types": {},
+      "initial_skill_count": 1,
+      "target_skill_count": 2,
+      "first_skill_reached": 4,
+      "conditional_success_denominator": null,
+      "memory_inferences": 0,
+      "visual_inferences": 4,
+      "requests": 0,
+      "memory_commits": 0,
+      "policy_steps": 13,
+      "observation_prefix_steps": 0,
+      "final_skill_counts": {
+        "2": 4
+      }
+    },
+    "fixed/lift": {
+      "planned": 4,
+      "completed": 4,
+      "success": 4,
+      "states": {
+        "completed": 4
+      },
+      "failures": {},
+      "error_types": {},
+      "initial_skill_count": 2,
+      "target_skill_count": 3,
+      "first_skill_reached": 4,
+      "conditional_success_denominator": null,
+      "memory_inferences": 0,
+      "visual_inferences": 22,
+      "requests": 0,
+      "memory_commits": 0,
+      "policy_steps": 82,
+      "observation_prefix_steps": 0,
+      "final_skill_counts": {
+        "3": 4
+      }
+    },
+    "fixed/transport": {
+      "planned": 4,
+      "completed": 4,
+      "success": 2,
+      "states": {
+        "completed": 4
+      },
+      "failures": {
+        "step-budget-exhausted": 2
+      },
+      "error_types": {},
+      "initial_skill_count": 3,
+      "target_skill_count": 4,
+      "first_skill_reached": 2,
+      "conditional_success_denominator": null,
+      "memory_inferences": 0,
+      "visual_inferences": 111,
+      "requests": 0,
+      "memory_commits": 0,
+      "policy_steps": 440,
+      "observation_prefix_steps": 0,
+      "final_skill_counts": {
+        "4": 2,
+        "3": 2
+      }
+    },
+    "fixed/place": {
+      "planned": 4,
+      "completed": 4,
+      "success": 4,
+      "states": {
+        "completed": 4
+      },
+      "failures": {},
+      "error_types": {},
+      "initial_skill_count": 4,
+      "target_skill_count": 5,
+      "first_skill_reached": 4,
+      "conditional_success_denominator": null,
+      "memory_inferences": 0,
+      "visual_inferences": 6,
+      "requests": 0,
+      "memory_commits": 0,
+      "policy_steps": 20,
+      "observation_prefix_steps": 0,
+      "final_skill_counts": {
+        "5": 4
+      }
+    },
+    "fixed/reach+grasp": {
+      "planned": 4,
+      "completed": 4,
+      "success": 1,
+      "states": {
+        "completed": 4
+      },
+      "failures": {
+        "step-budget-exhausted": 3
+      },
+      "error_types": {},
+      "initial_skill_count": 0,
+      "target_skill_count": 2,
+      "first_skill_reached": 2,
+      "conditional_success_denominator": 2,
+      "memory_inferences": 0,
+      "visual_inferences": 219,
+      "requests": 4,
+      "memory_commits": 0,
+      "policy_steps": 875,
+      "observation_prefix_steps": 264,
+      "final_skill_counts": {
+        "0": 2,
+        "1": 1,
+        "2": 1
+      }
+    },
+    "fixed/grasp+lift": {
+      "planned": 4,
+      "completed": 4,
+      "success": 4,
+      "states": {
+        "completed": 4
+      },
+      "failures": {},
+      "error_types": {},
+      "initial_skill_count": 1,
+      "target_skill_count": 3,
+      "first_skill_reached": 4,
+      "conditional_success_denominator": 4,
+      "memory_inferences": 0,
+      "visual_inferences": 24,
+      "requests": 0,
+      "memory_commits": 0,
+      "policy_steps": 89,
+      "observation_prefix_steps": 0,
+      "final_skill_counts": {
+        "3": 4
+      }
+    },
+    "fixed/lift+transport": {
+      "planned": 4,
+      "completed": 4,
+      "success": 3,
+      "states": {
+        "completed": 4
+      },
+      "failures": {
+        "step-budget-exhausted": 1
+      },
+      "error_types": {},
+      "initial_skill_count": 2,
+      "target_skill_count": 4,
+      "first_skill_reached": 4,
+      "conditional_success_denominator": 4,
+      "memory_inferences": 0,
+      "visual_inferences": 141,
+      "requests": 0,
+      "memory_commits": 0,
+      "policy_steps": 558,
+      "observation_prefix_steps": 0,
+      "final_skill_counts": {
+        "4": 3,
+        "3": 1
+      }
+    },
+    "fixed/transport+place": {
+      "planned": 4,
+      "completed": 4,
+      "success": 0,
+      "states": {
+        "completed": 4
+      },
+      "failures": {
+        "step-budget-exhausted": 4
+      },
+      "error_types": {},
+      "initial_skill_count": 3,
+      "target_skill_count": 5,
+      "first_skill_reached": 4,
+      "conditional_success_denominator": 4,
+      "memory_inferences": 0,
+      "visual_inferences": 242,
+      "requests": 0,
+      "memory_commits": 0,
+      "policy_steps": 960,
+      "observation_prefix_steps": 0,
+      "final_skill_counts": {
+        "4": 4
+      }
+    },
+    "fixed/full-task": {
+      "planned": 4,
+      "completed": 4,
+      "success": 0,
+      "states": {
+        "completed": 4
+      },
+      "failures": {
+        "step-budget-exhausted": 4
+      },
+      "error_types": {},
+      "initial_skill_count": 0,
+      "target_skill_count": 5,
+      "first_skill_reached": 2,
+      "conditional_success_denominator": null,
+      "memory_inferences": 0,
+      "visual_inferences": 400,
+      "requests": 4,
+      "memory_commits": 0,
+      "policy_steps": 1600,
+      "observation_prefix_steps": 264,
+      "final_skill_counts": {
+        "0": 2,
+        "2": 2
+      }
+    },
+    "evidence/reach": {
+      "planned": 4,
+      "completed": 4,
+      "success": 1,
+      "states": {
+        "completed": 4
+      },
+      "failures": {
+        "step-budget-exhausted": 3
+      },
+      "error_types": {},
+      "initial_skill_count": 0,
+      "target_skill_count": 1,
+      "first_skill_reached": 1,
+      "conditional_success_denominator": null,
+      "memory_inferences": 0,
+      "visual_inferences": 135,
+      "requests": 0,
+      "memory_commits": 0,
+      "policy_steps": 540,
+      "observation_prefix_steps": 20,
+      "final_skill_counts": {
+        "0": 3,
+        "1": 1
+      }
+    },
+    "evidence/grasp": {
+      "planned": 4,
+      "completed": 4,
+      "success": 4,
+      "states": {
+        "completed": 4
+      },
+      "failures": {},
+      "error_types": {},
+      "initial_skill_count": 1,
+      "target_skill_count": 2,
+      "first_skill_reached": 4,
+      "conditional_success_denominator": null,
+      "memory_inferences": 0,
+      "visual_inferences": 4,
+      "requests": 0,
+      "memory_commits": 0,
+      "policy_steps": 13,
+      "observation_prefix_steps": 0,
+      "final_skill_counts": {
+        "2": 4
+      }
+    },
+    "evidence/lift": {
+      "planned": 4,
+      "completed": 4,
+      "success": 4,
+      "states": {
+        "completed": 4
+      },
+      "failures": {},
+      "error_types": {},
+      "initial_skill_count": 2,
+      "target_skill_count": 3,
+      "first_skill_reached": 4,
+      "conditional_success_denominator": null,
+      "memory_inferences": 0,
+      "visual_inferences": 22,
+      "requests": 0,
+      "memory_commits": 0,
+      "policy_steps": 82,
+      "observation_prefix_steps": 0,
+      "final_skill_counts": {
+        "3": 4
+      }
+    },
+    "evidence/transport": {
+      "planned": 4,
+      "completed": 4,
+      "success": 2,
+      "states": {
+        "completed": 4
+      },
+      "failures": {
+        "step-budget-exhausted": 2
+      },
+      "error_types": {},
+      "initial_skill_count": 3,
+      "target_skill_count": 4,
+      "first_skill_reached": 2,
+      "conditional_success_denominator": null,
+      "memory_inferences": 0,
+      "visual_inferences": 111,
+      "requests": 0,
+      "memory_commits": 0,
+      "policy_steps": 440,
+      "observation_prefix_steps": 0,
+      "final_skill_counts": {
+        "4": 2,
+        "3": 2
+      }
+    },
+    "evidence/place": {
+      "planned": 4,
+      "completed": 4,
+      "success": 4,
+      "states": {
+        "completed": 4
+      },
+      "failures": {},
+      "error_types": {},
+      "initial_skill_count": 4,
+      "target_skill_count": 5,
+      "first_skill_reached": 4,
+      "conditional_success_denominator": null,
+      "memory_inferences": 0,
+      "visual_inferences": 6,
+      "requests": 0,
+      "memory_commits": 0,
+      "policy_steps": 20,
+      "observation_prefix_steps": 0,
+      "final_skill_counts": {
+        "5": 4
+      }
+    },
+    "evidence/reach+grasp": {
+      "planned": 4,
+      "completed": 4,
+      "success": 1,
+      "states": {
+        "completed": 4
+      },
+      "failures": {
+        "step-budget-exhausted": 3
+      },
+      "error_types": {},
+      "initial_skill_count": 0,
+      "target_skill_count": 2,
+      "first_skill_reached": 2,
+      "conditional_success_denominator": 2,
+      "memory_inferences": 0,
+      "visual_inferences": 219,
+      "requests": 0,
+      "memory_commits": 0,
+      "policy_steps": 875,
+      "observation_prefix_steps": 20,
+      "final_skill_counts": {
+        "0": 2,
+        "1": 1,
+        "2": 1
+      }
+    },
+    "evidence/grasp+lift": {
+      "planned": 4,
+      "completed": 4,
+      "success": 4,
+      "states": {
+        "completed": 4
+      },
+      "failures": {},
+      "error_types": {},
+      "initial_skill_count": 1,
+      "target_skill_count": 3,
+      "first_skill_reached": 4,
+      "conditional_success_denominator": 4,
+      "memory_inferences": 0,
+      "visual_inferences": 24,
+      "requests": 0,
+      "memory_commits": 0,
+      "policy_steps": 89,
+      "observation_prefix_steps": 0,
+      "final_skill_counts": {
+        "3": 4
+      }
+    },
+    "evidence/lift+transport": {
+      "planned": 4,
+      "completed": 4,
+      "success": 3,
+      "states": {
+        "completed": 4
+      },
+      "failures": {
+        "step-budget-exhausted": 1
+      },
+      "error_types": {},
+      "initial_skill_count": 2,
+      "target_skill_count": 4,
+      "first_skill_reached": 4,
+      "conditional_success_denominator": 4,
+      "memory_inferences": 0,
+      "visual_inferences": 141,
+      "requests": 0,
+      "memory_commits": 0,
+      "policy_steps": 558,
+      "observation_prefix_steps": 0,
+      "final_skill_counts": {
+        "4": 3,
+        "3": 1
+      }
+    },
+    "evidence/transport+place": {
+      "planned": 4,
+      "completed": 4,
+      "success": 0,
+      "states": {
+        "completed": 4
+      },
+      "failures": {
+        "step-budget-exhausted": 4
+      },
+      "error_types": {},
+      "initial_skill_count": 3,
+      "target_skill_count": 5,
+      "first_skill_reached": 4,
+      "conditional_success_denominator": 4,
+      "memory_inferences": 0,
+      "visual_inferences": 242,
+      "requests": 0,
+      "memory_commits": 0,
+      "policy_steps": 960,
+      "observation_prefix_steps": 0,
+      "final_skill_counts": {
+        "4": 4
+      }
+    },
+    "evidence/full-task": {
+      "planned": 4,
+      "completed": 4,
+      "success": 0,
+      "states": {
+        "completed": 4
+      },
+      "failures": {
+        "step-budget-exhausted": 4
+      },
+      "error_types": {},
+      "initial_skill_count": 0,
+      "target_skill_count": 5,
+      "first_skill_reached": 2,
+      "conditional_success_denominator": null,
+      "memory_inferences": 0,
+      "visual_inferences": 400,
+      "requests": 0,
+      "memory_commits": 0,
+      "policy_steps": 1600,
+      "observation_prefix_steps": 20,
+      "final_skill_counts": {
+        "0": 2,
+        "2": 2
+      }
+    }
+  },
+  "scope": "development only; four scenes per task/condition, no final-test/physical claim"
+}

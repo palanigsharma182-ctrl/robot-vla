@@ -126,6 +126,16 @@ class QwenVLAReplanLoop:
     def observation_paused(self) -> bool:
         return self._observation_pause is not None
 
+    def clear_action_history(self) -> None:
+        """在同步动作边界撤销旧规划；保留时钟、采样序列和既有观察暂停。
+
+        下一次执行必须重新推理。这里只清理动作上下文，不代表相机已返回 HOME，
+        也不解除暂停或重置异常重规划预算。
+        """
+        self.ensembler.clear()
+        self._rtc_previous_chunk = None
+        self.executor.reset()
+
     def pause_for_observation(self) -> ObservationPause:
         """在同步 Chunk 调用之间撤销动作历史，保留 Episode 时钟和采样序列。
 
@@ -144,9 +154,7 @@ class QwenVLAReplanLoop:
             self.executor.previous_command_q is not None,
         )
         self._observation_pause = pause
-        self.ensembler.clear()
-        self._rtc_previous_chunk = None
-        self.executor.reset()
+        self.clear_action_history()
         self._consecutive_anomaly_replans = 0
         return pause
 

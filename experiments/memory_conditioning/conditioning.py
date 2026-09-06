@@ -155,6 +155,10 @@ class MemoryConditionedPolicy(QwenVLAPolicy):
         inputs = dict(model_inputs)
         memory = inputs.pop(MEMORY_INPUT_KEY, None)
         context = super().encode_context(inputs)
+        return self.condition_context(context, memory)
+
+    def condition_context(self, context, memory):
+        """冻结 Qwen/Adapter 缓存与在线编码共用同一 Memory 拼接路径。"""
         if memory is None:
             return context
         if not isinstance(memory, MemoryBatch):

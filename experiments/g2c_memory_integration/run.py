@@ -65,7 +65,8 @@ class DevelopmentController(ManiSkillFrankaController):
 
 def run(bundle: Path, output: Path, *, case: str = "new-scene",
         vla_runtime: QwenVLARuntime | None = None,
-        development_seed: int | None = None, after_commit=None) -> dict:
+        development_seed: int | None = None, after_commit=None, memory_session=None,
+        acquisition=None, environment=None) -> dict:
     import gymnasium as gym
     import sapien
     from mani_skill.utils import sapien_utils
@@ -76,6 +77,18 @@ def run(bundle: Path, output: Path, *, case: str = "new-scene",
     if case not in cases:
         raise ValueError("只允许本轮固定开发样例，不开放 selection/final-test seed")
     seed = cases[case]
+    if environment is not None and acquisition is None:
+        raise ValueError('借用环境仅用于显式隔离采集/开发消费者')
+    if acquisition is not None:
+        from experiments.memory_reobserve.protocol import Acquisition
+        if not isinstance(acquisition, Acquisition) or any(x is not None for x in
+                (development_seed, after_commit, memory_session, vla_runtime)):
+            raise ValueError('新采集协议不能与旧采集或策略执行入口混用')
+        seed = acquisition.seed
+    if memory_session is not None:
+        if development_seed is not None or after_commit is not None or vla_runtime is not None:
+            raise ValueError('Memory Runtime 工程验收不能混用旧采集/执行入口')
+        seed, vla_runtime = memory_session.seed, memory_session.runtime
     if development_seed is not None:
         if development_seed not in range(1000100, 1000112):
             raise ValueError("Memory 小试仅允许冻结的十二个 development seeds")
@@ -93,6 +106,11 @@ def run(bundle: Path, output: Path, *, case: str = "new-scene",
     episode = f"g2c-main-engineering-{seed}"
     transaction.reset_episode(episode, episode_generation=1)
     request_id = episode+"-request"
+    if acquisition is not None and hasattr(acquisition, 'decide_request'):
+        request_id = episode+'-active-front-01'
+    if memory_session is not None:
+        memory_session.reset(episode)
+        request_id = episode+'-active-front-01'
     # 本 smoke 从未加载 VLA；这里验证实际为空的缓存失效，不冒充非空策略缓存验收。
     executor = RecedingHorizonChunkExecutor(spec)
     ensembler = TemporalChunkEnsembler(spec)
@@ -103,7 +121,7 @@ def run(bundle: Path, output: Path, *, case: str = "new-scene",
     pause = None
     pending_action = rtc_overlap = None
     home_history = ObservationV2History(spec)
-    env = gym.make("RobotVLAPickCubeToRegion-v1", robot_uids="panda_wristcam", num_envs=1,
+    env = environment if environment is not None else gym.make("RobotVLAPickCubeToRegion-v1", robot_uids="panda_wristcam", num_envs=1,
         obs_mode="rgb", control_mode="pd_joint_delta_pos", sim_backend="cpu", render_backend="gpu",
         sensor_configs={"width":128, "height":128})
     rows = []
@@ -120,6 +138,8 @@ def run(bundle: Path, output: Path, *, case: str = "new-scene",
 
     def record_vla(result, label):
         vla_records.append(dict(stage=label, execution=asdict(result.execution),
+            conditioning=('memory' if memory_session is not None and memory_session.snapshot.available
+                          else 'visual-only'),
             sampling=None if result.sampling is None else asdict(result.sampling),
             action_sha256=None if result.action_chunk is None else array_sha256(result.action_chunk.normalized_action),
             ensemble_buffer=None if result.ensemble_trace is None else result.ensemble_trace.buffer_size,
@@ -131,7 +151,7 @@ def run(bundle: Path, output: Path, *, case: str = "new-scene",
             if bool(terminated.item()) or bool(truncated.item()):
                 raise RuntimeError(f"VLA {label} 时场景已经终止")
 
-    def sample(position, pitch_angle, motion, primitive, *, settled=False):
+    def sample(position, pitch_angle, motion, primitive, *, settled=False, stabilizing=False):
         nonlocal tick
         base = env.unwrapped
         nominal = sapien_utils.look_at(position, target)
@@ -158,8 +178,10 @@ def run(bundle: Path, output: Path, *, case: str = "new-scene",
         arm_drift = 0. if baseline_q is None else float(np.max(np.abs(qpos[:7]-baseline_q)))
         tcp_drift = 0. if baseline_tcp is None else float(np.linalg.norm(frame.base_from_tcp[:3,3]-baseline_tcp[:3,3]))
         tcp_angle = 0. if baseline_tcp is None else rotation_angular_distance_rad(frame.base_from_tcp[:3,:3], baseline_tcp[:3,:3])
-        active = ActiveFrontSafetyEvidence(arm_hold_pass=arm_drift<=1e-5+1e-12,
-            tcp_hold_pass=bool(tcp_drift<=1e-5+1e-12 and tcp_angle<=1e-4+1e-12),
+        # 暂停后的制动阶段单独记录有界漂移；只有稳定后才开始冻结相机路线。
+        arm_limit, tcp_limit, angle_limit = (.05, .02, .1) if stabilizing else (1e-5, 1e-5, 1e-4)
+        active = ActiveFrontSafetyEvidence(arm_hold_pass=arm_drift<=arm_limit+1e-12,
+            tcp_hold_pass=bool(tcp_drift<=tcp_limit+1e-12 and tcp_angle<=angle_limit+1e-12),
             gripper_open_hold_pass=bool(np.min(qpos[7:])>=.039-1e-12),
             contact_absent=bool(np.max(frame.finger_force_n)<=.01+1e-12), active_window_open=True)
         safety = ObjectMemorySafetyContext(True, active.gripper_open_hold_pass,
@@ -169,6 +191,7 @@ def run(bundle: Path, output: Path, *, case: str = "new-scene",
             rgb_timestamp_s=sidecar.rgb_timestamp_s, camera_pose_timestamp_s=sidecar.camera_pose_timestamp_s,
             base_from_external_camera_cv=sidecar.base_from_external_camera_cv.tolist(),
             hold_reference_available=baseline_q is not None and baseline_tcp is not None,
+            stabilizing=stabilizing, drift_limits=(arm_limit, tcp_limit, angle_limit),
             arm_drift_rad=None if baseline_q is None else arm_drift,
             tcp_drift_m=None if baseline_tcp is None else tcp_drift,
             tcp_drift_rad=None if baseline_tcp is None else tcp_angle,
@@ -190,21 +213,47 @@ def run(bundle: Path, output: Path, *, case: str = "new-scene",
         return result
 
     try:
-        env.reset(seed=seed)
-        for _ in range(5):
+        if environment is None:
+            env.reset(seed=seed)
+        home_evidence = []
+        for initial_step in range(5):
             frame, sidecar, safety, active = sample(home_position, 0., Motion.HOME_ANCHOR, HOME, settled=True)
+            if acquisition is not None and hasattr(acquisition, 'decide_request') and initial_step==1:
+                baseline_q=frame.physical_proprio[:7].copy()
+                baseline_tcp=frame.base_from_tcp.copy()
+            if acquisition is not None and hasattr(acquisition, 'decide_request') and initial_step>=2:
+                _check_camera_geometry(sidecar.intrinsic_cv,sidecar.base_from_external_camera_cv,
+                    *provider.bundle_verification['camera_constraints'][HOME])
+                home_evidence.append((infer(frame, sidecar, safety),active.failure() is None))
         baseline_q = env.unwrapped.agent.robot.get_qpos().detach().cpu().numpy()[0,:7].copy()
         baseline_tcp = frame.base_from_tcp.copy()
-        home = infer(frame, sidecar, safety)
+        home = home_evidence[-1][0] if home_evidence else infer(frame, sidecar, safety)
         baseline_timestamp = frame.timestamp_s
+        if home_evidence and not acquisition.decide_request(home_evidence):
+            capture = acquisition.capture(env=env, frame=frame, memory=memory,
+                safety=safety, episode=episode, tick=tick, output=output)
+            result = dict(status='development-no-observation-request',seed=seed,capture=capture,
+                memory_write_count=0,provider_forward_count=provider.forward_count,
+                request_evidence=acquisition.request_records,independent_effect_evidence=False)
+            (output/'result.json').write_text(json.dumps(result,indent=2)+'\n')
+            return result
         if loop is not None:
+            if memory_session is not None:
+                from experiments.memory_reobserve.controller import MemoryDevelopmentController
+                controller = MemoryDevelopmentController(env, spec, session=memory_session,
+                    memory=memory, initial_frame=frame, initial_tick=tick,
+                    home_sidecar=sidecar, home_constraints=provider.bundle_verification["camera_constraints"][HOME])
+                memory_session.bind(frame, memory, 'pick the cube and place it in the target region', safety=safety)
+            else:
+                controller = DevelopmentController(env, spec, pause_after_steps=2)
             # 执行真实策略的前两步后，在现有 executor 的控制步边界中断。
-            controller = DevelopmentController(env, spec, pause_after_steps=2)
             loop.control_step = tick
             before = loop.replan_and_execute(OnlineObservation(frame.rgb_external,
                 frame.rgb_wrist, frame.physical_proprio, "pick the cube and place it in the target region"), controller)
             record_vla(before, "before-pause")
-            if not before.execution.interrupted or before.execution.executed_steps != 2:
+            if memory_session is not None and memory_session.request is None:
+                raise RuntimeError('真实控制帧未形成观察请求；停止本工程场景，不伪造触发原因')
+            if not before.execution.interrupted or (memory_session is None and before.execution.executed_steps != 2):
                 raise RuntimeError("未在指定控制步边界中断")
             tick = loop.control_step
             pause = loop.pause_for_observation()
@@ -214,9 +263,14 @@ def run(bundle: Path, output: Path, *, case: str = "new-scene",
             if controller.read_state().gripper_opening < .975:
                 raise RuntimeError("暂停时夹爪不满足既有 hold-open 条件")
             trigger_tick, trigger_timestamp = tick, tick / spec.control_hz
-            baseline_q = baseline_tcp = None
+            if memory_session is None:
+                baseline_q = baseline_tcp = None
+            else:
+                baseline_q = controller.frame.physical_proprio[:7].copy()
+                baseline_tcp = controller.frame.base_from_tcp.copy()
             for _ in range(20):
-                frame, sidecar, safety, active = sample(home_position, 0., Motion.HOME_ANCHOR, HOME, settled=True)
+                frame, sidecar, safety, active = sample(home_position, 0., Motion.HOME_ANCHOR, HOME,
+                    settled=True, stabilizing=memory_session is not None)
             baseline_q = env.unwrapped.agent.robot.get_qpos().detach().cpu().numpy()[0,:7].copy()
             baseline_tcp = frame.base_from_tcp.copy()
         else:
@@ -224,6 +278,10 @@ def run(bundle: Path, output: Path, *, case: str = "new-scene",
         wrist_absent_sha = canonical_sha256({"scope":"engineering-no-wrist-provider", "episode":episode})
         request = ActiveFrontReobserveRequest(episode, 1, request_id, phase, phase, trigger_tick,
             trigger_timestamp, ActiveFrontTriggerReason.NO_QUALIFIED_WRIST_PROVIDER_IN_PARENT, 1, PRIMARY, f"command-{trigger_tick}")
+        if memory_session is not None:
+            request = memory_session.request
+        if home_evidence:
+            request = acquisition.request
         baseline = PassiveBaselineEvidence(episode,1,request_id,baseline_timestamp,False,wrist_absent_sha,
             home,False,None,None)
         pending_action = rtc_overlap = None
@@ -234,6 +292,8 @@ def run(bundle: Path, output: Path, *, case: str = "new-scene",
             pending_action is None, ensembler.buffer_size==0, rtc_overlap is None,
             executor.previous_command_q is None and executor.previous_action is None)
         transaction.begin_collection(request, reset_receipt=reset, baseline=baseline)
+        if memory_session is not None:
+            memory_session.supervisor.begin(reset)
         for i, position in enumerate(sample_translation_path(home_position, alternate_position, steps=40)):
             sample(position, pitch*smootherstep((i+1)/40), Motion.MOVE_TO_VIEW, PRIMARY)
         for _ in range(4): sample(alternate_position, pitch, Motion.SETTLE_AT_VIEW, PRIMARY)
@@ -246,8 +306,10 @@ def run(bundle: Path, output: Path, *, case: str = "new-scene",
         candidate = transaction.pending_candidate
         transaction.mark_returning_home(timestamp_s=frame.timestamp_s,
             candidate_digest=None if candidate is None else candidate.digest)
-        for i, position in enumerate(sample_translation_path(alternate_position, home_position, steps=40)):
-            sample(position, pitch*(1-smootherstep((i+1)/40)), Motion.RETURN_HOME, HOME)
+        return_steps = (10 if acquisition is not None else
+                        40 if memory_session is None else memory_session.return_steps)
+        for i, position in enumerate(sample_translation_path(alternate_position, home_position, steps=return_steps)):
+            sample(position, pitch*(1-smootherstep((i+1)/return_steps)), Motion.RETURN_HOME, HOME)
         home_history.reset()
         for _ in range(4):
             frame, sidecar, safety, active = sample(home_position, 0., Motion.VERIFY_HOME_AND_ARM_HOLD, HOME, settled=True)
@@ -272,22 +334,41 @@ def run(bundle: Path, output: Path, *, case: str = "new-scene",
                             or transaction.memory_write_count != 0):
                         raise
         capture = None
+        if acquisition is not None:
+            capture = acquisition.capture(env=env, frame=frame, memory=memory,
+                safety=safety, episode=episode, tick=tick, output=output)
         if after_commit is not None and transaction.commit_receipt is not None:
             capture = after_commit(env=env, frame=frame, memory=memory,
                 safety=safety, episode=episode, tick=tick, output=output)
         if loop is not None and transaction.commit_receipt is not None:
+            if memory_session is not None:
+                controller.resume_frame(frame, tick)
+                memory_session.bind(frame, memory, window.instruction, safety=safety)
             # HOME 的实际几何、四帧和 source recheck 已在上方通过；Memory 不进入 VLA 输入。
             resumed = loop.resume_after_observation(pause, window, controller)
             record_vla(resumed, "after-home-fresh-replan")
             tick = loop.control_step
             if resumed.ensemble_trace.buffer_size != 1:
                 raise RuntimeError("恢复推理混入了暂停前的旧动作")
-            observation = controller.last_step_output[0]
-            latest = _read_observation_v2_frame(observation, env.unwrapped, adapter, spec, control_step=tick)
-            continued = loop.replan_and_execute(OnlineObservation(latest.rgb_external,
-                latest.rgb_wrist, latest.physical_proprio, window.instruction), controller)
-            record_vla(continued, "continued-execution")
-            tick = loop.control_step
+            if memory_session is not None:
+                memory_session.cleanup_after_execution(loop)
+            post_replans = 2 if memory_session is None else memory_session.post_replans
+            for index in range(post_replans - 1):
+                if loop.observation_paused:
+                    break
+                if memory_session is not None:
+                    controller.prepare_visual_replan(loop)
+                    tick = loop.control_step
+                observation = controller.last_step_output[0]
+                latest = _read_observation_v2_frame(observation, env.unwrapped, adapter, spec, control_step=tick)
+                if memory_session is not None:
+                    memory_session.bind(latest, memory, window.instruction)
+                continued = loop.replan_and_execute(OnlineObservation(latest.rgb_external,
+                    latest.rgb_wrist, latest.physical_proprio, window.instruction), controller)
+                record_vla(continued, "continued-execution")
+                tick = loop.control_step
+                if memory_session is not None:
+                    memory_session.cleanup_after_execution(loop)
         result = dict(status="engineering-smoke", case=case, seed=seed, capture=capture,
             independent_effect_evidence=False, state=transaction.state.value,
             memory_write_count=transaction.memory_write_count, provider_forward_count=provider.forward_count,
@@ -305,16 +386,28 @@ def run(bundle: Path, output: Path, *, case: str = "new-scene",
         (output/"result.json").write_text(json.dumps(result, indent=2)+"\n")
         return result
     except Exception as error:
+        if memory_session is not None and loop is not None:
+            memory_session.interruption_reason = memory_session.interruption_reason or "engineering-error"
+            if memory_session.interruption_reason == "capability-trigger":
+                memory_session.interruption_reason = "engineering-error-after-trigger"
+            memory_session.cleanup_after_execution(loop)
         (output/"result.json").write_text(json.dumps(dict(status="engineering-error", tick=tick,
             state=transaction.state.value, error_type=type(error).__name__, error=str(error),
             terminal_reasons=transaction.terminal_reasons, memory_write_count=transaction.memory_write_count,
             provider_forward_count=provider.forward_count), indent=2)+"\n")
         raise
     finally:
-        env.close()
+        if environment is None:
+            env.close()
         (output/"camera.jsonl").write_text("".join(json.dumps(r)+"\n" for r in rows))
         (output/"provider.jsonl").write_text("".join(json.dumps(r)+"\n" for r in frames))
         (output/"vla.jsonl").write_text("".join(json.dumps(r)+"\n" for r in vla_records))
+        if memory_session is not None:
+            (output/'memory-runtime.json').write_text(json.dumps(dict(
+                trigger=memory_session.trigger_records, reads=memory_session.runtime.memory_reads,
+                sends=memory_session.send_records, cleanup=memory_session.cleanup_records,
+                tracking=controller.tracking_records if "controller" in locals() else [],
+                camera_trigger=controller.camera_records if "controller" in locals() else []), indent=2)+'\n')
 
 
 if __name__ == "__main__":
