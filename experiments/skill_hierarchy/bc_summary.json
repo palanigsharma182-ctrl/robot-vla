@@ -1,0 +1,1306 @@
+{
+  "schema": "seven-skill-bc-public-summary/v1",
+  "date": "2026-09-08",
+  "status": "user_stopped_after_stage7",
+  "offline_converged": false,
+  "complete_task_evaluation": "not_run",
+  "completed_stages": 7,
+  "total_updates": 39662,
+  "active_seconds": 26414.397040997,
+  "total_window_exposures": 277634,
+  "data": {
+    "train_trajectories": 124,
+    "development_trajectories": 32,
+    "train_windows": 21706,
+    "development_windows": 5596,
+    "development_probe_windows": 224
+  },
+  "baseline": {
+    "windows": 224,
+    "scenes": 32,
+    "per_skill": {
+      "0": {
+        "translation_error_mm": 2.24666250142036,
+        "rotation_delta_error_deg": 0.38460494728038963,
+        "gripper_mae": 0.0030108303762972355,
+        "gripper_binary_accuracy": 1.0
+      },
+      "1": {
+        "translation_error_mm": 2.0865400874754414,
+        "rotation_delta_error_deg": 0.3180171141474629,
+        "gripper_mae": 0.0024824030697345734,
+        "gripper_binary_accuracy": 1.0
+      },
+      "2": {
+        "translation_error_mm": 1.100920978387876,
+        "rotation_delta_error_deg": 0.18652427555057033,
+        "gripper_mae": 0.005056919530034065,
+        "gripper_binary_accuracy": 1.0
+      },
+      "3": {
+        "translation_error_mm": 1.8904582684626803,
+        "rotation_delta_error_deg": 0.16731215236698785,
+        "gripper_mae": 0.0028184608090668917,
+        "gripper_binary_accuracy": 1.0
+      },
+      "4": {
+        "translation_error_mm": 2.3511125164077384,
+        "rotation_delta_error_deg": 0.19542824297109687,
+        "gripper_mae": 0.0016544950194656849,
+        "gripper_binary_accuracy": 1.0
+      },
+      "5": {
+        "translation_error_mm": 1.3984123961563455,
+        "rotation_delta_error_deg": 0.1926177164273008,
+        "gripper_mae": 0.04068499896675348,
+        "gripper_binary_accuracy": 0.9609375
+      },
+      "6": {
+        "translation_error_mm": 1.1592282444325974,
+        "rotation_delta_error_deg": 0.1949960321522502,
+        "gripper_mae": 0.044057901977794245,
+        "gripper_binary_accuracy": 0.96875
+      }
+    },
+    "macro": {
+      "translation_error_mm": 1.747619284677577,
+      "rotation_delta_error_deg": 0.23421435441372268,
+      "gripper_mae": 0.014252287107020882,
+      "gripper_binary_accuracy": 0.9899553571428571
+    }
+  },
+  "stages": [
+    {
+      "stage": 1,
+      "cumulative_updates": 5666,
+      "unique_training_windows": 21706,
+      "window_exposures": 39662,
+      "strict_reload": true,
+      "checkpoint_sha256": "04276aea37bcb964c2bfa2577562e53c2b1f14c56621453fb398281b98a7fb89",
+      "configuration_identity": "6d39215362541c0cf04190d55d3b07c87c2e6144736a071fb58e4c3aab6f71d9",
+      "development": {
+        "windows": 224,
+        "scenes": 32,
+        "per_skill": {
+          "0": {
+            "translation_error_mm": 1.7647908607614227,
+            "rotation_delta_error_deg": 0.33510848860665626,
+            "gripper_mae": 0.0009923698380589485,
+            "gripper_binary_accuracy": 1.0
+          },
+          "1": {
+            "translation_error_mm": 1.6270080723188585,
+            "rotation_delta_error_deg": 0.2594728524151503,
+            "gripper_mae": 8.12280923128128e-05,
+            "gripper_binary_accuracy": 1.0
+          },
+          "2": {
+            "translation_error_mm": 0.8304868078994332,
+            "rotation_delta_error_deg": 0.12828185250502613,
+            "gripper_mae": 0.01614931784570217,
+            "gripper_binary_accuracy": 0.984375
+          },
+          "3": {
+            "translation_error_mm": 1.7396961175109027,
+            "rotation_delta_error_deg": 0.0933176948649981,
+            "gripper_mae": 0.017113215988501906,
+            "gripper_binary_accuracy": 1.0
+          },
+          "4": {
+            "translation_error_mm": 1.7755060052877525,
+            "rotation_delta_error_deg": 0.1334544098127004,
+            "gripper_mae": 0.014318579342216253,
+            "gripper_binary_accuracy": 1.0
+          },
+          "5": {
+            "translation_error_mm": 1.0082745975523721,
+            "rotation_delta_error_deg": 0.16565093334215789,
+            "gripper_mae": 0.01448283507488668,
+            "gripper_binary_accuracy": 0.9921875
+          },
+          "6": {
+            "translation_error_mm": 0.3380858111086127,
+            "rotation_delta_error_deg": 0.09205798186543362,
+            "gripper_mae": 0.000468613114207983,
+            "gripper_binary_accuracy": 1.0
+          }
+        },
+        "macro": {
+          "translation_error_mm": 1.2976926103484792,
+          "rotation_delta_error_deg": 0.1724777447731604,
+          "gripper_mae": 0.00908659418512668,
+          "gripper_binary_accuracy": 0.9966517857142857
+        }
+      }
+    },
+    {
+      "stage": 2,
+      "cumulative_updates": 11332,
+      "unique_training_windows": 21706,
+      "window_exposures": 39662,
+      "strict_reload": true,
+      "checkpoint_sha256": "7568e4113f7beacd0b1d91f940fd28be94f9ee8d542f6b60035cc446d53558b0",
+      "configuration_identity": "5224ae1daf1317645cfca1bdd08a5468bacb34c240e3ad68925690b3558940bf",
+      "development": {
+        "windows": 224,
+        "scenes": 32,
+        "per_skill": {
+          "0": {
+            "translation_error_mm": 1.7292806796831428,
+            "rotation_delta_error_deg": 0.3620443622093214,
+            "gripper_mae": 0.005467686336487532,
+            "gripper_binary_accuracy": 1.0
+          },
+          "1": {
+            "translation_error_mm": 1.6670226341375383,
+            "rotation_delta_error_deg": 0.2810275351749879,
+            "gripper_mae": 0.0053063053637743,
+            "gripper_binary_accuracy": 1.0
+          },
+          "2": {
+            "translation_error_mm": 0.7916357808426255,
+            "rotation_delta_error_deg": 0.1537852366070303,
+            "gripper_mae": 0.026228624861687422,
+            "gripper_binary_accuracy": 0.9765625
+          },
+          "3": {
+            "translation_error_mm": 1.4115633284745854,
+            "rotation_delta_error_deg": 0.07554912699316518,
+            "gripper_mae": 0.00401349226012826,
+            "gripper_binary_accuracy": 1.0
+          },
+          "4": {
+            "translation_error_mm": 1.632026686820609,
+            "rotation_delta_error_deg": 0.11270318745962254,
+            "gripper_mae": 0.00234766723588109,
+            "gripper_binary_accuracy": 1.0
+          },
+          "5": {
+            "translation_error_mm": 0.7216457306640223,
+            "rotation_delta_error_deg": 0.1321500006371742,
+            "gripper_mae": 0.008334084413945675,
+            "gripper_binary_accuracy": 0.9921875
+          },
+          "6": {
+            "translation_error_mm": 0.7598504780617077,
+            "rotation_delta_error_deg": 0.09834906467116472,
+            "gripper_mae": 0.003663507755845785,
+            "gripper_binary_accuracy": 1.0
+          }
+        },
+        "macro": {
+          "translation_error_mm": 1.244717902669176,
+          "rotation_delta_error_deg": 0.17365835910749514,
+          "gripper_mae": 0.00790876688967858,
+          "gripper_binary_accuracy": 0.9955357142857143
+        }
+      }
+    },
+    {
+      "stage": 3,
+      "cumulative_updates": 16998,
+      "unique_training_windows": 21706,
+      "window_exposures": 39662,
+      "strict_reload": true,
+      "checkpoint_sha256": "513b30b994fe53be8c49ded63e5d4ed58895470672eaf22cc9d7880e7f735a52",
+      "configuration_identity": "e9084601f38606e7d29f8ab0e061194efc2c60eec3037dbd72a08400d1588d05",
+      "development": {
+        "windows": 224,
+        "scenes": 32,
+        "per_skill": {
+          "0": {
+            "translation_error_mm": 1.657865891502297,
+            "rotation_delta_error_deg": 0.30082328976889106,
+            "gripper_mae": 0.014020048081874847,
+            "gripper_binary_accuracy": 1.0
+          },
+          "1": {
+            "translation_error_mm": 1.4330348967632744,
+            "rotation_delta_error_deg": 0.26553111223144094,
+            "gripper_mae": 0.011569044087082148,
+            "gripper_binary_accuracy": 1.0
+          },
+          "2": {
+            "translation_error_mm": 0.6969902160562924,
+            "rotation_delta_error_deg": 0.09691177331906611,
+            "gripper_mae": 0.015155478613451123,
+            "gripper_binary_accuracy": 0.9921875
+          },
+          "3": {
+            "translation_error_mm": 1.61091862446483,
+            "rotation_delta_error_deg": 0.07595363748457742,
+            "gripper_mae": 0.0074331024661660194,
+            "gripper_binary_accuracy": 1.0
+          },
+          "4": {
+            "translation_error_mm": 1.6891535979084438,
+            "rotation_delta_error_deg": 0.09560638071969636,
+            "gripper_mae": 0.00602535274811089,
+            "gripper_binary_accuracy": 1.0
+          },
+          "5": {
+            "translation_error_mm": 0.7737601254120818,
+            "rotation_delta_error_deg": 0.08407773187128936,
+            "gripper_mae": 0.005535321077331901,
+            "gripper_binary_accuracy": 1.0
+          },
+          "6": {
+            "translation_error_mm": 0.3136490818178572,
+            "rotation_delta_error_deg": 0.05647998233893592,
+            "gripper_mae": 0.00555297608661931,
+            "gripper_binary_accuracy": 1.0
+          }
+        },
+        "macro": {
+          "translation_error_mm": 1.1679103477035824,
+          "rotation_delta_error_deg": 0.1393405582476996,
+          "gripper_mae": 0.009327331880090892,
+          "gripper_binary_accuracy": 0.9988839285714286
+        }
+      }
+    },
+    {
+      "stage": 4,
+      "cumulative_updates": 22664,
+      "unique_training_windows": 21706,
+      "window_exposures": 39662,
+      "strict_reload": true,
+      "checkpoint_sha256": "e8cf6822221b240e721c0504887e8681ad016147c4de11ff12256ed1e70703be",
+      "configuration_identity": "6c21c1dde809f0d26c393db3cfc21c1253a83be629d01d98509deb4549e1d6c3",
+      "development": {
+        "windows": 224,
+        "scenes": 32,
+        "per_skill": {
+          "0": {
+            "translation_error_mm": 1.5656102950742934,
+            "rotation_delta_error_deg": 0.29719841261864727,
+            "gripper_mae": 0.006851469166576862,
+            "gripper_binary_accuracy": 1.0
+          },
+          "1": {
+            "translation_error_mm": 1.3455380485538626,
+            "rotation_delta_error_deg": 0.2584477900142378,
+            "gripper_mae": 0.005094355903565884,
+            "gripper_binary_accuracy": 1.0
+          },
+          "2": {
+            "translation_error_mm": 0.5919296709180344,
+            "rotation_delta_error_deg": 0.1661978626992905,
+            "gripper_mae": 0.005237252451479435,
+            "gripper_binary_accuracy": 1.0
+          },
+          "3": {
+            "translation_error_mm": 1.1383753026166232,
+            "rotation_delta_error_deg": 0.09119544265689056,
+            "gripper_mae": 0.0018893044907599688,
+            "gripper_binary_accuracy": 1.0
+          },
+          "4": {
+            "translation_error_mm": 1.564037513162475,
+            "rotation_delta_error_deg": 0.07766306282897337,
+            "gripper_mae": 0.0018163751810789108,
+            "gripper_binary_accuracy": 1.0
+          },
+          "5": {
+            "translation_error_mm": 0.7464806158168358,
+            "rotation_delta_error_deg": 0.08111441871902939,
+            "gripper_mae": 0.001891762251034379,
+            "gripper_binary_accuracy": 1.0
+          },
+          "6": {
+            "translation_error_mm": 0.5468932413350558,
+            "rotation_delta_error_deg": 0.14610957223715385,
+            "gripper_mae": 0.0015325661179304007,
+            "gripper_binary_accuracy": 1.0
+          }
+        },
+        "macro": {
+          "translation_error_mm": 1.0712663839253114,
+          "rotation_delta_error_deg": 0.15970379453917466,
+          "gripper_mae": 0.0034732979374894057,
+          "gripper_binary_accuracy": 1.0
+        }
+      }
+    },
+    {
+      "stage": 5,
+      "cumulative_updates": 28330,
+      "unique_training_windows": 21706,
+      "window_exposures": 39662,
+      "strict_reload": true,
+      "checkpoint_sha256": "835687a09c12ed2972fe22300e24e8c0b709a05cd7a131c48fcc52a510203303",
+      "configuration_identity": "ccdf20fc817ba25b1b3259a1d25f08cf4ced00d0126e3ec62058bc5f3c8fda18",
+      "development": {
+        "windows": 224,
+        "scenes": 32,
+        "per_skill": {
+          "0": {
+            "translation_error_mm": 1.6890825418158784,
+            "rotation_delta_error_deg": 0.2903735366054321,
+            "gripper_mae": 0.0009251157753169537,
+            "gripper_binary_accuracy": 1.0
+          },
+          "1": {
+            "translation_error_mm": 1.3636398271046346,
+            "rotation_delta_error_deg": 0.22578735681802664,
+            "gripper_mae": 0.0015136739239096642,
+            "gripper_binary_accuracy": 1.0
+          },
+          "2": {
+            "translation_error_mm": 0.6228646761883283,
+            "rotation_delta_error_deg": 0.11930729617999514,
+            "gripper_mae": 0.008860534988343716,
+            "gripper_binary_accuracy": 0.9921875
+          },
+          "3": {
+            "translation_error_mm": 1.117414622058277,
+            "rotation_delta_error_deg": 0.08608751284593688,
+            "gripper_mae": 3.450317308306694e-06,
+            "gripper_binary_accuracy": 1.0
+          },
+          "4": {
+            "translation_error_mm": 1.5543622439508908,
+            "rotation_delta_error_deg": 0.08185139275373228,
+            "gripper_mae": 0.0,
+            "gripper_binary_accuracy": 1.0
+          },
+          "5": {
+            "translation_error_mm": 0.5227822221058886,
+            "rotation_delta_error_deg": 0.07566198561391073,
+            "gripper_mae": 0.007850358728319407,
+            "gripper_binary_accuracy": 0.9921875
+          },
+          "6": {
+            "translation_error_mm": 0.3338930987411004,
+            "rotation_delta_error_deg": 0.09186894958498242,
+            "gripper_mae": 0.002175648853153689,
+            "gripper_binary_accuracy": 1.0
+          }
+        },
+        "macro": {
+          "translation_error_mm": 1.0291484617092854,
+          "rotation_delta_error_deg": 0.13870543291457374,
+          "gripper_mae": 0.003046968940907391,
+          "gripper_binary_accuracy": 0.9977678571428571
+        }
+      }
+    },
+    {
+      "stage": 6,
+      "cumulative_updates": 33996,
+      "unique_training_windows": 21706,
+      "window_exposures": 39662,
+      "strict_reload": true,
+      "checkpoint_sha256": "f16b0cf8841f92d175021c7c6ea31a3b2fcdb945f635dd0118f778525607716a",
+      "configuration_identity": "bd2d793d49ee15cf2702df86f8d68c21a5b5653b36372db963ec578b4b4c68ba",
+      "development": {
+        "windows": 224,
+        "scenes": 32,
+        "per_skill": {
+          "0": {
+            "translation_error_mm": 1.5487862410736852,
+            "rotation_delta_error_deg": 0.28459599864792134,
+            "gripper_mae": 0.0015871054492890835,
+            "gripper_binary_accuracy": 1.0
+          },
+          "1": {
+            "translation_error_mm": 1.40076560091984,
+            "rotation_delta_error_deg": 0.23378081695831465,
+            "gripper_mae": 0.001263064332306385,
+            "gripper_binary_accuracy": 1.0
+          },
+          "2": {
+            "translation_error_mm": 0.5792339716208517,
+            "rotation_delta_error_deg": 0.1028735249261035,
+            "gripper_mae": 0.019666375126689672,
+            "gripper_binary_accuracy": 0.984375
+          },
+          "3": {
+            "translation_error_mm": 1.4114721243458916,
+            "rotation_delta_error_deg": 0.1230842545749287,
+            "gripper_mae": 0.0005207264330238104,
+            "gripper_binary_accuracy": 1.0
+          },
+          "4": {
+            "translation_error_mm": 1.2417316056598793,
+            "rotation_delta_error_deg": 0.13177053493700172,
+            "gripper_mae": 0.001227726461365819,
+            "gripper_binary_accuracy": 1.0
+          },
+          "5": {
+            "translation_error_mm": 0.5866416599928925,
+            "rotation_delta_error_deg": 0.1342142871175392,
+            "gripper_mae": 0.0003986540250480175,
+            "gripper_binary_accuracy": 1.0
+          },
+          "6": {
+            "translation_error_mm": 0.34509488205003436,
+            "rotation_delta_error_deg": 0.08242087384553823,
+            "gripper_mae": 0.009142691575107165,
+            "gripper_binary_accuracy": 1.0
+          }
+        },
+        "macro": {
+          "translation_error_mm": 1.0162465836661536,
+          "rotation_delta_error_deg": 0.15610575585819247,
+          "gripper_mae": 0.004829477628975708,
+          "gripper_binary_accuracy": 0.9977678571428571
+        }
+      }
+    },
+    {
+      "stage": 7,
+      "cumulative_updates": 39662,
+      "unique_training_windows": 21706,
+      "window_exposures": 39662,
+      "strict_reload": true,
+      "checkpoint_sha256": "d629396d27694b245b2b31b2694e1aab4f2d2764c3fce7d322302b4b31a848ee",
+      "configuration_identity": "a28384dc1f5e86d9ac11445735a7c0159ba1bd625cdb2a2e80c6f5d2a8428e81",
+      "development": {
+        "windows": 224,
+        "scenes": 32,
+        "per_skill": {
+          "0": {
+            "translation_error_mm": 1.5860555558901979,
+            "rotation_delta_error_deg": 0.29539826298541383,
+            "gripper_mae": 0.0016487580724060535,
+            "gripper_binary_accuracy": 1.0
+          },
+          "1": {
+            "translation_error_mm": 1.2171843832220475,
+            "rotation_delta_error_deg": 0.2252036662105098,
+            "gripper_mae": 0.00100341672077775,
+            "gripper_binary_accuracy": 1.0
+          },
+          "2": {
+            "translation_error_mm": 0.6521893592434935,
+            "rotation_delta_error_deg": 0.13727402802089142,
+            "gripper_mae": 0.00144959706813097,
+            "gripper_binary_accuracy": 1.0
+          },
+          "3": {
+            "translation_error_mm": 1.4771913929507718,
+            "rotation_delta_error_deg": 0.15319927503665315,
+            "gripper_mae": 0.0017446447163820267,
+            "gripper_binary_accuracy": 1.0
+          },
+          "4": {
+            "translation_error_mm": 1.5104748181329342,
+            "rotation_delta_error_deg": 0.13599785382353266,
+            "gripper_mae": 0.0015209510456770658,
+            "gripper_binary_accuracy": 1.0
+          },
+          "5": {
+            "translation_error_mm": 0.6692657334497198,
+            "rotation_delta_error_deg": 0.13725247878239766,
+            "gripper_mae": 0.0005344224628061056,
+            "gripper_binary_accuracy": 1.0
+          },
+          "6": {
+            "translation_error_mm": 0.4909165309072705,
+            "rotation_delta_error_deg": 0.13431504762397756,
+            "gripper_mae": 0.0030827573500573635,
+            "gripper_binary_accuracy": 1.0
+          }
+        },
+        "macro": {
+          "translation_error_mm": 1.0861825391137765,
+          "rotation_delta_error_deg": 0.17409151606905374,
+          "gripper_mae": 0.0015692210623196193,
+          "gripper_binary_accuracy": 1.0
+        }
+      }
+    }
+  ],
+  "development_history": [
+    {
+      "cumulative_updates": 0,
+      "macro": {
+        "translation_error_mm": 1.747619284677577,
+        "rotation_delta_error_deg": 0.23421435441372268,
+        "gripper_mae": 0.014252287107020882,
+        "gripper_binary_accuracy": 0.9899553571428571
+      }
+    },
+    {
+      "cumulative_updates": 512,
+      "macro": {
+        "translation_error_mm": 1.8372130538669549,
+        "rotation_delta_error_deg": 0.21221046997420237,
+        "gripper_mae": 0.009455205994592169,
+        "gripper_binary_accuracy": 0.9933035714285714
+      }
+    },
+    {
+      "cumulative_updates": 1024,
+      "macro": {
+        "translation_error_mm": 1.6997332855420868,
+        "rotation_delta_error_deg": 0.20838576873533615,
+        "gripper_mae": 0.01246704770996335,
+        "gripper_binary_accuracy": 0.9944196428571429
+      }
+    },
+    {
+      "cumulative_updates": 1536,
+      "macro": {
+        "translation_error_mm": 1.6251209859287232,
+        "rotation_delta_error_deg": 0.20423186441444452,
+        "gripper_mae": 0.014212403856293219,
+        "gripper_binary_accuracy": 0.9944196428571429
+      }
+    },
+    {
+      "cumulative_updates": 2048,
+      "macro": {
+        "translation_error_mm": 1.5540859716825903,
+        "rotation_delta_error_deg": 0.19346298043193627,
+        "gripper_mae": 0.01090272762004523,
+        "gripper_binary_accuracy": 0.9955357142857143
+      }
+    },
+    {
+      "cumulative_updates": 2560,
+      "macro": {
+        "translation_error_mm": 1.540293676303658,
+        "rotation_delta_error_deg": 0.1992172014387036,
+        "gripper_mae": 0.00964960977892458,
+        "gripper_binary_accuracy": 0.9944196428571429
+      }
+    },
+    {
+      "cumulative_updates": 3072,
+      "macro": {
+        "translation_error_mm": 1.4634365004764862,
+        "rotation_delta_error_deg": 0.221214901267531,
+        "gripper_mae": 0.011609672701784543,
+        "gripper_binary_accuracy": 0.9944196428571429
+      }
+    },
+    {
+      "cumulative_updates": 3584,
+      "macro": {
+        "translation_error_mm": 1.423325102353244,
+        "rotation_delta_error_deg": 0.17710273522230727,
+        "gripper_mae": 0.016513145840560486,
+        "gripper_binary_accuracy": 0.9944196428571429
+      }
+    },
+    {
+      "cumulative_updates": 4096,
+      "macro": {
+        "translation_error_mm": 1.390024312708452,
+        "rotation_delta_error_deg": 0.19240790342225766,
+        "gripper_mae": 0.012805485887448802,
+        "gripper_binary_accuracy": 0.9944196428571429
+      }
+    },
+    {
+      "cumulative_updates": 4608,
+      "macro": {
+        "translation_error_mm": 1.37810856930238,
+        "rotation_delta_error_deg": 0.19472786277901316,
+        "gripper_mae": 0.014268989787004622,
+        "gripper_binary_accuracy": 0.9966517857142857
+      }
+    },
+    {
+      "cumulative_updates": 5120,
+      "macro": {
+        "translation_error_mm": 1.411760388301835,
+        "rotation_delta_error_deg": 0.17873527153806348,
+        "gripper_mae": 0.015014692240843683,
+        "gripper_binary_accuracy": 0.9955357142857143
+      }
+    },
+    {
+      "cumulative_updates": 5632,
+      "macro": {
+        "translation_error_mm": 1.3226758761837638,
+        "rotation_delta_error_deg": 0.17964876520965087,
+        "gripper_mae": 0.009108246192616727,
+        "gripper_binary_accuracy": 0.9966517857142857
+      }
+    },
+    {
+      "cumulative_updates": 5666,
+      "macro": {
+        "translation_error_mm": 1.2976926103484792,
+        "rotation_delta_error_deg": 0.1724777447731604,
+        "gripper_mae": 0.00908659418512668,
+        "gripper_binary_accuracy": 0.9966517857142857
+      }
+    },
+    {
+      "cumulative_updates": 6178,
+      "macro": {
+        "translation_error_mm": 1.3382477039028475,
+        "rotation_delta_error_deg": 0.17353717036107755,
+        "gripper_mae": 0.008586849884782819,
+        "gripper_binary_accuracy": 0.9977678571428571
+      }
+    },
+    {
+      "cumulative_updates": 6690,
+      "macro": {
+        "translation_error_mm": 1.3898540089810143,
+        "rotation_delta_error_deg": 0.17420585046577566,
+        "gripper_mae": 0.007170067834002631,
+        "gripper_binary_accuracy": 0.9966517857142857
+      }
+    },
+    {
+      "cumulative_updates": 7202,
+      "macro": {
+        "translation_error_mm": 1.2762133145380565,
+        "rotation_delta_error_deg": 0.15886413439185373,
+        "gripper_mae": 0.008682021595242466,
+        "gripper_binary_accuracy": 0.9977678571428571
+      }
+    },
+    {
+      "cumulative_updates": 7714,
+      "macro": {
+        "translation_error_mm": 1.2340749106312745,
+        "rotation_delta_error_deg": 0.1584494119002207,
+        "gripper_mae": 0.011027465341612697,
+        "gripper_binary_accuracy": 0.9955357142857143
+      }
+    },
+    {
+      "cumulative_updates": 8226,
+      "macro": {
+        "translation_error_mm": 1.2632999052389746,
+        "rotation_delta_error_deg": 0.152293663369005,
+        "gripper_mae": 0.009872640959827095,
+        "gripper_binary_accuracy": 0.9955357142857143
+      }
+    },
+    {
+      "cumulative_updates": 8738,
+      "macro": {
+        "translation_error_mm": 1.1918174628330493,
+        "rotation_delta_error_deg": 0.1789876304508939,
+        "gripper_mae": 0.007239886725853596,
+        "gripper_binary_accuracy": 0.9977678571428571
+      }
+    },
+    {
+      "cumulative_updates": 9250,
+      "macro": {
+        "translation_error_mm": 1.2997905692567915,
+        "rotation_delta_error_deg": 0.17167963751406062,
+        "gripper_mae": 0.001783131788085614,
+        "gripper_binary_accuracy": 1.0
+      }
+    },
+    {
+      "cumulative_updates": 9762,
+      "macro": {
+        "translation_error_mm": 1.2261868252738037,
+        "rotation_delta_error_deg": 0.17091792505147455,
+        "gripper_mae": 0.0037712142802774906,
+        "gripper_binary_accuracy": 0.9988839285714286
+      }
+    },
+    {
+      "cumulative_updates": 10274,
+      "macro": {
+        "translation_error_mm": 1.264072185936779,
+        "rotation_delta_error_deg": 0.18319639301150029,
+        "gripper_mae": 0.01018518691697474,
+        "gripper_binary_accuracy": 0.9966517857142857
+      }
+    },
+    {
+      "cumulative_updates": 10786,
+      "macro": {
+        "translation_error_mm": 1.1884111203081764,
+        "rotation_delta_error_deg": 0.18049196032736795,
+        "gripper_mae": 0.012850922802629481,
+        "gripper_binary_accuracy": 0.9977678571428571
+      }
+    },
+    {
+      "cumulative_updates": 11298,
+      "macro": {
+        "translation_error_mm": 1.1361623467434714,
+        "rotation_delta_error_deg": 0.1575354709816075,
+        "gripper_mae": 0.008571231881173194,
+        "gripper_binary_accuracy": 0.9955357142857143
+      }
+    },
+    {
+      "cumulative_updates": 11332,
+      "macro": {
+        "translation_error_mm": 1.244717902669176,
+        "rotation_delta_error_deg": 0.17365835910749514,
+        "gripper_mae": 0.00790876688967858,
+        "gripper_binary_accuracy": 0.9955357142857143
+      }
+    },
+    {
+      "cumulative_updates": 11844,
+      "macro": {
+        "translation_error_mm": 1.2433399112653984,
+        "rotation_delta_error_deg": 0.1638321113558999,
+        "gripper_mae": 0.002737347545917146,
+        "gripper_binary_accuracy": 0.9988839285714286
+      }
+    },
+    {
+      "cumulative_updates": 12356,
+      "macro": {
+        "translation_error_mm": 1.1676381718643825,
+        "rotation_delta_error_deg": 0.15408967592072292,
+        "gripper_mae": 0.011655274545773864,
+        "gripper_binary_accuracy": 0.9966517857142857
+      }
+    },
+    {
+      "cumulative_updates": 12868,
+      "macro": {
+        "translation_error_mm": 1.1109479885687636,
+        "rotation_delta_error_deg": 0.14357917555784291,
+        "gripper_mae": 0.007323326400052922,
+        "gripper_binary_accuracy": 0.9988839285714286
+      }
+    },
+    {
+      "cumulative_updates": 13380,
+      "macro": {
+        "translation_error_mm": 1.2193670046534473,
+        "rotation_delta_error_deg": 0.16780198753216077,
+        "gripper_mae": 0.011366676892586318,
+        "gripper_binary_accuracy": 0.9955357142857143
+      }
+    },
+    {
+      "cumulative_updates": 13892,
+      "macro": {
+        "translation_error_mm": 1.1362751935816309,
+        "rotation_delta_error_deg": 0.1473802952452186,
+        "gripper_mae": 0.009696242588168908,
+        "gripper_binary_accuracy": 0.9955357142857143
+      }
+    },
+    {
+      "cumulative_updates": 14404,
+      "macro": {
+        "translation_error_mm": 1.143765699323142,
+        "rotation_delta_error_deg": 0.1431217227329526,
+        "gripper_mae": 0.00460896677603679,
+        "gripper_binary_accuracy": 0.9966517857142857
+      }
+    },
+    {
+      "cumulative_updates": 14916,
+      "macro": {
+        "translation_error_mm": 1.1229259720429192,
+        "rotation_delta_error_deg": 0.13842436445963466,
+        "gripper_mae": 0.005529105395128552,
+        "gripper_binary_accuracy": 0.9977678571428571
+      }
+    },
+    {
+      "cumulative_updates": 15428,
+      "macro": {
+        "translation_error_mm": 1.1598927205146279,
+        "rotation_delta_error_deg": 0.15755759328350186,
+        "gripper_mae": 0.006464551681087219,
+        "gripper_binary_accuracy": 0.9977678571428571
+      }
+    },
+    {
+      "cumulative_updates": 15940,
+      "macro": {
+        "translation_error_mm": 1.2256603756993303,
+        "rotation_delta_error_deg": 0.15640484171156382,
+        "gripper_mae": 0.00815233844332397,
+        "gripper_binary_accuracy": 0.9966517857142857
+      }
+    },
+    {
+      "cumulative_updates": 16452,
+      "macro": {
+        "translation_error_mm": 1.1305184474232581,
+        "rotation_delta_error_deg": 0.16055846460011122,
+        "gripper_mae": 0.008573582395911217,
+        "gripper_binary_accuracy": 0.9977678571428571
+      }
+    },
+    {
+      "cumulative_updates": 16964,
+      "macro": {
+        "translation_error_mm": 1.1935252287003095,
+        "rotation_delta_error_deg": 0.16122817262704822,
+        "gripper_mae": 0.0030081416702907,
+        "gripper_binary_accuracy": 1.0
+      }
+    },
+    {
+      "cumulative_updates": 16998,
+      "macro": {
+        "translation_error_mm": 1.1679103477035824,
+        "rotation_delta_error_deg": 0.1393405582476996,
+        "gripper_mae": 0.009327331880090892,
+        "gripper_binary_accuracy": 0.9988839285714286
+      }
+    },
+    {
+      "cumulative_updates": 17510,
+      "macro": {
+        "translation_error_mm": 1.1316589046665675,
+        "rotation_delta_error_deg": 0.1393466091212661,
+        "gripper_mae": 0.007472289726138115,
+        "gripper_binary_accuracy": 0.9977678571428571
+      }
+    },
+    {
+      "cumulative_updates": 18022,
+      "macro": {
+        "translation_error_mm": 1.1179520196102593,
+        "rotation_delta_error_deg": 0.13558749796632522,
+        "gripper_mae": 0.006168898228289825,
+        "gripper_binary_accuracy": 0.9966517857142857
+      }
+    },
+    {
+      "cumulative_updates": 18534,
+      "macro": {
+        "translation_error_mm": 1.0944450009609292,
+        "rotation_delta_error_deg": 0.1403527603406269,
+        "gripper_mae": 0.0065933118707367355,
+        "gripper_binary_accuracy": 0.9966517857142857
+      }
+    },
+    {
+      "cumulative_updates": 19046,
+      "macro": {
+        "translation_error_mm": 1.1621220173765323,
+        "rotation_delta_error_deg": 0.16226205346722455,
+        "gripper_mae": 0.008827804155381662,
+        "gripper_binary_accuracy": 0.9988839285714286
+      }
+    },
+    {
+      "cumulative_updates": 19558,
+      "macro": {
+        "translation_error_mm": 1.178159640078645,
+        "rotation_delta_error_deg": 0.16224806636532532,
+        "gripper_mae": 0.004848552977948982,
+        "gripper_binary_accuracy": 0.9977678571428571
+      }
+    },
+    {
+      "cumulative_updates": 20070,
+      "macro": {
+        "translation_error_mm": 1.1386529901886075,
+        "rotation_delta_error_deg": 0.15256930283732079,
+        "gripper_mae": 0.008476200624500052,
+        "gripper_binary_accuracy": 0.9966517857142857
+      }
+    },
+    {
+      "cumulative_updates": 20582,
+      "macro": {
+        "translation_error_mm": 1.098323782636206,
+        "rotation_delta_error_deg": 0.1474622005066913,
+        "gripper_mae": 0.007868581885954231,
+        "gripper_binary_accuracy": 0.9966517857142857
+      }
+    },
+    {
+      "cumulative_updates": 21094,
+      "macro": {
+        "translation_error_mm": 1.1490641800264711,
+        "rotation_delta_error_deg": 0.14109117513324648,
+        "gripper_mae": 0.008454464909456354,
+        "gripper_binary_accuracy": 0.9977678571428571
+      }
+    },
+    {
+      "cumulative_updates": 21606,
+      "macro": {
+        "translation_error_mm": 1.0999326829213325,
+        "rotation_delta_error_deg": 0.13848493079569052,
+        "gripper_mae": 0.0034706584909664734,
+        "gripper_binary_accuracy": 0.9977678571428571
+      }
+    },
+    {
+      "cumulative_updates": 22118,
+      "macro": {
+        "translation_error_mm": 1.098603832165931,
+        "rotation_delta_error_deg": 0.14707299918293001,
+        "gripper_mae": 0.004275296249293855,
+        "gripper_binary_accuracy": 0.9988839285714286
+      }
+    },
+    {
+      "cumulative_updates": 22630,
+      "macro": {
+        "translation_error_mm": 1.1413789655177555,
+        "rotation_delta_error_deg": 0.1810810195146106,
+        "gripper_mae": 0.009052501692037498,
+        "gripper_binary_accuracy": 0.9966517857142857
+      }
+    },
+    {
+      "cumulative_updates": 22664,
+      "macro": {
+        "translation_error_mm": 1.0712663839253114,
+        "rotation_delta_error_deg": 0.15970379453917466,
+        "gripper_mae": 0.0034732979374894057,
+        "gripper_binary_accuracy": 1.0
+      }
+    },
+    {
+      "cumulative_updates": 23176,
+      "macro": {
+        "translation_error_mm": 1.124931349945005,
+        "rotation_delta_error_deg": 0.15186463332002706,
+        "gripper_mae": 0.007565148086801595,
+        "gripper_binary_accuracy": 0.9966517857142857
+      }
+    },
+    {
+      "cumulative_updates": 23688,
+      "macro": {
+        "translation_error_mm": 1.070110414015549,
+        "rotation_delta_error_deg": 0.14527652881325842,
+        "gripper_mae": 0.0022461362781801392,
+        "gripper_binary_accuracy": 0.9988839285714286
+      }
+    },
+    {
+      "cumulative_updates": 24200,
+      "macro": {
+        "translation_error_mm": 1.0137565453273314,
+        "rotation_delta_error_deg": 0.1399086888662462,
+        "gripper_mae": 0.0035672518092074563,
+        "gripper_binary_accuracy": 0.9988839285714286
+      }
+    },
+    {
+      "cumulative_updates": 24712,
+      "macro": {
+        "translation_error_mm": 1.1306634454350777,
+        "rotation_delta_error_deg": 0.12135309886440068,
+        "gripper_mae": 0.0059896073019314955,
+        "gripper_binary_accuracy": 0.9966517857142857
+      }
+    },
+    {
+      "cumulative_updates": 25224,
+      "macro": {
+        "translation_error_mm": 1.0828142427986418,
+        "rotation_delta_error_deg": 0.1336322004845545,
+        "gripper_mae": 0.003379958260406316,
+        "gripper_binary_accuracy": 0.9988839285714286
+      }
+    },
+    {
+      "cumulative_updates": 25736,
+      "macro": {
+        "translation_error_mm": 1.1966375634204138,
+        "rotation_delta_error_deg": 0.13964007391351002,
+        "gripper_mae": 0.004471409866320235,
+        "gripper_binary_accuracy": 0.9988839285714286
+      }
+    },
+    {
+      "cumulative_updates": 26248,
+      "macro": {
+        "translation_error_mm": 1.0036268911660176,
+        "rotation_delta_error_deg": 0.12915065860628044,
+        "gripper_mae": 0.0021173160390130113,
+        "gripper_binary_accuracy": 1.0
+      }
+    },
+    {
+      "cumulative_updates": 26760,
+      "macro": {
+        "translation_error_mm": 1.0347644477925704,
+        "rotation_delta_error_deg": 0.1522538682102065,
+        "gripper_mae": 0.0011340138901557242,
+        "gripper_binary_accuracy": 1.0
+      }
+    },
+    {
+      "cumulative_updates": 27272,
+      "macro": {
+        "translation_error_mm": 1.0572291350529537,
+        "rotation_delta_error_deg": 0.12967088173124827,
+        "gripper_mae": 0.004965272234715355,
+        "gripper_binary_accuracy": 0.9977678571428571
+      }
+    },
+    {
+      "cumulative_updates": 27784,
+      "macro": {
+        "translation_error_mm": 1.007396645231243,
+        "rotation_delta_error_deg": 0.1338238708963909,
+        "gripper_mae": 0.005719493598787396,
+        "gripper_binary_accuracy": 0.9977678571428571
+      }
+    },
+    {
+      "cumulative_updates": 28296,
+      "macro": {
+        "translation_error_mm": 1.0792398395226752,
+        "rotation_delta_error_deg": 0.1319957883604209,
+        "gripper_mae": 0.004051324533065781,
+        "gripper_binary_accuracy": 1.0
+      }
+    },
+    {
+      "cumulative_updates": 28330,
+      "macro": {
+        "translation_error_mm": 1.0291484617092854,
+        "rotation_delta_error_deg": 0.13870543291457374,
+        "gripper_mae": 0.003046968940907391,
+        "gripper_binary_accuracy": 0.9977678571428571
+      }
+    },
+    {
+      "cumulative_updates": 28842,
+      "macro": {
+        "translation_error_mm": 1.0896402570454353,
+        "rotation_delta_error_deg": 0.15598688160526955,
+        "gripper_mae": 0.0073311421464105865,
+        "gripper_binary_accuracy": 0.9977678571428571
+      }
+    },
+    {
+      "cumulative_updates": 29354,
+      "macro": {
+        "translation_error_mm": 1.0740478201764094,
+        "rotation_delta_error_deg": 0.18496062276576625,
+        "gripper_mae": 0.008356459372277771,
+        "gripper_binary_accuracy": 0.9977678571428571
+      }
+    },
+    {
+      "cumulative_updates": 29866,
+      "macro": {
+        "translation_error_mm": 1.0505219000671266,
+        "rotation_delta_error_deg": 0.1310277193033272,
+        "gripper_mae": 0.0031468933337756816,
+        "gripper_binary_accuracy": 1.0
+      }
+    },
+    {
+      "cumulative_updates": 30378,
+      "macro": {
+        "translation_error_mm": 1.0836157750548279,
+        "rotation_delta_error_deg": 0.12234578434077008,
+        "gripper_mae": 0.008107379145388092,
+        "gripper_binary_accuracy": 0.9988839285714286
+      }
+    },
+    {
+      "cumulative_updates": 30890,
+      "macro": {
+        "translation_error_mm": 0.9859957269457352,
+        "rotation_delta_error_deg": 0.1393484841507668,
+        "gripper_mae": 0.0038600650711617035,
+        "gripper_binary_accuracy": 0.9988839285714286
+      }
+    },
+    {
+      "cumulative_updates": 31402,
+      "macro": {
+        "translation_error_mm": 1.1226896806744793,
+        "rotation_delta_error_deg": 0.142345892386734,
+        "gripper_mae": 0.006129205913956477,
+        "gripper_binary_accuracy": 0.9977678571428571
+      }
+    },
+    {
+      "cumulative_updates": 31914,
+      "macro": {
+        "translation_error_mm": 0.9980374931209164,
+        "rotation_delta_error_deg": 0.14928445704697482,
+        "gripper_mae": 0.006425332909462408,
+        "gripper_binary_accuracy": 0.9988839285714286
+      }
+    },
+    {
+      "cumulative_updates": 32426,
+      "macro": {
+        "translation_error_mm": 0.9711353736747697,
+        "rotation_delta_error_deg": 0.12301643092838377,
+        "gripper_mae": 0.002985512904290642,
+        "gripper_binary_accuracy": 0.9977678571428571
+      }
+    },
+    {
+      "cumulative_updates": 32938,
+      "macro": {
+        "translation_error_mm": 1.043384581277808,
+        "rotation_delta_error_deg": 0.16084371019070484,
+        "gripper_mae": 0.002705652765663607,
+        "gripper_binary_accuracy": 0.9977678571428571
+      }
+    },
+    {
+      "cumulative_updates": 33450,
+      "macro": {
+        "translation_error_mm": 1.0241743299275186,
+        "rotation_delta_error_deg": 0.12903860341327597,
+        "gripper_mae": 0.004523563816162225,
+        "gripper_binary_accuracy": 1.0
+      }
+    },
+    {
+      "cumulative_updates": 33962,
+      "macro": {
+        "translation_error_mm": 1.030320983058378,
+        "rotation_delta_error_deg": 0.12502732624260568,
+        "gripper_mae": 0.0019757719710469246,
+        "gripper_binary_accuracy": 0.9988839285714286
+      }
+    },
+    {
+      "cumulative_updates": 33996,
+      "macro": {
+        "translation_error_mm": 1.0162465836661536,
+        "rotation_delta_error_deg": 0.15610575585819247,
+        "gripper_mae": 0.004829477628975708,
+        "gripper_binary_accuracy": 0.9977678571428571
+      }
+    },
+    {
+      "cumulative_updates": 34508,
+      "macro": {
+        "translation_error_mm": 0.962397049728939,
+        "rotation_delta_error_deg": 0.13990102762348058,
+        "gripper_mae": 0.0045407433067988934,
+        "gripper_binary_accuracy": 0.9977678571428571
+      }
+    },
+    {
+      "cumulative_updates": 35020,
+      "macro": {
+        "translation_error_mm": 1.0869649690253678,
+        "rotation_delta_error_deg": 0.12116235461473358,
+        "gripper_mae": 0.004796240822640486,
+        "gripper_binary_accuracy": 0.9966517857142857
+      }
+    },
+    {
+      "cumulative_updates": 35532,
+      "macro": {
+        "translation_error_mm": 1.0064256762884074,
+        "rotation_delta_error_deg": 0.13885016744626852,
+        "gripper_mae": 0.0027041321597737677,
+        "gripper_binary_accuracy": 0.9977678571428571
+      }
+    },
+    {
+      "cumulative_updates": 36044,
+      "macro": {
+        "translation_error_mm": 1.140820983956863,
+        "rotation_delta_error_deg": 0.1340053696189745,
+        "gripper_mae": 0.003584280698825231,
+        "gripper_binary_accuracy": 0.9977678571428571
+      }
+    },
+    {
+      "cumulative_updates": 36556,
+      "macro": {
+        "translation_error_mm": 1.0512254000656998,
+        "rotation_delta_error_deg": 0.12909048627922862,
+        "gripper_mae": 0.0017435942398671095,
+        "gripper_binary_accuracy": 1.0
+      }
+    },
+    {
+      "cumulative_updates": 37068,
+      "macro": {
+        "translation_error_mm": 1.006887354378705,
+        "rotation_delta_error_deg": 0.14096168211526422,
+        "gripper_mae": 0.009863104693912257,
+        "gripper_binary_accuracy": 0.9966517857142857
+      }
+    },
+    {
+      "cumulative_updates": 37580,
+      "macro": {
+        "translation_error_mm": 0.9979101111769394,
+        "rotation_delta_error_deg": 0.1447719284514505,
+        "gripper_mae": 0.00655685663449341,
+        "gripper_binary_accuracy": 1.0
+      }
+    },
+    {
+      "cumulative_updates": 38092,
+      "macro": {
+        "translation_error_mm": 1.0817003543966817,
+        "rotation_delta_error_deg": 0.1396640979625531,
+        "gripper_mae": 0.005833598785102367,
+        "gripper_binary_accuracy": 0.9966517857142857
+      }
+    },
+    {
+      "cumulative_updates": 38604,
+      "macro": {
+        "translation_error_mm": 0.9631053703742509,
+        "rotation_delta_error_deg": 0.13817002442464246,
+        "gripper_mae": 0.010768099455162883,
+        "gripper_binary_accuracy": 0.9966517857142857
+      }
+    },
+    {
+      "cumulative_updates": 39116,
+      "macro": {
+        "translation_error_mm": 1.0110208749470726,
+        "rotation_delta_error_deg": 0.13621661169464833,
+        "gripper_mae": 0.005464516578025983,
+        "gripper_binary_accuracy": 1.0
+      }
+    },
+    {
+      "cumulative_updates": 39628,
+      "macro": {
+        "translation_error_mm": 0.8608931498526674,
+        "rotation_delta_error_deg": 0.10947104154140165,
+        "gripper_mae": 0.003368169169074723,
+        "gripper_binary_accuracy": 0.9988839285714286
+      }
+    },
+    {
+      "cumulative_updates": 39662,
+      "macro": {
+        "translation_error_mm": 1.0861825391137765,
+        "rotation_delta_error_deg": 0.17409151606905374,
+        "gripper_mae": 0.0015692210623196193,
+        "gripper_binary_accuracy": 1.0
+      }
+    }
+  ],
+  "known_scheduler_defect": {
+    "reason": "insufficient_span",
+    "last_five_offsets": [
+      4096,
+      4608,
+      5120,
+      5632,
+      5666
+    ],
+    "actual_span": 1570,
+    "required_span": 2048,
+    "fixed": false
+  },
+  "validation": {
+    "cloud_targeted_tests_passed": 71,
+    "source_matches_frozen_cloud": true,
+    "checkpoint_backups": "LOCAL_VERIFIED",
+    "drive_replica": "not_verified"
+  },
+  "limitations": [
+    "fixed tuning-development probes, not independent final test",
+    "no complete-task student rollout, no measured perturbation tolerance",
+    "stage completion and user pause are not convergence"
+  ]
+}

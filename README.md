@@ -179,6 +179,8 @@ cd /path/to/robot-vla
 
 同日完成的[Qwen 空间读出实验](experiments/qwen_spatial_readout/results.md)在48个新场景上冻结比较Layer12、Layer24与当前Adapter：有粗定位正信号，但精细定位与泛化仍不足，不能据此认定Qwen缺少空间信息；[设计与复现代码](experiments/qwen_spatial_readout/README.md)、[聚合指标](experiments/qwen_spatial_readout/summary.json)。
 
+2026-09-08 的后续 BC 工作：旧 Reach 学生的[续训闭环对照](experiments/tcp_teacher_closed_loop/results.md)显示执行稳定性改善，但仍不足以支持完整抓放；随后实现了[三粗／七细技能合同](experiments/skill_hierarchy/README.md)、教师采集及共享 BC。[七阶段训练结果](experiments/skill_hierarchy/bc_results.md)记录离线误差、按用户要求停止的状态及已知调度缺陷，不把阶段完成或固定开发探针准确率当作完整任务收敛。
+
 新实现按依赖方向渐进落地：
 
 ```text
