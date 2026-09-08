@@ -2,6 +2,8 @@
 
 **当前结果（2026-09-09）：首轮已完成，DAgger 未达到完整任务收益及追加门槛，未运行第二轮。** 完整结果见 [results.md](results.md)，机器可读证据见 [results.json](results.json)。下述为实际执行的首轮方案。
 
+后续共享学生方案已停止，改为 [七个独立技能策略与上层调度](hierarchical_policy_plan.md)：分别验收后保留七策略，由上层选择和切换。新的 [BC + DAgger 训练方案](independent_training_plan.md) 区分了已启动的独立 BC 与待验证的 DAgger 设计；不改变以下首轮历史结果。
+
 2026-09-08，用户批准教师接管验证 → 纠偏样本 → 等更新数BC/DAgger对照。新实验身份为`skill-dagger-r1`；此前metric-bc-v2未触发C1–C4，此处是新假设检验，不追认旧规则已通过。
 
 固定学生为metric-bc-v2的A最终权重（SHA256 `7cf5c95ba7dbe31843d615d7a550f9d1422167f3cc6e056dfefea8ee0e68b957`），选取不依据当时仍在运行的保留开发组结果。原教师、学生输入与TCP动作合同复用；不修改canonical数据集或核心模型。
