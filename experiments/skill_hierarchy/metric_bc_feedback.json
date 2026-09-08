@@ -1,0 +1,644 @@
+{
+  "schema": "metric-bc-v2-public-feedback/v1",
+  "snapshot_utc": "2026-09-08T15:07:50.682984+00:00",
+  "training_status": "completed",
+  "reserved_evaluation_status": "in_progress",
+  "selection": "fixed 1024 updates per branch",
+  "development_seeds": [
+    1811000,
+    1811001,
+    1811002,
+    1811003,
+    1811004,
+    1811005,
+    1811006,
+    1811007
+  ],
+  "reserved_development_seeds": [
+    1811008,
+    1811009,
+    1811010,
+    1811011,
+    1811012,
+    1811013,
+    1811014,
+    1811015,
+    1811016,
+    1811017,
+    1811018,
+    1811019,
+    1811020,
+    1811021,
+    1811022,
+    1811023,
+    1811024,
+    1811025,
+    1811026,
+    1811027,
+    1811028,
+    1811029,
+    1811030,
+    1811031
+  ],
+  "source_sha256": {
+    "metric_rules.py": "181730445136b500d3c65edf0886bf81d73ef13478576933ca960d3d5ca5fcf1",
+    "metric_rollout.py": "c61d28fb9516a51203cbd4c2ab6ed5549aec7a6f572e561b501eb0088d9dda5b",
+    "metric_train.py": "333df64bd1fa05ed74a925ae55490ddadeeeecd48d3e9b97a0ea24000fd14b98",
+    "test_metric_rules.py": "1cd03051f3b73b8df7aef29af1448a4e4feb3a82b7afddd02e9bca245b0a4fe9",
+    "test_metric_rollout.py": "535176a908a2044948fb84a58ac6ab6dced57155842cc47d6b107ed10c56a137"
+  },
+  "tests": {
+    "passed": 21,
+    "seconds": 3.88,
+    "scope": [
+      "test_metric_rules.py",
+      "test_metric_rollout.py"
+    ]
+  },
+  "smoke_updates": {
+    "total": 8,
+    "invalid_attempt": 4,
+    "successful_repair": 4
+  },
+  "branches": {
+    "A": {
+      "status": "completed",
+      "checkpoint_sha256": "7cf5c95ba7dbe31843d615d7a550f9d1422167f3cc6e056dfefea8ee0e68b957",
+      "steps": 1024,
+      "feedback": {
+        "F": {
+          "successes": 0,
+          "stable": 0,
+          "execution_errors": 2,
+          "denominator": 8
+        },
+        "S": {
+          "successes": 1,
+          "stable": 5,
+          "execution_errors": 0,
+          "denominator": 8
+        }
+      },
+      "exposure": 7168,
+      "feedback_rounds": {
+        "256": {
+          "tasks": {
+            "F": {
+              "successes": 0,
+              "stable": 0,
+              "execution_errors": 1,
+              "denominator": 8
+            },
+            "S": {
+              "successes": 2,
+              "stable": 3,
+              "execution_errors": 2,
+              "denominator": 8
+            }
+          },
+          "feedback_sha256": "19a3722292a95a0c38de157392a8c1ccf66270ee8a0af421795f73ad00ca262e"
+        },
+        "512": {
+          "tasks": {
+            "F": {
+              "successes": 1,
+              "stable": 1,
+              "execution_errors": 1,
+              "denominator": 8
+            },
+            "S": {
+              "successes": 1,
+              "stable": 5,
+              "execution_errors": 0,
+              "denominator": 8
+            }
+          },
+          "feedback_sha256": "172e26c5e6d878aa01465acf3d5f9392390f93f346eea72b51abe48f9aa68954"
+        },
+        "768": {
+          "tasks": {
+            "F": {
+              "successes": 0,
+              "stable": 4,
+              "execution_errors": 1,
+              "denominator": 8
+            },
+            "S": {
+              "successes": 1,
+              "stable": 8,
+              "execution_errors": 1,
+              "denominator": 8
+            }
+          },
+          "feedback_sha256": "40b3dd3ad8c61fc005d61dacab0146d16daa0669ed9335aa38b48244890e2499"
+        },
+        "1024": {
+          "tasks": {
+            "F": {
+              "successes": 0,
+              "stable": 0,
+              "execution_errors": 2,
+              "denominator": 8
+            },
+            "S": {
+              "successes": 1,
+              "stable": 5,
+              "execution_errors": 0,
+              "denominator": 8
+            }
+          },
+          "feedback_sha256": "0b6d9c081b5990c5f6bf6746ada9de896da6251f1b0e34169c5b715f1dfc62f5"
+        }
+      }
+    },
+    "B": {
+      "status": "completed",
+      "checkpoint_sha256": "c08fcc5d5e8b34d587bc19da68563032dded63ef41bfdbb04545cee37724e314",
+      "steps": 1024,
+      "feedback": {
+        "F": {
+          "successes": 0,
+          "stable": 1,
+          "execution_errors": 4,
+          "denominator": 8
+        },
+        "S": {
+          "successes": 0,
+          "stable": 8,
+          "execution_errors": 1,
+          "denominator": 8
+        }
+      },
+      "exposure": 7168,
+      "feedback_rounds": {
+        "256": {
+          "tasks": {
+            "F": {
+              "successes": 0,
+              "stable": 0,
+              "execution_errors": 1,
+              "denominator": 8
+            },
+            "S": {
+              "successes": 2,
+              "stable": 3,
+              "execution_errors": 2,
+              "denominator": 8
+            }
+          },
+          "feedback_sha256": "19a3722292a95a0c38de157392a8c1ccf66270ee8a0af421795f73ad00ca262e"
+        },
+        "512": {
+          "tasks": {
+            "F": {
+              "successes": 0,
+              "stable": 2,
+              "execution_errors": 0,
+              "denominator": 8
+            },
+            "S": {
+              "successes": 1,
+              "stable": 8,
+              "execution_errors": 0,
+              "denominator": 8
+            }
+          },
+          "feedback_sha256": "c123dcece081327178c07693850b1603c470acf2a34cbd939f6b6b265c45998a"
+        },
+        "768": {
+          "tasks": {
+            "F": {
+              "successes": 0,
+              "stable": 5,
+              "execution_errors": 2,
+              "denominator": 8
+            },
+            "S": {
+              "successes": 2,
+              "stable": 8,
+              "execution_errors": 4,
+              "denominator": 8
+            }
+          },
+          "feedback_sha256": "658b1467b53c0707f18a37f5b2d521151ad2dcdb38aaae4568737577d76084b2"
+        },
+        "1024": {
+          "tasks": {
+            "F": {
+              "successes": 0,
+              "stable": 1,
+              "execution_errors": 4,
+              "denominator": 8
+            },
+            "S": {
+              "successes": 0,
+              "stable": 8,
+              "execution_errors": 1,
+              "denominator": 8
+            }
+          },
+          "feedback_sha256": "742608690a999d76bc07811efb22636046b381cb384bdce1b176aac79a1d646e"
+        }
+      }
+    }
+  },
+  "baseline": {
+    "tasks": {
+      "F": {
+        "successes": 0,
+        "stable": 0,
+        "execution_errors": 3,
+        "denominator": 8
+      },
+      "S": {
+        "successes": 0,
+        "stable": 8,
+        "execution_errors": 5,
+        "denominator": 8
+      }
+    },
+    "feedback_sha256": "1e18d5739e2885ab453999ae4dd304484077b4dbe2ce584d62fc10d49550b611"
+  },
+  "B_sampling_decisions": [
+    {
+      "step": 256,
+      "focus": [
+        0,
+        0,
+        0.05198463508322663,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "probabilities": [
+        0,
+        0.036192704818251195,
+        0.08817733990147783,
+        0.06304535678017952,
+        0,
+        0.062082865196556584,
+        0.05926660619066441,
+        0.014081295029460919,
+        0.062487125714115556,
+        0.04165808380941038,
+        0,
+        0.03128555689315598,
+        0.030904333889710263,
+        0.018542600333826157,
+        0.049446934223536416,
+        0.03653689796960907,
+        0,
+        0.023711140184494963,
+        0.023711140184494963,
+        0.08800848604769199,
+        0.036537209759409425,
+        0.036537209759409425,
+        0,
+        0.06235634689786307,
+        0.13543076641668192,
+        0,
+        0,
+        0
+      ],
+      "grades": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "notes": []
+    },
+    {
+      "step": 512,
+      "focus": [
+        0,
+        0,
+        0.1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "probabilities": [
+        0,
+        0.03435960591133005,
+        0.13435960591133006,
+        0.05985221674876848,
+        0,
+        0.058938473725904404,
+        0.05626485344599948,
+        0.01336810139952469,
+        0.05932225913621262,
+        0.03954817275747508,
+        0,
+        0.029700996677740867,
+        0.02933908197066092,
+        0.01760344918239655,
+        0.046942531153057465,
+        0.034686366265313635,
+        0,
+        0.022510211285361303,
+        0.022510211285361303,
+        0.08355100600070597,
+        0.0346866622634912,
+        0.0346866622634912,
+        0,
+        0.05919810404444618,
+        0.12857142857142856,
+        0,
+        0,
+        0
+      ],
+      "grades": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "notes": []
+    },
+    {
+      "step": 768,
+      "focus": [
+        0,
+        0,
+        0.1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "probabilities": [
+        0,
+        0.03435960591133005,
+        0.13435960591133006,
+        0.05985221674876848,
+        0,
+        0.058938473725904404,
+        0.05626485344599948,
+        0.01336810139952469,
+        0.05932225913621262,
+        0.03954817275747508,
+        0,
+        0.029700996677740867,
+        0.02933908197066092,
+        0.01760344918239655,
+        0.046942531153057465,
+        0.034686366265313635,
+        0,
+        0.022510211285361303,
+        0.022510211285361303,
+        0.08355100600070597,
+        0.0346866622634912,
+        0.0346866622634912,
+        0,
+        0.05919810404444618,
+        0.12857142857142856,
+        0,
+        0,
+        0
+      ],
+      "grades": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "notes": []
+    },
+    {
+      "step": 1024,
+      "focus": [
+        0,
+        0,
+        0.04801536491677338,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "probabilities": [
+        0,
+        0.03634424099455667,
+        0.08435960591133004,
+        0.06330932302277616,
+        0,
+        0.06234280155813049,
+        0.059514751084223376,
+        0.014140252369535646,
+        0.06274875468455553,
+        0.041832503123037025,
+        0,
+        0.03141654720429696,
+        0.031033728048351677,
+        0.018620236829011004,
+        0.04965396487736268,
+        0.036689875257164155,
+        0,
+        0.02381041697349001,
+        0.02381041697349001,
+        0.08837697106490949,
+        0.03669018835240533,
+        0.03669018835240533,
+        0,
+        0.06261742830707887,
+        0.13599780501188952,
+        0,
+        0,
+        0
+      ],
+      "grades": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "notes": []
+    }
+  ],
+  "warmup": {
+    "digest": "62c228e210e6fa17ca35405c064be2acd5bc5df177983a7a7cd016187dbd29b5",
+    "paired_equal": true
+  }
+}
