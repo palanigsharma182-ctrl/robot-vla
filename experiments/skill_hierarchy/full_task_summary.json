@@ -1,0 +1,158 @@
+{
+  "schema": "seven-skill-full-task-development-summary/v1",
+  "date": "2026-09-08",
+  "data_use": "tuning development; four fixed known scenes; no final test",
+  "checkpoint_sha256": "d629396d27694b245b2b31b2694e1aab4f2d2764c3fce7d322302b4b31a848ee",
+  "source_manifest_sha256": "37748165409c16b9fe5c83ab138bc156d90327fe1031dae61e66db5d40c58bba",
+  "upstream_identity": "2d2dc832e3b36740d0d2feb7abac5d3e27000c323b149c4fe5d6cf2a0464db86",
+  "status": "completed",
+  "exitcode": 0,
+  "elapsed_s": 119.98578636199818,
+  "maximum_steps_per_episode": 400,
+  "scenes": 4,
+  "task_successes": 0,
+  "canonical_successes": 0,
+  "approach_completions": 2,
+  "align_completions": 0,
+  "held_frames": 0,
+  "control_ticks": 956,
+  "student_action_ticks": 954,
+  "fallback_hold_ticks": 2,
+  "teacher_action_ticks": 0,
+  "training_remains_paused": true,
+  "records": [
+    {
+      "seed": 1811000,
+      "success": false,
+      "seven_completed": 0,
+      "control_ticks": 284,
+      "student_action_ticks": 284,
+      "fallback_hold_ticks": 0,
+      "preparation_steps": 0,
+      "minimum_pregrasp_distance_mm": 89.33031836271176,
+      "minimum_orientation_error_deg": 3.4105152263180827,
+      "held_frames": 0,
+      "tracking_error_max_rad": 0.026641488075256348,
+      "terminal_cause": "ik_solution_joint7_lower_bound",
+      "failure_distance_mm": 96.78192652393336,
+      "failure_orientation_error_deg": 17.68092699889696,
+      "failure_opening": 0.9511081501841545,
+      "runner_stop_reason": "execution-or-boundary-failure",
+      "approach_completion_step": null,
+      "rejected_ik_solution": {
+        "prefix_step": 1,
+        "solver_success": true,
+        "error": [
+          -4.3715865867420777e-07,
+          2.835018195640641e-07,
+          2.9444863015767047e-07,
+          -1.193225467599479e-07,
+          2.212292751300332e-07,
+          -6.145059645377548e-06
+        ],
+        "out_of_bounds": [
+          {
+            "joint": 7,
+            "answer_rad": -2.89906157551791,
+            "lower_rad": -2.8973,
+            "upper_rad": 2.8973
+          }
+        ],
+        "finite": true
+      }
+    },
+    {
+      "seed": 1811001,
+      "success": false,
+      "seven_completed": 0,
+      "control_ticks": 296,
+      "student_action_ticks": 296,
+      "fallback_hold_ticks": 0,
+      "preparation_steps": 0,
+      "minimum_pregrasp_distance_mm": 45.2049043625802,
+      "minimum_orientation_error_deg": 2.496894301243642,
+      "held_frames": 0,
+      "tracking_error_max_rad": 0.030406832695007324,
+      "terminal_cause": "ik_solution_joint7_lower_bound",
+      "failure_distance_mm": 83.14645501656071,
+      "failure_orientation_error_deg": 13.963679341519484,
+      "failure_opening": 0.9727725759148598,
+      "runner_stop_reason": "execution-or-boundary-failure",
+      "approach_completion_step": null,
+      "rejected_ik_solution": {
+        "prefix_step": 1,
+        "solver_success": true,
+        "error": [
+          2.680918978598152e-07,
+          -4.1366700021328284e-07,
+          -7.842987676916107e-08,
+          -5.519887383842459e-07,
+          5.834786559327787e-07,
+          -4.953174004973873e-06
+        ],
+        "out_of_bounds": [
+          {
+            "joint": 7,
+            "answer_rad": -2.8976935500223417,
+            "lower_rad": -2.8973,
+            "upper_rad": 2.8973
+          }
+        ],
+        "finite": true
+      }
+    },
+    {
+      "seed": 1811002,
+      "success": false,
+      "seven_completed": 1,
+      "control_ticks": 238,
+      "student_action_ticks": 237,
+      "fallback_hold_ticks": 1,
+      "preparation_steps": 0,
+      "minimum_pregrasp_distance_mm": 38.202275751108914,
+      "minimum_orientation_error_deg": 12.009561450674989,
+      "held_frames": 0,
+      "tracking_error_max_rad": 0.029244184494018555,
+      "terminal_cause": "align_opening_invariant",
+      "failure_distance_mm": 69.76971048322001,
+      "failure_orientation_error_deg": 13.679687983411993,
+      "failure_opening": 0.47194352373480797,
+      "runner_stop_reason": "executor-failure-or-no-progress",
+      "approach_completion_step": 40
+    },
+    {
+      "seed": 1811003,
+      "success": false,
+      "seven_completed": 1,
+      "control_ticks": 138,
+      "student_action_ticks": 137,
+      "fallback_hold_ticks": 1,
+      "preparation_steps": 0,
+      "minimum_pregrasp_distance_mm": 32.443886667738234,
+      "minimum_orientation_error_deg": 10.086805400146739,
+      "held_frames": 0,
+      "tracking_error_max_rad": 0.02587038278579712,
+      "terminal_cause": "align_opening_invariant",
+      "failure_distance_mm": 65.64513891847531,
+      "failure_orientation_error_deg": 11.11116027401999,
+      "failure_opening": 0.5609353072941303,
+      "runner_stop_reason": "executor-failure-or-no-progress",
+      "approach_completion_step": 27
+    }
+  ],
+  "tests": {
+    "passed": 31,
+    "elapsed_s": 3.98,
+    "exitcode": 0
+  },
+  "preflight_attempt": {
+    "status": "error_before_actions",
+    "control_ticks": 0,
+    "error": "upstream tuple/list serialization mismatch",
+    "canonical_identity_verified_equal": true
+  },
+  "evidence": {
+    "local": "LOCAL_VERIFIED",
+    "drive": "deferred; not verified"
+  }
+}

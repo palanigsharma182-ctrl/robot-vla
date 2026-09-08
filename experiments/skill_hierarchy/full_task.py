@@ -9,10 +9,9 @@ import torch
 
 from experiments.skill_hierarchy.collect import DEV_SEEDS
 from experiments.skill_hierarchy.probe import HierarchyTeacher
-from experiments.skill_hierarchy.replay import ReplayController
 from experiments.skill_hierarchy.train import FORMAT
 from experiments.tcp_atomic_skills.protocol import save,sha,identity,verify_source
-from experiments.tcp_atomic_skills.runtime import load_parent,predict,AtomicExecutor,execute_plan
+from experiments.tcp_atomic_skills.runtime import load_parent,predict,AtomicController,AtomicExecutor,execute_plan
 from experiments.tcp_memory_control.kinematics import TCPKinematics
 from experiments.tcp_memory_control.protocol import sampling_seed
 from robot_vla.sim.collector import AtomicPreparation
@@ -20,6 +19,48 @@ from robot_vla.tasks.pick_place import build_pick_place_task
 
 SEEDS=DEV_SEEDS[:4]
 MAX_STEPS=400
+
+
+class FullTaskController(AtomicController):
+    """同时等待 canonical 和七技能完成，并保留执行故障的停止优先级。"""
+
+    def __init__(self, teacher, *args):
+        self.teacher = teacher
+        super().__init__(teacher.env, *args)
+
+    def send_action(self, value):
+        super().send_action(value)
+        teacher = self.teacher
+        teacher.metrics = teacher.measure(open_command=float((value[-1]+1)/2))
+        try:
+            teacher.metrics = teacher.boundaries.observe(
+                teacher.metrics, teacher.relative_pose, self.steps/20.)
+            both_complete = (teacher.boundaries.active == 7
+                             and self.progress.completed_skill_count >= 5)
+            if self.stop_reason != 'tracking-invalid':
+                _, _, terminated, truncated, _ = self.last_step_output
+                if both_complete:
+                    self.stop_reason = 'success'
+                elif bool(terminated.item()) or bool(truncated.item()):
+                    self.stop_reason = 'environment-terminal'
+                elif self.steps >= self.limit:
+                    self.stop_reason = 'step-budget-exhausted'
+                else:
+                    self.stop_reason = None
+            self.chunk_stop_requested = self.stop_reason is not None
+        finally:
+            # GT 只留在评估日志；不参与学生观测或动作选择。
+            with (self.output/'boundaries.jsonl').open('a') as f:
+                f.write(json.dumps(dict(step=self.steps, active=teacher.boundaries.active,
+                                        metrics=teacher.metrics))+'\n')
+
+
+def verify_upstream(actual, expected):
+    """按训练配置的 JSON 身份比较，避免 tuple 保存为 list 后被误判。"""
+    actual_id = identity(actual)
+    if actual_id != identity(expected):
+        raise ValueError('完整任务评估上游身份改变')
+    return actual_id
 
 
 def load_student(policy, path, result, config):
@@ -66,7 +107,7 @@ def main():
     signal.signal(signal.SIGTERM,stop);signal.signal(signal.SIGINT,stop);persist()
     try:
         base,policy,upstream=load_parent(args)
-        if upstream!=config['upstream']:raise ValueError('完整任务评估上游身份改变')
+        result['upstream_identity'] = verify_upstream(upstream, config['upstream'])
         load_student(policy,args.training/'latest.pt',trained,config);fk=TCPKinematics()
         for row in rows:
             folder=args.output/str(row['seed']);folder.mkdir();ctrl=None;plans=[]
@@ -77,7 +118,7 @@ def main():
                     teacher.initialize(row['seed'])
                     session=teacher.session
                     preparation=AtomicPreparation(session.observation,session.tracker,session.progress,0)
-                    ctrl=ReplayController(teacher,preparation,5,MAX_STEPS,
+                    ctrl=FullTaskController(teacher,preparation,5,MAX_STEPS,
                         build_pick_place_task(row['seed']%3).instruction,folder)
                     save(folder/'initial.json',ctrl.audit());executor=AtomicExecutor(fk)
                     while ctrl.stop_reason is None:

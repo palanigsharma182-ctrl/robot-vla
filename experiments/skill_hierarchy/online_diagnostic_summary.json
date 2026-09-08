@@ -1,0 +1,1244 @@
+{
+  "schema": "shared-student-online-diagnostic-summary/v1",
+  "date": "2026-09-08",
+  "status": "completed",
+  "data_use": "four existing tuning development scenes; post-hoc diagnostic; no final test",
+  "checkpoint_sha256": "d629396d27694b245b2b31b2694e1aab4f2d2764c3fce7d322302b4b31a848ee",
+  "source_manifest_sha256": [
+    "6163de0f43cc38539f2c54e650a8c2e840bf59ddc57678af0959a7ebf3789be3",
+    "4ee077949232f1925e91329836b2c6f54572f2051e0cff5736b0907b2312f0fc"
+  ],
+  "exitcodes": [
+    0,
+    0
+  ],
+  "elapsed_s": [
+    69.49868046800111,
+    25.74568726900179
+  ],
+  "training_updates": 0,
+  "cache_writes": false,
+  "cache": {
+    "windows": 28,
+    "context_max_abs": 0.0,
+    "proprio_max_abs": 0.0,
+    "prediction_max_abs": 0.0,
+    "masks_all_equal": true
+  },
+  "same_input": {
+    "teacher_cached_windows": 28,
+    "teacher_initial_windows": 4,
+    "replayed_observations": 20,
+    "compared_action_prefix": 4,
+    "online_vs_offline_fullmask_max_abs": 0.0
+  },
+  "replay": {
+    "control_steps": 952,
+    "max_joint_difference_rad": 2.1457672119140625e-06,
+    "initial_dataset_and_prior_observations_equal": true,
+    "whole_chunk_predictions_exact_to_prior": 15,
+    "samples": 20,
+    "limitation": "Prior RGB at noninitial steps was not saved; reconstructed observation cannot be claimed identical to original for every step."
+  },
+  "early": [
+    {
+      "seed": 1811000,
+      "anchor": 0,
+      "fine_skill_id": 0,
+      "metrics": {
+        "translation_error_mm": 0.6893869899323726,
+        "rotation_error_deg": 0.17640380853472098,
+        "gripper_max_abs": 0.0031243562698364258,
+        "target_translation_mm": 0.23810879793018103,
+        "target_rotation_deg": 0.055811433384464613
+      },
+      "predicted_prefix_rotation_sum_rad": [
+        -0.0012375457590678707,
+        0.004317875136621296,
+        -0.007325115497224033
+      ],
+      "teacher_prefix_rotation_sum_rad": [
+        0.0002560855864430775,
+        3.4110192473237195e-05,
+        0.003887799161020783
+      ],
+      "rotation_sum_cosine": -0.8556812990220798
+    },
+    {
+      "seed": 1811000,
+      "anchor": 8,
+      "fine_skill_id": 0,
+      "metrics": {
+        "translation_error_mm": 0.7018357528963656,
+        "rotation_error_deg": 0.17854771165580574,
+        "gripper_max_abs": 0.004507541656494141,
+        "target_translation_mm": 2.3996580857783556,
+        "target_rotation_deg": 0.5426394263721782
+      },
+      "predicted_prefix_rotation_sum_rad": [
+        0.000787580938776955,
+        0.004663849715143442,
+        0.026477794628590345
+      ],
+      "teacher_prefix_rotation_sum_rad": [
+        0.002856800681911409,
+        0.00036384294435265474,
+        0.03777026990428567
+      ],
+      "rotation_sum_cosine": 0.9854413446188651
+    },
+    {
+      "seed": 1811000,
+      "anchor": 16,
+      "fine_skill_id": 0,
+      "metrics": {
+        "translation_error_mm": 1.0156556164679258,
+        "rotation_error_deg": 0.356643346450811,
+        "gripper_max_abs": 0.0011700987815856934,
+        "target_translation_mm": 4.90558473393321,
+        "target_rotation_deg": 1.128730808696685
+      },
+      "predicted_prefix_rotation_sum_rad": [
+        0.0003894715919159353,
+        0.0026120677575818263,
+        0.05449470318853855
+      ],
+      "teacher_prefix_rotation_sum_rad": [
+        0.00554566306527704,
+        0.0005688614692189731,
+        0.07860156148672104
+      ],
+      "rotation_sum_cosine": 0.9971730391071371
+    },
+    {
+      "seed": 1811000,
+      "anchor": 24,
+      "fine_skill_id": 0,
+      "metrics": {
+        "translation_error_mm": 1.8695767438662638,
+        "rotation_error_deg": 0.46809229564147803,
+        "gripper_max_abs": 0.007209837436676025,
+        "target_translation_mm": 4.60398243740201,
+        "target_rotation_deg": 1.0970253907346033
+      },
+      "predicted_prefix_rotation_sum_rad": [
+        0.0019844475900754333,
+        0.007921167649328709,
+        0.07308356370776892
+      ],
+      "teacher_prefix_rotation_sum_rad": [
+        0.004492493928410115,
+        0.0005225592467468257,
+        0.07645136304199704
+      ],
+      "rotation_sum_cosine": 0.9943989447767896
+    },
+    {
+      "seed": 1811000,
+      "anchor": 32,
+      "fine_skill_id": 0,
+      "metrics": {
+        "translation_error_mm": 2.142865747166187,
+        "rotation_error_deg": 0.4366131889278289,
+        "gripper_max_abs": 0.0,
+        "target_translation_mm": 5.380876362323761,
+        "target_rotation_deg": 1.2327548031993907
+      },
+      "predicted_prefix_rotation_sum_rad": [
+        -0.0002472238629707135,
+        0.0016092873647721717,
+        0.07830979488790035
+      ],
+      "teacher_prefix_rotation_sum_rad": [
+        0.006078502512536943,
+        0.0003700331690197345,
+        0.08584373071789742
+      ],
+      "rotation_sum_cosine": 0.997143093246267
+    },
+    {
+      "seed": 1811000,
+      "anchor": 48,
+      "fine_skill_id": 1,
+      "metrics": {
+        "translation_error_mm": 4.97444996450944,
+        "rotation_error_deg": 0.9928015190023972,
+        "gripper_max_abs": 0.0057007670402526855,
+        "target_translation_mm": 0.3450035583227873,
+        "target_rotation_deg": 0.0806974710842974
+      },
+      "predicted_prefix_rotation_sum_rad": [
+        -0.0053971558809280396,
+        0.007789378869347274,
+        0.017123248428106308
+      ],
+      "teacher_prefix_rotation_sum_rad": [
+        0.00040272510159411316,
+        0.00017512622798676575,
+        0.005616604001261375
+      ],
+      "rotation_sum_cosine": 0.8649426506091499
+    },
+    {
+      "seed": 1811001,
+      "anchor": 0,
+      "fine_skill_id": 0,
+      "metrics": {
+        "translation_error_mm": 0.5698738656082356,
+        "rotation_error_deg": 0.07778618528794361,
+        "gripper_max_abs": 0.005784809589385986,
+        "target_translation_mm": 0.34698579111136496,
+        "target_rotation_deg": 0.06969927903520336
+      },
+      "predicted_prefix_rotation_sum_rad": [
+        -0.001954506180481985,
+        0.003898444236256182,
+        -0.008370900177396834
+      ],
+      "teacher_prefix_rotation_sum_rad": [
+        -0.0008694377320353125,
+        0.0001373936738673491,
+        -0.0047856510500423385
+      ],
+      "rotation_sum_cosine": 0.9208959935112027
+    },
+    {
+      "seed": 1811001,
+      "anchor": 8,
+      "fine_skill_id": 0,
+      "metrics": {
+        "translation_error_mm": 0.7369638562855149,
+        "rotation_error_deg": 0.07747427911991837,
+        "gripper_max_abs": 0.0,
+        "target_translation_mm": 3.4497533924877644,
+        "target_rotation_deg": 0.6891700893182534
+      },
+      "predicted_prefix_rotation_sum_rad": [
+        -0.005981759866699576,
+        0.002580541360657662,
+        -0.050426747649908066
+      ],
+      "teacher_prefix_rotation_sum_rad": [
+        -0.008257630746811628,
+        0.0014073927886784077,
+        -0.0473755057901144
+      ],
+      "rotation_sum_cosine": 0.9982864820747525
+    },
+    {
+      "seed": 1811001,
+      "anchor": 16,
+      "fine_skill_id": 0,
+      "metrics": {
+        "translation_error_mm": 1.3269586429952256,
+        "rotation_error_deg": 0.24837849271554927,
+        "gripper_max_abs": 0.010461866855621338,
+        "target_translation_mm": 6.922558881342411,
+        "target_rotation_deg": 1.3865593508072651
+      },
+      "predicted_prefix_rotation_sum_rad": [
+        -0.008370336494408548,
+        0.005381217459216714,
+        -0.0808667317032814
+      ],
+      "teacher_prefix_rotation_sum_rad": [
+        -0.01712727639824152,
+        0.0030439828988164663,
+        -0.09522301517426968
+      ],
+      "rotation_sum_cosine": 0.9966096673347989
+    },
+    {
+      "seed": 1811001,
+      "anchor": 24,
+      "fine_skill_id": 0,
+      "metrics": {
+        "translation_error_mm": 1.3309423315286228,
+        "rotation_error_deg": 0.1626801196030216,
+        "gripper_max_abs": 0.00869452953338623,
+        "target_translation_mm": 7.434558123350143,
+        "target_rotation_deg": 1.4918335900932005
+      },
+      "predicted_prefix_rotation_sum_rad": [
+        -0.010418879217468202,
+        0.004808852565474808,
+        -0.10045699402689934
+      ],
+      "teacher_prefix_rotation_sum_rad": [
+        -0.018974396865814924,
+        0.003328425984364003,
+        -0.10235234349966049
+      ],
+      "rotation_sum_cosine": 0.9966884897701609
+    },
+    {
+      "seed": 1811001,
+      "anchor": 32,
+      "fine_skill_id": 1,
+      "metrics": {
+        "translation_error_mm": 0.7165061237585737,
+        "rotation_error_deg": 0.06902468194260541,
+        "gripper_max_abs": 0.0063980817794799805,
+        "target_translation_mm": 1.7396033508703113,
+        "target_rotation_deg": 0.3488529257146062
+      },
+      "predicted_prefix_rotation_sum_rad": [
+        -0.0034623838146217167,
+        0.003600751399062574,
+        -0.026194419246166945
+      ],
+      "teacher_prefix_rotation_sum_rad": [
+        -0.004908494709525257,
+        0.00021134410053491592,
+        -0.02382809855043888
+      ],
+      "rotation_sum_cosine": 0.9894289477167415
+    },
+    {
+      "seed": 1811001,
+      "anchor": 48,
+      "fine_skill_id": 2,
+      "metrics": {
+        "translation_error_mm": 0.4038359979557372,
+        "rotation_error_deg": 0.12045578721327256,
+        "gripper_max_abs": 0.0051010847091674805,
+        "target_translation_mm": 1.1503184214234352,
+        "target_rotation_deg": 0.03563151608468963
+      },
+      "predicted_prefix_rotation_sum_rad": [
+        -0.0031072996207512915,
+        0.0029496867500711232,
+        -0.008435379946604371
+      ],
+      "teacher_prefix_rotation_sum_rad": [
+        -0.0009373986067657825,
+        -0.0004956092559496028,
+        -0.0011475617066025734
+      ],
+      "rotation_sum_cosine": 0.7529901043375253
+    },
+    {
+      "seed": 1811002,
+      "anchor": 0,
+      "fine_skill_id": 0,
+      "metrics": {
+        "translation_error_mm": 0.5690146955520247,
+        "rotation_error_deg": 0.11526911002175394,
+        "gripper_max_abs": 0.0,
+        "target_translation_mm": 0.38556091021746397,
+        "target_rotation_deg": 0.06956850492498141
+      },
+      "predicted_prefix_rotation_sum_rad": [
+        -0.00013058827607892454,
+        0.0034628696739673615,
+        -0.001756924859364517
+      ],
+      "teacher_prefix_rotation_sum_rad": [
+        -7.057241509756015e-05,
+        -0.00030887001776136344,
+        0.004846453026402858
+      ],
+      "rotation_sum_cosine": -0.5074316096302158
+    },
+    {
+      "seed": 1811002,
+      "anchor": 8,
+      "fine_skill_id": 0,
+      "metrics": {
+        "translation_error_mm": 0.4503978154708015,
+        "rotation_error_deg": 0.19551122275007737,
+        "gripper_max_abs": 0.0022367238998413086,
+        "target_translation_mm": 3.872664412483573,
+        "target_rotation_deg": 0.6919338613328756
+      },
+      "predicted_prefix_rotation_sum_rad": [
+        -0.0016635579813737422,
+        0.0032678074785508215,
+        0.03648703545331955
+      ],
+      "teacher_prefix_rotation_sum_rad": [
+        -0.0001252432120963931,
+        -0.0031137536861933768,
+        0.0481988163664937
+      ],
+      "rotation_sum_cosine": 0.9872876644727506
+    },
+    {
+      "seed": 1811002,
+      "anchor": 16,
+      "fine_skill_id": 0,
+      "metrics": {
+        "translation_error_mm": 0.8148605166970689,
+        "rotation_error_deg": 0.24117136671795178,
+        "gripper_max_abs": 0.0,
+        "target_translation_mm": 7.611029781401157,
+        "target_rotation_deg": 1.3674030180629064
+      },
+      "predicted_prefix_rotation_sum_rad": [
+        -0.001954655075678602,
+        0.0011353839072398841,
+        0.08049493655562401
+      ],
+      "teacher_prefix_rotation_sum_rad": [
+        -0.0008981410646811128,
+        -0.006334697594866157,
+        0.0952455960214138
+      ],
+      "rotation_sum_cosine": 0.9966509721591028
+    },
+    {
+      "seed": 1811002,
+      "anchor": 24,
+      "fine_skill_id": 0,
+      "metrics": {
+        "translation_error_mm": 2.640210462330218,
+        "rotation_error_deg": 0.6181426874898612,
+        "gripper_max_abs": 0.0,
+        "target_translation_mm": 6.388783920556307,
+        "target_rotation_deg": 1.168395104589124
+      },
+      "predicted_prefix_rotation_sum_rad": [
+        0.0017257545259781182,
+        0.0035090066958218813,
+        0.02280696341767907
+      ],
+      "teacher_prefix_rotation_sum_rad": [
+        -0.00019034179740629042,
+        -0.0021823327278980287,
+        0.033020871109329164
+      ],
+      "rotation_sum_cosine": 0.9730267767095773
+    },
+    {
+      "seed": 1811002,
+      "anchor": 32,
+      "fine_skill_id": 1,
+      "metrics": {
+        "translation_error_mm": 0.7807243075024469,
+        "rotation_error_deg": 0.07200428243155614,
+        "gripper_max_abs": 0.0,
+        "target_translation_mm": 2.697157906368375,
+        "target_rotation_deg": 0.4935323405913435
+      },
+      "predicted_prefix_rotation_sum_rad": [
+        0.0005009483484172961,
+        0.00011899845412699506,
+        0.03385194484144449
+      ],
+      "teacher_prefix_rotation_sum_rad": [
+        1.2432283256202936e-06,
+        -0.0014081804256420583,
+        0.03442109748721123
+      ],
+      "rotation_sum_cosine": 0.998905523097119
+    },
+    {
+      "seed": 1811002,
+      "anchor": 48,
+      "fine_skill_id": 2,
+      "metrics": {
+        "translation_error_mm": 0.23586172984022874,
+        "rotation_error_deg": 0.06901970383877792,
+        "gripper_max_abs": 0.0,
+        "target_translation_mm": 4.009486176073551,
+        "target_rotation_deg": 0.09755988079384321
+      },
+      "predicted_prefix_rotation_sum_rad": [
+        0.00010895654850173742,
+        0.003035913803614676,
+        0.0035541863180696964
+      ],
+      "teacher_prefix_rotation_sum_rad": [
+        0.0006760216974726063,
+        -0.00030361646622623084,
+        0.006656466634012759
+      ],
+      "rotation_sum_cosine": 0.7284119297731978
+    },
+    {
+      "seed": 1811003,
+      "anchor": 0,
+      "fine_skill_id": 0,
+      "metrics": {
+        "translation_error_mm": 1.2284062127752706,
+        "rotation_error_deg": 0.12732530786879007,
+        "gripper_max_abs": 0.0,
+        "target_translation_mm": 0.1941844093380496,
+        "target_rotation_deg": 0.05820787262284036
+      },
+      "predicted_prefix_rotation_sum_rad": [
+        -0.0024739992513787,
+        0.006010829354636371,
+        -0.0019953834344050847
+      ],
+      "teacher_prefix_rotation_sum_rad": [
+        6.321010096144566e-05,
+        -0.00011482851004984508,
+        -0.004061561252456245
+      ],
+      "rotation_sum_cosine": 0.2626707759072084
+    },
+    {
+      "seed": 1811003,
+      "anchor": 8,
+      "fine_skill_id": 0,
+      "metrics": {
+        "translation_error_mm": 0.7467191934425967,
+        "rotation_error_deg": 0.08048024566432221,
+        "gripper_max_abs": 0.0017523765563964844,
+        "target_translation_mm": 1.9583096727728844,
+        "target_rotation_deg": 0.5642696749782565
+      },
+      "predicted_prefix_rotation_sum_rad": [
+        -0.0027805038553196937,
+        0.0018425518064759672,
+        -0.04092815890908241
+      ],
+      "teacher_prefix_rotation_sum_rad": [
+        0.0008808881248114631,
+        -0.001150436743046157,
+        -0.0393649828620255
+      ],
+      "rotation_sum_cosine": 0.9931962930023815
+    },
+    {
+      "seed": 1811003,
+      "anchor": 16,
+      "fine_skill_id": 0,
+      "metrics": {
+        "translation_error_mm": 0.8049239177722578,
+        "rotation_error_deg": 0.22017415416267963,
+        "gripper_max_abs": 0.004891753196716309,
+        "target_translation_mm": 3.9572552777826786,
+        "target_rotation_deg": 1.160857030344663
+      },
+      "predicted_prefix_rotation_sum_rad": [
+        -0.004402837832458317,
+        -0.0004581618923111819,
+        -0.06724668387323618
+      ],
+      "teacher_prefix_rotation_sum_rad": [
+        0.0015025465690996498,
+        -0.0022415119456127286,
+        -0.08099754899740219
+      ],
+      "rotation_sum_cosine": 0.9962639038641355
+    },
+    {
+      "seed": 1811003,
+      "anchor": 24,
+      "fine_skill_id": 0,
+      "metrics": {
+        "translation_error_mm": 1.2460623549092857,
+        "rotation_error_deg": 0.4295386733656245,
+        "gripper_max_abs": 0.004457235336303711,
+        "target_translation_mm": 3.6580839660018682,
+        "target_rotation_deg": 1.1157603861845367
+      },
+      "predicted_prefix_rotation_sum_rad": [
+        -0.0005897424853174016,
+        0.0025457562878727913,
+        -0.07797413039952517
+      ],
+      "teacher_prefix_rotation_sum_rad": [
+        0.0007730703800916762,
+        -0.0021255589090287755,
+        -0.07786097563803196
+      ],
+      "rotation_sum_cosine": 0.9980520477221944
+    },
+    {
+      "seed": 1811003,
+      "anchor": 32,
+      "fine_skill_id": 0,
+      "metrics": {
+        "translation_error_mm": 1.4074302247309356,
+        "rotation_error_deg": 0.27088759584509814,
+        "gripper_max_abs": 0.00202023983001709,
+        "target_translation_mm": 4.222475923597813,
+        "target_rotation_deg": 1.2296017104020778
+      },
+      "predicted_prefix_rotation_sum_rad": [
+        -0.00029684724904655013,
+        -0.0006739422824466601,
+        -0.09295105002820492
+      ],
+      "teacher_prefix_rotation_sum_rad": [
+        0.0015451208455488086,
+        -0.002243656839709729,
+        -0.08579793199896812
+      ],
+      "rotation_sum_cosine": 0.9995969516570385
+    },
+    {
+      "seed": 1811003,
+      "anchor": 48,
+      "fine_skill_id": 1,
+      "metrics": {
+        "translation_error_mm": 0.634902800990259,
+        "rotation_error_deg": 0.07528241332638043,
+        "gripper_max_abs": 0.0024156570434570312,
+        "target_translation_mm": 0.8466088911518455,
+        "target_rotation_deg": 0.16210272052133734
+      },
+      "predicted_prefix_rotation_sum_rad": [
+        0.0004987747997802217,
+        0.0018638310575624928,
+        -0.011743127251975238
+      ],
+      "teacher_prefix_rotation_sum_rad": [
+        -0.0018215041782241315,
+        -0.0014101048291195184,
+        -0.010339992004446685
+      ],
+      "rotation_sum_cosine": 0.9351041824027813
+    }
+  ],
+  "tails": [
+    {
+      "seed": 1811000,
+      "anchor": 194,
+      "valid_slots": 4,
+      "compared_valid_prefix_steps": 4,
+      "native_vs_fullmask": {
+        "translation_error_mm": 0.670172606990314,
+        "rotation_error_deg": 0.042292317461735826,
+        "gripper_max_abs": 0.023638784885406494,
+        "target_translation_mm": 0.6994860955196449,
+        "target_rotation_deg": 0.14500778600358707
+      },
+      "native_vs_teacher": {
+        "translation_error_mm": 0.5091040678835651,
+        "rotation_error_deg": 0.11632881429688988,
+        "gripper_max_abs": 0.0,
+        "target_translation_mm": 0.4522139497566968,
+        "target_rotation_deg": 0.028639640195364684
+      },
+      "fullmask_vs_teacher": {
+        "translation_error_mm": 0.3931622768848664,
+        "rotation_error_deg": 0.11796961806725233,
+        "gripper_max_abs": 0.023638784885406494,
+        "target_translation_mm": 0.4522139497566968,
+        "target_rotation_deg": 0.028639640195364684
+      }
+    },
+    {
+      "seed": 1811001,
+      "anchor": 168,
+      "valid_slots": 3,
+      "compared_valid_prefix_steps": 3,
+      "native_vs_fullmask": {
+        "translation_error_mm": 0.610462848795668,
+        "rotation_error_deg": 0.059927808222454054,
+        "gripper_max_abs": 0.010937511920928955,
+        "target_translation_mm": 0.6720155731875584,
+        "target_rotation_deg": 0.16590427129172036
+      },
+      "native_vs_teacher": {
+        "translation_error_mm": 0.49148323439271774,
+        "rotation_error_deg": 0.14648967220796172,
+        "gripper_max_abs": 0.0031834840774536133,
+        "target_translation_mm": 0.3441491862758994,
+        "target_rotation_deg": 0.04215056812665649
+      },
+      "fullmask_vs_teacher": {
+        "translation_error_mm": 0.36282984276801306,
+        "rotation_error_deg": 0.14798985216960436,
+        "gripper_max_abs": 0.013819575309753418,
+        "target_translation_mm": 0.3441491862758994,
+        "target_rotation_deg": 0.04215056812665649
+      }
+    },
+    {
+      "seed": 1811002,
+      "anchor": 166,
+      "valid_slots": 4,
+      "compared_valid_prefix_steps": 4,
+      "native_vs_fullmask": {
+        "translation_error_mm": 0.4169032328226478,
+        "rotation_error_deg": 0.05041207083403535,
+        "gripper_max_abs": 0.01593935489654541,
+        "target_translation_mm": 0.39064425656111856,
+        "target_rotation_deg": 0.15565335415402098
+      },
+      "native_vs_teacher": {
+        "translation_error_mm": 0.34821694630295047,
+        "rotation_error_deg": 0.1390986501021972,
+        "gripper_max_abs": 0.0003731250762939453,
+        "target_translation_mm": 0.20542550191748887,
+        "target_rotation_deg": 0.028884663226678972
+      },
+      "fullmask_vs_teacher": {
+        "translation_error_mm": 0.26555295350706093,
+        "rotation_error_deg": 0.14004699695870004,
+        "gripper_max_abs": 0.01593935489654541,
+        "target_translation_mm": 0.20542550191748887,
+        "target_rotation_deg": 0.028884663226678972
+      }
+    },
+    {
+      "seed": 1811003,
+      "anchor": 189,
+      "valid_slots": 2,
+      "compared_valid_prefix_steps": 2,
+      "native_vs_fullmask": {
+        "translation_error_mm": 0.5542105704276393,
+        "rotation_error_deg": 0.058582490579434786,
+        "gripper_max_abs": 0.016285836696624756,
+        "target_translation_mm": 0.5949658482196454,
+        "target_rotation_deg": 0.1363869633345705
+      },
+      "native_vs_teacher": {
+        "translation_error_mm": 0.35128249798032374,
+        "rotation_error_deg": 0.13139742487538744,
+        "gripper_max_abs": 0.0,
+        "target_translation_mm": 0.19655503274407238,
+        "target_rotation_deg": 0.032832826061957074
+      },
+      "fullmask_vs_teacher": {
+        "translation_error_mm": 0.41456486656278135,
+        "rotation_error_deg": 0.13113522488767965,
+        "gripper_max_abs": 0.016285836696624756,
+        "target_translation_mm": 0.19655503274407238,
+        "target_rotation_deg": 0.032832826061957074
+      }
+    }
+  ],
+  "timeline": [
+    {
+      "seed": 1811000,
+      "nearest_step": 121,
+      "nearest_distance_mm": 89.33031836271176,
+      "joint7_drift_checkpoints": [
+        {
+          "abs_joint7_drift_rad": 0.1,
+          "step": 16,
+          "joint7_rad": -0.9012498259544373,
+          "distance_mm": 155.39402686799212
+        },
+        {
+          "abs_joint7_drift_rad": 0.25,
+          "step": 25,
+          "joint7_rad": -1.0462512969970703,
+          "distance_mm": 130.95829974176468
+        },
+        {
+          "abs_joint7_drift_rad": 0.5,
+          "step": 42,
+          "joint7_rad": -1.2932229042053223,
+          "distance_mm": 105.82674340365101
+        },
+        {
+          "abs_joint7_drift_rad": 1.0,
+          "step": 92,
+          "joint7_rad": -1.7912572622299194,
+          "distance_mm": 95.09380868869921
+        },
+        {
+          "abs_joint7_drift_rad": 1.5,
+          "step": 159,
+          "joint7_rad": -2.2971367835998535,
+          "distance_mm": 96.26606098340723
+        },
+        {
+          "abs_joint7_drift_rad": 2.0,
+          "step": 264,
+          "joint7_rad": -2.7925872802734375,
+          "distance_mm": 97.03293614794488
+        }
+      ],
+      "samples": [
+        {
+          "step": 1,
+          "joint7_rad": -0.7923771142959595,
+          "distance_mm": 177.01587423786944,
+          "angle_deg": 42.02786955304108,
+          "gripper_target": 0.9968756437301636
+        },
+        {
+          "step": 24,
+          "joint7_rad": -1.0296775102615356,
+          "distance_mm": 133.27932768830462,
+          "angle_deg": 35.620078308239876,
+          "gripper_target": 0.9923213124275208
+        },
+        {
+          "step": 48,
+          "joint7_rad": -1.3869397640228271,
+          "distance_mm": 102.05360176194806,
+          "angle_deg": 14.923904425842125,
+          "gripper_target": 1.0
+        },
+        {
+          "step": 96,
+          "joint7_rad": -1.823899507522583,
+          "distance_mm": 94.37325897271519,
+          "angle_deg": 12.54104465074581,
+          "gripper_target": 0.9969252347946167
+        },
+        {
+          "step": 284,
+          "joint7_rad": -2.8816001415252686,
+          "distance_mm": 96.78192652393336,
+          "angle_deg": 17.68092699889696,
+          "gripper_target": 0.9584630131721497
+        }
+      ],
+      "teacher_sidecar_sha256": "42e5871dd6f2fade8b861b7e3a14b237cb5138caed80579a0ed5886b7f7ba87d",
+      "teacher_events": [
+        {
+          "skill": "approach",
+          "step": 48
+        },
+        {
+          "skill": "align",
+          "step": 67
+        },
+        {
+          "skill": "grasp",
+          "step": 92
+        },
+        {
+          "skill": "lift",
+          "step": 113
+        },
+        {
+          "skill": "transport",
+          "step": 164
+        },
+        {
+          "skill": "lower",
+          "step": 194
+        },
+        {
+          "skill": "release",
+          "step": 198
+        }
+      ],
+      "teacher_first_close": {
+        "step": 89,
+        "skill_id": 2,
+        "before_distance_mm": 49.92102486655215,
+        "before_angle_deg": 0.10367778044515565
+      }
+    },
+    {
+      "seed": 1811001,
+      "nearest_step": 78,
+      "nearest_distance_mm": 45.2049043625802,
+      "joint7_drift_checkpoints": [
+        {
+          "abs_joint7_drift_rad": 0.1,
+          "step": 14,
+          "joint7_rad": -0.8850920796394348,
+          "distance_mm": 116.05508212716231
+        },
+        {
+          "abs_joint7_drift_rad": 0.25,
+          "step": 24,
+          "joint7_rad": -1.0309723615646362,
+          "distance_mm": 100.34886408465084
+        },
+        {
+          "abs_joint7_drift_rad": 0.5,
+          "step": 39,
+          "joint7_rad": -1.2910922765731812,
+          "distance_mm": 71.26780114170771
+        },
+        {
+          "abs_joint7_drift_rad": 1.0,
+          "step": 96,
+          "joint7_rad": -1.7776830196380615,
+          "distance_mm": 48.68798123883326
+        },
+        {
+          "abs_joint7_drift_rad": 1.5,
+          "step": 186,
+          "joint7_rad": -2.279043197631836,
+          "distance_mm": 64.82724342700698
+        },
+        {
+          "abs_joint7_drift_rad": 2.0,
+          "step": 272,
+          "joint7_rad": -2.782869815826416,
+          "distance_mm": 82.53724989380582
+        }
+      ],
+      "samples": [
+        {
+          "step": 1,
+          "joint7_rad": -0.7779796123504639,
+          "distance_mm": 132.12479343533138,
+          "angle_deg": 26.720405825939224,
+          "gripper_target": 0.9973571300506592
+        },
+        {
+          "step": 24,
+          "joint7_rad": -1.0309723615646362,
+          "distance_mm": 100.34886408465084,
+          "angle_deg": 14.512619321633398,
+          "gripper_target": 0.9966414570808411
+        },
+        {
+          "step": 48,
+          "joint7_rad": -1.4254658222198486,
+          "distance_mm": 62.545269516992214,
+          "angle_deg": 9.236701182670753,
+          "gripper_target": 0.9988200068473816
+        },
+        {
+          "step": 96,
+          "joint7_rad": -1.7776830196380615,
+          "distance_mm": 48.68798123883326,
+          "angle_deg": 30.65523787935606,
+          "gripper_target": 0.996317446231842
+        },
+        {
+          "step": 296,
+          "joint7_rad": -2.883223056793213,
+          "distance_mm": 83.14645501656071,
+          "angle_deg": 13.963679341519484,
+          "gripper_target": 0.9798476696014404
+        }
+      ],
+      "teacher_sidecar_sha256": "b71bfb6d783d12731a6741de2ff1e3ff37f11a8a529774036de71b7c0ca958c5",
+      "teacher_events": [
+        {
+          "skill": "approach",
+          "step": 28
+        },
+        {
+          "skill": "align",
+          "step": 47
+        },
+        {
+          "skill": "grasp",
+          "step": 72
+        },
+        {
+          "skill": "lift",
+          "step": 93
+        },
+        {
+          "skill": "transport",
+          "step": 138
+        },
+        {
+          "skill": "lower",
+          "step": 167
+        },
+        {
+          "skill": "release",
+          "step": 171
+        }
+      ],
+      "teacher_first_close": {
+        "step": 69,
+        "skill_id": 2,
+        "before_distance_mm": 49.92907150417335,
+        "before_angle_deg": 0.09623838991066783
+      }
+    },
+    {
+      "seed": 1811002,
+      "nearest_step": 51,
+      "nearest_distance_mm": 38.202275751108914,
+      "joint7_drift_checkpoints": [
+        {
+          "abs_joint7_drift_rad": 0.1,
+          "step": 15,
+          "joint7_rad": -0.8993985652923584,
+          "distance_mm": 92.33730842767795
+        },
+        {
+          "abs_joint7_drift_rad": 0.25,
+          "step": 25,
+          "joint7_rad": -1.0578954219818115,
+          "distance_mm": 56.39706476210897
+        },
+        {
+          "abs_joint7_drift_rad": 0.5,
+          "step": 43,
+          "joint7_rad": -1.3073145151138306,
+          "distance_mm": 39.01506854204398
+        },
+        {
+          "abs_joint7_drift_rad": 1.0,
+          "step": 150,
+          "joint7_rad": -1.798287272453308,
+          "distance_mm": 62.51980062591342
+        }
+      ],
+      "samples": [
+        {
+          "step": 1,
+          "joint7_rad": -0.7969586849212646,
+          "distance_mm": 121.8034551438962,
+          "angle_deg": 22.261686172065964,
+          "gripper_target": 1.0
+        },
+        {
+          "step": 24,
+          "joint7_rad": -1.040570616722107,
+          "distance_mm": 59.52061748919998,
+          "angle_deg": 33.44903201866935,
+          "gripper_target": 0.9894295930862427
+        },
+        {
+          "step": 48,
+          "joint7_rad": -1.3808276653289795,
+          "distance_mm": 38.3812990193875,
+          "angle_deg": 38.29312756417511,
+          "gripper_target": 0.99452143907547
+        },
+        {
+          "step": 96,
+          "joint7_rad": -1.6371017694473267,
+          "distance_mm": 47.55573119305647,
+          "angle_deg": 23.567346880245008,
+          "gripper_target": 0.9955403208732605
+        },
+        {
+          "step": 238,
+          "joint7_rad": -2.114682197570801,
+          "distance_mm": 69.68878853695341,
+          "angle_deg": 13.66156057091663,
+          "gripper_target": 0.4719434976577759
+        }
+      ],
+      "teacher_sidecar_sha256": "6d78f917bc5c65e93be844646222009293ec1564cc21c49fa3df67bc479f866a",
+      "teacher_events": [
+        {
+          "skill": "approach",
+          "step": 26
+        },
+        {
+          "skill": "align",
+          "step": 43
+        },
+        {
+          "skill": "grasp",
+          "step": 68
+        },
+        {
+          "skill": "lift",
+          "step": 89
+        },
+        {
+          "skill": "transport",
+          "step": 135
+        },
+        {
+          "skill": "lower",
+          "step": 165
+        },
+        {
+          "skill": "release",
+          "step": 170
+        }
+      ],
+      "teacher_first_close": {
+        "step": 65,
+        "skill_id": 2,
+        "before_distance_mm": 49.86393817648303,
+        "before_angle_deg": 0.09953862724716352
+      },
+      "student_first_close": {
+        "step": 237,
+        "target": 0.05250215530395508,
+        "before_distance_mm": 70.86372240695432,
+        "before_angle_deg": 13.576993374276164
+      },
+      "first_close_plan": {
+        "step": 236,
+        "first4_gripper_targets": [
+          0.05250215530395508,
+          0.05217170715332031,
+          0.06100928783416748,
+          0.08639657497406006
+        ]
+      }
+    },
+    {
+      "seed": 1811003,
+      "nearest_step": 39,
+      "nearest_distance_mm": 32.443886667738234,
+      "joint7_drift_checkpoints": [
+        {
+          "abs_joint7_drift_rad": 0.1,
+          "step": 16,
+          "joint7_rad": -0.8711941242218018,
+          "distance_mm": 93.56100422563755
+        },
+        {
+          "abs_joint7_drift_rad": 0.25,
+          "step": 26,
+          "joint7_rad": -1.0245249271392822,
+          "distance_mm": 40.55202945317213
+        },
+        {
+          "abs_joint7_drift_rad": 0.5,
+          "step": 50,
+          "joint7_rad": -1.2697261571884155,
+          "distance_mm": 40.86188150825246
+        }
+      ],
+      "samples": [
+        {
+          "step": 1,
+          "joint7_rad": -0.7620301246643066,
+          "distance_mm": 142.04912398181673,
+          "angle_deg": 43.051994193628644,
+          "gripper_target": 1.0
+        },
+        {
+          "step": 24,
+          "joint7_rad": -0.9917500019073486,
+          "distance_mm": 48.137822707602155,
+          "angle_deg": 38.05794999935039,
+          "gripper_target": 0.9813725352287292
+        },
+        {
+          "step": 48,
+          "joint7_rad": -1.2462745904922485,
+          "distance_mm": 39.105069998463975,
+          "angle_deg": 27.150087282879223,
+          "gripper_target": 0.9979821443557739
+        },
+        {
+          "step": 96,
+          "joint7_rad": -1.5965447425842285,
+          "distance_mm": 53.42455074679341,
+          "angle_deg": 11.255073260709159,
+          "gripper_target": 0.9985232353210449
+        },
+        {
+          "step": 138,
+          "joint7_rad": -1.757456660270691,
+          "distance_mm": 65.34124441928638,
+          "angle_deg": 11.127279125965673,
+          "gripper_target": 0.560935378074646
+        }
+      ],
+      "teacher_sidecar_sha256": "96d7f447bf81845868efc1ccf24a10f1cf5a4c08141233692457aa8b62211ae2",
+      "teacher_events": [
+        {
+          "skill": "approach",
+          "step": 47
+        },
+        {
+          "skill": "align",
+          "step": 68
+        },
+        {
+          "skill": "grasp",
+          "step": 94
+        },
+        {
+          "skill": "lift",
+          "step": 115
+        },
+        {
+          "skill": "transport",
+          "step": 156
+        },
+        {
+          "skill": "lower",
+          "step": 186
+        },
+        {
+          "skill": "release",
+          "step": 191
+        }
+      ],
+      "teacher_first_close": {
+        "step": 91,
+        "skill_id": 2,
+        "before_distance_mm": 49.860482590413106,
+        "before_angle_deg": 0.0868108634444384
+      },
+      "student_first_close": {
+        "step": 137,
+        "target": 0.10429942607879639,
+        "before_distance_mm": 66.18236892986539,
+        "before_angle_deg": 11.10093106894185
+      },
+      "first_close_plan": {
+        "step": 136,
+        "first4_gripper_targets": [
+          0.10429942607879639,
+          0.016137421131134033,
+          0.01314648985862732,
+          0.016687780618667603
+        ]
+      }
+    }
+  ],
+  "initial_windows": [
+    {
+      "seed": 1811000,
+      "anchor": 0,
+      "skill_id": 0,
+      "valid_slots": 16,
+      "online_vs_fresh_fullmask_max_abs": 0.0,
+      "native_vs_fullmask_max_abs": 0.0,
+      "native_teacher_metrics": {
+        "translation_error_mm": 0.6893869722262025,
+        "rotation_delta_error_deg": 0.176403815962235,
+        "gripper_mae": 0.0026167184114456177
+      },
+      "dataset_vs_prior_initial_prediction_max_abs": 0.0,
+      "observation_sha256": "1d5da789fd2c751e33136a2a7d76652b68b5b71e32a5592bf05b9a3bdd10161b"
+    },
+    {
+      "seed": 1811001,
+      "anchor": 0,
+      "skill_id": 0,
+      "valid_slots": 16,
+      "online_vs_fresh_fullmask_max_abs": 0.0,
+      "native_vs_fullmask_max_abs": 0.0,
+      "native_teacher_metrics": {
+        "translation_error_mm": 0.5698738386854529,
+        "rotation_delta_error_deg": 0.07778618299185878,
+        "gripper_mae": 0.0028667598962783813
+      },
+      "dataset_vs_prior_initial_prediction_max_abs": 0.0,
+      "observation_sha256": "469dc673a33e7845e1f86a5e91a420bbbe1048e983728d3d1ade0e2273580e75"
+    },
+    {
+      "seed": 1811002,
+      "anchor": 0,
+      "skill_id": 0,
+      "valid_slots": 16,
+      "online_vs_fresh_fullmask_max_abs": 0.0,
+      "native_vs_fullmask_max_abs": 0.0,
+      "native_teacher_metrics": {
+        "translation_error_mm": 0.5690146936103702,
+        "rotation_delta_error_deg": 0.11526911389855161,
+        "gripper_mae": 0.0
+      },
+      "dataset_vs_prior_initial_prediction_max_abs": 0.0,
+      "observation_sha256": "69963d7e2d42e44bf6e27711b95a936ee15da5d7954ff17d235f195a9614dd70"
+    },
+    {
+      "seed": 1811003,
+      "anchor": 0,
+      "skill_id": 0,
+      "valid_slots": 16,
+      "online_vs_fresh_fullmask_max_abs": 0.0,
+      "native_vs_fullmask_max_abs": 0.0,
+      "native_teacher_metrics": {
+        "translation_error_mm": 1.2284062104299664,
+        "rotation_delta_error_deg": 0.12732530491812327,
+        "gripper_mae": 0.0
+      },
+      "dataset_vs_prior_initial_prediction_max_abs": 0.0,
+      "observation_sha256": "b6c016b81feec326c96fb0156cd4e71733e989d5973ea8859c7b956bda1f7ac0"
+    }
+  ],
+  "evidence": {
+    "local": "LOCAL_VERIFIED",
+    "drive": "deferred; not verified"
+  },
+  "training_remains_paused": true
+}

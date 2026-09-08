@@ -3,7 +3,8 @@ from types import SimpleNamespace
 import torch
 import pytest
 
-from experiments.skill_hierarchy.full_task import load_student,summarize
+from experiments.skill_hierarchy.full_task import FullTaskController,load_student,summarize,verify_upstream
+from experiments.tcp_atomic_skills.runtime import AtomicController
 from experiments.skill_hierarchy.train import FORMAT
 from experiments.tcp_atomic_skills.protocol import identity,sha
 
@@ -33,3 +34,43 @@ def test_failed_and_unrun_episodes_stay_in_denominator():
                  dict(success=False,status='not_run'),dict(success=False,status='failed')])
     assert r['episodes']==4 and r['successes']==1 and r['total_policy_steps']==160
     assert r['failures_by_boundary']['2']==1
+
+
+def test_upstream_json_roundtrip_preserves_identity():
+    import json
+    actual = dict(checkpoint_sha256='fixed',stats=dict(mean=(0.,1.),std=(1.,2.)))
+    expected = json.loads(json.dumps(actual))
+    assert actual != expected
+    assert verify_upstream(actual,expected) == identity(expected)
+    expected['stats']['mean'][0] = .01
+    with pytest.raises(ValueError,match='上游身份改变'):
+        verify_upstream(actual,expected)
+    expected = json.loads(json.dumps(actual));expected['checkpoint_sha256'] = 'changed'
+    with pytest.raises(ValueError,match='上游身份改变'):
+        verify_upstream(actual,expected)
+
+
+@pytest.mark.parametrize('canonical,seven,prior,terminal,steps,expected', [
+    (5, 6, 'success', False, 100, None),
+    (4, 7, None, False, 100, None),
+    (5, 7, 'success', False, 100, 'success'),
+    (5, 7, 'tracking-invalid', False, 100, 'tracking-invalid'),
+    (5, 6, 'success', True, 100, 'environment-terminal'),
+    (5, 6, 'success', False, 400, 'step-budget-exhausted'),
+    (5, 7, 'success', True, 400, 'success'),
+])
+def test_full_task_waits_for_both_without_overwriting_faults(
+        monkeypatch,tmp_path,canonical,seven,prior,terminal,steps,expected):
+    monkeypatch.setattr(AtomicController, 'send_action', lambda self, value: None)
+    ctrl = FullTaskController.__new__(FullTaskController)
+    ctrl.teacher = SimpleNamespace(metrics={}, relative_pose=None,
+        measure=lambda **kwargs: {'held': 0},
+        boundaries=SimpleNamespace(active=seven, observe=lambda metrics,*args: metrics))
+    ctrl.progress = SimpleNamespace(completed_skill_count=canonical)
+    ctrl.stop_reason = prior
+    ctrl.steps,ctrl.limit,ctrl.output = steps,400,tmp_path
+    ctrl.last_step_output = (None,None,torch.tensor(terminal),torch.tensor(False),{})
+    ctrl.send_action([0.]*7+[1.])
+    assert ctrl.stop_reason == expected
+    assert ctrl.chunk_stop_requested == (expected is not None)
+    assert (tmp_path/'boundaries.jsonl').is_file()
