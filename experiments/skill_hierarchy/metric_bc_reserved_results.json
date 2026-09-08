@@ -1,0 +1,90 @@
+{
+  "experiment": "metric-bc-v2",
+  "as_of": "2026-09-09",
+  "status": "stopped_episode_limit",
+  "exit_code": 1,
+  "training_steps_per_branch": 1024,
+  "planned_reserved_units": 144,
+  "branches": {
+    "baseline": {
+      "planned": 48,
+      "completed": 48,
+      "tasks": {
+        "F": {
+          "planned": 24,
+          "completed": 24,
+          "missing": 0,
+          "observed_successes": 0,
+          "observed_execution_errors": 10
+        },
+        "S": {
+          "planned": 24,
+          "completed": 24,
+          "missing": 0,
+          "observed_successes": 0,
+          "observed_execution_errors": 14
+        }
+      },
+      "missing": [],
+      "result_sha256": "79ec7130989ae5fa059aa199795d5dc65a31b6294cb6d598d0cef419575de31b",
+      "offline_m7_completed": true
+    },
+    "A": {
+      "planned": 48,
+      "completed": 48,
+      "tasks": {
+        "F": {
+          "planned": 24,
+          "completed": 24,
+          "missing": 0,
+          "observed_successes": 0,
+          "observed_execution_errors": 2
+        },
+        "S": {
+          "planned": 24,
+          "completed": 24,
+          "missing": 0,
+          "observed_successes": 1,
+          "observed_execution_errors": 1
+        }
+      },
+      "missing": [],
+      "result_sha256": "d1947054418c83ff3e13cced20e044e14aac3be9646f7bf4a9bb6c207fa908b8",
+      "offline_m7_completed": true
+    },
+    "B": {
+      "planned": 48,
+      "completed": 47,
+      "tasks": {
+        "F": {
+          "planned": 24,
+          "completed": 24,
+          "missing": 0,
+          "observed_successes": 0,
+          "observed_execution_errors": 12
+        },
+        "S": {
+          "planned": 24,
+          "completed": 23,
+          "missing": 1,
+          "observed_successes": 0,
+          "observed_execution_errors": 7
+        }
+      },
+      "missing": [
+        {
+          "seed": 1811031,
+          "start": "S",
+          "status": "not_run"
+        }
+      ],
+      "result_sha256": "008318043e343d3c3b1ffb771155678d1e7c7c4364778b30182c63290a3d4c6d",
+      "offline_m7_completed": false
+    }
+  },
+  "budget": {
+    "episodes": 288,
+    "student_step_reservations": 103710,
+    "teacher_step_reservations": 4500
+  }
+}

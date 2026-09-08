@@ -1,0 +1,215 @@
+{
+  "experiment": "skill-dagger-r1",
+  "completed_date": "2026-09-09",
+  "status": "completed",
+  "exit_code": 0,
+  "results": {
+    "BC": {
+      "steps": 512,
+      "exposure": {
+        "train": 3584,
+        "corrective": 0
+      },
+      "checkpoint_sha256": "c0059309aa4a2dc90f1c498f8716227adc04f888193c72900fb0cb8428a3efea",
+      "feedback": {
+        "F": {
+          "successes": 1,
+          "stable": 3,
+          "execution_errors": 2,
+          "denominator": 8
+        },
+        "S": {
+          "successes": 4,
+          "stable": 8,
+          "execution_errors": 0,
+          "denominator": 8
+        }
+      }
+    },
+    "DAgger": {
+      "steps": 512,
+      "exposure": {
+        "train": 2560,
+        "corrective": 1024
+      },
+      "checkpoint_sha256": "42924ce9d1e91f43f9a7fbd0f180046d954809cfab8fa765f07be7cd85d21312",
+      "feedback": {
+        "F": {
+          "successes": 0,
+          "stable": 5,
+          "execution_errors": 2,
+          "denominator": 8
+        },
+        "S": {
+          "successes": 2,
+          "stable": 5,
+          "execution_errors": 2,
+          "denominator": 8
+        }
+      }
+    },
+    "parent": {
+      "feedback": {
+        "F": {
+          "successes": 0,
+          "stable": 0,
+          "execution_errors": 2,
+          "denominator": 8
+        },
+        "S": {
+          "successes": 1,
+          "stable": 5,
+          "execution_errors": 0,
+          "denominator": 8
+        }
+      }
+    }
+  },
+  "training_converged": false,
+  "evidence_kind": "simulated_closed_loop_development",
+  "evaluations": {
+    "parent": {
+      "planned": 16,
+      "completed": 16,
+      "result_sha256": "6f1efa2c7c10a05633d20719cdb6d8311d643efe778b859a77bea7c5558c0252",
+      "tasks": {
+        "F": {
+          "successes": 0,
+          "stable": 0,
+          "execution_errors": 2,
+          "denominator": 8
+        },
+        "S": {
+          "successes": 1,
+          "stable": 5,
+          "execution_errors": 0,
+          "denominator": 8
+        }
+      },
+      "final_completed_counts": {
+        "F": {
+          "0": 6,
+          "2": 1,
+          "1": 1
+        },
+        "S": {
+          "3": 1,
+          "4": 3,
+          "5": 1,
+          "1": 2,
+          "2": 1
+        }
+      }
+    },
+    "BC": {
+      "planned": 16,
+      "completed": 16,
+      "result_sha256": "72b83a399f46c01e588bd7cacc07447b8dccccc6bd1d53d2b149e40e26a381d6",
+      "tasks": {
+        "F": {
+          "successes": 1,
+          "stable": 3,
+          "execution_errors": 2,
+          "denominator": 8
+        },
+        "S": {
+          "successes": 4,
+          "stable": 8,
+          "execution_errors": 0,
+          "denominator": 8
+        }
+      },
+      "final_completed_counts": {
+        "F": {
+          "4": 2,
+          "5": 1,
+          "2": 3,
+          "1": 1,
+          "0": 1
+        },
+        "S": {
+          "4": 3,
+          "5": 4,
+          "3": 1
+        }
+      }
+    },
+    "DAgger": {
+      "planned": 16,
+      "completed": 16,
+      "result_sha256": "f816e8c26cedcd5a2709e766076de798fff5e533bc3aa507bbf1f33eda6fcf4b",
+      "tasks": {
+        "F": {
+          "successes": 0,
+          "stable": 5,
+          "execution_errors": 2,
+          "denominator": 8
+        },
+        "S": {
+          "successes": 2,
+          "stable": 5,
+          "execution_errors": 2,
+          "denominator": 8
+        }
+      },
+      "final_completed_counts": {
+        "F": {
+          "3": 3,
+          "2": 2,
+          "1": 2,
+          "0": 1
+        },
+        "S": {
+          "4": 2,
+          "1": 3,
+          "5": 2,
+          "3": 1
+        }
+      }
+    }
+  },
+  "source_hashes": {
+    "experiments/skill_dagger/collect.py": "868def5611c46e2c2a23ec19819daf1a7f4fca8c9625ed6dedc92d3e525858c0",
+    "experiments/skill_dagger/data.py": "0c6e0e36de1b7112a94bde6b1b4413bd4bb216d4735e57897679fb9b4d8af41b",
+    "experiments/skill_dagger/run.py": "59bcc60a92b9e67c1daa8cb6e15524edde6ece3b90a476f1571a4d3d6727b40c",
+    "experiments/skill_dagger/test_dagger.py": "2aa1e2ddc55ebd1b71a81f25868de1ca87470106b591f32d580abbc9725064ec",
+    "experiments/skill_dagger/train.py": "a189d9f13123c74459405ff7c933f8791023816d0ba3bd12b8f4f499cd07bae1"
+  },
+  "collection": {
+    "planned": 64,
+    "status_counts": {
+      "recovered": 63,
+      "no_candidate": 1
+    },
+    "pilot_planned": 16,
+    "pilot_recovered": 16,
+    "pilot_passed": true,
+    "valid_windows": 1008,
+    "handoff_parity_passed": 63,
+    "collection_sha256": "7f7ea7b59fc31bb99678896caef132e3371f4f67b335daa0689def6385df1221"
+  },
+  "budget": {
+    "student_step_reservations": 22609,
+    "teacher_step_reservations": 5264,
+    "episodes": 48,
+    "control_step_limit": 37440
+  },
+  "parent_checkpoint_sha256": "7cf5c95ba7dbe31843d615d7a550f9d1422167f3cc6e056dfefea8ee0e68b957",
+  "validation": {
+    "test_command": "python -m pytest -p no:cacheprovider -q experiments/skill_dagger/test_dagger.py experiments/skill_hierarchy/test_metric_rules.py experiments/skill_hierarchy/test_metric_rollout.py",
+    "passed": 28,
+    "seconds": 4.46,
+    "exit_code": 0,
+    "environment": "cloud Python 3.10",
+    "warning": "SAPIEN Vulkan ICD discovery warning in test shell; these unit tests do not validate rendering"
+  },
+  "continuation": {
+    "decision": "stop_no_additional_round",
+    "predeclared": true,
+    "primary_requirement": "F successes strictly exceed both parent and equal-update BC",
+    "primary_passed": false,
+    "execution_guardrail_passed": true,
+    "prepared_start_guardrail_passed": true,
+    "additional_rounds_run": 0
+  }
+}
