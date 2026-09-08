@@ -43,3 +43,7 @@ PYTHONPATH=.:src python -m pytest experiments/seven_skill_dagger/test_data.py ex
 设置`CUBLAS_WORKSPACE_CONFIG=:4096:8`；使用既有BF16/math SDPA配置。最新冻结代码的21项针对性测试通过，原始执行记录为3.35秒。训练、测试与仿真均在云端执行。
 
 下一阶段仍需解决Align对齐与Lower抓持稳定性，再验证合法扰动和六个相邻技能的真实交接。七项未通过前不运行完整Pick→Carry→Place；GT触发的上层切换仅可报告为oracle调度诊断。
+
+## 后续 Align 诊断
+
+[失败轨迹定位](align_trace_diagnostic.md)在已有24条轨迹中确认：既有入口首chunk向外规划，也有接近后重规划反向，错误已出现在学生命令层。[显式相对位姿小对照](../align_relative_pose/results.md)进一步比较相同BC起点、各64步的两组输入：平移动作误差A=1.2973mm、B=1.2983mm，B误差置零后也几乎不变，短程配方没有显示新增信息的收益。后者仅为privileged输入的离线开发诊断，没有新增学生闭环，也不改变上述技能验收结果。
