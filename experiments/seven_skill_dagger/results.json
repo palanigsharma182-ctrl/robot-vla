@@ -1,0 +1,538 @@
+{
+  "schema": "independent-seven-skill-public-summary/v1",
+  "recorded_date": "2026-09-09",
+  "data_use": "repeated development; not final test or acceptance",
+  "evaluation_seeds": [
+    1811000,
+    1811001,
+    1811002,
+    1811003,
+    1811004,
+    1811005,
+    1811006,
+    1811007
+  ],
+  "training_planned_scenes": 128,
+  "training_qualified_scenes": 124,
+  "correction_training_seeds": [
+    1810000,
+    1810001,
+    1810002,
+    1810003,
+    1810004,
+    1810005,
+    1810007,
+    1810008
+  ],
+  "runs": [
+    {
+      "id": "bc-0",
+      "skill_id": 0,
+      "status": "completed",
+      "steps": 512,
+      "checkpoint_sha256": "31fedbb2b30511e302b5ec6bf964ac7845330aa9529ee35512202f59ccc8fc77",
+      "parent_sha256": "c0059309aa4a2dc90f1c498f8716227adc04f888193c72900fb0cb8428a3efea",
+      "source_sha256": "bc5a295788d887cec5f4c6f9049a125c9806d6f55b5cd17086da4ab2d2802f10",
+      "strict_reload": true,
+      "nominal_exposures": 2048,
+      "corrective_exposures": 0,
+      "unique_nominal_windows": 2048,
+      "nominal_offset": 0,
+      "seed": 1930042,
+      "success": 1,
+      "planned": 8,
+      "failures": {
+        "skill-invariant-failure": 7
+      },
+      "evaluation_result_sha256": "db8937740c7f0fb6a52a5cddf612c81f65cbcdb057b1db3b4a40c57851e2e8d9",
+      "accepted": false
+    },
+    {
+      "id": "bc-1",
+      "skill_id": 1,
+      "status": "completed",
+      "steps": 512,
+      "checkpoint_sha256": "ec5bc361614c2bfd2f29524c51d636e72938f8ec61af7024ee7593c359ac9467",
+      "parent_sha256": "c0059309aa4a2dc90f1c498f8716227adc04f888193c72900fb0cb8428a3efea",
+      "source_sha256": "bc5a295788d887cec5f4c6f9049a125c9806d6f55b5cd17086da4ab2d2802f10",
+      "strict_reload": true,
+      "nominal_exposures": 2048,
+      "corrective_exposures": 0,
+      "unique_nominal_windows": 2048,
+      "nominal_offset": 0,
+      "seed": 1930043,
+      "success": 5,
+      "planned": 8,
+      "failures": {
+        "skill-invariant-failure": 3
+      },
+      "evaluation_result_sha256": "4f5e8813bd5597e65ace3d16a40a8019ed1a579fcacae1dd894fa69af8ae739c",
+      "accepted": false
+    },
+    {
+      "id": "bc-2",
+      "skill_id": 2,
+      "status": "completed",
+      "steps": 512,
+      "checkpoint_sha256": "1c24661edcdc274b20cf1dcc8e3f7255175874be4f9e4d55671c9d6d6318b813",
+      "parent_sha256": "c0059309aa4a2dc90f1c498f8716227adc04f888193c72900fb0cb8428a3efea",
+      "source_sha256": "bc5a295788d887cec5f4c6f9049a125c9806d6f55b5cd17086da4ab2d2802f10",
+      "strict_reload": true,
+      "nominal_exposures": 2048,
+      "corrective_exposures": 0,
+      "unique_nominal_windows": 2048,
+      "nominal_offset": 0,
+      "seed": 1930044,
+      "success": 8,
+      "planned": 8,
+      "failures": {},
+      "evaluation_result_sha256": "69b5cd8032c0db25446119b4253d771b754c946b982db107ef6b33369d954bff",
+      "accepted": false
+    },
+    {
+      "id": "bc-3",
+      "skill_id": 3,
+      "status": "completed",
+      "steps": 512,
+      "checkpoint_sha256": "76e4278328d0d7d1cadd2f6e77e90984f50c7788cceb71dd45fd66c6e6d762fb",
+      "parent_sha256": "c0059309aa4a2dc90f1c498f8716227adc04f888193c72900fb0cb8428a3efea",
+      "source_sha256": "bc5a295788d887cec5f4c6f9049a125c9806d6f55b5cd17086da4ab2d2802f10",
+      "strict_reload": true,
+      "nominal_exposures": 2048,
+      "corrective_exposures": 0,
+      "unique_nominal_windows": 2048,
+      "nominal_offset": 0,
+      "seed": 1930045,
+      "success": 8,
+      "planned": 8,
+      "failures": {},
+      "evaluation_result_sha256": "8e049a06a16bf53239ca8747c1ca7dff42fffdf760485a23388737e959e827f5",
+      "accepted": false
+    },
+    {
+      "id": "bc-4",
+      "skill_id": 4,
+      "status": "completed",
+      "steps": 512,
+      "checkpoint_sha256": "488cdd6ad69e4a1e79587f9337ec75430cde1dcc96dbd53dc0678afd2b7eb523",
+      "parent_sha256": "c0059309aa4a2dc90f1c498f8716227adc04f888193c72900fb0cb8428a3efea",
+      "source_sha256": "bc5a295788d887cec5f4c6f9049a125c9806d6f55b5cd17086da4ab2d2802f10",
+      "strict_reload": true,
+      "nominal_exposures": 2048,
+      "corrective_exposures": 0,
+      "unique_nominal_windows": 2048,
+      "nominal_offset": 0,
+      "seed": 1930046,
+      "success": 6,
+      "planned": 8,
+      "failures": {
+        "step-budget-exhausted": 2
+      },
+      "evaluation_result_sha256": "1092407b0f22b177d064ff1e7c01934127a380deeb101ecbb895020778005e22",
+      "accepted": false
+    },
+    {
+      "id": "bc-5",
+      "skill_id": 5,
+      "status": "completed",
+      "steps": 512,
+      "checkpoint_sha256": "3211075994bd904a30d5e42b958668c2c977c2af0bdb681f72e698a4547051bb",
+      "parent_sha256": "c0059309aa4a2dc90f1c498f8716227adc04f888193c72900fb0cb8428a3efea",
+      "source_sha256": "bc5a295788d887cec5f4c6f9049a125c9806d6f55b5cd17086da4ab2d2802f10",
+      "strict_reload": true,
+      "nominal_exposures": 2048,
+      "corrective_exposures": 0,
+      "unique_nominal_windows": 2048,
+      "nominal_offset": 0,
+      "seed": 1930047,
+      "success": 5,
+      "planned": 8,
+      "failures": {
+        "step-budget-exhausted": 3
+      },
+      "evaluation_result_sha256": "385dba90c91b7694e48e823960728a70252084b4e73c1ba92423cbc78b15b0ea",
+      "accepted": false
+    },
+    {
+      "id": "bc-6",
+      "skill_id": 6,
+      "status": "completed",
+      "steps": 512,
+      "checkpoint_sha256": "51978af1d539cb692068217b5617f3dee918b3baf784836a921affbeade27bd5",
+      "parent_sha256": "c0059309aa4a2dc90f1c498f8716227adc04f888193c72900fb0cb8428a3efea",
+      "source_sha256": "bc5a295788d887cec5f4c6f9049a125c9806d6f55b5cd17086da4ab2d2802f10",
+      "strict_reload": true,
+      "nominal_exposures": 2048,
+      "corrective_exposures": 0,
+      "unique_nominal_windows": 545,
+      "nominal_offset": 0,
+      "seed": 1930048,
+      "success": 8,
+      "planned": 8,
+      "failures": {},
+      "evaluation_result_sha256": "9223ff392dfb004e38d202b455283e901b525e5e2303c6c98c0bbc61664a6403",
+      "accepted": false
+    },
+    {
+      "id": "r1-v3-BC-0",
+      "skill_id": 0,
+      "status": "completed",
+      "steps": 512,
+      "checkpoint_sha256": "2f81c88b5ed5e390720ca2f77fa6f903d97f9f446ae8b68c9fcb379910bc5342",
+      "parent_sha256": "31fedbb2b30511e302b5ec6bf964ac7845330aa9529ee35512202f59ccc8fc77",
+      "source_sha256": "d310d4c4e98844b9a27cc6a4703f45b71036fa9c29830e56db1207fa7add984c",
+      "strict_reload": true,
+      "nominal_exposures": 2048,
+      "corrective_exposures": 0,
+      "unique_nominal_windows": 2048,
+      "nominal_offset": 0,
+      "seed": 1930042,
+      "success": 1,
+      "planned": 8,
+      "failures": {
+        "step-budget-exhausted": 1,
+        "skill-invariant-failure": 6
+      },
+      "evaluation_result_sha256": "0027583255338696ad39e12581e1a6892ba92b30c4f485cfc479625f4139a96c",
+      "accepted": false
+    },
+    {
+      "id": "r1-v3-DAgger-0",
+      "skill_id": 0,
+      "status": "completed",
+      "steps": 512,
+      "checkpoint_sha256": "6b74201c05513f57d46fa235dd470b852233f3d9c8e6b31fe057b4599c8a7871",
+      "parent_sha256": "31fedbb2b30511e302b5ec6bf964ac7845330aa9529ee35512202f59ccc8fc77",
+      "source_sha256": "d310d4c4e98844b9a27cc6a4703f45b71036fa9c29830e56db1207fa7add984c",
+      "strict_reload": true,
+      "nominal_exposures": 1536,
+      "corrective_exposures": 512,
+      "unique_nominal_windows": 1536,
+      "nominal_offset": 0,
+      "seed": 1930042,
+      "success": 8,
+      "planned": 8,
+      "failures": {},
+      "evaluation_result_sha256": "980dec749c82409fe0e65023072482c367321bde94592345bdd40d68a561908c",
+      "accepted": false
+    },
+    {
+      "id": "r1-v3-BC-1",
+      "skill_id": 1,
+      "status": "completed",
+      "steps": 512,
+      "checkpoint_sha256": "fe8aec8b4fd193ff85ecb8ff629c5f29c12a693704e867b3a707a5874131f665",
+      "parent_sha256": "ec5bc361614c2bfd2f29524c51d636e72938f8ec61af7024ee7593c359ac9467",
+      "source_sha256": "d310d4c4e98844b9a27cc6a4703f45b71036fa9c29830e56db1207fa7add984c",
+      "strict_reload": true,
+      "nominal_exposures": 2048,
+      "corrective_exposures": 0,
+      "unique_nominal_windows": 2048,
+      "nominal_offset": 0,
+      "seed": 1930043,
+      "success": 2,
+      "planned": 8,
+      "failures": {
+        "step-budget-exhausted": 1,
+        "skill-invariant-failure": 5
+      },
+      "evaluation_result_sha256": "6d7863907c305317189bef6e5058b0b0b02a24228a5dd6ba1144b3cca64654b9",
+      "accepted": false
+    },
+    {
+      "id": "r1-v3-DAgger-1",
+      "skill_id": 1,
+      "status": "completed",
+      "steps": 512,
+      "checkpoint_sha256": "c4b79baff83e2cf702d277e5bb81b190dbb864df5081a9eebdec0a995b431709",
+      "parent_sha256": "ec5bc361614c2bfd2f29524c51d636e72938f8ec61af7024ee7593c359ac9467",
+      "source_sha256": "d310d4c4e98844b9a27cc6a4703f45b71036fa9c29830e56db1207fa7add984c",
+      "strict_reload": true,
+      "nominal_exposures": 1536,
+      "corrective_exposures": 512,
+      "unique_nominal_windows": 1536,
+      "nominal_offset": 0,
+      "seed": 1930043,
+      "success": 0,
+      "planned": 8,
+      "failures": {
+        "step-budget-exhausted": 8
+      },
+      "evaluation_result_sha256": "0029127365b7e6cdd66eed25836f96012f6375e45c623e207c07f52898be15d3",
+      "accepted": false
+    },
+    {
+      "id": "r1-v3-BC-4",
+      "skill_id": 4,
+      "status": "completed",
+      "steps": 512,
+      "checkpoint_sha256": "7211c2623f37708fbb8ff9cfc84ecf852e8dddea0e0aac47486a48fee608214c",
+      "parent_sha256": "488cdd6ad69e4a1e79587f9337ec75430cde1dcc96dbd53dc0678afd2b7eb523",
+      "source_sha256": "d310d4c4e98844b9a27cc6a4703f45b71036fa9c29830e56db1207fa7add984c",
+      "strict_reload": true,
+      "nominal_exposures": 2048,
+      "corrective_exposures": 0,
+      "unique_nominal_windows": 2048,
+      "nominal_offset": 0,
+      "seed": 1930046,
+      "success": 7,
+      "planned": 8,
+      "failures": {
+        "step-budget-exhausted": 1
+      },
+      "evaluation_result_sha256": "287e990b4bef823a0b35539560b8790ee47148a41982e67374c906ae781b9b25",
+      "accepted": false
+    },
+    {
+      "id": "r1-v3-DAgger-4",
+      "skill_id": 4,
+      "status": "completed",
+      "steps": 512,
+      "checkpoint_sha256": "7456df8f08e34260aeb8dd1e02e4a9495b599f5e528af5005acc49a1b1876961",
+      "parent_sha256": "488cdd6ad69e4a1e79587f9337ec75430cde1dcc96dbd53dc0678afd2b7eb523",
+      "source_sha256": "d310d4c4e98844b9a27cc6a4703f45b71036fa9c29830e56db1207fa7add984c",
+      "strict_reload": true,
+      "nominal_exposures": 1536,
+      "corrective_exposures": 512,
+      "unique_nominal_windows": 1536,
+      "nominal_offset": 0,
+      "seed": 1930046,
+      "success": 5,
+      "planned": 8,
+      "failures": {
+        "step-budget-exhausted": 3
+      },
+      "evaluation_result_sha256": "85579dfebb7c0c31d983f944cbe58902bc288a1848359ffea74790adce809311",
+      "accepted": false
+    },
+    {
+      "id": "r1-v3-BC-5",
+      "skill_id": 5,
+      "status": "completed",
+      "steps": 512,
+      "checkpoint_sha256": "0bb2a9778144947fa110c915a1cbd7b50efca9e40c890f86fa841dca5ccf34c8",
+      "parent_sha256": "3211075994bd904a30d5e42b958668c2c977c2af0bdb681f72e698a4547051bb",
+      "source_sha256": "d310d4c4e98844b9a27cc6a4703f45b71036fa9c29830e56db1207fa7add984c",
+      "strict_reload": true,
+      "nominal_exposures": 2048,
+      "corrective_exposures": 0,
+      "unique_nominal_windows": 2048,
+      "nominal_offset": 0,
+      "seed": 1930047,
+      "success": 3,
+      "planned": 8,
+      "failures": {
+        "step-budget-exhausted": 5
+      },
+      "evaluation_result_sha256": "64acaea04947645cffa1ba2f9111dcaaeaada92f664c84b27282ef943c8637b5",
+      "accepted": false
+    },
+    {
+      "id": "r1-v3-DAgger-5",
+      "skill_id": 5,
+      "status": "completed",
+      "steps": 512,
+      "checkpoint_sha256": "3caec39581097bc7da9504b43b1a54886c460f0284df85b98a9b5ca799a114dd",
+      "parent_sha256": "3211075994bd904a30d5e42b958668c2c977c2af0bdb681f72e698a4547051bb",
+      "source_sha256": "d310d4c4e98844b9a27cc6a4703f45b71036fa9c29830e56db1207fa7add984c",
+      "strict_reload": true,
+      "nominal_exposures": 1536,
+      "corrective_exposures": 512,
+      "unique_nominal_windows": 1536,
+      "nominal_offset": 0,
+      "seed": 1930047,
+      "success": 4,
+      "planned": 8,
+      "failures": {
+        "step-budget-exhausted": 4
+      },
+      "evaluation_result_sha256": "30071c37009de9cfd6be06199afb4a740f89e7a1558d7802c92779fc2fc6a8f7",
+      "accepted": false
+    },
+    {
+      "id": "r2-v4-BC-1",
+      "skill_id": 1,
+      "status": "completed",
+      "steps": 512,
+      "checkpoint_sha256": "374c0ea9068ca06bf6e4f3252201b74d4a74ff75c4ae9d02ece8eb688d21703d",
+      "parent_sha256": "c4b79baff83e2cf702d277e5bb81b190dbb864df5081a9eebdec0a995b431709",
+      "source_sha256": "db9f6ad2f9f0ae9ecbe6d36930fd385693c8c6aa38ce665f19be74bfeed2abf8",
+      "strict_reload": true,
+      "nominal_exposures": 2048,
+      "corrective_exposures": 0,
+      "unique_nominal_windows": 2048,
+      "nominal_offset": 0,
+      "seed": 1931043,
+      "success": 3,
+      "planned": 8,
+      "failures": {
+        "step-budget-exhausted": 2,
+        "skill-invariant-failure": 3
+      },
+      "evaluation_result_sha256": "e6c2ab0ce19a6656718567e59d480fe9eca51bbd3e097174f1efeabf150adbfb",
+      "accepted": false
+    },
+    {
+      "id": "r2-v4-DAgger-1",
+      "skill_id": 1,
+      "status": "completed",
+      "steps": 512,
+      "checkpoint_sha256": "22f37914c6ddaaa1aad1890f6f8855ac0e485a54cf90f292e7fab522a5e74095",
+      "parent_sha256": "c4b79baff83e2cf702d277e5bb81b190dbb864df5081a9eebdec0a995b431709",
+      "source_sha256": "db9f6ad2f9f0ae9ecbe6d36930fd385693c8c6aa38ce665f19be74bfeed2abf8",
+      "strict_reload": true,
+      "nominal_exposures": 1536,
+      "corrective_exposures": 512,
+      "unique_nominal_windows": 1536,
+      "nominal_offset": 0,
+      "seed": 1931043,
+      "success": 0,
+      "planned": 8,
+      "failures": {
+        "step-budget-exhausted": 8
+      },
+      "evaluation_result_sha256": "e2de3efbb8035bd803843679f0a2bed9ff96b38d476fc1a5d47cdccd0f0d6ca0",
+      "accepted": false
+    },
+    {
+      "id": "coverage-bc-v5-4",
+      "skill_id": 4,
+      "status": "completed",
+      "steps": 512,
+      "checkpoint_sha256": "a2375f7ccb4e7edd3066ff554dd9ef7336107758829ca319733f89f364464d00",
+      "parent_sha256": "488cdd6ad69e4a1e79587f9337ec75430cde1dcc96dbd53dc0678afd2b7eb523",
+      "source_sha256": "b97dcdd0bca5832b2a99709d809f96e1b4ee237c16b00357a8c49398322597a2",
+      "strict_reload": true,
+      "nominal_exposures": 2048,
+      "corrective_exposures": 0,
+      "unique_nominal_windows": 2048,
+      "nominal_offset": 2048,
+      "seed": 1930046,
+      "success": 7,
+      "planned": 8,
+      "failures": {
+        "step-budget-exhausted": 1
+      },
+      "evaluation_result_sha256": "c60c3e7d4527a4f2f2da335709895a000e12fc0f20db27f62ddfcf02f1d1b73c",
+      "accepted": false
+    },
+    {
+      "id": "coverage-bc-v5-5",
+      "skill_id": 5,
+      "status": "completed",
+      "steps": 512,
+      "checkpoint_sha256": "2076674d2aa1aacbb3f08a21afb924d6ece268266fed2e6c6efd8242749b78b8",
+      "parent_sha256": "3211075994bd904a30d5e42b958668c2c977c2af0bdb681f72e698a4547051bb",
+      "source_sha256": "b97dcdd0bca5832b2a99709d809f96e1b4ee237c16b00357a8c49398322597a2",
+      "strict_reload": true,
+      "nominal_exposures": 2048,
+      "corrective_exposures": 0,
+      "unique_nominal_windows": 1863,
+      "nominal_offset": 2048,
+      "seed": 1930047,
+      "success": 6,
+      "planned": 8,
+      "failures": {
+        "skill-invariant-failure": 1,
+        "step-budget-exhausted": 1
+      },
+      "evaluation_result_sha256": "60324500341d343dfe898c514c476313ca03660097851fa9345992849ecb8e89",
+      "accepted": false
+    }
+  ],
+  "source_manifests": {
+    "v1": "bc5a295788d887cec5f4c6f9049a125c9806d6f55b5cd17086da4ab2d2802f10",
+    "v2": "26bf440156d6fd89c9f2221382a8de2937a0dc85ca1b67c8736869f822475da8",
+    "v3": "d310d4c4e98844b9a27cc6a4703f45b71036fa9c29830e56db1207fa7add984c",
+    "v4": "db9f6ad2f9f0ae9ecbe6d36930fd385693c8c6aa38ce665f19be74bfeed2abf8",
+    "v5": "b97dcdd0bca5832b2a99709d809f96e1b4ee237c16b00357a8c49398322597a2"
+  },
+  "tests": {
+    "v3": {
+      "exit_code": 0,
+      "tail": "14 passed in 3.39s"
+    },
+    "v4": {
+      "exit_code": 0,
+      "tail": "16 passed in 3.91s"
+    },
+    "v5": {
+      "exit_code": 0,
+      "tail": "21 passed in 3.35s"
+    }
+  },
+  "pilot": [
+    {
+      "skill_id": 0,
+      "planned": 6,
+      "recovered": 6,
+      "windows": 102
+    },
+    {
+      "skill_id": 1,
+      "planned": 6,
+      "recovered": 6,
+      "windows": 64
+    },
+    {
+      "skill_id": 2,
+      "planned": 6,
+      "recovered": 4,
+      "windows": 67
+    },
+    {
+      "skill_id": 3,
+      "planned": 6,
+      "recovered": 6,
+      "windows": 89
+    },
+    {
+      "skill_id": 4,
+      "planned": 6,
+      "recovered": 6,
+      "windows": 138
+    },
+    {
+      "skill_id": 5,
+      "planned": 6,
+      "recovered": 6,
+      "windows": 122
+    },
+    {
+      "skill_id": 6,
+      "planned": 6,
+      "recovered": 6,
+      "windows": 16
+    }
+  ],
+  "corrective_aggregates": [
+    {
+      "skill_id": 0,
+      "round": 1,
+      "planned": 24,
+      "recovered": 20,
+      "windows": 387
+    },
+    {
+      "skill_id": 1,
+      "round": 1,
+      "planned": 24,
+      "recovered": 23,
+      "windows": 327
+    },
+    {
+      "skill_id": 4,
+      "round": 1,
+      "planned": 24,
+      "recovered": 19,
+      "windows": 486
+    },
+    {
+      "skill_id": 5,
+      "round": 1,
+      "planned": 24,
+      "recovered": 20,
+      "windows": 456
+    }
+  ]
+}
