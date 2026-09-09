@@ -32,7 +32,7 @@ def test_measurement_to_expert_chunk():
     frame,pose,net,pipeline=inputs();base,c,p,noise,mask=setup_expert();expert=PrecisionActionExpert(base)
     tcp=pose.copy();tcp[0,3]-=.02
     result=pipeline.predict(expert,c,p,noise,mask,frame,tcp,episode='e',target='cube',now_s=lambda:1.,tcp_timestamp_s=1.)
-    assert result['condition'].reason=='valid' and result['measurement'].source=='precision-rgbd-keypoints/v1'
+    assert result['condition'].reason=='valid' and result['measurement'].source=='precision-rgb-keypoints-pnp/v1'
     assert result['action'].shape==(1,16,7) and torch.isfinite(result['action']).all()
     assert net.calls==1
 
@@ -44,6 +44,7 @@ def test_measurement_to_expert_chunk():
 def test_bad_frame_time_rejected_before_network(field,value,reason):
     from dataclasses import replace
     frame,pose,net,pipeline=inputs();frame=replace(frame,**{field:value})
+    pipeline.method='old-corner-depth'
     measurement,condition=pipeline.condition(frame,pose,episode='e',target='cube',now_s=1.,tcp_timestamp_s=1.)
     assert condition.reason==reason and condition.features[6]==0 and net.calls==0
 
@@ -66,3 +67,12 @@ def test_inference_time_counts_toward_observation_age():
     with pytest.raises(TimeoutError):
         pipeline.predict(PrecisionActionExpert(base),c,p,noise,mask,frame,pose,
                          episode='e',target='cube',now_s=lambda:next(ticks),tcp_timestamp_s=1.)
+
+
+def test_default_pnp_ignores_missing_depth_and_its_timestamp():
+    from dataclasses import replace
+    frame,pose,_,pipeline=inputs()
+    frame=replace(frame,depth_m=np.full_like(frame.depth_m,np.nan),depth_timestamp_s=-10.)
+    measurement,condition=pipeline.condition(frame,pose,episode='e',target='cube',now_s=1.,tcp_timestamp_s=1.)
+    assert condition.reason=='valid'
+    np.testing.assert_allclose(measurement.base_from_object,pose,atol=1e-5)

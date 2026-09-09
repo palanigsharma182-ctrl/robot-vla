@@ -23,8 +23,9 @@ def condition_tensor(conditions,proprio,mode):
     if mode not in ('baseline','oracle','measured'):raise ValueError('未知对照模式')
     if mode=='baseline':return proprio.new_zeros((proprio.shape[0],CONDITION_DIM))
     if conditions is None or len(conditions)!=proprio.shape[0]:raise ValueError('每个样本须绑定一个几何条件')
-    expected='oracle-diagnostic/v1' if mode=='oracle' else 'precision-rgbd-keypoints/v1'
-    if any(c.source!=expected for c in conditions):raise ValueError('Oracle 与实测几何不能混用')
+    expected={'oracle-diagnostic/v1'} if mode=='oracle' else {
+        'precision-rgbd-keypoints/v1','precision-rgb-keypoints-pnp/v1','precision-rgbd-keypoints-pnp-refine/v1'}
+    if any(c.source not in expected for c in conditions):raise ValueError('Oracle 与实测几何不能混用')
     value=proprio.new_tensor([c.features for c in conditions])
     if value.shape!=(proprio.shape[0],CONDITION_DIM) or not torch.isfinite(value).all():raise ValueError('几何条件必须有限[B,8]')
     if bool(((value[:,6]!=0)&(value[:,6]!=1)).any()) or bool(((value[:,7]<0)|(value[:,7]>1)).any()):

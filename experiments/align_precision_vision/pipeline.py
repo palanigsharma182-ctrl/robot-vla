@@ -4,8 +4,9 @@ import math
 import numpy as np
 import torch
 from experiments.align_precision_vision.geometry import (
-    GeometrySpec, PoseMeasurement, measure_keypoints, align_condition, yaw_symmetries,
+    GeometrySpec, PoseMeasurement, align_condition, yaw_symmetries,
 )
+from experiments.align_precision_vision.pose_recovery import recover_pose, PnPSpec, METHODS, SOURCES
 
 
 @dataclass(frozen=True)
@@ -35,29 +36,33 @@ class PrecisionFrame:
 
 class AlignPrecisionPipeline:
     """仅适用单个已知4cm方块；target身份由上层目标关联提供，不在这里猜测。"""
-    def __init__(self,localizer,object_from_pregrasp,*,spec=GeometrySpec()):
+    def __init__(self,localizer,object_from_pregrasp,*,spec=GeometrySpec(),method='pnp-only',pnp_spec=PnPSpec()):
         from experiments.tcp_memory_control.geometry import pose
         self.localizer=localizer;self.grasp=pose(object_from_pregrasp);self.spec=spec
+        if method not in METHODS:raise ValueError('未知位姿恢复方法')
+        self.method=method;self.pnp_spec=pnp_spec
         if not np.allclose(self.grasp[:2,3],0,atol=1e-7) or not np.isclose(abs(self.grasp[2,2]),1,atol=1e-7):
             raise ValueError('第一版四重对称只支持沿物体Z轴的中央抓取前目标')
 
     @torch.no_grad()
     def condition(self,frame,base_from_tcp,*,episode,target,now_s,tcp_timestamp_s):
-        times=(frame.timestamp_s,frame.depth_timestamp_s,frame.calibration_timestamp_s)
+        times=(frame.timestamp_s,frame.calibration_timestamp_s)
+        if self.method!='pnp-only':times=times+(frame.depth_timestamp_s,)
         current_time=float(now_s() if callable(now_s) else now_s)
         if not math.isfinite(current_time):raise ValueError('当前时间必须有限')
         if max(times)>current_time+1e-9:
-            measurement=PoseMeasurement(frame.episode,frame.target,frame.timestamp_s,None,'future_observation')
+            measurement=PoseMeasurement(frame.episode,frame.target,frame.timestamp_s,None,'future_observation',SOURCES[self.method])
         elif max(times)-min(times)>self.spec.max_sensor_skew_s:
-            measurement=PoseMeasurement(frame.episode,frame.target,frame.timestamp_s,None,'rgbd_calibration_skew')
+            measurement=PoseMeasurement(frame.episode,frame.target,frame.timestamp_s,None,'rgbd_calibration_skew',SOURCES[self.method])
         else:
             self.localizer.eval()
             device=next(self.localizer.parameters()).device
             rgb=torch.from_numpy(np.ascontiguousarray(frame.rgb.transpose(2,0,1))).to(device=device,dtype=torch.float32)[None]/255
             output=self.localizer(rgb);uv,visibility=output.decode()
-            measurement=measure_keypoints(uv[0].cpu().numpy(),visibility[0].cpu().numpy(),frame.depth_m,
-                frame.intrinsic,frame.base_from_camera_cv,episode=frame.episode,target=frame.target,
-                timestamp_s=frame.timestamp_s,spec=self.spec)
+            measurement=recover_pose(uv[0].cpu().numpy(),visibility[0].cpu().numpy(),
+                frame.intrinsic,frame.base_from_camera_cv,image_shape=frame.rgb.shape[:2],
+                episode=frame.episode,target=frame.target,timestamp_s=frame.timestamp_s,spec=self.spec,
+                method=self.method,pnp_spec=self.pnp_spec,depth_m=frame.depth_m,rgb=frame.rgb)
         condition=align_condition(measurement,base_from_tcp,self.grasp,episode=episode,target=target,
             now_s=float(now_s() if callable(now_s) else now_s),tcp_timestamp_s=tcp_timestamp_s,spec=self.spec,symmetries=yaw_symmetries())
         return measurement,condition
